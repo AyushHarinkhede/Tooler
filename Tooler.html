@@ -709,8 +709,8 @@ body.tool-view-open .main-content {
             </div>
             <div class="calc-display" id="calc-display">0</div>
             <div class="calc-buttons">
-                <button class="btn-clear" onclick="app.calc.clear()">C</button>
-                <button onclick="app.calc.backspace()">⌫</button>
+                <button class="btn-clear" onclick="app.calc.clear()">Clear</button>
+                <button onclick="app.calc.backspace()"><h><b><i>⌫</i></b></h></button>
                 <button class="btn-operation" onclick="app.calc.append('%')">%</button>
                 <button class="btn-operation" onclick="app.calc.append('/')">÷</button>
                 <button onclick="app.calc.append('7')">7</button>
@@ -730,10 +730,11 @@ body.tool-view-open .main-content {
                 <button class="btn-calculate" onclick="app.calc.calculate()">=</button>
             </div>
             <div class="calc-controls">
-                <button class="btn-accent" onclick="app.showModal('history')">History</button>
-                <button class="btn-accent" onclick="app.showModal('scientific')">Advanced</button>
+                <button class="btn-accent" onclick="app.showModal('history')"><b><i>History</i></b></button>
+                <button class="btn-accent" onclick="app.showModal('scientific')"><b><i>Advanced</i></b></button>
             </div>
         </div>
+
 
         <!-- Task Display Area -->
         <div class="task-display-area">
