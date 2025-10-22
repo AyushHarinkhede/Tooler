@@ -393,4 +393,429 @@
                 'converters': { name: 'Unit Converters', icon: '📏' },
                 'stopwatch': { name: 'Stopwatch', icon: '⏱️' },
                 'timer': { name: 'Timer', icon: '⏳' },
-                'sizer': { name: 'Sizer Tool', icon: '
+                'sizer': { name: 'Sizer Tool', icon: '💍' },
+                'countdown-tracker': { name: 'Countdown Tracker', icon: '🔢' },
+                'task-manager': { name: 'Task Manager', icon: '📝' },
+                'currency-converter': { name: 'Currency Converter', icon: '💱' },
+                'games': { name: 'Games', icon: '🎮' },
+                'browser': { name: 'Browser', icon: '🌐' }
+            },
+            
+            // --- Render Functions ---
+            renderToolGrid() {
+                this.dom.toolGrid.innerHTML = '';
+                for (const id in this.tools) {
+                    const tool = this.tools[id];
+                    const button = document.createElement('button');
+                    button.className = 'tool-btn';
+                    button.innerHTML = `<span style="font-size: 2em;">${tool.icon}</span> ${tool.name}`;
+                    button.onclick = () => this.showTool(id);
+                    this.dom.toolGrid.appendChild(button);
+                }
+            },
+        };
+
+        // =================================================================
+        // --- 2. HTML TEMPLATES
+        // =================================================================
+        app.templates = {
+            basicCalculator: (display) => `
+                <div class="doodle-box">
+                    <div class="calc-display">${display}</div>
+                    <div class="calc-grid">
+                        <button class="btn-danger" onclick="app.calculator.clear()">C</button>
+                        <button onclick="app.calculator.append('(')">(</button>
+                        <button onclick="app.calculator.append(')')">)</button>
+                        <button class="btn-primary" onclick="app.calculator.append('/')">÷</button>
+                        <button onclick="app.calculator.append('7')">7</button>
+                        <button onclick="app.calculator.append('8')">8</button>
+                        <button onclick="app.calculator.append('9')">9</button>
+                        <button class="btn-primary" onclick="app.calculator.append('*')">×</button>
+                        <button onclick="app.calculator.append('4')">4</button>
+                        <button onclick="app.calculator.append('5')">5</button>
+                        <button onclick="app.calculator.append('6')">6</button>
+                        <button class="btn-primary" onclick="app.calculator.append('-')">-</button>
+                        <button onclick="app.calculator.append('1')">1</button>
+                        <button onclick="app.calculator.append('2')">2</button>
+                        <button onclick="app.calculator.append('3')">3</button>
+                        <button class="btn-primary" onclick="app.calculator.append('+')">+</button>
+                        <button onclick="app.calculator.append('0')">0</button>
+                        <button onclick="app.calculator.append('.')">.</button>
+                        <button class="btn-primary" onclick="app.calculator.calculate()">=</button>
+                        <button onclick="app.calculator.showScientific()">Adv</button>
+                    </div>
+                </div>`,
+
+            scientificCalculator: () => `
+                <div class="modal-content">
+                    <h2>Scientific Calculator</h2>
+                    <p>Advanced functions like sin, cos, tan, log will be here.</p>
+                    <button class="btn-danger" onclick="app.calculator.hideScientific()">Close</button>
+                </div>`,
+            
+            ageCalculator: () => `
+                <div class="input-group"><label for="dob">Your Date of Birth:</label><input type="date" id="dob"></div>
+                <button class="btn-primary" onclick="app.ageCalc.calculate()">Calculate!</button>
+                <div id="ageResult" style="margin-top: 15px;"></div>`,
+            
+            converters: () => `
+                <h4>Length Converter</h4>
+                <div class="input-group"><label>Value:</label><input type="number" id="len-val" oninput="app.converters.convertLength()"></div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="input-group" style="flex:1;"><label>From:</label><select id="len-from" onchange="app.converters.convertLength()"><option value="m">Meters</option><option value="ft">Feet</option><option value="in">Inches</option><option value="cm">Centimeters</option></select></div>
+                    <div class="input-group" style="flex:1;"><label>To:</label><select id="len-to" onchange="app.converters.convertLength()"><option value="ft">Feet</option><option value="m">Meters</option><option value="in">Inches</option><option value="cm">Centimeters</option></select></div>
+                </div>
+                <div id="len-result"></div>`,
+            
+            currencyConverter: () => `
+                <p><strong>Note:</strong> This requires a real-time API. Using mock data for now.</p>
+                <div style="display: flex; gap: 10px;">
+                    <div class="input-group" style="flex:2;"><label>Amount</label><input type="number" id="curr-amount" value="100" oninput="app.currency.convert()"></div>
+                    <div class="input-group" style="flex:1;"><label>From</label><select id="curr-from" onchange="app.currency.convert()"><option>USD</option><option>EUR</option><option>INR</option></select></div>
+                    <div class="input-group" style="flex:1;"><label>To</label><select id="curr-to" onchange="app.currency.convert()"><option>INR</option><option>USD</option><option>EUR</option></select></div>
+                </div>
+                <h3 id="curr-result" style="text-align: center; margin-top: 15px;"></h3>`,
+
+            globalNotification: (type, time, handler) => `
+                <span>${type} Running: <strong>${time}</strong></span>
+                <div>
+                    <button onclick="app.${handler}.toggle()">Pause</button>
+                    <button class="btn-danger" onclick="app.${handler}.reset()">Reset</button>
+                </div>`,
+            
+            sizer: () => `
+                <p>Sizer tool for rings, bangles, and watches will be implemented here.</p>
+                <div class="input-group">
+                    <label>Gender:</label>
+                    <select><option>Male</option><option>Female</option></select>
+                </div>`,
+            
+            browser: () => `
+                <div class="input-group" style="display:flex; gap:10px;">
+                    <input type="text" id="browser-url" placeholder="https://example.com" value="https://www.google.com/webhp?igu=1">
+                    <button class="btn-primary" onclick="app.browser.go()">Go</button>
+                </div>
+                <iframe id="browser-frame" style="width: 100%; height: 400px; border: 2px solid var(--doodle-border);"></iframe>
+                `,
+            
+            gameSelection: () => `
+                <div class="game-selection-grid">
+                    <div class="game-card" onclick="app.games.startGame('ttt')"><span class="game-card-icon">#️⃣</span><h3>Tic-Tac-Toe</h3></div>
+                    <div class="game-card" onclick="app.games.startGame('snake')"><span class="game-card-icon">🐍</span><h3>Snake</h3></div>
+                    <div class="game-card" onclick="app.games.startGame('ludo')"><span class="game-card-icon">🎲</span><h3>Ludo</h3></div>
+                    <div class="game-card" onclick="app.games.startGame('uno')"><span class="game-card-icon">🃏</span><h3>UNO</h3></div>
+                    <div class="game-card" onclick="app.games.startGame('stack')"><span class="game-card-icon">堆</span><h3>Stack Card</h3></div>
+                </div>
+                <div id="game-board-area" style="margin-top: 20px;"></div>
+                `,
+            
+            authModal: () => `
+                <div class="modal-content">
+                    <div id="login-view">
+                        <h2>Login</h2>
+                        <div class="input-group"><label for="login-email">Email:</label><input type="email" id="login-email"></div>
+                        <div class="input-group password-group">
+                            <label for="login-password">Password:</label><input type="password" id="login-password">
+                            <button class="password-toggle" onclick="app.auth.togglePassword(this, 'login-password')">👁️</button>
+                        </div>
+                        <p><a href="#" class="auth-toggle-link" onclick="app.auth.showForgotPassword()">Forgot Password?</a></p>
+                        <button class="btn-primary" style="width:100%; margin-top:10px;">Login</button>
+                        <p style="text-align:center; margin-top:15px;">Don't have an account? <a href="#" class="auth-toggle-link" onclick="app.auth.showSignup()">Sign Up</a></p>
+                    </div>
+
+                    <div id="signup-view" style="display:none;">
+                        <h2>Sign Up</h2>
+                        <div class="input-group"><label for="signup-email">Email:</label><input type="email" id="signup-email"></div>
+                        <div class="input-group password-group">
+                            <label for="signup-password">Password:</label><input type="password" id="signup-password">
+                            <button class="password-toggle" onclick="app.auth.togglePassword(this, 'signup-password')">👁️</button>
+                        </div>
+                        <button class="btn-primary" style="width:100%;">Create Account</button>
+                        <p style="text-align:center; margin-top:15px;">Already have an account? <a href="#" class="auth-toggle-link" onclick="app.auth.showLogin()">Login</a></p>
+                    </div>
+
+                    <div class="social-login-divider"><span>OR</span></div>
+                    <div class="social-login-buttons">
+                        <button class="social-btn" title="Login with Google">G</button>
+                        <button class="social-btn" title="Login with Facebook">f</button>
+                        <button class="social-btn" title="Login with Apple"></button>
+                        <button class="social-btn" title="Login with Microsoft">M</button>
+                    </div>
+                    <button class="btn-danger" style="width:100%; margin-top:20px;" onclick="app.auth.hide()">Close</button>
+                </div>`,
+        };
+
+        // =================================================================
+        // --- 3. MODULES (Clock, Calculator, Tools, etc.)
+        // =================================================================
+
+        // --- Clock ---
+        app.clock = {
+            interval: null,
+            start() { this.interval = setInterval(this.update, 1000); this.update(); },
+            update() {
+                const now = new Date();
+                app.dom.time.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                app.dom.date.textContent = now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+            }
+        };
+
+        // --- Calculator ---
+        app.calculator = {
+            expression: '0',
+            render(target) {
+                if (target === 'sticky') {
+                    app.dom.stickyCalculator.innerHTML = app.templates.basicCalculator(this.expression);
+                }
+            },
+            append(val) {
+                if (this.expression === '0') this.expression = '';
+                this.expression += val;
+                this.updateDisplay();
+            },
+            clear() { this.expression = '0'; this.updateDisplay(); },
+            calculate() {
+                try {
+                    let evalExpr = this.expression.replace(/÷/g, '/').replace(/×/g, '*');
+                    this.expression = eval(evalExpr).toString();
+                } catch { this.expression = 'Error'; }
+                this.updateDisplay();
+            },
+            updateDisplay() {
+                document.querySelector('#sticky-calculator-container .calc-display').textContent = this.expression;
+            },
+            showScientific() {
+                app.dom.sciCalcModal.innerHTML = app.templates.scientificCalculator();
+                app.dom.sciCalcModal.style.display = 'flex';
+            },
+            hideScientific() { app.dom.sciCalcModal.style.display = 'none'; },
+        };
+
+        // --- Age Calculator ---
+        app.ageCalc = {
+            calculate() {
+                const dob = new Date(document.getElementById('dob').value);
+                const resultEl = document.getElementById('ageResult');
+                if (!dob) { resultEl.textContent = "Please select a date."; return; }
+                const age = new Date(Date.now() - dob.getTime());
+                const years = Math.abs(age.getUTCFullYear() - 1970);
+                resultEl.textContent = `You are ${years} years old.`;
+            }
+        };
+
+        // --- Converters ---
+        app.converters = {
+            convertLength() {
+                const val = parseFloat(document.getElementById('len-val').value);
+                const from = document.getElementById('len-from').value;
+                const to = document.getElementById('len-to').value;
+                const resultEl = document.getElementById('len-result');
+                if(isNaN(val)) { resultEl.innerHTML = ''; return; }
+
+                const factors = { m: 1, ft: 3.28084, in: 39.3701, cm: 100 };
+                const meters = val / factors[from];
+                const result = meters * factors[to];
+                resultEl.innerHTML = `<strong>Result:</strong> ${result.toFixed(3)} ${to}`;
+            }
+        };
+
+        // --- Currency Converter ---
+        app.currency = {
+             convert() {
+                const amount = document.getElementById('curr-amount').value;
+                const from = document.getElementById('curr-from').value;
+                const to = document.getElementById('curr-to').value;
+                const resultEl = document.getElementById('curr-result');
+                const mockRates = { "USD": 1, "INR": 83.5, "EUR": 0.92 };
+                const result = amount * (mockRates[to] / mockRates[from]);
+                resultEl.textContent = `${result.toFixed(2)} ${to}`;
+             }
+        };
+
+        // --- Stopwatch ---
+        app.stopwatch = {
+            render(container) {
+                 container.innerHTML = `
+                    <div style="font-size: 3em; text-align: center; margin: 20px 0;" id="stopwatch-display">00:00:00</div>
+                    <div style="display: flex; justify-content: center; gap: 10px;">
+                        <button id="sw-toggle-btn" class="btn-primary" onclick="app.stopwatch.toggle()">Start</button>
+                        <button id="sw-lap-btn" onclick="app.stopwatch.lap()">Lap</button>
+                        <button class="btn-danger" onclick="app.stopwatch.reset()">Reset</button>
+                    </div>
+                    <ul id="lap-list" style="list-style-type: decimal; padding-left: 20px; margin-top: 20px;"></ul>`;
+                this.updateDisplay();
+            },
+            toggle() {
+                if (app.timerState.interval) { // Pausing
+                    clearInterval(app.timerState.interval);
+                    app.timerState.interval = null;
+                    document.getElementById('sw-toggle-btn').textContent = 'Resume';
+                } else { // Starting/Resuming
+                    app.timerState.type = 'stopwatch';
+                    app.timerState.startTime = Date.now() - app.timerState.elapsed;
+                    app.timerState.interval = setInterval(this.update, 10);
+                    document.getElementById('sw-toggle-btn').textContent = 'Pause';
+                }
+            },
+            reset() {
+                clearInterval(app.timerState.interval);
+                app.timerState = { type: null, interval: null, elapsed: 0, startTime: 0, totalSeconds: 0 };
+                app.hideGlobalNotification();
+                if(document.getElementById('stopwatch-display')) {
+                    document.getElementById('stopwatch-display').textContent = '00:00:00';
+                    document.getElementById('sw-toggle-btn').textContent = 'Start';
+                    document.getElementById('lap-list').innerHTML = '';
+                }
+            },
+            update() {
+                app.timerState.elapsed = Date.now() - app.timerState.startTime;
+                app.stopwatch.updateDisplay();
+            },
+            updateDisplay() {
+                 if(document.getElementById('stopwatch-display')) {
+                    document.getElementById('stopwatch-display').textContent = this.formatTime();
+                 }
+            },
+            formatTime() {
+                const time = new Date(app.timerState.elapsed);
+                const mins = String(time.getUTCMinutes()).padStart(2, '0');
+                const secs = String(time.getUTCSeconds()).padStart(2, '0');
+                const ms = String(time.getUTCMilliseconds()).padStart(3, '0').slice(0, 2);
+                return `${mins}:${secs}:${ms}`;
+            },
+            lap() {
+                const lapList = document.getElementById('lap-list');
+                if (!lapList) return;
+                const li = document.createElement('li');
+                li.textContent = this.formatTime();
+                lapList.prepend(li);
+            }
+        };
+
+        // --- Timer ---
+        app.timer = {
+            render(container) {
+                container.innerHTML = `
+                <div id="timer-inputs" class="input-group" style="display:flex; gap:10px; justify-content:center;">
+                    <input type="number" id="timer-min" placeholder="MM" min="0" max="99" style="width: 80px;">
+                    <input type="number" id="timer-sec" placeholder="SS" min="0" max="59" style="width: 80px;">
+                </div>
+                <div style="font-size: 3em; text-align: center; margin: 20px 0;" id="timer-display">00:00</div>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button id="timer-toggle-btn" class="btn-primary" onclick="app.timer.toggle()">Start</button>
+                    <button class="btn-danger" onclick="app.timer.reset()">Reset</button>
+                </div>`;
+                this.updateDisplay();
+            },
+            toggle() {
+                if (app.timerState.interval) { // Pausing
+                    clearInterval(app.timerState.interval);
+                    app.timerState.interval = null;
+                    document.getElementById('timer-toggle-btn').textContent = 'Resume';
+                } else { // Starting/Resuming
+                    if (app.timerState.totalSeconds <= 0) {
+                        const min = parseInt(document.getElementById('timer-min').value) || 0;
+                        const sec = parseInt(document.getElementById('timer-sec').value) || 0;
+                        app.timerState.totalSeconds = (min * 60) + sec;
+                    }
+                    if (app.timerState.totalSeconds <= 0) return;
+                    
+                    app.timerState.type = 'timer';
+                    app.timerState.interval = setInterval(this.update, 1000);
+                    document.getElementById('timer-toggle-btn').textContent = 'Pause';
+                }
+            },
+            reset() {
+                clearInterval(app.timerState.interval);
+                app.timerState = { type: null, interval: null, elapsed: 0, startTime: 0, totalSeconds: 0 };
+                app.hideGlobalNotification();
+                if(document.getElementById('timer-display')) {
+                    document.getElementById('timer-display').textContent = '00:00';
+                    document.getElementById('timer-toggle-btn').textContent = 'Start';
+                }
+            },
+            update() {
+                app.timerState.totalSeconds--;
+                app.timer.updateDisplay();
+                if (app.timerState.totalSeconds <= 0) {
+                    alert('Time is up!');
+                    app.timer.reset();
+                }
+            },
+            updateDisplay() {
+                 if(document.getElementById('timer-display')) {
+                    document.getElementById('timer-display').textContent = this.formatTime();
+                 }
+            },
+            formatTime() {
+                const mins = String(Math.floor(app.timerState.totalSeconds / 60)).padStart(2, '0');
+                const secs = String(app.timerState.totalSeconds % 60).padStart(2, '0');
+                return `${mins}:${secs}`;
+            }
+        };
+
+        // --- Task Manager ---
+        app.tasks = {
+            render(container) {
+                // Render inside the tool view
+                if (container) {
+                    container.innerHTML = `
+                        <div class="input-group" style="display:flex; gap:10px;">
+                            <input type="text" id="new-task-input" placeholder="e.g., Buy milk">
+                            <button class="btn-primary" onclick="app.tasks.add()">Add Task</button>
+                        </div>
+                        <ul id="tool-task-list" style="list-style: none;"></ul>`;
+                    this.renderList(document.getElementById('tool-task-list'));
+                }
+                // Always render the main page list
+                this.renderList(app.dom.mainTaskList);
+            },
+            renderList(listElement) {
+                if (!listElement) return;
+                listElement.innerHTML = '';
+                if(app.tasks.length === 0 && listElement.id === 'main-task-list') {
+                     listElement.innerHTML = '<p>No tasks yet. Add one from the Task Manager tool!</p>';
+                     return;
+                }
+                app.tasks.forEach((task, index) => {
+                    const li = document.createElement('li');
+                    li.className = task.completed ? 'completed' : '';
+                    li.innerHTML = `
+                        <input type="checkbox" onchange="app.tasks.toggle(${index})" ${task.completed ? 'checked' : ''}>
+                        <span class="task-text">${task.text}</span>
+                        <button class="btn-danger delete-task-btn" onclick="app.tasks.remove(${index})">X</button>`;
+                    listElement.appendChild(li);
+                });
+            },
+            add() {
+                const input = document.getElementById('new-task-input');
+                if (input.value.trim() === '') return;
+                app.tasks.push({ text: input.value, completed: false });
+                input.value = '';
+                this.render();
+            },
+            remove(index) {
+                app.tasks.splice(index, 1);
+                this.render();
+            },
+            toggle(index) {
+                app.tasks[index].completed = !app.tasks[index].completed;
+                this.render();
+            }
+        };
+        
+        // --- Countdown Tracker ---
+        app.counters = {
+            render(container) {
+                if (!container) return;
+                container.innerHTML = `
+                    <div class="input-group" style="display:flex; gap:10px;">
+                        <input type="text" id="new-counter-name" placeholder="e.g., Cups of Coffee">
+                        <button class="btn-primary" onclick="app.counters.add()">Add Counter</button>
+                    </div>
+                    <div id="counters-list"></div>`;
+                const list = container.querySelector('#counters-list');
+                list.innerHTML = '';
+                app.counters.forEach((counter, index) => {
+                    const item = document.createElement('div');
+                    item.className
