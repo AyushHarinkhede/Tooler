@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="doodle">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tooler - Your Doodle Toolkit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        /*
+        ========================================
+        --- DOODLE ART THEME & CORE STYLES ---
+        ========================================
+        */
+        :root {
+            --doodle-bg: #fdf5e6; /* Old paper */
+            --doodle-text: #3a3a3a;
+            --doodle-primary: #ff6b6b; /* Coral red */
+            --doodle-secondary: #4ecdc4; /* Teal */
+            --doodle-accent: #f9d423; /* Yellow */
+            --doodle-border: #3a3a3a;
+            --font-main: 'Kalam', cursive;
+            --shadow-color: rgba(0,0,0,0.15);
+            --note-bg: #fffbe8; /* Sticky note yellow */
+            --line-color: rgba(147, 184, 212, 0.3);
+            --tape-color: rgba(255, 255, 126, 0.5);
+        }
+
+        html[data-theme="dark"] {
+            --doodle-bg: #2c3e50;
+            --doodle-text: #ecf0f1;
+            --doodle-primary: #e74c3c;
+            --doodle-secondary: #1abc9c;
+            --doodle-accent: #f1c40f;
+            --doodle-border: #ecf0f1;
+            --note-bg: #34495e;
+            --shadow-color: rgba(0,0,0,0.4);
+            --line-color: rgba(236, 240, 241, 0.2);
+            --tape-color: rgba(241, 196, 15, 0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--doodle-bg);
+            color: var(--doodle-text);
+            font-size: 16px;
+            transition: background-color 0.3s, color 0.3s;
+            overflow-x: hidden;
+            font-weight: 400;
+            /* Coded Notebook Paper Background */
+            background-image:
+                repeating-linear-gradient(var(--doodle-bg) 0px, var(--doodle-bg) 24px, var(--line-color) 25px),
+                linear-gradient(to right, var(--doodle-bg) 0px, var(--doodle-bg) 49px, #ff6b6b44 50px);
+            background-size: 100% 25px, 100% 100%;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+        
+        /*
+        ========================================
+        --- HEADER & TOP MARGIN ---
+        ========================================
+        */
+        .main-header {
+            border-bottom: 3px double var(--doodle-primary);
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .title-area { display: flex; align-items: center; gap: 15px; }
+        .title-area .bookmark-pin { font-size: 2.5em; transform: rotate(-15deg); color: var(--doodle-primary); }
+        .main-header h1 {
+            font-size: 4em; color: var(--doodle-text); font-weight: 700;
+            background: var(--note-bg); padding: 5px 15px;
+            border: 2px solid var(--doodle-border);
+            box-shadow: 2px 2px 0 var(--doodle-border);
+            transform: rotate(-2deg);
+        }
+        .header-info-controls { display: flex; align-items: center; gap: 20px; }
+        .time-widget { text-align: right; }
+        .time-widget .greeting { font-size: 1.1em; font-weight: 700; }
+        .time-widget .time { font-size: 1.5em; font-weight: 700; }
+        .time-widget .date { font-size: 1em; }
+        
+        .header-buttons { display: flex; align-items: center; gap: 10px; }
+        .header-btn {
+            background: none; border: none; cursor: pointer; color: var(--doodle-text);
+            padding: 5px; transition: transform 0.2s;
+        }
+        .header-btn:hover { transform: scale(1.1) rotate(-5deg); }
+        .header-btn svg { width: 32px; height: 32px; }
+
+        /*
+        ========================================
+        --- STICKY NOTE & CONTAINER STYLES ---
+        ========================================
+        */
+        .tool-container {
+            background: var(--note-bg);
+            border: 1px solid var(--doodle-border);
+            padding: 25px;
+            box-shadow: 5px 5px 15px var(--shadow-color);
+            position: absolute;
+            width: 100%; top: 0; left: 0;
+            transition: transform 0.6s ease-in-out, opacity 0.6s;
+            backface-visibility: hidden; opacity: 1; transform: translateX(0) rotate(1deg);
+        }
+        /* "Tape" effect */
+        .tool-container::before, .tool-container::after {
+            content: '';
+            position: absolute;
+            width: 120px;
+            height: 30px;
+            background: var(--tape-color);
+            border-left: 1px dashed rgba(0,0,0,0.2);
+            border-right: 1px dashed rgba(0,0,0,0.2);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .tool-container::before { top: -15px; left: 30px; transform: rotate(-5deg); }
+        .tool-container::after { top: -10px; right: 50px; transform: rotate(4deg); }
+
+        .tool-container:nth-child(2n) { transform: rotate(-1deg); }
+        .tool-container.hidden {
+            opacity: 0; pointer-events: none; transform: translateX(100%);
+        }
+        #main-view.hidden { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+        
+        .main-content { position: relative; min-height: 600px; }
+
+        .tool-container h2 {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--doodle-primary);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* General Buttons & Inputs */
+        button, .tool-btn {
+            font-family: var(--font-main);
+            border: 2px solid var(--doodle-border);
+            border-radius: 5px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--doodle-text);
+            padding: 12px 18px;
+            background: #fff;
+            box-shadow: 2px 2px 0px var(--doodle-border);
+        }
+        button:hover, .tool-btn:hover { transform: translateY(-2px); box-shadow: 4px 4px 0px var(--doodle-border); }
+        button:active, .tool-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+        
+        .btn-calculate { background-color: var(--doodle-secondary); color: white; border-color: var(--doodle-secondary); }
+        .btn-clear, .back-btn { background-color: var(--doodle-primary); color: white; border-color: var(--doodle-primary); }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; font-size: 1.2em; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 12px; border: 2px solid var(--doodle-border);
+            border-radius: 5px; font-size: 1.1em; background: #fff; color: var(--doodle-text);
+            font-family: var(--font-main);
+        }
+
+        .result {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 2px dashed var(--doodle-border);
+        }
+        .result-text { font-size: 1.2em; font-weight: 700; white-space: pre-wrap; }
+
+        /*
+        ========================================
+        --- TOOL SPECIFIC STYLES ---
+        ========================================
+        */
+        
+        /* Main Tool Selection */
+        .tool-selection-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px;
+        }
+        .tool-btn {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 10px; padding: 20px; font-size: 1.3em;
+            background: linear-gradient(135deg, var(--doodle-accent), #f7e174);
+            text-align: center;
+        }
+        .tool-btn svg { width: 40px; height: 40px; }
+
+        /* Games Section */
+        #game-options-panel {
+            background: #fff; padding: 15px; border: 2px dashed var(--doodle-border);
+            border-radius: 8px; margin: 20px 0;
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
+        }
+        .game-mode-selector { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        .game-mode-selector input[type="radio"] { display: none; }
+        .game-mode-selector label {
+            padding: 10px 20px; border: 2px solid var(--doodle-border); border-radius: 5px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .game-mode-selector input[type="radio"]:checked + label {
+            background: var(--doodle-accent);
+            box-shadow: 2px 2px 0 var(--doodle-border);
+            transform: translateY(-2px);
+        }
+        #tic-tac-toe-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 20px auto; aspect-ratio: 1 / 1; }
+        .ttt-cell {
+            width: 100%; height: 100%; background: #fff; border: 3px solid var(--doodle-border);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 3em; font-weight: bold; cursor: pointer; color: var(--doodle-primary);
+        }
+        #game-board-area .coming-soon {
+            font-size: 2em; text-align: center; padding: 50px;
+            background: #fff; border: 2px dashed var(--doodle-border);
+        }
+        #game-board-area .coming-soon-icon { font-size: 4em; display: block; margin-bottom: 20px; }
+        
+        /* Modal & Settings */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none; justify-content: center;
+            align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--note-bg); padding: 25px; border: 2px solid var(--doodle-border);
+            width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-height: 80vh; display: flex; flex-direction: column;
+            transform: rotate(-1deg);
+        }
+        .color-palette { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .color-swatch {
+            width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+            border: 2px solid var(--doodle-border);
+        }
+        .color-swatch.active { border-width: 4px; transform: scale(1.1); }
+        
+        /* Floating Stationery */
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(var(--r-start)); }
+            50% { transform: translateY(-20px) rotate(var(--r-end)); }
+        }
+        .floating-item {
+            position: fixed; z-index: 0;
+            color: var(--doodle-primary);
+            opacity: 0.6;
+            animation: float 6s ease-in-out infinite;
+        }
+        .item-1 { top: 15%; left: 5%; --r-start: 25deg; --r-end: 15deg; animation-duration: 7s; }
+        .item-2 { top: 80%; left: 10%; --r-start: -15deg; --r-end: -25deg; animation-duration: 5s; }
+        .item-3 { top: 20%; right: 8%; --r-start: 10deg; --r-end: 20deg; animation-duration: 8s; }
+        .item-4 { bottom: 10%; right: 15%; --r-start: -30deg; --r-end: -20deg; animation-duration: 6s; }
+
+    </style>
+</head>
+<body>
+
+    <div class="floating-item item-1">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5l7.5 7.5-1 1-7.5-7.5 1-1zM14 6l3-3 5 5-3 3-5-5zM9 15l-5 5M12 12l5 5"></path><path d="M7 13l-1.5 1.5"></path></svg>
+    </div>
+    <div class="floating-item item-4">
+        <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+    </div>
+
+
+    <div class="container">
+        <header class="main-header">
+            <div class="title-area">
+                <span class="bookmark-pin">📌</span><h1>Tooler</h1>
+            </div>
+            <div class="header-info-controls">
+                <div class="time-widget">
+                    <div id="greeting" class="greeting"></div>
+                    <div id="time" class="time"></div>
+                    <div id="date" class="date"></div>
+                </div>
+                <div class="header-buttons">
+                     <button class="header-btn" id="theme-toggle-btn" title="Toggle Theme">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                     </button>
+                     <button class="header-btn" id="open-settings-btn" title="Settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .11-.63l-1.8-3.12a.5.5 0 0 0-.61-.22l-2.39 1.04a8.2 8.2 0 0 0-1.6-.94L14.4 3.5a.5.5 0 0 0-.5-.5h-3.8a.5.5 0 0 0-.5.5l-.34 2.68a8.2 8.2 0 0 0-1.6.94l-2.39-1.04a.5.5 0 0 0-.61.22l-1.8 3.12a.5.5 0 0 0 .11.63l2.03 1.58c-.05.3-.07.64-.07.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.11.63l1.8 3.12a.5.5 0 0 0 .61.22l2.39-1.04a8.2 8.2 0 0 0 1.6.94l.34 2.68a.5.5 0 0 0 .5.5h3.8a.5.5 0 0 0 .5-.5l.34-2.68a8.2 8.2 0 0 0 1.6-.94l2.39 1.04a.5.5 0 0 0 .61-.22l1.8-3.12a.5.5 0 0 0-.11-.63l-2.03-1.58z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
+                    <button class="header-btn" id="account-btn" title="Account">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div id="main-view" class="tool-container">
+                 <div class="tool-selection-grid">
+                    </div>
+            </div>
+            
+            <div id="calculator" class="tool-container hidden"></div>
+            <div id="age-calculator" class="tool-container hidden"></div>
+            <div id="converters" class="tool-container hidden"></div>
+            <div id="stopwatch" class="tool-container hidden"></div>
+            <div id="timer" class="tool-container hidden"></div>
+            <div id="games" class="tool-container hidden"></div>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay"></div>
+    <div id="history-modal" class="modal-overlay"></div>
+    <div id="account-modal" class="modal-overlay"></div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // --- DATA & TEMPLATES ---
+        
+        const tools = {
+            'calculator': { name: 'Calculator', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg>' },
+            'age-calculator': { name: 'Age Calc', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>' },
+            'converters': { name: 'Converters', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>' },
+            'stopwatch': { name: 'Stopwatch', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>' },
+            'timer': { name: 'Timer', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2h4"></path><path d="M12 14v-4"></path><path d="M4 14a8 8 0 0 1 16 0H4z"></path><path d="M6 18h12"></path></svg>' },
+            'games': { name: 'Games', icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12M12 18V6"></path><path d="M18 12h-6m-6 0h6m0-6V6m0 12v-6"></path></svg>' },
+        };
+
+        const templates = {
+            'calculator': `
+                <h2>Calculator <button class="back-btn" onclick="app.showMainView()">Back</button></h2>
+                <div id="calcDisplay" style="background: #e0e0e0; border: 2px solid var(--doodle-border); padding: 15px; border-radius: 8px; font-size: 2.5em; text-align: right; margin-bottom: 15px; min-height: 60px; word-wrap: break-word; overflow-x: auto; color: #333; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);">0</div>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                    <button class="btn-clear" onclick="app.calc.clear()">C</button><button onclick="app.calc.backspace()">⌫</button><button class="btn-operation" onclick="app.calc.append('%')">%</button><button class="btn-operation" onclick="app.calc.append('/')">÷</button>
+                    <button onclick="app.calc.append('7')">7</button><button onclick="app.calc.append('8')">8</button><button onclick="app.calc.append('9')">9</button><button class="btn-operation" onclick="app.calc.append('*')">×</button>
+                    <button onclick="app.calc.append('4')">4</button><button onclick="app.calc.append('5')">5</button><button onclick="app.calc.append('6')">6</button><button class="btn-operation" onclick="app.calc.append('-')">-</button>
+                    <button onclick="app.calc.append('1')">1</button><button onclick="app.calc.append('2')">2</button><button onclick="app.calc.append('3')">3</button><button class="btn-operation" onclick="app.calc.append('+')">+</button>
+                    <button onclick="app.calc.append('0')" style="grid-column: span 2;">0</button><button onclick="app.calc.append('.')">.</button><button class="btn-calculate" onclick="app.calc.calculate()">=</button>
+                </div>
+                <div style="display: flex; gap: 10px; margin-top: 15px;"><button onclick="app.toggleHistory(true)" style="flex-grow: 1;">History</button></div>`,
+            'age-calculator': `
+                <h2>Age Calculator <button class="back-btn" onclick="app.showMainView()">Back</button></h2>
+                <div class="input-group"><label for="dob">Your Date of Birth:</label><input type="date" id="dob"></div>
+                <button class="btn-calculate" onclick="app.ageCalc.calculate()">Calculate!</button>
+                <div class="result" id="ageResult" style="display:none;"><div class="result-text" id="ageText"></div></div>`,
+            'converters': `
+                <h2>Unit Converters <button class="back-btn" onclick="app.showMainView()">Back</button></h2>
+                <h4>Temperature</h4>
+                <div class="input-group"><input type="number" id="temp-input" placeholder="Enter temperature" oninput="app.converters.temp()"><select id="temp-from" onchange="app.converters.temp()"><option value="c">Celsius (°C)</option><option value="f">Fahrenheit (°F)</option></select></div>
+                <div class="result"><div class="result-text" id="temp-result">Result appears here</div></div>
+                <hr style="margin: 30px 0; border: none; border-top: 2px dashed var(--doodle-border);">
+                <h4>Weight</h4>
+                <div class="input-group"><input type="number" id="weight-input" oninput="app.converters.weight()"><select id="weight-from" onchange="app.converters.weight()"><option value="kg">Kilogram (kg)</option><option value="g">Gram (g)</option><option value="lb">Pound (lb)</option></select></div>
+                <div class="input-group"><input type="number" id="weight-output" readonly><select id="weight-to" onchange="app.converters.weight()"><option value="lb">Pound (lb)</option><option value="kg">Kilogram (kg)</option><option value="g">Gram (g)</option></select></div>`,
+            'stopwatch': `
+                <h2>Stopwatch <button class="back-btn" onclick="app.showMainView()">Back</button></h2>
+                <div style="font-size: 3em; text-align: center; margin: 20px 0;" id="stopwatch-display">00:00:00</div>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button id="sw-start-btn" class="btn-calculate" onclick="app.stopwatch.start()">Start</button>
+                    <button id="sw-reset-btn" class="btn-clear" onclick="app.stopwatch.reset()">Reset</button>
+                </div>`,
+            'timer': `
+                <h2>Timer <button class="back-btn" onclick="app.showMainView()">Back</button></h2>
+                <div id="timer-inputs" class="input-group" style="display:flex; gap:10px; justify-content:center;">
+                    <input type="number" id="timer-min" placeholder="MM" min="0" max="99" style="width: 80px;" oninput="this.value=this.value.slice(0,2)">
+                    <input type="number" id="timer-sec" placeholder="SS" min="0" max="59" style="width: 80px;" oninput="this.value=this.value.slice(0,2)">
+                </div>
+                <div style="font-size: 3em; text-align: center; margin: 20px 0;" id="timer-display">00:00</div>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button id="timer-start-btn" class="btn-calculate" onclick="app.timer.start()">Start</button>
+                    <button id="timer-reset-btn" class="btn-clear" onclick="app.timer.reset()">Reset</button>
+                </div>`,
+            'games': `
+                <h2>Games <button class="back-btn" onclick="app.showMainView()">Back</button></h2>
+                <div class="input-group" style="text-align: center;">
+                    <label>Choose a game:</label>
+                    <select id="game-select" onchange="app.games.setup()">
+                        <option value="ttt">Tic-Tac-Toe</option><option value="ludo">Ludo</option><option value="uno">UNO</option>
+                    </select>
+                </div>
+                <div id="game-options-panel"></div>
+                <div id="game-board-area" style="text-align:center;"></div>`,
+            'settings-modal': `
+                <div class="modal-content">
+                     <h2>Settings</h2>
+                     <div class="input-group"><label>Theme</label><div class="game-mode-selector"><input type="radio" name="theme" id="theme_light" value="doodle"><label for="theme_light">Light ☀️</label><input type="radio" name="theme" id="theme_dark" value="dark"><label for="theme_dark">Dark 🌙</label></div></div>
+                     <div class="input-group"><label>Accent Color</label><div class="color-palette" id="color-palette"></div></div>
+                     <button id="clear-history-btn" onclick="app.calc.clearHistory()">Clear Calculator History</button>
+                     <button class="back-btn" onclick="app.toggleSettings(false)">Close</button>
+                </div>`,
+            'history-modal': `
+                <div class="modal-content">
+                     <h2>Calculation History</h2>
+                     <div id="history-content" style="flex-grow: 1; overflow-y: auto; background: #fff; border: 2px dashed var(--doodle-border); padding: 10px; color: #333;"></div>
+                     <button class="back-btn" onclick="app.toggleHistory(false)">Close</button>
+                </div>`,
+            'account-modal': `
+                 <div class="modal-content">
+                    <h2>Account</h2>
+                    <div class="input-group"><label for="email">Email:</label><input type="email" id="email" placeholder="you@example.com"></div>
+                    <div class="input-group"><label for="password">Password:</label><input type="password" id="password"></div>
+                    <div style="display:flex; gap: 10px;"><button class="btn-calculate" style="flex-grow:1;">Login</button><button style="flex-grow:1;">Sign Up</button></div>
+                    <button class="back-btn" style="margin-top:15px;" onclick="app.toggleAccount(false)">Close</button>
+                 </div>`
+        };
+
+        // --- CORE APPLICATION LOGIC ---
+        
+        const app = {
+            // --- Initialization ---
+            init() {
+                // Populate tool buttons and containers
+                const mainGrid = document.querySelector('#main-view .tool-selection-grid');
+                for (const id in tools) {
+                    const tool = tools[id];
+                    const button = document.createElement('button');
+                    button.className = 'tool-btn';
+                    button.dataset.tool = id;
+                    button.innerHTML = `${tool.icon} ${tool.name}`;
+                    button.onclick = () => this.showTool(id);
+                    mainGrid.appendChild(button);
+                    document.getElementById(id).innerHTML = templates[id];
+                }
+                
+                // Populate modals
+                document.getElementById('settings-modal').innerHTML = templates['settings-modal'];
+                document.getElementById('history-modal').innerHTML = templates['history-modal'];
+                document.getElementById('account-modal').innerHTML = templates['account-modal'];
+                
+                // Setup event listeners for header buttons
+                document.getElementById('theme-toggle-btn').onclick = () => this.settings.toggleTheme();
+                document.getElementById('open-settings-btn').onclick = () => this.toggleSettings(true);
+                document.getElementById('account-btn').onclick = () => this.toggleAccount(true);
+
+                this.clock.start();
+                this.settings.init();
+                this.calc.init();
+            },
+
+            // --- View Management ---
+            showMainView() {
+                document.querySelectorAll('.tool-container').forEach(c => c.classList.add('hidden'));
+                document.getElementById('main-view').classList.remove('hidden');
+            },
+            showTool(toolId) {
+                document.querySelectorAll('.tool-container').forEach(c => c.classList.add('hidden'));
+                document.getElementById('main-view').classList.add('hidden');
+                document.getElementById(toolId).classList.remove('hidden');
+                if (toolId === 'games') this.games.setup();
+            },
+            toggleSettings: (show) => document.getElementById('settings-modal').style.display = show ? 'flex' : 'none',
+            toggleHistory: (show) => {
+                if (show) app.calc.updateHistoryView();
+                document.getElementById('history-modal').style.display = show ? 'flex' : 'none';
+            },
+            toggleAccount: (show) => document.getElementById('account-modal').style.display = show ? 'flex' : 'none',
+
+            // --- Clock & Greeting ---
+            clock: {
+                interval: null,
+                start() {
+                    this.update();
+                    this.interval = setInterval(() => this.update(), 1000);
+                },
+                update() {
+                    const now = new Date();
+                    const hour = now.getHours();
+                    let greeting = "Good Day! ☀️";
+                    if (hour < 12) greeting = "Good Morning ☀️";
+                    else if (hour < 18) greeting = "Good Afternoon ☕";
+                    else greeting = "Good Evening 🌙";
+                    
+                    document.getElementById('greeting').textContent = greeting;
+                    document.getElementById('time').textContent = now.toLocaleTimeString('en-US');
+                    document.getElementById('date').textContent = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                }
+            },
+
+            // --- Settings ---
+            settings: {
+                init() {
+                    const palette = document.getElementById('color-palette');
+                    const colors = ['#ff6b6b', '#4ecdc4', '#f9d423', '#f08a5d', '#8e44ad', '#3498db'];
+                    colors.forEach(color => {
+                        const swatch = document.createElement('div');
+                        swatch.className = 'color-swatch';
+                        swatch.style.background = color;
+                        swatch.onclick = () => this.setColor(color);
+                        palette.appendChild(swatch);
+                    });
+                    
+                    document.querySelectorAll('input[name="theme"]').forEach(radio => {
+                        radio.onchange = (e) => this.setTheme(e.target.value);
+                    });
+                    
+                    this.setTheme('doodle');
+                    this.setColor(colors[0]);
+                },
+                setTheme(theme) {
+                    document.documentElement.dataset.theme = theme;
+                    document.getElementById('theme_light').checked = theme === 'doodle';
+                    document.getElementById('theme_dark').checked = theme === 'dark';
+                },
+                toggleTheme() {
+                    const current = document.documentElement.dataset.theme;
+                    this.setTheme(current === 'doodle' ? 'dark' : 'doodle');
+                },
+                setColor(color) {
+                    document.documentElement.style.setProperty('--doodle-primary', color);
+                    document.querySelectorAll('.color-swatch').forEach(sw => {
+                        sw.classList.toggle('active', sw.style.backgroundColor === color);
+                    });
+                }
+            },
+            
+            // --- Tool Modules ---
+            calc: {
+                expression: '0',
+                history: [],
+                init() { this.history = JSON.parse(localStorage.getItem('calcHistory')) || []; },
+                updateDisplay() { document.getElementById('calcDisplay').textContent = this.expression; },
+                append(val) {
+                    if (this.expression === '0' || this.expression === 'Error') this.expression = '';
+                    this.expression += val;
+                    this.updateDisplay();
+                },
+                backspace() {
+                    this.expression = this.expression.slice(0, -1);
+                    if (this.expression === '') this.expression = '0';
+                    this.updateDisplay();
+                },
+                clear() { this.expression = '0'; this.updateDisplay(); },
+                calculate() {
+                    try {
+                        let evalExpr = this.expression.replace(/%/g, '/100').replace(/÷/g, '/').replace(/×/g, '*');
+                        const result = eval(evalExpr);
+                        if (isNaN(result) || !isFinite(result)) throw new Error();
+                        this.history.unshift(`${this.expression} = ${result}`);
+                        if (this.history.length > 50) this.history.pop();
+                        localStorage.setItem('calcHistory', JSON.stringify(this.history));
+                        this.expression = result.toString();
+                    } catch { this.expression = 'Error'; }
+                    this.updateDisplay();
+                },
+                updateHistoryView() {
+                    const content = document.getElementById('history-content');
+                    content.innerHTML = this.history.length ? this.history.map(item => `<div>${item}</div>`).join('') : 'History is empty.';
+                },
+                clearHistory() {
+                    this.history = [];
+                    localStorage.removeItem('calcHistory');
+                    this.updateHistoryView();
+                    alert('Calculator history cleared.');
+                }
+            },
+            
+            ageCalc: {
+                calculate() {
+                    const dobVal = document.getElementById('dob').value;
+                    if (!dobVal) return;
+                    const dob = new Date(dobVal), today = new Date();
+                    let years = today.getFullYear() - dob.getFullYear();
+                    let months = today.getMonth() - dob.getMonth();
+                    if (months < 0 || (months === 0 && today.getDate() < dob.getDate())) {
+                        years--; months = (months + 12) % 12;
+                    }
+                    document.getElementById('ageText').innerHTML = `You are ${years} years and ${months} months old.`;
+                    document.getElementById('ageResult').style.display = 'block';
+                }
+            },
+            
+            converters: {
+                temp() {
+                    const val = parseFloat(document.getElementById('temp-input').value);
+                    const from = document.getElementById('temp-from').value;
+                    const resultEl = document.getElementById('temp-result');
+                    if (isNaN(val)) { resultEl.textContent = 'Result appears here'; return; }
+                    let res = (from === 'c') ? `${(val * 9/5 + 32).toFixed(2)} °F` : `${((val - 32) * 5/9).toFixed(2)} °C`;
+                    resultEl.textContent = `${val} °${from.toUpperCase()} is ${res}`;
+                },
+                weight() {
+                    const factors = { kg: 1000, g: 1, lb: 453.592 };
+                    const val = parseFloat(document.getElementById('weight-input').value);
+                    const from = document.getElementById('weight-from').value;
+                    const to = document.getElementById('weight-to').value;
+                    const result = val * factors[from] / factors[to];
+                    document.getElementById('weight-output').value = isNaN(result) ? '' : result.toFixed(3);
+                }
+            },
+            
+            stopwatch: {
+                interval: null, startTime: 0, elapsed: 0,
+                start() {
+                    const btn = document.getElementById('sw-start-btn');
+                    if (this.interval) {
+                        clearInterval(this.interval);
+                        this.interval = null;
+                        btn.textContent = 'Resume';
+                        btn.classList.remove('btn-clear'); btn.classList.add('btn-calculate');
+                    } else {
+                        this.startTime = Date.now() - this.elapsed;
+                        this.interval = setInterval(() => this.update(), 10);
+                        btn.textContent = 'Pause';
+                        btn.classList.remove('btn-calculate'); btn.classList.add('btn-clear');
+                    }
+                },
+                reset() {
+                    clearInterval(this.interval);
+                    this.interval = null; this.elapsed = 0;
+                    document.getElementById('stopwatch-display').textContent = '00:00:00';
+                    document.getElementById('sw-start-btn').textContent = 'Start';
+                },
+                update() {
+                    this.elapsed = Date.now() - this.startTime;
+                    const time = new Date(this.elapsed);
+                    document.getElementById('stopwatch-display').textContent = `${String(time.getUTCMinutes()).padStart(2,'0')}:${String(time.getUTCSeconds()).padStart(2,'0')}:${String(time.getUTCMilliseconds()).padStart(3,'0').slice(0,2)}`;
+                }
+            },
+
+            timer: {
+                interval: null, totalSeconds: 0,
+                start() {
+                    const btn = document.getElementById('timer-start-btn');
+                    if (this.interval) { // Pausing
+                        clearInterval(this.interval);
+                        this.interval = null;
+                        btn.textContent = 'Resume';
+                    } else { // Starting or Resuming
+                        if (this.totalSeconds <= 0) { // If starting fresh
+                            const min = parseInt(document.getElementById('timer-min').value) || 0;
+                            const sec = parseInt(document.getElementById('timer-sec').value) || 0;
+                            this.totalSeconds = min * 60 + sec;
+                        }
+                        if (this.totalSeconds <= 0) return;
+                        
+                        document.getElementById('timer-inputs').style.display = 'none';
+                        btn.textContent = 'Pause';
+                        this.interval = setInterval(() => this.update(), 1000);
+                    }
+                },
+                reset() {
+                    clearInterval(this.interval);
+                    this.interval = null;
+                    this.totalSeconds = 0;
+                    document.getElementById('timer-display').textContent = '00:00';
+                    document.getElementById('timer-inputs').style.display = 'flex';
+                    document.getElementById('timer-start-btn').textContent = 'Start';
+                    document.getElementById('timer-min').value = '';
+                    document.getElementById('timer-sec').value = '';
+                },
+                update() {
+                    this.totalSeconds--;
+                    const min = Math.floor(this.totalSeconds / 60);
+                    const sec = this.totalSeconds % 60;
+                    document.getElementById('timer-display').textContent = `${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+                    if (this.totalSeconds <= 0) {
+                        alert('Time is up!');
+                        this.reset();
+                    }
+                }
+            },
+            
+            games: {
+                setup() {
+                    const game = document.getElementById('game-select').value;
+                    const optionsPanel = document.getElementById('game-options-panel');
+                    const boardArea = document.getElementById('game-board-area');
+                    optionsPanel.innerHTML = ''; boardArea.innerHTML = '';
+                    
+                    if (game === 'ttt') {
+                        optionsPanel.innerHTML = `
+                            <div class="game-mode-selector">
+                                <input type="radio" name="ttt_mode" id="ttt_player" value="player" checked><label for="ttt_player">vs Player</label>
+                                <input type="radio" name="ttt_mode" id="ttt_ai" value="ai"><label for="ttt_ai">vs Computer</label>
+                            </div>`;
+                        boardArea.innerHTML = `<div id="tic-tac-toe-board"></div><div class="result" id="ttt-status"></div><button onclick="app.games.ttt.reset()">Reset Game</button>`;
+                        this.ttt.init();
+                    } else if (game === 'ludo') {
+                        boardArea.innerHTML = `<div class="coming-soon"><span class="coming-soon-icon">🎲</span><p>Ludo is coming soon!</p></div>`;
+                    } else if (game === 'uno') {
+                        boardArea.innerHTML = `<div class="coming-soon"><span class="coming-soon-icon">🃏</span><p>UNO is coming soon!</p></div>`;
+                    }
+                },
+                ttt: {
+                    board: [], currentPlayer: 'X', active: true,
+                    init() {
+                        const boardEl = document.getElementById('tic-tac-toe-board');
+                        boardEl.innerHTML = '';
+                        for (let i = 0; i < 9; i++) {
+                            const cell = document.createElement('div');
+                            cell.className = 'ttt-cell';
+                            cell.dataset.index = i;
+                            cell.onclick = (e) => this.handleCellClick(e);
+                            boardEl.appendChild(cell);
+                        }
+                        this.reset();
+                    },
+                    reset() {
+                        this.board = Array(9).fill(null);
+                        this.currentPlayer = 'X';
+                        this.active = true;
+                        document.querySelectorAll('.ttt-cell').forEach(c => c.textContent = '');
+                        this.updateStatus(`Player X's turn`);
+                    },
+                    updateStatus(msg) { document.getElementById('ttt-status').textContent = msg; },
+                    handleCellClick(e) {
+                        const idx = e.target.dataset.index;
+                        if (!this.active || this.board[idx]) return;
+                        
+                        this.board[idx] = this.currentPlayer;
+                        e.target.textContent = this.currentPlayer;
+                        
+                        const winConditions=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+                        if (winConditions.some(c => c.every(i => this.board[i] === this.currentPlayer))) {
+                            this.updateStatus(`Player ${this.currentPlayer} wins! 🎉`);
+                            this.active = false;
+                            return;
+                        }
+                        if (!this.board.includes(null)) {
+                            this.updateStatus(`It's a draw! 🤝`);
+                            this.active = false;
+                            return;
+                        }
+                        
+                        this.currentPlayer = (this.currentPlayer === 'X') ? 'O' : 'X';
+                        this.updateStatus(`Player ${this.currentPlayer}'s turn`);
+                    }
+                }
+            }
+        };
+
+        // --- Start the application ---
+        app.init();
+        // Make app object globally accessible for inline event handlers
+        window.app = app;
+
+    });
+    </script>
+</body>
+</html>

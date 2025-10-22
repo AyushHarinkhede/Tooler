@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="doodle">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tooler - Your Doodle Toolkit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        /*
+        ========================================
+        --- DOODLE ART THEME & CORE STYLES ---
+        ========================================
+        */
+        :root {
+            --doodle-bg: #fdf5e6; /* Old paper */
+            --doodle-text: #3a3a3a;
+            --doodle-primary: #ff6b6b; /* Coral red */
+            --doodle-secondary: #4ecdc4; /* Teal */
+            --doodle-accent: #f9d423; /* Yellow */
+            --doodle-border: #3a3a3a;
+            --font-main: 'Kalam', cursive;
+            --shadow-color: rgba(0,0,0,0.15);
+            --note-bg: #fffbe8; /* Sticky note yellow */
+        }
+
+        html[data-theme="dark"] {
+            --doodle-bg: #2c3e50;
+            --doodle-text: #ecf0f1;
+            --doodle-primary: #e74c3c;
+            --doodle-secondary: #1abc9c;
+            --doodle-accent: #f1c40f;
+            --doodle-border: #ecf0f1;
+            --note-bg: #34495e;
+            --shadow-color: rgba(0,0,0,0.4);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: var(--font-main);
+            background-color: var(--doodle-bg);
+            background-image: 
+                url('https://www.transparenttextures.com/patterns/paper-fibers.png'),
+                url('https://i.imgur.com/CkeS8y7.png'), /* pencil */
+                url('https://i.imgur.com/nL4m60T.png'); /* clip */
+            background-repeat: repeat, no-repeat, no-repeat;
+            background-position: top left, bottom 50px right 20px, top 250px left 20px;
+            background-attachment: fixed, fixed, fixed;
+            background-size: auto, 150px, 80px;
+            color: var(--doodle-text);
+            font-size: 16px;
+            transition: background 0.3s, color 0.3s;
+            overflow-x: hidden;
+            font-weight: 400;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        
+        /*
+        ========================================
+        --- HEADER & TOP MARGIN ---
+        ========================================
+        */
+        .main-header {
+            border-bottom: 3px double var(--doodle-primary);
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .main-header h1 {
+            font-size: 4em;
+            color: var(--doodle-text);
+            font-weight: 700;
+            text-shadow: 2px 2px 0px #fff;
+        }
+        .header-info-controls { display: flex; align-items: center; gap: 20px; }
+        .time-widget { text-align: right; }
+        .time-widget .time { font-size: 1.5em; font-weight: 700; }
+        .time-widget .date { font-size: 1em; }
+        
+        .header-buttons { display: flex; align-items: center; gap: 10px; }
+        .header-btn {
+            background: none; border: none; cursor: pointer; color: var(--doodle-text);
+            padding: 5px; transition: transform 0.2s;
+        }
+        .header-btn:hover { transform: scale(1.1) rotate(-5deg); }
+        .header-btn svg { width: 32px; height: 32px; }
+
+        /*
+        ========================================
+        --- STICKY NOTE & CONTAINER STYLES ---
+        ========================================
+        */
+        .tool-container {
+            background: var(--note-bg);
+            border: 1px solid var(--doodle-border);
+            padding: 25px;
+            box-shadow: 5px 5px 15px var(--shadow-color);
+            position: absolute;
+            width: 100%; top: 0; left: 0;
+            transition: transform 0.6s, opacity 0.6s;
+            backface-visibility: hidden; opacity: 1; transform: translateX(0) rotate(1deg);
+        }
+        .tool-container:nth-child(2n) { transform: rotate(-1deg); }
+        .tool-container.hidden {
+            opacity: 0; pointer-events: none; transform: translateX(100%);
+        }
+        #main-view.hidden { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+        
+        .main-content { position: relative; min-height: 500px; }
+
+        .tool-container h2 {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--doodle-primary);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .tool-container h2 .tool-icon { margin-right: 15px; }
+
+        /* General Buttons & Inputs */
+        button, .tool-btn {
+            font-family: var(--font-main);
+            border: 2px solid var(--doodle-border);
+            border-radius: 5px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--doodle-text);
+            padding: 12px 18px;
+            background: #fff;
+            box-shadow: 2px 2px 0px var(--doodle-border);
+        }
+        button:active, .tool-btn:active {
+            transform: translate(2px, 2px);
+            box-shadow: none;
+        }
+        
+        .btn-calculate { background-color: var(--doodle-secondary); color: white; border-color: var(--doodle-secondary); }
+        .btn-clear, .back-btn { background-color: var(--doodle-primary); color: white; border-color: var(--doodle-primary); }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; font-size: 1.2em; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 12px; border: 2px solid var(--doodle-border);
+            border-radius: 5px; font-size: 1.1em; background: #fff; color: var(--doodle-text);
+            font-family: var(--font-main);
+        }
+
+        .result {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 2px dashed var(--doodle-border);
+        }
+        .result-text { font-size: 1.2em; font-weight: 700; white-space: pre-wrap; }
+
+        /*
+        ========================================
+        --- TOOL SPECIFIC STYLES ---
+        ========================================
+        */
+        
+        /* Main Tool Selection */
+        .tool-selection-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px;
+        }
+        .tool-btn {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 10px; padding: 20px; font-size: 1.3em;
+            background: linear-gradient(135deg, var(--doodle-accent), #f7e174);
+            text-align: center;
+        }
+        .tool-btn svg { width: 40px; height: 40px; }
+
+        /* Calculator */
+        .display {
+            background: #e0e0e0; border: 2px solid var(--doodle-border);
+            padding: 15px; border-radius: 8px; font-size: 2.5em; text-align: right;
+            margin-bottom: 15px; min-height: 60px; word-wrap: break-word; overflow-x: auto;
+            color: #333; box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .number-pad { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .calc-controls { display: flex; gap: 10px; margin-top: 15px; }
+        .calc-controls button { flex-grow: 1; }
+        #history-btn { background: var(--doodle-accent); }
+        .btn-operation { background-color: var(--doodle-secondary); color: #fff; }
+
+        /* Scientific Calculator */
+        #scientific-calculator {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: var(--doodle-bg); z-index: 1001;
+            display: none; flex-direction: column; padding: 20px;
+            justify-content: center; align-items: center;
+        }
+        .scientific-content {
+            background: var(--note-bg); padding: 20px; border: 2px solid var(--doodle-border);
+            box-shadow: 5px 5px 15px var(--shadow-color); width: 100%; max-width: 600px;
+            display: flex; flex-direction: column;
+        }
+        .scientific-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .scientific-grid .number-pad { grid-template-columns: repeat(4, 1fr); }
+        #scientific-functions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        #scientific-functions button { background: var(--doodle-accent); }
+
+        /* History Modal */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5); display: none; justify-content: center;
+            align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--note-bg); padding: 25px; border: 2px solid var(--doodle-border);
+            width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-height: 80vh; display: flex; flex-direction: column;
+        }
+        .modal-content h2 { color: var(--doodle-primary); margin-bottom: 20px; }
+        #history-content { flex-grow: 1; overflow-y: auto; background: #fff; border: 2px dashed var(--doodle-border); padding: 10px; }
+        .modal-content button { margin-top: 15px; }
+
+
+        /* Measurement Tools (Ring/Bangle/Watch) */
+        .measurement-tool { text-align: center; }
+        .sizer-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .sizer-tab { background: #fff; }
+        .sizer-tab.active { background: var(--doodle-accent); transform: translateY(-3px); box-shadow: 2px 5px 0px var(--doodle-border); }
+        .sizer-display { display: flex; justify-content: center; align-items: center; gap: 20px; margin: 30px 0; min-height: 150px; }
+        #sizer-ruler { width: 300px; height: 30px; background: #fff; border: 2px solid var(--doodle-border); position: relative; }
+        #ruler-marks { display: flex; justify-content: space-between; padding: 0 5px; }
+        #sizer-circle {
+            border: 4px solid var(--doodle-primary); border-radius: 50%;
+            transition: width 0.3s, height 0.3s;
+            position: relative; left: -150px; /* Aligns center of circle with start of ruler */
+        }
+        
+        /* Games */
+        .game-selection, .game-options { text-align: center; margin-bottom: 20px; }
+        .game-options label { margin: 0 10px; }
+        #tic-tac-toe-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 20px auto; aspect-ratio: 1 / 1; }
+        .ttt-cell {
+            width: 100%; height: 100%; background: #fff; border: 3px solid var(--doodle-border);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 3em; font-weight: bold; cursor: pointer; color: var(--doodle-primary);
+        }
+        #snake-canvas { background: #fff; border: 3px solid var(--doodle-border); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="main-header">
+            <h1>Tooler</h1>
+            <div class="header-info-controls">
+                <div class="time-widget">
+                    <div id="time" class="time">12:00:00 PM</div>
+                    <div id="date" class="date">Wednesday, October 22, 2025</div>
+                </div>
+                <div class="header-buttons">
+                     <button class="header-btn" id="theme-toggle-btn" title="Toggle Theme">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                     </button>
+                     <button class="header-btn" id="open-settings-btn" title="Settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .11-.63l-1.8-3.12a.5.5 0 0 0-.61-.22l-2.39 1.04a8.2 8.2 0 0 0-1.6-.94L14.4 3.5a.5.5 0 0 0-.5-.5h-3.8a.5.5 0 0 0-.5.5l-.34 2.68a8.2 8.2 0 0 0-1.6.94l-2.39-1.04a.5.5 0 0 0-.61.22l-1.8 3.12a.5.5 0 0 0 .11.63l2.03 1.58c-.05.3-.07.64-.07.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.11.63l1.8 3.12a.5.5 0 0 0 .61.22l2.39-1.04a8.2 8.2 0 0 0 1.6.94l.34 2.68a.5.5 0 0 0 .5.5h3.8a.5.5 0 0 0 .5-.5l.34-2.68a8.2 8.2 0 0 0 1.6-.94l2.39 1.04a.5.5 0 0 0 .61-.22l1.8-3.12a.5.5 0 0 0-.11-.63l-2.03-1.58z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
+                    <button class="header-btn" id="account-btn" title="Account">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <div id="main-view" class="tool-container">
+                <div id="basic-calculator-card">
+                    <h2>
+                        <span class="tool-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path></svg></span>
+                        Calculator
+                    </h2>
+                    <div class="display" id="basicDisplay">0</div>
+                    <div class="number-pad">
+                        <button class="btn-clear" onclick="clearCalc()">C</button>
+                        <button class="btn-operation" onclick="appendCalc('(')">(</button>
+                        <button class="btn-operation" onclick="appendCalc(')')">)</button>
+                        <button class="btn-operation" onclick="appendCalc(' / ')">÷</button>
+                        <button onclick="appendCalc('7')">7</button>
+                        <button onclick="appendCalc('8')">8</button>
+                        <button onclick="appendCalc('9')">9</button>
+                        <button class="btn-operation" onclick="appendCalc(' * ')">×</button>
+                        <button onclick="appendCalc('4')">4</button>
+                        <button onclick="appendCalc('5')">5</button>
+                        <button onclick="appendCalc('6')">6</button>
+                        <button class="btn-operation" onclick="appendCalc(' - ')">-</button>
+                        <button onclick="appendCalc('1')">1</button>
+                        <button onclick="appendCalc('2')">2</button>
+                        <button onclick="appendCalc('3')">3</button>
+                        <button class="btn-operation" onclick="appendCalc(' + ')">+</button>
+                        <button onclick="appendCalc('0')" style="grid-column: span 2;">0</button>
+                        <button onclick="appendCalc('.')">.</button>
+                        <button class="btn-operation" onclick="calcPercent()">%</button>
+                    </div>
+                    <div class="calc-controls">
+                        <button id="history-btn" onclick="toggleHistory(true)">History</button>
+                        <button id="btn-advanced" onclick="toggleScientific(true)">Advanced</button>
+                        <button class="btn-calculate" onclick="calculate()">=</button>
+                    </div>
+                </div>
+                
+                <div class="tool-selection-grid" style="margin-top: 40px;">
+                    <button class="tool-btn" data-tool="age-calculator">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                        Age Calc
+                    </button>
+                    <button class="tool-btn" data-tool="converters">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
+                        Converters
+                    </button>
+                    <button class="tool-btn" data-tool="stopwatch">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        Stopwatch
+                    </button>
+                    <button class="tool-btn" data-tool="sizer">
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4c0 3-4 13-4 13s-4-10-4-13a4 4 0 0 1 4-4z"></path><circle cx="12" cy="6" r="1"></circle></svg>
+                        Sizer Tool
+                    </button>
+                    <button class="tool-btn" data-tool="games">
+                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h12M12 18V6"></path><path d="M18 12h-6m-6 0h6m0-6V6m0 12v-6"></path></svg>
+                        Games
+                    </button>
+                </div>
+            </div>
+            
+            <div id="age-calculator" class="tool-container hidden"></div>
+            <div id="converters" class="tool-container hidden"></div>
+            <div id="stopwatch" class="tool-container hidden"></div>
+            <div id="sizer" class="tool-container hidden"></div>
+            <div id="games" class="tool-container hidden"></div>
+        </div>
+    </div>
+
+    <div id="scientific-calculator">
+        <div class="scientific-content">
+            <div class="display" id="scientificDisplay">0</div>
+            <div class="scientific-grid">
+                <div id="scientific-functions"></div>
+                <div class="number-pad" id="scientific-pad"></div>
+            </div>
+            <button class="back-btn" style="width:100%; margin-top:15px;" onclick="toggleScientific(false)">Close</button>
+        </div>
+    </div>
+
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+             <h2>Settings</h2>
+             <div class="input-group">
+                <label for="font-size-slider">Site Size</label>
+                <input type="range" id="font-size-slider" min="12" max="20" value="16">
+             </div>
+              <div class="input-group">
+                <label>More fun settings coming soon!</label>
+             </div>
+             <button id="clear-history-btn">Clear Calculator History</button>
+             <button class="back-btn" id="close-settings-btn">Close</button>
+        </div>
+    </div>
+
+    <div id="history-modal" class="modal-overlay">
+        <div class="modal-content">
+             <h2>Calculation History</h2>
+             <div id="history-content">History is empty.</div>
+             <button class="back-btn" onclick="toggleHistory(false)">Close</button>
+        </div>
+    </div>
+    
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- TOOL HTML TEMPLATES ---
+        const toolTemplates = {
+            'age-calculator': `
+                <h2>Age Calculator <button class="back-btn" onclick="showMainView()">Back</button></h2>
+                <div class="input-group">
+                    <label for="dob">Your Date of Birth:</label>
+                    <input type="date" id="dob">
+                </div>
+                <button class="btn-calculate" onclick="calculateAge()">Calculate!</button>
+                <div class="result" id="ageResult" style="display:none;"><div class="result-text" id="ageText"></div></div>`,
+            'converters': `
+                <h2>Unit Converters <button class="back-btn" onclick="showMainView()">Back</button></h2>
+                <h4>Weight Converter</h4>
+                <div class="input-group"><input type="number" id="weight-input" placeholder="Enter value" oninput="convertWeight()"><select id="weight-from" onchange="convertWeight()"><option value="kg">Kilogram (kg)</option><option value="g">Gram (g)</option><option value="lb">Pound (lb)</option></select></div>
+                <div class="input-group"><input type="number" id="weight-output" readonly><select id="weight-to" onchange="convertWeight()"><option value="g">Gram (g)</option><option value="kg">Kilogram (kg)</option><option value="lb">Pound (lb)</option></select></div>
+                <hr style="margin: 20px 0; border: 1px dashed var(--doodle-border);">
+                <h4>Length Converter</h4>
+                <div class="input-group"><input type="number" id="length-input" placeholder="Enter value" oninput="convertLength()"><select id="length-from" onchange="convertLength()"><option value="m">Meter (m)</option><option value="cm">Centimeter (cm)</option><option value="ft">Foot (ft)</option></select></div>
+                <div class="input-group"><input type="number" id="length-output" readonly><select id="length-to" onchange="convertLength()"><option value="cm">Centimeter (cm)</option><option value="m">Meter (m)</option><option value="ft">Foot (ft)</option></select></div>`,
+            'stopwatch': `
+                <h2>Stopwatch <button class="back-btn" onclick="showMainView()">Back</button></h2>
+                <div style="font-size: 3em; text-align: center; margin: 20px 0;" id="stopwatch-display">00:00:00</div>
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button id="sw-start-btn" class="btn-calculate" onclick="sw_start()">Start</button>
+                    <button id="sw-reset-btn" class="btn-clear" onclick="sw_reset()">Reset</button>
+                </div>`,
+            'sizer': `
+                <h2>Sizer Tool <button class="back-btn" onclick="showMainView()">Back</button></h2>
+                <div class="sizer-tabs">
+                    <button class="sizer-tab active" onclick="switchSizer('ring')">Ring</button>
+                    <button class="sizer-tab" onclick="switchSizer('bangle')">Bangle</button>
+                    <button class="sizer-tab" onclick="switchSizer('watch')">Watch Wrist</button>
+                </div>
+                <div class="measurement-tool">
+                    <div class="sizer-display">
+                        <div id="sizer-ruler"><div id="ruler-marks"></div></div>
+                        <div id="sizer-circle"></div>
+                    </div>
+                     <div class="input-group">
+                        <label id="sizer-label" for="sizer-slider">Diameter (mm):</label>
+                        <input type="range" id="sizer-slider" oninput="updateSizer()">
+                     </div>
+                     <div class="result"><div class="result-text" id="sizer-result"></div></div>
+                </div>`,
+            'games': `
+                <h2>Games <button class="back-btn" onclick="showMainView()">Back</button></h2>
+                <div class="game-selection">
+                    <label>Choose a game:</label>
+                    <select id="game-select" onchange="setupGame()">
+                        <option value="ttt">Tic-Tac-Toe</option>
+                        <option value="snake">Snake</option>
+                        <option value="ludo">Ludo (coming soon)</option>
+                        <option value="uno">UNO (coming soon)</option>
+                    </select>
+                </div>
+                <div class="game-options" id="game-options-panel" style="display:none;">
+                    <label>Players:</label> <select id="player-count"></select>
+                    <label>Mode:</label> <select id="game-mode"><option value="player">vs Player</option><option value="ai">vs Computer</option></select>
+                </div>
+                <div id="game-board-area" style="text-align:center;"></div>`
+        };
+
+        for (const toolId in toolTemplates) {
+            document.getElementById(toolId).innerHTML = toolTemplates[toolId];
+        }
+
+        // --- GLOBAL STATE & UI ---
+        const mainView = document.getElementById('main-view');
+        window.showMainView = () => {
+            document.querySelectorAll('.tool-container').forEach(c => c.classList.add('hidden'));
+            mainView.classList.remove('hidden');
+        };
+
+        document.querySelectorAll('.tool-btn').forEach(button => {
+            button.addEventListener('click', () => {
+                const toolId = button.dataset.tool;
+                mainView.classList.add('hidden');
+                const toolEl = document.getElementById(toolId);
+                toolEl.classList.remove('hidden');
+                // Initializers for tools
+                if(toolId === 'sizer') switchSizer('ring');
+                if(toolId === 'games') setupGame();
+            });
+        });
+        
+        // --- LIVE CLOCK ---
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('time').textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            document.getElementById('date').textContent = now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
+        }, 1000);
+
+        // --- HEADER BUTTONS & SETTINGS ---
+        const settingsModal = document.getElementById('settings-modal');
+        document.getElementById('open-settings-btn').addEventListener('click', () => settingsModal.style.display = 'flex');
+        document.getElementById('close-settings-btn').addEventListener('click', () => settingsModal.style.display = 'none');
+        document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+             const currentTheme = document.documentElement.dataset.theme;
+             document.documentElement.dataset.theme = currentTheme === 'doodle' ? 'dark' : 'doodle';
+        });
+        document.getElementById('account-btn').addEventListener('click', () => alert('Login/Signup feature coming soon!'));
+        document.getElementById('font-size-slider').addEventListener('input', (e) => {
+            document.body.style.fontSize = `${e.target.value}px`;
+        });
+        document.getElementById('clear-history-btn').addEventListener('click', () => {
+            calculatorHistory = [];
+            localStorage.setItem('calculatorHistory', JSON.stringify([]));
+            updateHistoryView();
+            alert('History cleared.');
+        });
+        
+        // --- CALCULATOR ---
+        let currentExpression = '0';
+        const basicDisplay = document.getElementById('basicDisplay');
+        const scientificDisplay = document.getElementById('scientificDisplay');
+        let calculatorHistory = JSON.parse(localStorage.getItem('calculatorHistory')) || [];
+
+        window.updateDisplay = () => {
+            basicDisplay.textContent = currentExpression;
+            scientificDisplay.textContent = currentExpression;
+        };
+        window.appendCalc = (val) => {
+            if (currentExpression === '0' || currentExpression === 'Error') currentExpression = '';
+            currentExpression += val;
+            updateDisplay();
+        };
+        window.clearCalc = () => { currentExpression = '0'; updateDisplay(); };
+        window.calcPercent = () => {
+             try {
+                currentExpression = eval(currentExpression.replace(/%/g, '/100')).toString();
+             } catch { currentExpression = 'Error'; }
+             updateDisplay();
+        };
+        window.calculate = () => {
+            try {
+                let evalExpression = currentExpression;
+                const result = eval(evalExpression);
+                if (isNaN(result) || !isFinite(result)) throw new Error("Invalid");
+                calculatorHistory.unshift(`${currentExpression} = ${result}`);
+                if (calculatorHistory.length > 20) calculatorHistory.pop();
+                localStorage.setItem('calculatorHistory', JSON.stringify(calculatorHistory));
+                currentExpression = result.toString();
+                updateDisplay();
+            } catch (error) {
+                currentExpression = 'Error';
+                updateDisplay();
+            }
+        };
+
+        // Scientific Calculator Setup
+        window.toggleScientific = (show) => {
+            const sc_calc = document.getElementById('scientific-calculator');
+            if (show) {
+                sc_calc.style.display = 'flex';
+                if(!sc_calc.dataset.initialized) {
+                    const basic_buttons = ['7','8','9',' / ','4','5','6',' * ','1','2','3',' - ','0','.','%',' + '];
+                    const func_buttons = ['sin(','cos(','tan(','log(','sqrt(','PI', '(', ')'];
+                    const pad = document.getElementById('scientific-pad');
+                    const funcs = document.getElementById('scientific-functions');
+                    
+                    basic_buttons.forEach(btn => {
+                        const btnEl = document.createElement('button');
+                        btnEl.textContent = btn.trim();
+                        if (!isNaN(btn) || btn === '.') btnEl.className = ''; else btnEl.className = 'btn-operation';
+                        btnEl.onclick = () => appendCalc(btn);
+                        pad.appendChild(btnEl);
+                    });
+                     
+                    func_buttons.forEach(btn => {
+                        const btnEl = document.createElement('button');
+                        btnEl.textContent = btn;
+                        btnEl.onclick = () => appendCalc('Math.' + btn);
+                        funcs.appendChild(btnEl);
+                    });
+                    
+                    const equals = document.createElement('button');
+                    equals.textContent = '='; equals.className = 'btn-calculate';
+                    equals.style.gridColumn = 'span 4'; equals.onclick = calculate;
+                    pad.appendChild(equals);
+
+                    sc_calc.dataset.initialized = true;
+                }
+            } else {
+                sc_calc.style.display = 'none';
+            }
+        };
+        
+        // History Modal Logic
+        const historyModal = document.getElementById('history-modal');
+        window.toggleHistory = (show) => {
+            if(show) {
+                updateHistoryView();
+                historyModal.style.display = 'flex';
+            } else {
+                historyModal.style.display = 'none';
+            }
+        }
+        window.updateHistoryView = () => {
+            const historyContent = document.getElementById('history-content');
+            if (calculatorHistory.length === 0) {
+                historyContent.textContent = 'History is empty.';
+            } else {
+                historyContent.innerHTML = calculatorHistory.map(item => `<div>${item}</div>`).join('');
+            }
+        };
+
+        // --- AGE CALCULATOR ---
+        if(document.getElementById('dob')) document.getElementById('dob').max = new Date().toISOString().split("T")[0];
+        window.calculateAge = () => {
+            const dob = new Date(document.getElementById('dob').value);
+            const today = new Date();
+            let years = today.getFullYear() - dob.getFullYear();
+            let months = today.getMonth() - dob.getMonth();
+            if (months < 0 || (months === 0 && today.getDate() < dob.getDate())) {
+                years--;
+                months = (months + 12) % 12;
+            }
+            document.getElementById('ageText').innerHTML = `You are ${years} years and ${months} months old.`;
+            document.getElementById('ageResult').style.display = 'block';
+        };
+
+        // --- CONVERTERS ---
+        const weightFactors = { kg: 1000, g: 1, lb: 453.592 };
+        const lengthFactors = { m: 1, cm: 0.01, ft: 0.3048 };
+        window.convertWeight=()=>performConversion('weight', weightFactors);
+        window.convertLength=()=>performConversion('length', lengthFactors);
+        function performConversion(type, factors) {
+            const input = parseFloat(document.getElementById(`${type}-input`).value);
+            const from = document.getElementById(`${type}-from`).value;
+            const to = document.getElementById(`${type}-to`).value;
+            const inBase = input * factors[from];
+            const result = inBase / factors[to];
+            document.getElementById(`${type}-output`).value = isNaN(result) ? '' : result.toFixed(3);
+        }
+
+        // --- STOPWATCH ---
+        let sw_interval, sw_startTime=0, sw_elapsed=0;
+        window.sw_start = () => {
+            if(sw_interval) { //pause
+                clearInterval(sw_interval); sw_interval=null;
+                document.getElementById('sw-start-btn').textContent = 'Resume';
+            } else { //start/resume
+                sw_startTime = Date.now() - sw_elapsed;
+                sw_interval = setInterval(() => {
+                    sw_elapsed = Date.now() - sw_startTime;
+                    const time = new Date(sw_elapsed);
+                    document.getElementById('stopwatch-display').textContent = `${String(time.getUTCMinutes()).padStart(2,'0')}:${String(time.getUTCSeconds()).padStart(2,'0')}:${String(time.getUTCMilliseconds()).padStart(3,'0').slice(0,2)}`;
+                }, 10);
+                document.getElementById('sw-start-btn').textContent = 'Pause';
+            }
+        };
+        window.sw_reset = () => {
+            clearInterval(sw_interval); sw_interval=null; sw_elapsed=0;
+            document.getElementById('stopwatch-display').textContent = '00:00:00';
+            document.getElementById('sw-start-btn').textContent = 'Start';
+        };
+
+        // --- SIZER TOOL ---
+        const sizerSettings = {
+            ring: { label: "Ring Diameter (mm)", min: 12, max: 25, value: 17 },
+            bangle: { label: "Bangle Diameter (cm)", min: 5, max: 8, value: 6 },
+            watch: { label: "Wrist Circumference (cm)", min: 14, max: 22, value: 18 }
+        };
+        window.switchSizer = (type) => {
+            document.querySelectorAll('.sizer-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            const settings = sizerSettings[type];
+            const slider = document.getElementById('sizer-slider');
+            document.getElementById('sizer-label').textContent = settings.label;
+            slider.min = settings.min; slider.max = settings.max;
+            slider.value = settings.value; slider.step = (type==='ring')?0.1:0.5;
+            updateSizer(type);
+        };
+        window.updateSizer = (type = document.querySelector('.sizer-tab.active').textContent.toLowerCase()) => {
+            const slider = document.getElementById('sizer-slider');
+            const value = slider.value;
+            let displayValue = (type === 'ring') ? `${value} mm` : `${value} cm`;
+            document.getElementById('sizer-result').textContent = displayValue;
+            
+            const ruler = document.getElementById('sizer-ruler');
+            const rulerWidth = ruler.clientWidth; // in pixels
+            
+            let valueInMM = (type === 'ring') ? parseFloat(value) : parseFloat(value) * 10;
+            
+            // Assuming screen DPI is ~96, 1mm is ~3.78px
+            const pixelDiameter = valueInMM * 3.78;
+            
+            const circle = document.getElementById('sizer-circle');
+            circle.style.width = `${pixelDiameter}px`;
+            circle.style.height = `${pixelDiameter}px`;
+            
+            const marksContainer = document.getElementById('ruler-marks');
+            marksContainer.innerHTML = '';
+            for(let i=0; i<=5; i++) { // Ruler from 0 to 5 cm
+                const mark = document.createElement('span');
+                mark.textContent = `|${i}`;
+                marksContainer.appendChild(mark);
+            }
+        };
+
+        // --- GAMES ---
+        window.setupGame = () => {
+            const game = document.getElementById('game-select').value;
+            const optionsPanel = document.getElementById('game-options-panel');
+            const boardArea = document.getElementById('game-board-area');
+            boardArea.innerHTML = ''; // Clear previous game
+            
+            if (game === 'ttt') {
+                optionsPanel.style.display = 'block';
+                document.getElementById('player-count').innerHTML = '<option value="2">2</option>';
+                boardArea.innerHTML = `<div id="tic-tac-toe-board"></div><div class="result" id="ttt-status"></div>`;
+                ttt_createBoard(); ttt_resetGame();
+            } else if (game === 'snake') {
+                optionsPanel.style.display = 'none';
+                boardArea.innerHTML = `<div><canvas id="snake-canvas" width="400" height="400"></canvas></div><button onclick="snake_start()">Start Game</button>`;
+                snake_init();
+            } else {
+                optionsPanel.style.display = 'none';
+                boardArea.innerHTML = `<p>This game is not ready yet. Check back later!</p>`;
+            }
+        };
+
+        // Tic-Tac-Toe Logic
+        let ttt_currentPlayer, ttt_board, ttt_gameActive;
+        function ttt_createBoard() {
+            const boardEl = document.getElementById('tic-tac-toe-board');
+            for(let i=0; i<9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('ttt-cell'); cell.dataset.index = i;
+                cell.addEventListener('click', ttt_handleCellClick);
+                boardEl.appendChild(cell);
+            }
+        }
+        function ttt_resetGame() {
+            ttt_currentPlayer = 'X'; ttt_board = Array(9).fill(null); ttt_gameActive = true;
+            document.getElementById('ttt-status').textContent = `Player X's turn`;
+            document.querySelectorAll('.ttt-cell').forEach(c => c.textContent = '');
+        }
+        function ttt_handleCellClick(e) {
+            const idx = e.target.dataset.index;
+            if (ttt_board[idx] || !ttt_gameActive) return;
+            ttt_board[idx] = ttt_currentPlayer;
+            e.target.textContent = ttt_currentPlayer;
+            // Check win/draw, switch player
+            const winConditions=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+            let roundWon = winConditions.some(c=>c.every(i=>ttt_board[i]===ttt_currentPlayer));
+            if(roundWon) { document.getElementById('ttt-status').textContent = `Player ${ttt_currentPlayer} wins!`; ttt_gameActive = false; return; }
+            if(!ttt_board.includes(null)) { document.getElementById('ttt-status').textContent = `It's a draw!`; ttt_gameActive = false; return; }
+            ttt_currentPlayer = (ttt_currentPlayer === 'X') ? 'O' : 'X';
+            document.getElementById('ttt-status').textContent = `Player ${ttt_currentPlayer}'s turn`;
+        }
+
+        // Snake Game Logic
+        let snake_ctx, snake_gameLoop;
+        let snake = [{x: 10, y: 10}], food = {}, direction = 'right', score = 0, gridSize = 20;
+        function snake_init() {
+            const canvas = document.getElementById('snake-canvas');
+            if(!canvas) return;
+            snake_ctx = canvas.getContext('2d');
+            snake_placeFood();
+        }
+        function snake_placeFood() {
+            food = {
+                x: Math.floor(Math.random() * (400 / gridSize)),
+                y: Math.floor(Math.random() * (400 / gridSize))
+            };
+        }
+        function snake_draw() {
+            snake_ctx.clearRect(0, 0, 400, 400);
+            snake_ctx.fillStyle = 'green';
+            snake.forEach(p => snake_ctx.fillRect(p.x * gridSize, p.y * gridSize, gridSize-1, gridSize-1));
+            snake_ctx.fillStyle = 'red';
+            snake_ctx.fillRect(food.x * gridSize, food.y * gridSize, gridSize-1, gridSize-1);
+        }
+        function snake_update() {
+            let head = {x: snake[0].x, y: snake[0].y};
+            if(direction==='right') head.x++; if(direction==='left') head.x--;
+            if(direction==='up') head.y--; if(direction==='down') head.y++;
+            
+            if (head.x < 0 || head.x >= 400/gridSize || head.y < 0 || head.y >= 400/gridSize) { clearInterval(snake_gameLoop); alert('Game Over!'); return; }
+            
+            snake.unshift(head);
+            if(head.x === food.x && head.y === food.y) { score++; snake_placeFood(); }
+            else { snake.pop(); }
+            
+            snake_draw();
+        }
+        window.snake_start = () => {
+            if (snake_gameLoop) clearInterval(snake_gameLoop);
+            snake = [{x: 10, y: 10}]; direction = 'right'; score = 0;
+            snake_gameLoop = setInterval(snake_update, 100);
+        };
+        document.addEventListener('keydown', e => {
+            if(e.key === 'ArrowUp' && direction !== 'down') direction = 'up';
+            if(e.key === 'ArrowDown' && direction !== 'up') direction = 'down';
+            if(e.key === 'ArrowLeft' && direction !== 'right') direction = 'left';
+            if(e.key === 'ArrowRight' && direction !== 'left') direction = 'right';
+        });
+
+    });
+    </script>
+</body>
+</html>
