@@ -609,6 +609,7 @@ body.tool-view-open .main-content {
             padding: 12px;
             font-size: 1em;
         }
+       
 
         /* Compass */
         #compass-display {
@@ -645,13 +646,20 @@ body.tool-view-open .main-content {
         .compass-e { right: 10px; top: 50%; transform: translateY(-50%); }
         .compass-w { left: 10px; top: 50%; transform: translateY(-50%); }
 
-        /* Responsive */
+        /* Footer */
+        .main-footer {
+            text-align: center; padding: 20px; margin-top: 40px;
+            border-top: 3px double var(--doodle-primary);
+        }
+ 
+ /* Responsive */
         @media (max-width: 768px) {
+            html { --base-font-size: 14px; }
             .main-header h1 { font-size: 2.5em; }
             .tool-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
             .calc-buttons { gap: 5px; }
-            button, .tool-btn { font-size: 1em; padding: 10px 14px; }
-        }
+            button, .tool-btn { font-size: 1rem; padding: 10px 14px; }
+            .doodle-arrow { display: none; } 
     </style>
 </head>
 <body>
@@ -1149,6 +1157,30 @@ body.tool-view-open .main-content {
             <button class="btn-clear" style="width: 100%; margin-top: 20px;" onclick="app.closeModal('auth')">Close</button>
         </div>
     </div>
+     <footer class="main-footer">
+            <p>&copy; 2025 Tooler - Your Doodle Toolkit</p>
+            <button id="footer-logout-btn" class="btn-clear" style="display:none; margin-top: 10px;">Logout</button>
+        </footer>
+    </div>
+
+    <div id="tool-templates" style="display: none;">
+        <div id="age-calculator" class="tool-container">...</div>
+        <div id="converters" class="tool-container">...</div>
+        <div id="stopwatch" class="tool-container">...</div>
+        <div id="timer" class="tool-container">...</div>
+        <div id="sizer" class="tool-container">...</div>
+        <div id="counters" class="tool-container">...</div>
+        <div id="tasks" class="tool-container">...</div>
+        <div id="currency" class="tool-container">...</div>
+        <div id="games" class="tool-container">...</div>
+    </div>
+    
+
+
+    <div id="history-modal" class="modal-overlay">...</div>
+    <div id="scientific-modal" class="modal-overlay">...</div>
+    <div id="auth-modal" class="modal-overlay">...</div>
+    <div id="settings-modal" class="modal-overlay">...</div>
 
     <script>
         const app = {
