@@ -7,8 +7,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
-    
     <style>
+        /*
+        ========================================
+        --- DOODLE ART THEME & CORE STYLES ---
+        ========================================
+        */
         :root {
             --doodle-bg: #fdf5e6; /* Old paper */
             --doodle-text: #3a3a3a;
@@ -48,30 +52,44 @@
             transition: background-color 0.3s, color 0.3s;
             overflow-x: hidden;
             font-weight: 400;
+            /* Coded Notebook Paper Background */
             background-image:
                 repeating-linear-gradient(var(--doodle-bg) 0px, var(--doodle-bg) 24px, var(--line-color) 25px),
                 linear-gradient(to right, var(--doodle-bg) 0px, var(--doodle-bg) 49px, #ff6b6b44 50px);
             background-size: 100% 25px, 100% 100%;
         }
-        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
         
-        /* --- HEADER & GLOBAL UI --- */
+        /*
+        ========================================
+        --- HEADER & TOP MARGIN ---
+        ========================================
+        */
         .main-header {
             border-bottom: 3px double var(--doodle-primary);
             padding-bottom: 20px;
-            margin-bottom: 25px;
+            margin-bottom: 40px;
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
-            flex-wrap: wrap; gap: 15px;
+            flex-wrap: wrap;
+            gap: 15px;
         }
+        .title-area { display: flex; align-items: center; gap: 15px; }
+        .title-area .bookmark-pin { font-size: 2.5em; transform: rotate(-15deg); color: var(--doodle-primary); }
         .main-header h1 {
-            font-size: 3.5em; color: var(--doodle-text); font-weight: 700;
+            font-size: 4em; color: var(--doodle-text); font-weight: 700;
+            background: var(--note-bg); padding: 5px 15px;
+            border: 2px solid var(--doodle-border);
+            box-shadow: 2px 2px 0 var(--doodle-border);
             transform: rotate(-2deg);
         }
         .header-info-controls { display: flex; align-items: center; gap: 20px; }
         .time-widget { text-align: right; }
+        .time-widget .greeting { font-size: 1.1em; font-weight: 700; }
         .time-widget .time { font-size: 1.5em; font-weight: 700; }
+        .time-widget .date { font-size: 1em; }
+        
         .header-buttons { display: flex; align-items: center; gap: 10px; }
         .header-btn {
             background: none; border: none; cursor: pointer; color: var(--doodle-text);
@@ -80,742 +98,214 @@
         .header-btn:hover { transform: scale(1.1) rotate(-5deg); }
         .header-btn svg { width: 32px; height: 32px; }
 
-        /* Global Notification Bar */
-        .global-notification-bar {
-            position: sticky; top: 0; left: 0; width: 100%;
-            background: var(--doodle-accent); color: var(--doodle-text);
-            padding: 10px; text-align: center; font-weight: 700;
-            z-index: 999; display: none; align-items: center; justify-content: center;
-            gap: 15px; border-bottom: 2px solid var(--doodle-border);
-            font-size: 1.1em;
-        }
-        .global-notification-bar button { padding: 5px 10px; font-size: 0.9em; }
-
-        /* --- LAYOUT & CONTAINERS --- */
-        .sticky-calculator-container, .tool-grid-container, .task-list-container, .component-view-container {
-            margin-bottom: 25px;
-        }
-        .container-title {
-            font-size: 1.8em; font-weight: 700; margin-bottom: 15px;
-            color: var(--doodle-primary); border-bottom: 2px dashed var(--doodle-primary);
-            padding-bottom: 5px;
-        }
-
-        /* Generic Doodle Box Style */
-        .doodle-box {
+        /*
+        ========================================
+        --- STICKY NOTE & CONTAINER STYLES ---
+        ========================================
+        */
+        .tool-container {
             background: var(--note-bg);
             border: 1px solid var(--doodle-border);
             padding: 25px;
             box-shadow: 5px 5px 15px var(--shadow-color);
-            transform: rotate(1deg);
+            position: absolute;
+            width: 100%; top: 0; left: 0;
+            transition: transform 0.6s ease-in-out, opacity 0.6s;
+            backface-visibility: hidden; opacity: 1; transform: translateX(0) rotate(1deg);
         }
-        .doodle-box::before, .doodle-box::after { /* Tape effect */
-            content: ''; position: absolute; width: 100px; height: 25px;
-            background: var(--tape-color); border-left: 1px dashed rgba(0,0,0,0.2);
+        /* "Tape" effect */
+        .tool-container::before, .tool-container::after {
+            content: '';
+            position: absolute;
+            width: 120px;
+            height: 30px;
+            background: var(--tape-color);
+            border-left: 1px dashed rgba(0,0,0,0.2);
             border-right: 1px dashed rgba(0,0,0,0.2);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .doodle-box::before { top: -12px; left: 30px; transform: rotate(-5deg); }
-        .doodle-box::after { top: -10px; right: 50px; transform: rotate(4deg); }
+        .tool-container::before { top: -15px; left: 30px; transform: rotate(-5deg); }
+        .tool-container::after { top: -10px; right: 50px; transform: rotate(4deg); }
 
-        /* --- BUTTONS & INPUTS --- */
-        button, .btn {
+        .tool-container:nth-child(2n) { transform: rotate(-1deg); }
+        .tool-container.hidden {
+            opacity: 0; pointer-events: none; transform: translateX(100%);
+        }
+        #main-view.hidden { transform: translateX(-100%); opacity: 0; pointer-events: none; }
+        
+        .main-content { position: relative; min-height: 600px; }
+
+        .tool-container h2 {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--doodle-primary);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* General Buttons & Inputs */
+        button, .tool-btn {
             font-family: var(--font-main);
-            border: 2px solid var(--doodle-border); border-radius: 5px;
-            font-size: 1.1em; font-weight: 700; cursor: pointer;
-            transition: all 0.2s ease; color: var(--doodle-text);
-            padding: 10px 15px; background: #fff;
+            border: 2px solid var(--doodle-border);
+            border-radius: 5px;
+            font-size: 1.1em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            color: var(--doodle-text);
+            padding: 12px 18px;
+            background: #fff;
             box-shadow: 2px 2px 0px var(--doodle-border);
         }
-        button:hover, .btn:hover { transform: translateY(-2px); box-shadow: 4px 4px 0px var(--doodle-border); }
-        button:active, .btn:active { transform: translate(2px, 2px); box-shadow: none; }
+        button:hover, .tool-btn:hover { transform: translateY(-2px); box-shadow: 4px 4px 0px var(--doodle-border); }
+        button:active, .tool-btn:active { transform: translate(2px, 2px); box-shadow: none; }
         
-        .btn-primary { background-color: var(--doodle-secondary); color: white; border-color: var(--doodle-secondary); }
-        .btn-danger { background-color: var(--doodle-primary); color: white; border-color: var(--doodle-primary); }
+        .btn-calculate { background-color: var(--doodle-secondary); color: white; border-color: var(--doodle-secondary); }
+        .btn-clear, .back-btn { background-color: var(--doodle-primary); color: white; border-color: var(--doodle-primary); }
+        .btn-operation { background-color: var(--doodle-secondary); color: white; }
+
 
         .input-group { margin-bottom: 20px; }
         .input-group label { display: block; margin-bottom: 8px; font-size: 1.2em; }
         .input-group input, .input-group select {
             width: 100%; padding: 12px; border: 2px solid var(--doodle-border);
-            border-radius: 5px; font-size: 1.1em; background: #fff;
-            color: var(--doodle-text); font-family: var(--font-main);
-        }
-        .input-group.password-group { position: relative; }
-        .password-toggle {
-            position: absolute; right: 10px; top: 42px; cursor: pointer;
-            background: none; border: none; box-shadow: none; padding: 5px;
+            border-radius: 5px; font-size: 1.1em; background: #fff; color: var(--doodle-text);
+            font-family: var(--font-main);
         }
 
-        /* --- TOOL-SPECIFIC STYLES --- */
-        /* Calculator */
-        .calc-display {
-            background: #e0e0e0; border: 2px solid var(--doodle-border); padding: 15px;
-            border-radius: 8px; font-size: 2em; text-align: right; margin-bottom: 15px;
-            min-height: 50px; word-wrap: break-word; color: #333;
-            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+        .result {
+            background: rgba(255, 255, 255, 0.5);
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+            border: 2px dashed var(--doodle-border);
         }
-        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .result-text { font-size: 1.2em; font-weight: 700; white-space: pre-wrap; }
 
-        /* Tool Grid */
-        .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
+        /*
+        ========================================
+        --- TOOL SPECIFIC STYLES ---
+        ========================================
+        */
+        
+        /* Main Tool Selection */
+        .tool-selection-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 20px;
+        }
         .tool-btn {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            gap: 10px; padding: 15px; font-size: 1.2em;
+            gap: 10px; padding: 20px; font-size: 1.3em;
             background: linear-gradient(135deg, var(--doodle-accent), #f7e174);
-            text-align: center; height: 120px;
+            text-align: center;
         }
-        .tool-btn svg { width: 32px; height: 32px; }
+        .tool-btn svg { width: 40px; height: 40px; }
 
-        /* Task List */
-        #main-task-list { list-style: none; }
-        #main-task-list li {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px; background: #fff; border: 2px solid var(--doodle-border);
-            margin-bottom: 10px; border-radius: 5px;
+        /* Sizer Tool (from tooler.html) */
+        .measurement-tool { text-align: center; }
+        .sizer-tabs { display: flex; justify-content: center; gap: 10px; margin-bottom: 20px; }
+        .sizer-tab { background: #fff; }
+        .sizer-tab.active { background: var(--doodle-accent); transform: translateY(-3px); box-shadow: 2px 5px 0px var(--doodle-border); }
+        .sizer-display { display: flex; justify-content: center; align-items: center; gap: 20px; margin: 30px 0; min-height: 150px; }
+        #sizer-ruler { width: 300px; height: 30px; background: #fff; border: 2px solid var(--doodle-border); position: relative; }
+        #ruler-marks { display: flex; justify-content: space-between; padding: 0 5px; }
+        #sizer-circle {
+            border: 4px solid var(--doodle-primary); border-radius: 50%;
+            transition: width 0.3s, height 0.3s;
+            position: relative; left: -150px; /* Aligns center of circle with start of ruler */
         }
-        #main-task-list li.completed { text-decoration: line-through; opacity: 0.6; }
-        #main-task-list input[type="checkbox"] { width: 20px; height: 20px; }
-        #main-task-list .task-text { flex-grow: 1; }
-        #main-task-list .delete-task-btn { padding: 5px; font-size: 0.8em; }
 
-        /* Component View */
-        .component-view { min-height: 300px; }
-
-        /* Games */
-        .game-selection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
-        .game-card {
-            background: #fff; border: 2px solid var(--doodle-border); border-radius: 8px;
-            padding: 20px; text-align: center; cursor: pointer;
-            transition: all 0.2s ease;
+        /* Games Section */
+        #game-options-panel {
+            background: #fff; padding: 15px; border: 2px dashed var(--doodle-border);
+            border-radius: 8px; margin: 20px 0;
+            display: flex; flex-direction: column; align-items: center; gap: 15px;
         }
-        .game-card:hover { transform: translateY(-5px) rotate(-2deg); box-shadow: 5px 5px 10px var(--shadow-color); }
-        .game-card-icon { font-size: 3em; display: block; margin-bottom: 10px; }
-        #tic-tac-toe-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 20px auto; aspect-ratio: 1/1; }
+        .game-mode-selector { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        .game-mode-selector input[type="radio"] { display: none; }
+        .game-mode-selector label {
+            padding: 10px 20px; border: 2px solid var(--doodle-border); border-radius: 5px;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .game-mode-selector input[type="radio"]:checked + label {
+            background: var(--doodle-accent);
+            box-shadow: 2px 2px 0 var(--doodle-border);
+            transform: translateY(-2px);
+        }
+        #tic-tac-toe-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 20px auto; aspect-ratio: 1 / 1; }
         .ttt-cell {
-            background: #fff; border: 3px solid var(--doodle-border);
+            width: 100%; height: 100%; background: #fff; border: 3px solid var(--doodle-border);
             display: flex; justify-content: center; align-items: center;
             font-size: 3em; font-weight: bold; cursor: pointer; color: var(--doodle-primary);
         }
-
-        /* Countdown Tracker */
-        .counter-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: white; padding: 10px; border: 2px solid var(--doodle-border); border-radius: 5px; margin-bottom: 10px; }
-        .counter-name { font-size: 1.2em; font-weight: bold; }
-        .counter-controls { display: flex; align-items: center; gap: 10px; }
-        .counter-value { font-size: 1.5em; font-weight: 700; min-width: 40px; text-align: center; }
-        .water-icons { font-size: 1.5em; }
-
-        /* --- MODAL STYLES --- */
+        #snake-canvas { background: #fff; border: 3px solid var(--doodle-border); }
+        #game-board-area .coming-soon {
+            font-size: 2em; text-align: center; padding: 50px;
+            background: #fff; border: 2px dashed var(--doodle-border);
+        }
+        #game-board-area .coming-soon-icon { font-size: 4em; display: block; margin-bottom: 20px; }
+        
+        /* Modal & Settings */
         .modal-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.6); display: none; justify-content: center;
+            background: rgba(0,0,0,0.5); display: none; justify-content: center;
             align-items: center; z-index: 1000;
         }
         .modal-content {
             background: var(--note-bg); padding: 25px; border: 2px solid var(--doodle-border);
             width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            max-height: 90vh; display: flex; flex-direction: column;
+            max-height: 80vh; display: flex; flex-direction: column;
             transform: rotate(-1deg);
         }
-        .modal-content h2 { font-size: 2em; color: var(--doodle-primary); margin-bottom: 20px; }
+        .color-palette { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+        .color-swatch {
+            width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+            border: 2px solid var(--doodle-border);
+        }
+        .color-swatch.active { border-width: 4px; transform: scale(1.1); }
         
-        /* Auth Modal */
-        .auth-toggle-link { color: var(--doodle-secondary); text-decoration: underline; cursor: pointer; }
-        .social-login-divider { text-align: center; margin: 20px 0; font-weight: bold; }
-        .social-login-buttons { display: flex; justify-content: center; gap: 15px; }
-        .social-btn { font-size: 1.5em; padding: 10px; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
+        /* Floating Stationery */
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(var(--r-start)); }
+            50% { transform: translateY(-20px) rotate(var(--r-end)); }
+        }
+        .floating-item {
+            position: fixed; z-index: 0;
+            color: var(--doodle-primary);
+            opacity: 0.6;
+            animation: float 6s ease-in-out infinite;
+        }
+        .item-1 { top: 15%; left: 5%; --r-start: 25deg; --r-end: 15deg; animation-duration: 7s; }
+        .item-4 { bottom: 10%; right: 15%; --r-start: -30deg; --r-end: -20deg; animation-duration: 6s; }
     </style>
 </head>
 <body>
-    
-    <div id="global-notification-bar" class="global-notification-bar">
-        </div>
+
+    <div class="floating-item item-1">
+        <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 2.5l7.5 7.5-1 1-7.5-7.5 1-1zM14 6l3-3 5 5-3 3-5-5zM9 15l-5 5M12 12l5 5"></path><path d="M7 13l-1.5 1.5"></path></svg>
+    </div>
+    <div class="floating-item item-4">
+        <svg width="70" height="70" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+    </div>
+
 
     <div class="container">
         <header class="main-header">
-            <h1>Tooler</h1>
+            <div class="title-area">
+                <span class="bookmark-pin">📌</span><h1>Tooler</h1>
+            </div>
             <div class="header-info-controls">
                 <div class="time-widget">
-                    <div id="time" class="time">12:00:00 PM</div>
-                    <div id="date" class="date">Wednesday, October 22</div>
+                    <div id="greeting" class="greeting"></div>
+                    <div id="time" class="time"></div>
+                    <div id="date" class="date"></div>
                 </div>
                 <div class="header-buttons">
-                     <button class="header-btn" id="settings-btn" title="Settings">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                     <button class="header-btn" id="theme-toggle-btn" title="Toggle Theme">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                     </button>
+                     <button class="header-btn" id="open-settings-btn" title="Settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .11-.63l-1.8-3.12a.5.5 0 0 0-.61-.22l-2.39 1.04a8.2 8.2 0 0 0-1.6-.94L14.4 3.5a.5.5 0 0 0-.5-.5h-3.8a.5.5 0 0 0-.5.5l-.34 2.68a8.2 8.2 0 0 0-1.6.94l-2.39-1.04a.5.5 0 0 0-.61.22l-1.8 3.12a.5.5 0 0 0 .11.63l2.03 1.58c-.05.3-.07.64-.07.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.11.63l1.8 3.12a.5.5 0 0 0 .61.22l2.39-1.04a8.2 8.2 0 0 0 1.6.94l.34 2.68a.5.5 0 0 0 .5.5h3.8a.5.5 0 0 0 .5-.5l.34-2.68a8.2 8.2 0 0 0 1.6-.94l2.39 1.04a.5.5 0 0 0 .61-.22l1.8-3.12a.5.5 0 0 0-.11-.63l-2.03-1.58z"></path><circle cx="12" cy="12" r="3"></circle></svg>
                     </button>
-                    <button class="header-btn" id="account-btn" title="Account">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                    </button>
-                    <button class="header-btn" id="logout-btn" title="Logout" style="display: none;">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-                    </button>
-                </div>
-            </div>
-        </header>
-
-        <main>
-            <div class="sticky-calculator-container" id="sticky-calculator-container">
-                </div>
-            
-            <div class="tool-grid-container">
-                <h2 class="container-title">Tools</h2>
-                <div class="tool-grid" id="tool-grid">
-                    </div>
-            </div>
-
-            <div class="task-list-container">
-                 <h2 class="container-title">My Tasks</h2>
-                 <div class="doodle-box">
-                    <ul id="main-task-list">
-                        </ul>
-                 </div>
-            </div>
-
-            <div class="component-view-container">
-                <div class="component-view" id="component-view">
-                     </div>
-            </div>
-        </main>
-    </div>
-
-    <div id="scientific-calc-modal" class="modal-overlay"></div>
-    <div id="settings-modal" class="modal-overlay"></div>
-    <div id="account-modal" class="modal-overlay"></div>
-
-
-    <script>
-    document.addEventListener('DOMContentLoaded', () => {
-        
-        // =================================================================
-        // --- 1. CORE APP STRUCTURE & STATE
-        // =================================================================
-        const app = {
-            // --- App State ---
-            activeTool: null,
-            timerState: { type: null, interval: null, elapsed: 0, startTime: 0, totalSeconds: 0 },
-            tasks: [],
-            counters: [],
-
-            // --- DOM Elements ---
-            dom: {
-                // Main Layout
-                time: document.getElementById('time'),
-                date: document.getElementById('date'),
-                stickyCalculator: document.getElementById('sticky-calculator-container'),
-                toolGrid: document.getElementById('tool-grid'),
-                componentView: document.getElementById('component-view'),
-                mainTaskList: document.getElementById('main-task-list'),
-                globalNotificationBar: document.getElementById('global-notification-bar'),
-                // Modals
-                sciCalcModal: document.getElementById('scientific-calc-modal'),
-                settingsModal: document.getElementById('settings-modal'),
-                accountModal: document.getElementById('account-modal'),
-                // Header Buttons
-                settingsBtn: document.getElementById('settings-btn'),
-                accountBtn: document.getElementById('account-btn'),
-                logoutBtn: document.getElementById('logout-btn'),
-            },
-
-            // --- Initialization ---
-            init() {
-                console.log("Tooler App Initializing... 🛠️");
-                this.clock.start();
-                this.renderToolGrid();
-                this.calculator.render('sticky');
-                this.attachEventListeners();
-                this.tasks.render(); // Initial render of tasks
-                this.counters.render(); // Initial render of counters
-            },
-            
-            // --- Event Listeners ---
-            attachEventListeners() {
-                this.dom.settingsBtn.addEventListener('click', () => this.settings.show());
-                this.dom.accountBtn.addEventListener('click', () => this.auth.show());
-                this.dom.logoutBtn.addEventListener('click', () => this.auth.logout());
-            },
-
-            // --- View Management ---
-            showTool(toolId) {
-                // Global notification check BEFORE switching view
-                if (this.timerState.interval) {
-                    this.showGlobalNotification();
-                }
-
-                this.activeTool = toolId;
-                this.dom.componentView.innerHTML = ''; // Clear previous tool
-                
-                // Add a title to the component view
-                const toolData = this.tools[toolId];
-                if (toolData) {
-                    const title = document.createElement('h2');
-                    title.className = 'container-title';
-                    title.textContent = toolData.name;
-                    this.dom.componentView.appendChild(title);
-                }
-
-                const content = document.createElement('div');
-                content.className = 'doodle-box';
-
-                switch(toolId) {
-                    case 'age-calculator': content.innerHTML = this.templates.ageCalculator(); break;
-                    case 'converters': content.innerHTML = this.templates.converters(); break;
-                    case 'stopwatch': this.stopwatch.render(content); break;
-                    case 'timer': this.timer.render(content); break;
-                    case 'sizer': content.innerHTML = this.templates.sizer(); break;
-                    case 'countdown-tracker': this.counters.render(content); break;
-                    case 'task-manager': this.tasks.render(content); break;
-                    case 'currency-converter': content.innerHTML = this.templates.currencyConverter(); break;
-                    case 'games': this.games.renderSelection(content); break;
-                    case 'browser': content.innerHTML = this.templates.browser(); break;
-                }
-                this.dom.componentView.appendChild(content);
-
-                // Scroll to the new tool
-                this.dom.componentView.scrollIntoView({ behavior: 'smooth' });
-            },
-            
-            // --- Global Notification Bar ---
-            showGlobalNotification() {
-                const bar = this.dom.globalNotificationBar;
-                bar.style.display = 'flex';
-                if (this.timerState.type === 'stopwatch') {
-                    bar.innerHTML = this.templates.globalNotification('Stopwatch', this.stopwatch.formatTime(), 'stopwatch');
-                } else if (this.timerState.type === 'timer') {
-                    bar.innerHTML = this.templates.globalNotification('Timer', `${this.timer.formatTime()} remaining`, 'timer');
-                }
-            },
-
-            hideGlobalNotification() {
-                this.dom.globalNotificationBar.style.display = 'none';
-            },
-
-            // --- Tool Data ---
-            tools: {
-                'age-calculator': { name: 'Age Calculator', icon: '🎂' },
-                'converters': { name: 'Unit Converters', icon: '📏' },
-                'stopwatch': { name: 'Stopwatch', icon: '⏱️' },
-                'timer': { name: 'Timer', icon: '⏳' },
-                'sizer': { name: 'Sizer Tool', icon: '💍' },
-                'countdown-tracker': { name: 'Countdown Tracker', icon: '🔢' },
-                'task-manager': { name: 'Task Manager', icon: '📝' },
-                'currency-converter': { name: 'Currency Converter', icon: '💱' },
-                'games': { name: 'Games', icon: '🎮' },
-                'browser': { name: 'Browser', icon: '🌐' }
-            },
-            
-            // --- Render Functions ---
-            renderToolGrid() {
-                this.dom.toolGrid.innerHTML = '';
-                for (const id in this.tools) {
-                    const tool = this.tools[id];
-                    const button = document.createElement('button');
-                    button.className = 'tool-btn';
-                    button.innerHTML = `<span style="font-size: 2em;">${tool.icon}</span> ${tool.name}`;
-                    button.onclick = () => this.showTool(id);
-                    this.dom.toolGrid.appendChild(button);
-                }
-            },
-        };
-
-        // =================================================================
-        // --- 2. HTML TEMPLATES
-        // =================================================================
-        app.templates = {
-            basicCalculator: (display) => `
-                <div class="doodle-box">
-                    <div class="calc-display">${display}</div>
-                    <div class="calc-grid">
-                        <button class="btn-danger" onclick="app.calculator.clear()">C</button>
-                        <button onclick="app.calculator.append('(')">(</button>
-                        <button onclick="app.calculator.append(')')">)</button>
-                        <button class="btn-primary" onclick="app.calculator.append('/')">÷</button>
-                        <button onclick="app.calculator.append('7')">7</button>
-                        <button onclick="app.calculator.append('8')">8</button>
-                        <button onclick="app.calculator.append('9')">9</button>
-                        <button class="btn-primary" onclick="app.calculator.append('*')">×</button>
-                        <button onclick="app.calculator.append('4')">4</button>
-                        <button onclick="app.calculator.append('5')">5</button>
-                        <button onclick="app.calculator.append('6')">6</button>
-                        <button class="btn-primary" onclick="app.calculator.append('-')">-</button>
-                        <button onclick="app.calculator.append('1')">1</button>
-                        <button onclick="app.calculator.append('2')">2</button>
-                        <button onclick="app.calculator.append('3')">3</button>
-                        <button class="btn-primary" onclick="app.calculator.append('+')">+</button>
-                        <button onclick="app.calculator.append('0')">0</button>
-                        <button onclick="app.calculator.append('.')">.</button>
-                        <button class="btn-primary" onclick="app.calculator.calculate()">=</button>
-                        <button onclick="app.calculator.showScientific()">Adv</button>
-                    </div>
-                </div>`,
-
-            scientificCalculator: () => `
-                <div class="modal-content">
-                    <h2>Scientific Calculator</h2>
-                    <p>Advanced functions like sin, cos, tan, log will be here.</p>
-                    <button class="btn-danger" onclick="app.calculator.hideScientific()">Close</button>
-                </div>`,
-            
-            ageCalculator: () => `
-                <div class="input-group"><label for="dob">Your Date of Birth:</label><input type="date" id="dob"></div>
-                <button class="btn-primary" onclick="app.ageCalc.calculate()">Calculate!</button>
-                <div id="ageResult" style="margin-top: 15px;"></div>`,
-            
-            converters: () => `
-                <h4>Length Converter</h4>
-                <div class="input-group"><label>Value:</label><input type="number" id="len-val" oninput="app.converters.convertLength()"></div>
-                <div style="display: flex; gap: 10px;">
-                    <div class="input-group" style="flex:1;"><label>From:</label><select id="len-from" onchange="app.converters.convertLength()"><option value="m">Meters</option><option value="ft">Feet</option><option value="in">Inches</option><option value="cm">Centimeters</option></select></div>
-                    <div class="input-group" style="flex:1;"><label>To:</label><select id="len-to" onchange="app.converters.convertLength()"><option value="ft">Feet</option><option value="m">Meters</option><option value="in">Inches</option><option value="cm">Centimeters</option></select></div>
-                </div>
-                <div id="len-result"></div>`,
-            
-            currencyConverter: () => `
-                <p><strong>Note:</strong> This requires a real-time API. Using mock data for now.</p>
-                <div style="display: flex; gap: 10px;">
-                    <div class="input-group" style="flex:2;"><label>Amount</label><input type="number" id="curr-amount" value="100" oninput="app.currency.convert()"></div>
-                    <div class="input-group" style="flex:1;"><label>From</label><select id="curr-from" onchange="app.currency.convert()"><option>USD</option><option>EUR</option><option>INR</option></select></div>
-                    <div class="input-group" style="flex:1;"><label>To</label><select id="curr-to" onchange="app.currency.convert()"><option>INR</option><option>USD</option><option>EUR</option></select></div>
-                </div>
-                <h3 id="curr-result" style="text-align: center; margin-top: 15px;"></h3>`,
-
-            globalNotification: (type, time, handler) => `
-                <span>${type} Running: <strong>${time}</strong></span>
-                <div>
-                    <button onclick="app.${handler}.toggle()">Pause</button>
-                    <button class="btn-danger" onclick="app.${handler}.reset()">Reset</button>
-                </div>`,
-            
-            sizer: () => `
-                <p>Sizer tool for rings, bangles, and watches will be implemented here.</p>
-                <div class="input-group">
-                    <label>Gender:</label>
-                    <select><option>Male</option><option>Female</option></select>
-                </div>`,
-            
-            browser: () => `
-                <div class="input-group" style="display:flex; gap:10px;">
-                    <input type="text" id="browser-url" placeholder="https://example.com" value="https://www.google.com/webhp?igu=1">
-                    <button class="btn-primary" onclick="app.browser.go()">Go</button>
-                </div>
-                <iframe id="browser-frame" style="width: 100%; height: 400px; border: 2px solid var(--doodle-border);"></iframe>
-                `,
-            
-            gameSelection: () => `
-                <div class="game-selection-grid">
-                    <div class="game-card" onclick="app.games.startGame('ttt')"><span class="game-card-icon">#️⃣</span><h3>Tic-Tac-Toe</h3></div>
-                    <div class="game-card" onclick="app.games.startGame('snake')"><span class="game-card-icon">🐍</span><h3>Snake</h3></div>
-                    <div class="game-card" onclick="app.games.startGame('ludo')"><span class="game-card-icon">🎲</span><h3>Ludo</h3></div>
-                    <div class="game-card" onclick="app.games.startGame('uno')"><span class="game-card-icon">🃏</span><h3>UNO</h3></div>
-                    <div class="game-card" onclick="app.games.startGame('stack')"><span class="game-card-icon">堆</span><h3>Stack Card</h3></div>
-                </div>
-                <div id="game-board-area" style="margin-top: 20px;"></div>
-                `,
-            
-            authModal: () => `
-                <div class="modal-content">
-                    <div id="login-view">
-                        <h2>Login</h2>
-                        <div class="input-group"><label for="login-email">Email:</label><input type="email" id="login-email"></div>
-                        <div class="input-group password-group">
-                            <label for="login-password">Password:</label><input type="password" id="login-password">
-                            <button class="password-toggle" onclick="app.auth.togglePassword(this, 'login-password')">👁️</button>
-                        </div>
-                        <p><a href="#" class="auth-toggle-link" onclick="app.auth.showForgotPassword()">Forgot Password?</a></p>
-                        <button class="btn-primary" style="width:100%; margin-top:10px;">Login</button>
-                        <p style="text-align:center; margin-top:15px;">Don't have an account? <a href="#" class="auth-toggle-link" onclick="app.auth.showSignup()">Sign Up</a></p>
-                    </div>
-
-                    <div id="signup-view" style="display:none;">
-                        <h2>Sign Up</h2>
-                        <div class="input-group"><label for="signup-email">Email:</label><input type="email" id="signup-email"></div>
-                        <div class="input-group password-group">
-                            <label for="signup-password">Password:</label><input type="password" id="signup-password">
-                            <button class="password-toggle" onclick="app.auth.togglePassword(this, 'signup-password')">👁️</button>
-                        </div>
-                        <button class="btn-primary" style="width:100%;">Create Account</button>
-                        <p style="text-align:center; margin-top:15px;">Already have an account? <a href="#" class="auth-toggle-link" onclick="app.auth.showLogin()">Login</a></p>
-                    </div>
-
-                    <div class="social-login-divider"><span>OR</span></div>
-                    <div class="social-login-buttons">
-                        <button class="social-btn" title="Login with Google">G</button>
-                        <button class="social-btn" title="Login with Facebook">f</button>
-                        <button class="social-btn" title="Login with Apple"></button>
-                        <button class="social-btn" title="Login with Microsoft">M</button>
-                    </div>
-                    <button class="btn-danger" style="width:100%; margin-top:20px;" onclick="app.auth.hide()">Close</button>
-                </div>`,
-        };
-
-        // =================================================================
-        // --- 3. MODULES (Clock, Calculator, Tools, etc.)
-        // =================================================================
-
-        // --- Clock ---
-        app.clock = {
-            interval: null,
-            start() { this.interval = setInterval(this.update, 1000); this.update(); },
-            update() {
-                const now = new Date();
-                app.dom.time.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                app.dom.date.textContent = now.toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
-            }
-        };
-
-        // --- Calculator ---
-        app.calculator = {
-            expression: '0',
-            render(target) {
-                if (target === 'sticky') {
-                    app.dom.stickyCalculator.innerHTML = app.templates.basicCalculator(this.expression);
-                }
-            },
-            append(val) {
-                if (this.expression === '0') this.expression = '';
-                this.expression += val;
-                this.updateDisplay();
-            },
-            clear() { this.expression = '0'; this.updateDisplay(); },
-            calculate() {
-                try {
-                    let evalExpr = this.expression.replace(/÷/g, '/').replace(/×/g, '*');
-                    this.expression = eval(evalExpr).toString();
-                } catch { this.expression = 'Error'; }
-                this.updateDisplay();
-            },
-            updateDisplay() {
-                document.querySelector('#sticky-calculator-container .calc-display').textContent = this.expression;
-            },
-            showScientific() {
-                app.dom.sciCalcModal.innerHTML = app.templates.scientificCalculator();
-                app.dom.sciCalcModal.style.display = 'flex';
-            },
-            hideScientific() { app.dom.sciCalcModal.style.display = 'none'; },
-        };
-
-        // --- Age Calculator ---
-        app.ageCalc = {
-            calculate() {
-                const dob = new Date(document.getElementById('dob').value);
-                const resultEl = document.getElementById('ageResult');
-                if (!dob) { resultEl.textContent = "Please select a date."; return; }
-                const age = new Date(Date.now() - dob.getTime());
-                const years = Math.abs(age.getUTCFullYear() - 1970);
-                resultEl.textContent = `You are ${years} years old.`;
-            }
-        };
-
-        // --- Converters ---
-        app.converters = {
-            convertLength() {
-                const val = parseFloat(document.getElementById('len-val').value);
-                const from = document.getElementById('len-from').value;
-                const to = document.getElementById('len-to').value;
-                const resultEl = document.getElementById('len-result');
-                if(isNaN(val)) { resultEl.innerHTML = ''; return; }
-
-                const factors = { m: 1, ft: 3.28084, in: 39.3701, cm: 100 };
-                const meters = val / factors[from];
-                const result = meters * factors[to];
-                resultEl.innerHTML = `<strong>Result:</strong> ${result.toFixed(3)} ${to}`;
-            }
-        };
-
-        // --- Currency Converter ---
-        app.currency = {
-             convert() {
-                const amount = document.getElementById('curr-amount').value;
-                const from = document.getElementById('curr-from').value;
-                const to = document.getElementById('curr-to').value;
-                const resultEl = document.getElementById('curr-result');
-                const mockRates = { "USD": 1, "INR": 83.5, "EUR": 0.92 };
-                const result = amount * (mockRates[to] / mockRates[from]);
-                resultEl.textContent = `${result.toFixed(2)} ${to}`;
-             }
-        };
-
-        // --- Stopwatch ---
-        app.stopwatch = {
-            render(container) {
-                 container.innerHTML = `
-                    <div style="font-size: 3em; text-align: center; margin: 20px 0;" id="stopwatch-display">00:00:00</div>
-                    <div style="display: flex; justify-content: center; gap: 10px;">
-                        <button id="sw-toggle-btn" class="btn-primary" onclick="app.stopwatch.toggle()">Start</button>
-                        <button id="sw-lap-btn" onclick="app.stopwatch.lap()">Lap</button>
-                        <button class="btn-danger" onclick="app.stopwatch.reset()">Reset</button>
-                    </div>
-                    <ul id="lap-list" style="list-style-type: decimal; padding-left: 20px; margin-top: 20px;"></ul>`;
-                this.updateDisplay();
-            },
-            toggle() {
-                if (app.timerState.interval) { // Pausing
-                    clearInterval(app.timerState.interval);
-                    app.timerState.interval = null;
-                    document.getElementById('sw-toggle-btn').textContent = 'Resume';
-                } else { // Starting/Resuming
-                    app.timerState.type = 'stopwatch';
-                    app.timerState.startTime = Date.now() - app.timerState.elapsed;
-                    app.timerState.interval = setInterval(this.update, 10);
-                    document.getElementById('sw-toggle-btn').textContent = 'Pause';
-                }
-            },
-            reset() {
-                clearInterval(app.timerState.interval);
-                app.timerState = { type: null, interval: null, elapsed: 0, startTime: 0, totalSeconds: 0 };
-                app.hideGlobalNotification();
-                if(document.getElementById('stopwatch-display')) {
-                    document.getElementById('stopwatch-display').textContent = '00:00:00';
-                    document.getElementById('sw-toggle-btn').textContent = 'Start';
-                    document.getElementById('lap-list').innerHTML = '';
-                }
-            },
-            update() {
-                app.timerState.elapsed = Date.now() - app.timerState.startTime;
-                app.stopwatch.updateDisplay();
-            },
-            updateDisplay() {
-                 if(document.getElementById('stopwatch-display')) {
-                    document.getElementById('stopwatch-display').textContent = this.formatTime();
-                 }
-            },
-            formatTime() {
-                const time = new Date(app.timerState.elapsed);
-                const mins = String(time.getUTCMinutes()).padStart(2, '0');
-                const secs = String(time.getUTCSeconds()).padStart(2, '0');
-                const ms = String(time.getUTCMilliseconds()).padStart(3, '0').slice(0, 2);
-                return `${mins}:${secs}:${ms}`;
-            },
-            lap() {
-                const lapList = document.getElementById('lap-list');
-                if (!lapList) return;
-                const li = document.createElement('li');
-                li.textContent = this.formatTime();
-                lapList.prepend(li);
-            }
-        };
-
-        // --- Timer ---
-        app.timer = {
-            render(container) {
-                container.innerHTML = `
-                <div id="timer-inputs" class="input-group" style="display:flex; gap:10px; justify-content:center;">
-                    <input type="number" id="timer-min" placeholder="MM" min="0" max="99" style="width: 80px;">
-                    <input type="number" id="timer-sec" placeholder="SS" min="0" max="59" style="width: 80px;">
-                </div>
-                <div style="font-size: 3em; text-align: center; margin: 20px 0;" id="timer-display">00:00</div>
-                <div style="display: flex; justify-content: center; gap: 10px;">
-                    <button id="timer-toggle-btn" class="btn-primary" onclick="app.timer.toggle()">Start</button>
-                    <button class="btn-danger" onclick="app.timer.reset()">Reset</button>
-                </div>`;
-                this.updateDisplay();
-            },
-            toggle() {
-                if (app.timerState.interval) { // Pausing
-                    clearInterval(app.timerState.interval);
-                    app.timerState.interval = null;
-                    document.getElementById('timer-toggle-btn').textContent = 'Resume';
-                } else { // Starting/Resuming
-                    if (app.timerState.totalSeconds <= 0) {
-                        const min = parseInt(document.getElementById('timer-min').value) || 0;
-                        const sec = parseInt(document.getElementById('timer-sec').value) || 0;
-                        app.timerState.totalSeconds = (min * 60) + sec;
-                    }
-                    if (app.timerState.totalSeconds <= 0) return;
-                    
-                    app.timerState.type = 'timer';
-                    app.timerState.interval = setInterval(this.update, 1000);
-                    document.getElementById('timer-toggle-btn').textContent = 'Pause';
-                }
-            },
-            reset() {
-                clearInterval(app.timerState.interval);
-                app.timerState = { type: null, interval: null, elapsed: 0, startTime: 0, totalSeconds: 0 };
-                app.hideGlobalNotification();
-                if(document.getElementById('timer-display')) {
-                    document.getElementById('timer-display').textContent = '00:00';
-                    document.getElementById('timer-toggle-btn').textContent = 'Start';
-                }
-            },
-            update() {
-                app.timerState.totalSeconds--;
-                app.timer.updateDisplay();
-                if (app.timerState.totalSeconds <= 0) {
-                    alert('Time is up!');
-                    app.timer.reset();
-                }
-            },
-            updateDisplay() {
-                 if(document.getElementById('timer-display')) {
-                    document.getElementById('timer-display').textContent = this.formatTime();
-                 }
-            },
-            formatTime() {
-                const mins = String(Math.floor(app.timerState.totalSeconds / 60)).padStart(2, '0');
-                const secs = String(app.timerState.totalSeconds % 60).padStart(2, '0');
-                return `${mins}:${secs}`;
-            }
-        };
-
-        // --- Task Manager ---
-        app.tasks = {
-            render(container) {
-                // Render inside the tool view
-                if (container) {
-                    container.innerHTML = `
-                        <div class="input-group" style="display:flex; gap:10px;">
-                            <input type="text" id="new-task-input" placeholder="e.g., Buy milk">
-                            <button class="btn-primary" onclick="app.tasks.add()">Add Task</button>
-                        </div>
-                        <ul id="tool-task-list" style="list-style: none;"></ul>`;
-                    this.renderList(document.getElementById('tool-task-list'));
-                }
-                // Always render the main page list
-                this.renderList(app.dom.mainTaskList);
-            },
-            renderList(listElement) {
-                if (!listElement) return;
-                listElement.innerHTML = '';
-                if(app.tasks.length === 0 && listElement.id === 'main-task-list') {
-                     listElement.innerHTML = '<p>No tasks yet. Add one from the Task Manager tool!</p>';
-                     return;
-                }
-                app.tasks.forEach((task, index) => {
-                    const li = document.createElement('li');
-                    li.className = task.completed ? 'completed' : '';
-                    li.innerHTML = `
-                        <input type="checkbox" onchange="app.tasks.toggle(${index})" ${task.completed ? 'checked' : ''}>
-                        <span class="task-text">${task.text}</span>
-                        <button class="btn-danger delete-task-btn" onclick="app.tasks.remove(${index})">X</button>`;
-                    listElement.appendChild(li);
-                });
-            },
-            add() {
-                const input = document.getElementById('new-task-input');
-                if (input.value.trim() === '') return;
-                app.tasks.push({ text: input.value, completed: false });
-                input.value = '';
-                this.render();
-            },
-            remove(index) {
-                app.tasks.splice(index, 1);
-                this.render();
-            },
-            toggle(index) {
-                app.tasks[index].completed = !app.tasks[index].completed;
-                this.render();
-            }
-        };
-        
-        // --- Countdown Tracker ---
-        app.counters = {
-            render(container) {
-                if (!container) return;
-                container.innerHTML = `
-                    <div class="input-group" style="display:flex; gap:10px;">
-                        <input type="text" id="new-counter-name" placeholder="e.g., Cups of Coffee">
-                        <button class="btn-primary" onclick="app.counters.add()">Add Counter</button>
-                    </div>
-                    <div id="counters-list"></div>`;
-                const list = container.querySelector('#counters-list');
-                list.innerHTML = '';
-                app.counters.forEach((counter, index) => {
-                    const item = document.createElement('div');
-                    item.className
+                    <button class="header-btn" id="account-btn"
