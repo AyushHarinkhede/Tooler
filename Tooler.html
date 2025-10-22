@@ -1374,13 +1374,13 @@ body.tool-view-open .main-content {
                     
                     const totalDays = Math.floor((today - dob) / (1000 * 60 * 60 * 24));
                     
-                    let result = `<strong>Your Age:</strong> ${years} years, ${months} months, and ${days} days\n\n`;
-                    result += `<strong>Total Days:</strong> ${totalDays} days\n\n`;
+                    let result = `Your Age ${years} years, ${months} months, and ${days} days\n\n`;
+                    result += `Total Days: ${totalDays} days\n\n`;
                     
                     // Eligibility checks
-                    result += `<strong>Eligibility Status:</strong>\n`;
+                    result += `Eligibility Status:\n`;
                     result += `• 18+ Adult: ${years >= 18 ? '✅ Yes' : '❌ No'}\n`;
-                    result += `• Eligible to Drive: ${years >= 16 ? '✅ Yes' : '❌ No (16+ required)'}\n`;
+                    result += `• Eligible to Drive: ${years >= 18 ? '✅ Yes' : '❌ No (18+ required)'}\n`;
                     result += `• Eligible to Vote: ${years >= 18 ? '✅ Yes' : '❌ No (18+ required)'}\n`;
                     
                     if (gender === 'male') {
