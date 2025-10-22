@@ -1,872 +1,396 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-
-//=========== UTILITY FUNCTIONS & MOCK DATA ===========//
-const debounce = (func, delay) => {
-  let timeout;
-  return (...args) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => func(...args), delay);
-  };
-};
-
-//=========== REACT COMPONENTS ===========//
-
-// --- Main App Component ---
-export default function App() {
-  const [activeTool, setActiveTool] = useState(null);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showAccount, setShowAccount] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  
-  //--- Global States ---
-  const [theme, setTheme] = useState('doodle');
-  const [primaryColor, setPrimaryColor] = useState('#ff6b6b');
-  const [tasks, setTasks] = useState([{ id: 1, text: 'Try the new tools!', completed: false }]);
-  const [countdowns, setCountdowns] = useState([{ id: 1, name: 'Water', count: 0 }]);
-  
-  const [stopwatch, setStopwatch] = useState({ isRunning: false, time: 0, laps: [] });
-  const [timer, setTimer] = useState({ isRunning: false, initialTime: 0, timeRemaining: 0 });
-  
-  const [calcHistory, setCalcHistory] = useState([]);
-
-  //--- Effects for Timers ---
-  useEffect(() => {
-    let interval;
-    if (stopwatch.isRunning) {
-      const startTime = Date.now() - stopwatch.time;
-      interval = setInterval(() => {
-        setStopwatch(sw => ({ ...sw, time: Date.now() - startTime }));
-      }, 10);
-    }
-    return () => clearInterval(interval);
-  }, [stopwatch.isRunning]);
-
-  useEffect(() => {
-    let interval;
-    if (timer.isRunning && timer.timeRemaining > 0) {
-      interval = setInterval(() => {
-        setTimer(t => ({ ...t, timeRemaining: t.timeRemaining - 1 }));
-      }, 1000);
-    } else if (timer.isRunning && timer.timeRemaining <= 0) {
-        alert('Timer finished!');
-        setTimer({ isRunning: false, initialTime: 0, timeRemaining: 0 });
-    }
-    return () => clearInterval(interval);
-  }, [timer.isRunning, timer.timeRemaining]);
-  
-  //--- Dynamic Styles ---
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.style.setProperty('--doodle-primary', primaryColor);
-  }, [theme, primaryColor]);
-
-  //--- Task Management ---
-  const addTask = (text) => {
-    if(!text) return;
-    setTasks(prev => [...prev, { id: Date.now(), text, completed: false }]);
-  };
-  const toggleTask = (id) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
-  };
-  const deleteTask = (id) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-  };
-  
-  //--- Countdown Management ---
-  const addCountdown = (name) => {
-    if(!name) return;
-    setCountdowns(prev => [...prev, { id: Date.now(), name, count: 0 }]);
-  };
-  const updateCountdown = (id, change) => {
-    setCountdowns(prev => prev.map(c => c.id === id ? { ...c, count: Math.max(0, c.count + change) } : c));
-  };
-  const deleteCountdown = (id) => {
-    setCountdowns(prev => prev.filter(c => c.id !== id));
-  };
-  
-  const toolComponents = {
-    'age-calculator': <AgeCalculator />, 'converters': <Converters />, 'stopwatch': <Stopwatch state={stopwatch} setState={setStopwatch} />,
-    'timer': <Timer state={timer} setState={setTimer} />, 'sizer': <Sizer />, 'countdown': <CountdownTracker countdowns={countdowns} onAdd={addCountdown} onUpdate={updateCountdown} onDelete={deleteCountdown} />,
-    'tasks': <TaskManager onAddTask={addTask} />, 'currency': <CurrencyConverter />, 'games': <Games />, 'browser': <Browser />,
-  };
-
-  return (
-    <>
-      <div className="container">
-        <GlobalNotification timer={timer} setTimer={setTimer} stopwatch={stopwatch} setStopwatch={setStopwatch} activeTool={activeTool} />
-        <Header onSettingsClick={() => setShowSettings(true)} onAccountClick={() => setShowAccount(true)} />
-        
-        <main className="main-content">
-          <Calculator onHistoryClick={() => setShowHistory(true)} history={calcHistory} setHistory={setCalcHistory} />
-          
-          <ToolGrid onToolSelect={setActiveTool} activeTool={activeTool} />
-
-          <div className="active-tool-container">
-            {activeTool && toolComponents[activeTool]}
-          </div>
-
-          <TaskList tasks={tasks} onToggle={toggleTask} onDelete={deleteTask} />
-        </main>
-      </div>
-
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} theme={theme} setTheme={setTheme} primaryColor={primaryColor} setPrimaryColor={setPrimaryColor} />}
-      {showAccount && <AccountModal onClose={() => setShowAccount(false)} />}
-      {showHistory && <HistoryModal onClose={() => setShowHistory(false)} history={calcHistory} />}
-      <DoodleStyles />
-    </>
-  );
-}
-
-// --- Sub Components ---
-
-const Header = ({ onSettingsClick, onAccountClick }) => {
-  const [time, setTime] = useState(new Date());
-
-  useEffect(() => {
-    const timerId = setInterval(() => setTime(new Date()), 1000);
-    return () => clearInterval(timerId);
-  }, []);
-
-  const getGreeting = () => {
-    const hour = time.getHours();
-    if (hour < 12) return "Good Morning ☀️";
-    if (hour < 18) return "Good Afternoon ☕";
-    return "Good Evening 🌙";
-  };
-  
-  return (
-    <header className="main-header">
-      <div className="title-area">
-        <span className="bookmark-pin">📌</span><h1>Tooler</h1>
-      </div>
-      <div className="header-info-controls">
-        <div className="time-widget">
-          <div className="greeting">{getGreeting()}</div>
-          <div className="time">{time.toLocaleTimeString('en-US')}</div>
-          <div className="date">{time.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
-        </div>
-        <div className="header-buttons">
-          <button className="header-btn" onClick={onSettingsClick} title="Settings">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-          </button>
-          <button className="header-btn" onClick={onAccountClick} title="Account">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-          </button>
-          <button className="header-btn" onClick={() => alert('Logged out!')} title="Logout">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-};
-
-const GlobalNotification = ({ timer, setTimer, stopwatch, setStopwatch, activeTool }) => {
-  const isTimerActive = timer.isRunning && activeTool !== 'timer';
-  const isStopwatchActive = stopwatch.isRunning && activeTool !== 'stopwatch';
-
-  if (!isTimerActive && !isStopwatchActive) return null;
-
-  const formatTime = (totalSeconds) => {
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  };
-
-   const formatStopwatch = (ms) => {
-    const date = new Date(ms);
-    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
-    const milliseconds = String(date.getUTCMilliseconds()).padStart(3, '0').slice(0, 2);
-    return `${minutes}:${seconds}:${milliseconds}`;
-  };
-
-  return (
-    <div className="global-notification">
-      {isTimerActive && (
-        <div className="notification-item">
-          <span>⏳ Timer: {formatTime(timer.timeRemaining)}</span>
-          <div>
-            <button onClick={() => setTimer(t => ({...t, isRunning: !t.isRunning}))}>{timer.isRunning ? 'Pause' : 'Resume'}</button>
-            <button onClick={() => setTimer({ isRunning: false, initialTime: 0, timeRemaining: 0 })}>Stop</button>
-          </div>
-        </div>
-      )}
-      {isStopwatchActive && (
-        <div className="notification-item">
-          <span>⏱️ Stopwatch: {formatStopwatch(stopwatch.time)}</span>
-           <div>
-            <button onClick={() => setStopwatch(sw => ({...sw, isRunning: !sw.isRunning}))}>{stopwatch.isRunning ? 'Pause' : 'Resume'}</button>
-            <button onClick={() => setStopwatch({ isRunning: false, time: 0, laps: [] })}>Stop</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const Calculator = ({ onHistoryClick, history, setHistory }) => {
-  const [display, setDisplay] = useState('0');
-  const [showScientific, setShowScientific] = useState(false);
-
-  const handleInput = (val) => {
-    if (display === '0' || display === 'Error') {
-      setDisplay(val);
-    } else {
-      setDisplay(display + val);
-    }
-  };
-
-  const calculate = () => {
-    try {
-      const result = eval(display.replace('x', '*'));
-      setHistory(prev => [`${display} = ${result}`, ...prev].slice(0, 50));
-      setDisplay(result.toString());
-    } catch {
-      setDisplay('Error');
-    }
-  };
-  
-  const handleScientificOp = (op) => {
-    try {
-      let current = parseFloat(display);
-      let result;
-      switch(op) {
-        case 'sin': result = Math.sin(current); break;
-        case 'cos': result = Math.cos(current); break;
-        case 'tan': result = Math.tan(current); break;
-        case 'log': result = Math.log10(current); break;
-        case 'ln': result = Math.log(current); break;
-        case 'sqrt': result = Math.sqrt(current); break;
-        case 'sq': result = Math.pow(current, 2); break;
-        case 'pi': setDisplay(Math.PI.toString()); return;
-        default: result = current;
-      }
-      setDisplay(result.toString());
-    } catch {
-      setDisplay('Error');
-    }
-  };
-
-  return (
-    <div className="tool-card calculator-card">
-      <div className="calculator-display">{display}</div>
-      <div className="calculator-grid">
-        <button onClick={() => setDisplay('0')} className="btn-op">C</button>
-        <button onClick={() => handleInput('(')} className="btn-op">(</button>
-        <button onClick={() => handleInput(')')} className="btn-op">)</button>
-        <button onClick={() => handleInput('/')} className="btn-op">÷</button>
-        <button onClick={() => handleInput('7')}>7</button>
-        <button onClick={() => handleInput('8')}>8</button>
-        <button onClick={() => handleInput('9')}>9</button>
-        <button onClick={() => handleInput('x')} className="btn-op">x</button>
-        <button onClick={() => handleInput('4')}>4</button>
-        <button onClick={() => handleInput('5')}>5</button>
-        <button onClick={() => handleInput('6')}>6</button>
-        <button onClick={() => handleInput('-')} className="btn-op">-</button>
-        <button onClick={() => handleInput('1')}>1</button>
-        <button onClick={() => handleInput('2')}>2</button>
-        <button onClick={() => handleInput('3')}>3</button>
-        <button onClick={() => handleInput('+')} className="btn-op">+</button>
-        <button onClick={() => handleInput('0')} style={{gridColumn: 'span 2'}}>0</button>
-        <button onClick={() => handleInput('.')}>.</button>
-        <button onClick={calculate} className="btn-calc">=</button>
-      </div>
-      <div className="calculator-footer">
-          <button onClick={onHistoryClick}>History</button>
-          <button onClick={() => setShowScientific(true)}>Advanced</button>
-      </div>
-      {showScientific && <Modal onClose={() => setShowScientific(false)}>
-            <h2>Scientific Calculator</h2>
-            <div className="scientific-grid">
-              <button onClick={() => handleScientificOp('sin')}>sin</button>
-              <button onClick={() => handleScientificOp('cos')}>cos</button>
-              <button onClick={() => handleScientificOp('tan')}>tan</button>
-              <button onClick={() => handleScientificOp('log')}>log</button>
-              <button onClick={() => handleScientificOp('ln')}>ln</button>
-              <button onClick={() => handleScientificOp('sqrt')}>√</button>
-              <button onClick={() => handleScientificOp('sq')}>x²</button>
-              <button onClick={() => handleScientificOp('pi')}>π</button>
-            </div>
-        </Modal>}
-    </div>
-  );
-};
-
-const ToolGrid = ({ onToolSelect, activeTool }) => {
-    const tools = [
-        { id: 'age-calculator', name: 'Age Calc'}, { id: 'converters', name: 'Converters'},
-        { id: 'stopwatch', name: 'Stopwatch'}, { id: 'timer', name: 'Timer'},
-        { id: 'sizer', name: 'Sizer'}, { id: 'countdown', name: 'Countdowns'},
-        { id: 'tasks', name: 'Tasks'}, { id: 'currency', name: 'Currency'},
-        { id: 'games', name: 'Games'}, { id: 'browser', name: 'Browser'}
-    ];
-    return (
-        <div className="tool-grid">
-            {tools.map(tool => (
-                <button key={tool.id} className={`tool-btn ${activeTool === tool.id ? 'active' : ''}`} onClick={() => onToolSelect(tool.id)}>
-                    {tool.name}
-                </button>
-            ))}
-        </div>
-    );
-};
-
-const TaskList = ({ tasks, onToggle, onDelete }) => {
-  if (tasks.length === 0) return null;
-  return (
-    <div className="tool-card">
-      <h2>My Tasks</h2>
-      <ul className="task-list">
-        {tasks.map(task => (
-          <li key={task.id} className={task.completed ? 'completed' : ''}>
-            <span onClick={() => onToggle(task.id)}>{task.text}</span>
-            <button onClick={() => onDelete(task.id)}>&times;</button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-};
-
-// ... All other tool components like AgeCalculator, Converters, Games etc.
-const AgeCalculator = () => {
-    const [dob, setDob] = useState('');
-    const [age, setAge] = useState('');
-    const calculateAge = () => {
-        if (!dob) return;
-        const birthDate = new Date(dob);
-        const today = new Date();
-        let years = today.getFullYear() - birthDate.getFullYear();
-        let months = today.getMonth() - birthDate.getMonth();
-        if (months < 0 || (months === 0 && today.getDate() < birthDate.getDate())) {
-            years--;
-            months = (months + 12) % 12;
-        }
-        setAge(`${years} years and ${months} months old.`);
-    };
-    return (
-        <div className="tool-card">
-            <h2>Age Calculator</h2>
-            <div className="input-group">
-                <label>Your Date of Birth</label>
-                <input type="date" value={dob} onChange={e => setDob(e.target.value)} />
-            </div>
-            <button className="btn-calc" onClick={calculateAge}>Calculate</button>
-            {age && <div className="result">{age}</div>}
-        </div>
-    );
-};
-
-const Converters = () => {
-  const [inputValue, setInputValue] = useState(1);
-  const [fromUnit, setFromUnit] = useState('m');
-  const [toUnit, setToUnit] = useState('ft');
-  
-  const lengthFactors = { m: 1, ft: 3.28084, in: 39.3701, cm: 100 };
-  const result = (inputValue * lengthFactors[toUnit] / lengthFactors[fromUnit]).toFixed(4);
-
-  return (
-    <div className="tool-card">
-      <h2>Converters</h2>
-      <div className="converter-section">
-        <h4>Length Converter</h4>
-        <div className="converter-ui">
-          <input type="number" value={inputValue} onChange={e => setInputValue(e.target.value)} />
-          <select value={fromUnit} onChange={e => setFromUnit(e.target.value)}>
-            <option value="m">Meters</option><option value="ft">Feet</option><option value="in">Inches</option><option value="cm">Centimeters</option>
-          </select>
-          <span>to</span>
-          <select value={toUnit} onChange={e => setToUnit(e.target.value)}>
-            <option value="m">Meters</option><option value="ft">Feet</option><option value="in">Inches</option><option value="cm">Centimeters</option>
-          </select>
-        </div>
-        <div className="result">{inputValue} {fromUnit} = {result} {toUnit}</div>
-      </div>
-    </div>
-  );
-};
-
-const CurrencyConverter = () => {
-  const [amount, setAmount] = useState(1);
-  const [from, setFrom] = useState('USD');
-  const [to, setTo] = useState('EUR');
-  const [rate, setRate] = useState(0.93);
-  const [result, setResult] = useState(0.93);
-
-  useEffect(() => {
-    // In a real app, you'd fetch this from an API
-    // fetch(`https://api.exchangerate-api.com/v4/latest/${from}`)
-    // .then(res => res.json()).then(data => setRate(data.rates[to]));
-    // For this example, we'll use a mock rate.
-    const mockRates = { USD: { EUR: 0.93, JPY: 157.4, GBP: 0.79 }, EUR: { USD: 1.08, JPY: 169.8, GBP: 0.85 }};
-    setRate(mockRates[from]?.[to] || 1);
-  }, [from, to]);
-
-  useEffect(() => {
-    setResult((amount * rate).toFixed(2));
-  }, [amount, rate]);
-
-  return (
-    <div className="tool-card">
-      <h2>Currency Converter</h2>
-      <div className="converter-ui">
-        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} />
-        <select value={from} onChange={e => setFrom(e.target.value)}>
-          <option>USD</option><option>EUR</option>
-        </select>
-        <span>to</span>
-        <select value={to} onChange={e => setTo(e.target.value)}>
-          <option>USD</option><option>EUR</option><option>JPY</option><option>GBP</option>
-        </select>
-      </div>
-      <div className="result">{amount} {from} = {result} {to}</div>
-    </div>
-  );
-};
-
-const Stopwatch = ({ state, setState }) => {
-  const { isRunning, time, laps } = state;
-  const formatTime = (ms) => {
-    const date = new Date(ms);
-    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
-    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
-    const milliseconds = String(date.getUTCMilliseconds()).padStart(3, '0').slice(0, 2);
-    return `${minutes}:${seconds}:${milliseconds}`;
-  };
-
-  const handleStartStop = () => setState(prev => ({ ...prev, isRunning: !prev.isRunning }));
-  const handleReset = () => setState({ isRunning: false, time: 0, laps: [] });
-  const handleLap = () => {
-    if (!isRunning) return;
-    setState(prev => ({ ...prev, laps: [time, ...prev.laps] }));
-  };
-
-  return (
-    <div className="tool-card">
-      <h2>Stopwatch</h2>
-      <div className="timer-display">{formatTime(time)}</div>
-      <div className="button-group">
-        <button onClick={handleStartStop}>{isRunning ? 'Pause' : 'Start'}</button>
-        <button onClick={handleLap} disabled={!isRunning}>Lap</button>
-        <button onClick={handleReset}>Reset</button>
-      </div>
-      <ul className="lap-list">
-        {laps.map((lap, i) => <li key={i}>Lap {laps.length - i}: {formatTime(lap)}</li>)}
-      </ul>
-    </div>
-  );
-};
-
-const Timer = ({ state, setState }) => {
-  const { isRunning, initialTime, timeRemaining } = state;
-  const [minutes, setMinutes] = useState('1');
-  const [seconds, setSeconds] = useState('0');
-
-  const formatTime = (totalSeconds) => {
-    const min = Math.floor(totalSeconds / 60);
-    const sec = totalSeconds % 60;
-    return `${String(min).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
-  };
-
-  const handleStart = () => {
-    const total = parseInt(minutes, 10) * 60 + parseInt(seconds, 10);
-    setState({ isRunning: true, initialTime: total, timeRemaining: total });
-  };
-  const handlePause = () => setState(prev => ({ ...prev, isRunning: false }));
-  const handleReset = () => setState({ isRunning: false, initialTime: 0, timeRemaining: 0 });
-
-  return (
-    <div className="tool-card">
-      <h2>Timer</h2>
-      {timeRemaining > 0 ? (
-        <div className="timer-display">{formatTime(timeRemaining)}</div>
-      ) : (
-        <div className="input-group-inline">
-          <input type="number" value={minutes} onChange={e => setMinutes(e.target.value)} placeholder="MM"/>
-          <span>:</span>
-          <input type="number" value={seconds} onChange={e => setSeconds(e.target.value)} placeholder="SS"/>
-        </div>
-      )}
-      <div className="button-group">
-        {!isRunning && timeRemaining === 0 && <button onClick={handleStart}>Start</button>}
-        {isRunning && <button onClick={handlePause}>Pause</button>}
-        {!isRunning && timeRemaining > 0 && <button onClick={() => setState(p => ({...p, isRunning: true}))}>Resume</button>}
-        <button onClick={handleReset}>Reset</button>
-      </div>
-    </div>
-  );
-};
-
-const Sizer = () => {
-  const [mode, setMode] = useState('ring');
-  const [value, setValue] = useState(17);
-
-  const configs = {
-    ring: { min: 12, max: 25, unit: 'mm' },
-    bangle: { min: 5, max: 8, unit: 'cm' },
-    wrist: { min: 14, max: 22, unit: 'cm' },
-  };
-  
-  const config = configs[mode];
-
-  return (
-    <div className="tool-card">
-      <h2>Sizer Tool</h2>
-      <div className="button-group">
-        <button onClick={() => setMode('ring')} className={mode === 'ring' ? 'active' : ''}>Ring</button>
-        <button onClick={() => setMode('bangle')} className={mode === 'bangle' ? 'active' : ''}>Bangle</button>
-        <button onClick={() => setMode('wrist')} className={mode === 'wrist' ? 'active' : ''}>Wrist</button>
-      </div>
-      <div className="input-group">
-        <label>{value} {config.unit}</label>
-        <input type="range" min={config.min} max={config.max} value={value} step="0.1" onChange={e => setValue(e.target.value)} />
-      </div>
-    </div>
-  );
-};
-
-const CountdownTracker = ({ countdowns, onAdd, onUpdate, onDelete }) => {
-  const [newName, setNewName] = useState('');
-  
-  const handleAdd = () => {
-    onAdd(newName);
-    setNewName('');
-  };
-
-  return (
-    <div className="tool-card">
-      <h2>Countdown Trackers</h2>
-      <div className="input-group-inline">
-        <input type="text" value={newName} onChange={e => setNewName(e.target.value)} placeholder="New counter name..."/>
-        <button onClick={handleAdd}>Add</button>
-      </div>
-      <div className="countdown-list">
-        {countdowns.map(c => (
-          <div key={c.id} className={`countdown-item ${c.name.toLowerCase().includes('water') ? 'water' : ''}`}>
-            <span>{c.name}</span>
-            <div className="countdown-controls">
-              <button onClick={() => onUpdate(c.id, -1)}>-</button>
-              <span>{c.count}</span>
-              <button onClick={() => onUpdate(c.id, 1)}>+</button>
-              <button className="delete-btn" onClick={() => onDelete(c.id)}>&times;</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-};
-
-const TaskManager = ({ onAddTask }) => {
-  const [text, setText] = useState('');
-  const handleAdd = () => {
-    onAddTask(text);
-    setText('');
-  };
-  return (
-    <div className="tool-card">
-      <h2>Add a Task</h2>
-      <div className="input-group-inline">
-        <input type="text" value={text} onChange={e => setText(e.target.value)} placeholder="What needs to be done?"/>
-        <button onClick={handleAdd}>Add Task</button>
-      </div>
-    </div>
-  );
-};
-
-const Browser = () => {
-  const [url, setUrl] = useState('https://www.google.com/webhp?igu=1');
-  const [iframeUrl, setIframeUrl] = useState('https://www.google.com/webhp?igu=1');
-  
-  const handleGo = () => {
-    let finalUrl = url;
-    if (!url.startsWith('http')) {
-        finalUrl = 'https://' + url;
-    }
-    setIframeUrl(finalUrl);
-  };
-
-  return (
-    <div className="tool-card browser-card">
-      <h2>Browser</h2>
-      <div className="input-group-inline">
-        <input type="text" value={url} onChange={e => setUrl(e.target.value)} placeholder="Enter URL"/>
-        <button onClick={handleGo}>Go</button>
-      </div>
-      <iframe src={iframeUrl} title="Browser" sandbox="allow-scripts allow-same-origin"></iframe>
-    </div>
-  );
-};
-
-const Games = () => {
-  const [selectedGame, setSelectedGame] = useState('ttt');
-  
-  const GameComponent = {
-    ttt: <TicTacToe />,
-    snake: <Snake />,
-    ludo: <Ludo/>,
-    uno: <div className="game-placeholder">UNO is coming soon!</div>,
-    stack: <div className="game-placeholder">Stack Card is coming soon!</div>
-  }[selectedGame];
-
-  return (
-    <div className="tool-card">
-      <h2>Games</h2>
-      <div className="button-group">
-        <button onClick={() => setSelectedGame('ttt')} className={selectedGame === 'ttt' ? 'active' : ''}>Tic-Tac-Toe</button>
-        <button onClick={() => setSelectedGame('snake')} className={selectedGame === 'snake' ? 'active' : ''}>Snake</button>
-        <button onClick={() => setSelectedGame('ludo')} className={selectedGame === 'ludo' ? 'active' : ''}>Ludo</button>
-        <button onClick={() => setSelectedGame('uno')}>UNO</button>
-        <button onClick={() => setSelectedGame('stack')}>Stack Card</button>
-      </div>
-      <div className="game-area">{GameComponent}</div>
-    </div>
-  );
-};
-
-const TicTacToe = () => {
-    const [board, setBoard] = useState(Array(9).fill(null));
-    const [isXNext, setIsXNext] = useState(true);
-    const [mode, setMode] = useState('player'); // player or ai
-    const winner = calculateWinner(board);
-
-    const handleClick = (i) => {
-        if (winner || board[i]) return;
-        const newBoard = [...board];
-        newBoard[i] = isXNext ? 'X' : 'O';
-        setBoard(newBoard);
-        setIsXNext(!isXNext);
-    };
+<!DOCTYPE html>
+<html lang="en" data-theme="doodle">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tooler - Your Doodle Toolkit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
     
-    useEffect(() => {
-        if (mode === 'ai' && !isXNext && !winner) {
-            const emptySquares = board.map((sq, i) => sq === null ? i : null).filter(i => i !== null);
-            if (emptySquares.length > 0) {
-                const aiMove = emptySquares[Math.floor(Math.random() * emptySquares.length)];
-                setTimeout(() => handleClick(aiMove), 500);
-            }
+    <style>
+        :root {
+            --doodle-bg: #fdf5e6; /* Old paper */
+            --doodle-text: #3a3a3a;
+            --doodle-primary: #ff6b6b; /* Coral red */
+            --doodle-secondary: #4ecdc4; /* Teal */
+            --doodle-accent: #f9d423; /* Yellow */
+            --doodle-border: #3a3a3a;
+            --font-main: 'Kalam', cursive;
+            --shadow-color: rgba(0,0,0,0.15);
+            --note-bg: #fffbe8; /* Sticky note yellow */
+            --line-color: rgba(147, 184, 212, 0.3);
+            --tape-color: rgba(255, 255, 126, 0.5);
         }
-    }, [isXNext, board, winner, mode, handleClick]);
 
-    const status = winner ? `Winner: ${winner}` : `Next player: ${isXNext ? 'X' : 'O'}`;
-    const handleReset = () => { setBoard(Array(9).fill(null)); setIsXNext(true); };
+        html[data-theme="dark"] {
+            --doodle-bg: #2c3e50;
+            --doodle-text: #ecf0f1;
+            --doodle-primary: #e74c3c;
+            --doodle-secondary: #1abc9c;
+            --doodle-accent: #f1c40f;
+            --doodle-border: #ecf0f1;
+            --note-bg: #34495e;
+            --shadow-color: rgba(0,0,0,0.4);
+            --line-color: rgba(236, 240, 241, 0.2);
+            --tape-color: rgba(241, 196, 15, 0.4);
+        }
 
-    return (
-        <div>
-            <div className="button-group">
-                <button onClick={() => setMode('player')} className={mode === 'player' ? 'active' : ''}>vs Player</button>
-                <button onClick={() => setMode('ai')} className={mode === 'ai' ? 'active' : ''}>vs Computer</button>
-            </div>
-            <div className="ttt-board">
-                {board.map((value, i) => <button key={i} className="ttt-cell" onClick={() => handleClick(i)}>{value}</button>)}
-            </div>
-            <div className="result">{status}</div>
-            <button onClick={handleReset}>Reset Game</button>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--doodle-bg);
+            color: var(--doodle-text);
+            font-size: 16px;
+            transition: background-color 0.3s, color 0.3s;
+            overflow-x: hidden;
+            font-weight: 400;
+            background-image:
+                repeating-linear-gradient(var(--doodle-bg) 0px, var(--doodle-bg) 24px, var(--line-color) 25px),
+                linear-gradient(to right, var(--doodle-bg) 0px, var(--doodle-bg) 49px, #ff6b6b44 50px);
+            background-size: 100% 25px, 100% 100%;
+        }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        
+        /* --- HEADER & GLOBAL UI --- */
+        .main-header {
+            border-bottom: 3px double var(--doodle-primary);
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            flex-wrap: wrap; gap: 15px;
+        }
+        .main-header h1 {
+            font-size: 3.5em; color: var(--doodle-text); font-weight: 700;
+            transform: rotate(-2deg);
+        }
+        .header-info-controls { display: flex; align-items: center; gap: 20px; }
+        .time-widget { text-align: right; }
+        .time-widget .time { font-size: 1.5em; font-weight: 700; }
+        .header-buttons { display: flex; align-items: center; gap: 10px; }
+        .header-btn {
+            background: none; border: none; cursor: pointer; color: var(--doodle-text);
+            padding: 5px; transition: transform 0.2s;
+        }
+        .header-btn:hover { transform: scale(1.1) rotate(-5deg); }
+        .header-btn svg { width: 32px; height: 32px; }
+
+        /* Global Notification Bar */
+        .global-notification-bar {
+            position: sticky; top: 0; left: 0; width: 100%;
+            background: var(--doodle-accent); color: var(--doodle-text);
+            padding: 10px; text-align: center; font-weight: 700;
+            z-index: 999; display: none; align-items: center; justify-content: center;
+            gap: 15px; border-bottom: 2px solid var(--doodle-border);
+            font-size: 1.1em;
+        }
+        .global-notification-bar button { padding: 5px 10px; font-size: 0.9em; }
+
+        /* --- LAYOUT & CONTAINERS --- */
+        .sticky-calculator-container, .tool-grid-container, .task-list-container, .component-view-container {
+            margin-bottom: 25px;
+        }
+        .container-title {
+            font-size: 1.8em; font-weight: 700; margin-bottom: 15px;
+            color: var(--doodle-primary); border-bottom: 2px dashed var(--doodle-primary);
+            padding-bottom: 5px;
+        }
+
+        /* Generic Doodle Box Style */
+        .doodle-box {
+            background: var(--note-bg);
+            border: 1px solid var(--doodle-border);
+            padding: 25px;
+            box-shadow: 5px 5px 15px var(--shadow-color);
+            transform: rotate(1deg);
+        }
+        .doodle-box::before, .doodle-box::after { /* Tape effect */
+            content: ''; position: absolute; width: 100px; height: 25px;
+            background: var(--tape-color); border-left: 1px dashed rgba(0,0,0,0.2);
+            border-right: 1px dashed rgba(0,0,0,0.2);
+        }
+        .doodle-box::before { top: -12px; left: 30px; transform: rotate(-5deg); }
+        .doodle-box::after { top: -10px; right: 50px; transform: rotate(4deg); }
+
+        /* --- BUTTONS & INPUTS --- */
+        button, .btn {
+            font-family: var(--font-main);
+            border: 2px solid var(--doodle-border); border-radius: 5px;
+            font-size: 1.1em; font-weight: 700; cursor: pointer;
+            transition: all 0.2s ease; color: var(--doodle-text);
+            padding: 10px 15px; background: #fff;
+            box-shadow: 2px 2px 0px var(--doodle-border);
+        }
+        button:hover, .btn:hover { transform: translateY(-2px); box-shadow: 4px 4px 0px var(--doodle-border); }
+        button:active, .btn:active { transform: translate(2px, 2px); box-shadow: none; }
+        
+        .btn-primary { background-color: var(--doodle-secondary); color: white; border-color: var(--doodle-secondary); }
+        .btn-danger { background-color: var(--doodle-primary); color: white; border-color: var(--doodle-primary); }
+
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; margin-bottom: 8px; font-size: 1.2em; }
+        .input-group input, .input-group select {
+            width: 100%; padding: 12px; border: 2px solid var(--doodle-border);
+            border-radius: 5px; font-size: 1.1em; background: #fff;
+            color: var(--doodle-text); font-family: var(--font-main);
+        }
+        .input-group.password-group { position: relative; }
+        .password-toggle {
+            position: absolute; right: 10px; top: 42px; cursor: pointer;
+            background: none; border: none; box-shadow: none; padding: 5px;
+        }
+
+        /* --- TOOL-SPECIFIC STYLES --- */
+        /* Calculator */
+        .calc-display {
+            background: #e0e0e0; border: 2px solid var(--doodle-border); padding: 15px;
+            border-radius: 8px; font-size: 2em; text-align: right; margin-bottom: 15px;
+            min-height: 50px; word-wrap: break-word; color: #333;
+            box-shadow: inset 2px 2px 5px rgba(0,0,0,0.2);
+        }
+        .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+        /* Tool Grid */
+        .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 15px; }
+        .tool-btn {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 10px; padding: 15px; font-size: 1.2em;
+            background: linear-gradient(135deg, var(--doodle-accent), #f7e174);
+            text-align: center; height: 120px;
+        }
+        .tool-btn svg { width: 32px; height: 32px; }
+
+        /* Task List */
+        #main-task-list { list-style: none; }
+        #main-task-list li {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px; background: #fff; border: 2px solid var(--doodle-border);
+            margin-bottom: 10px; border-radius: 5px;
+        }
+        #main-task-list li.completed { text-decoration: line-through; opacity: 0.6; }
+        #main-task-list input[type="checkbox"] { width: 20px; height: 20px; }
+        #main-task-list .task-text { flex-grow: 1; }
+        #main-task-list .delete-task-btn { padding: 5px; font-size: 0.8em; }
+
+        /* Component View */
+        .component-view { min-height: 300px; }
+
+        /* Games */
+        .game-selection-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
+        .game-card {
+            background: #fff; border: 2px solid var(--doodle-border); border-radius: 8px;
+            padding: 20px; text-align: center; cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .game-card:hover { transform: translateY(-5px) rotate(-2deg); box-shadow: 5px 5px 10px var(--shadow-color); }
+        .game-card-icon { font-size: 3em; display: block; margin-bottom: 10px; }
+        #tic-tac-toe-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 20px auto; aspect-ratio: 1/1; }
+        .ttt-cell {
+            background: #fff; border: 3px solid var(--doodle-border);
+            display: flex; justify-content: center; align-items: center;
+            font-size: 3em; font-weight: bold; cursor: pointer; color: var(--doodle-primary);
+        }
+
+        /* Countdown Tracker */
+        .counter-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; background: white; padding: 10px; border: 2px solid var(--doodle-border); border-radius: 5px; margin-bottom: 10px; }
+        .counter-name { font-size: 1.2em; font-weight: bold; }
+        .counter-controls { display: flex; align-items: center; gap: 10px; }
+        .counter-value { font-size: 1.5em; font-weight: 700; min-width: 40px; text-align: center; }
+        .water-icons { font-size: 1.5em; }
+
+        /* --- MODAL STYLES --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); display: none; justify-content: center;
+            align-items: center; z-index: 1000;
+        }
+        .modal-content {
+            background: var(--note-bg); padding: 25px; border: 2px solid var(--doodle-border);
+            width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-height: 90vh; display: flex; flex-direction: column;
+            transform: rotate(-1deg);
+        }
+        .modal-content h2 { font-size: 2em; color: var(--doodle-primary); margin-bottom: 20px; }
+        
+        /* Auth Modal */
+        .auth-toggle-link { color: var(--doodle-secondary); text-decoration: underline; cursor: pointer; }
+        .social-login-divider { text-align: center; margin: 20px 0; font-weight: bold; }
+        .social-login-buttons { display: flex; justify-content: center; gap: 15px; }
+        .social-btn { font-size: 1.5em; padding: 10px; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    
+    <div id="global-notification-bar" class="global-notification-bar">
         </div>
-    );
-};
-function calculateWinner(squares) { /* TTT win logic */
-  const lines = [[0, 1, 2], [3, 4, 5], [6, 7, 8], [0, 3, 6], [1, 4, 7], [2, 5, 8], [0, 4, 8], [2, 4, 6]];
-  for (let i = 0; i < lines.length; i++) {
-    const [a, b, c] = lines[i];
-    if (squares[a] && squares[a] === squares[b] && squares[a] === squares[c]) {
-      return squares[a];
-    }
-  }
-  return null;
-}
 
-const Snake = () => {
-    // A simplified snake game logic for brevity. A full implementation would be more complex.
-    const [score, setScore] = useState(0);
-    return(
-        <div>
-            <canvas id="snake-canvas" width="300" height="300" style={{background: 'var(--doodle-bg)', border: '2px solid var(--doodle-border)'}}></canvas>
-            <div className="result">Score: {score}</div>
-             <p>Full snake game requires complex state management beyond this scope. This is a placeholder.</p>
-        </div>
-    )
-}
-
-const Ludo = () => {
-    return (
-        <div>
-            <div className="ludo-board">
-                <div className="player-home red"></div>
-                <div className="player-home green"></div>
-                <div className="player-home yellow"></div>
-                <div className="player-home blue"></div>
-                <div className="center-home"></div>
+    <div class="container">
+        <header class="main-header">
+            <h1>Tooler</h1>
+            <div class="header-info-controls">
+                <div class="time-widget">
+                    <div id="time" class="time">12:00:00 PM</div>
+                    <div id="date" class="date">Wednesday, October 22</div>
+                </div>
+                <div class="header-buttons">
+                     <button class="header-btn" id="settings-btn" title="Settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </button>
+                    <button class="header-btn" id="account-btn" title="Account">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                    </button>
+                    <button class="header-btn" id="logout-btn" title="Logout" style="display: none;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                    </button>
+                </div>
             </div>
-             <p>Full Ludo game logic is highly complex. This is a visual placeholder.</p>
-        </div>
-    )
-}
+        </header>
 
-// --- Modals ---
-const Modal = ({ children, onClose }) => (
-    <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={e => e.stopPropagation()}>{children}</div>
+        <main>
+            <div class="sticky-calculator-container" id="sticky-calculator-container">
+                </div>
+            
+            <div class="tool-grid-container">
+                <h2 class="container-title">Tools</h2>
+                <div class="tool-grid" id="tool-grid">
+                    </div>
+            </div>
+
+            <div class="task-list-container">
+                 <h2 class="container-title">My Tasks</h2>
+                 <div class="doodle-box">
+                    <ul id="main-task-list">
+                        </ul>
+                 </div>
+            </div>
+
+            <div class="component-view-container">
+                <div class="component-view" id="component-view">
+                     </div>
+            </div>
+        </main>
     </div>
-);
 
-const SettingsModal = ({ onClose, theme, setTheme, primaryColor, setPrimaryColor }) => {
-    const colors = ['#ff6b6b', '#4ecdc4', '#f9d423', '#8e44ad', '#3498db', '#e67e22'];
-    return (
-        <Modal onClose={onClose}>
-            <h2>Settings</h2>
-            <div className="input-group">
-                <label>Theme</label>
-                <div className="button-group">
-                    <button onClick={() => setTheme('doodle')} className={theme==='doodle' ? 'active' : ''}>Light</button>
-                    <button onClick={() => setTheme('dark')} className={theme==='dark' ? 'active' : ''}>Dark</button>
-                </div>
-            </div>
-            <div className="input-group">
-                <label>Accent Color</label>
-                <div className="color-palette">
-                    {colors.map(c => <div key={c} className={`color-swatch ${primaryColor === c ? 'active' : ''}`} style={{backgroundColor: c}} onClick={() => setPrimaryColor(c)}></div>)}
-                </div>
-            </div>
-            <button onClick={onClose} className="btn-clear">Close</button>
-        </Modal>
-    );
-};
-
-const AccountModal = ({ onClose }) => {
-    const [isLogin, setIsLogin] = useState(true);
-    const [showPass, setShowPass] = useState(false);
-    return (
-        <Modal onClose={onClose}>
-            <h2>{isLogin ? 'Login' : 'Sign Up'}</h2>
-            <div className="input-group">
-                <label>Email</label><input type="email" />
-            </div>
-            <div className="input-group" style={{position: 'relative'}}>
-                <label>Password</label><input type={showPass ? 'text' : 'password'} />
-                <button className="password-toggle" onClick={() => setShowPass(!showPass)}>
-                    {/* Doodle eye icon */}
-                    <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"></path></svg>
-                </button>
-            </div>
-            {isLogin && <a href="#" className="forgot-password">Forgot Password?</a>}
-            <button className="btn-calc full-width">{isLogin ? 'Login' : 'Sign Up'}</button>
-            <div className="divider">or</div>
-            <div className="social-login">
-                <button className="social-btn google">G</button>
-                <button className="social-btn facebook">f</button>
-                <button className="social-btn microsoft">M</button>
-                <button className="social-btn apple"></button>
-            </div>
-            <button className="link-btn" onClick={() => setIsLogin(!isLogin)}>
-                {isLogin ? "Don't have an account? Sign Up" : "Already have an account? Login"}
-            </button>
-        </Modal>
-    );
-};
-
-const HistoryModal = ({ onClose, history }) => (
-    <Modal onClose={onClose}>
-        <h2>Calculation History</h2>
-        <div className="history-list">
-            {history.length > 0 ? history.map((item, i) => <div key={i}>{item}</div>) : "No history yet."}
-        </div>
-    </Modal>
-);
-
-// --- Styles Component ---
-const DoodleStyles = () => (
-  <style>{`
-    :root {
-      --doodle-bg: #fdf5e6; --doodle-text: #3a3a3a; --doodle-primary: #ff6b6b; --doodle-secondary: #4ecdc4;
-      --doodle-accent: #f9d423; --doodle-border: #3a3a3a; --font-main: 'Kalam', cursive;
-      --shadow-color: rgba(0,0,0,0.15); --note-bg: #fffbe8; --line-color: rgba(147, 184, 212, 0.3);
-    }
-    html[data-theme="dark"] {
-      --doodle-bg: #2c3e50; --doodle-text: #ecf0f1; --doodle-secondary: #1abc9c; --doodle-accent: #f1c40f;
-      --doodle-border: #ecf0f1; --note-bg: #34495e; --line-color: rgba(236, 240, 241, 0.2);
-    }
-    *, *::before, *::after { box-sizing: border-box; }
-    body {
-      font-family: var(--font-main); background-color: var(--doodle-bg); color: var(--doodle-text);
-      margin: 0; transition: background-color 0.3s;
-      background-image: repeating-linear-gradient(var(--doodle-bg) 0px, var(--doodle-bg) 24px, var(--line-color) 25px);
-    }
-    .container { max-width: 1200px; margin: 0 auto; padding: 1rem; }
-    .main-header { display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 1rem; padding-bottom: 1rem; margin-bottom: 2rem; border-bottom: 3px double var(--doodle-primary); }
-    .title-area { display: flex; align-items: center; gap: 1rem; }
-    .bookmark-pin { font-size: 2.5em; transform: rotate(-15deg); color: var(--doodle-primary); }
-    h1 { font-size: 4em; margin: 0; }
-    .header-info-controls { display: flex; align-items: center; gap: 1.5rem; }
-    .time-widget { text-align: right; }
-    .time { font-size: 1.5em; font-weight: 700; }
-    .header-buttons { display: flex; gap: 0.5rem; }
-    .header-btn { background: none; border: none; cursor: pointer; color: var(--doodle-text); padding: 5px; transition: transform 0.2s; }
-    .header-btn:hover { transform: scale(1.1) rotate(-5deg); }
-    .header-btn svg { width: 32px; height: 32px; }
-    .main-content { display: grid; gap: 1.5rem; }
-    .tool-card { background: var(--note-bg); border: 1px solid var(--doodle-border); padding: 1.5rem; box-shadow: 5px 5px 15px var(--shadow-color); transform: rotate(1deg); }
-    .calculator-card { transform: rotate(-1deg); }
-    .tool-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 1rem; }
-    .tool-btn { font-family: var(--font-main); border: 2px solid var(--doodle-border); border-radius: 5px; font-size: 1.1em; font-weight: 700; cursor: pointer; transition: all 0.2s ease; padding: 1rem; background: #fff; box-shadow: 2px 2px 0px var(--doodle-border); }
-    .tool-btn:hover { transform: translateY(-2px); box-shadow: 4px 4px 0px var(--doodle-border); }
-    .tool-btn.active { background: var(--doodle-accent); }
-    .active-tool-container { min-height: 200px; }
-    .input-group { margin-bottom: 1rem; }
-    .input-group label { display: block; margin-bottom: 0.5rem; font-size: 1.2em; }
-    input, select { width: 100%; padding: 12px; border: 2px solid var(--doodle-border); border-radius: 5px; font-size: 1.1em; background: #fff; font-family: var(--font-main); }
-    .input-group-inline { display: flex; gap: 0.5rem; align-items: center; }
-    .result { background: rgba(255, 255, 255, 0.5); padding: 1rem; border-radius: 5px; margin-top: 1rem; border: 2px dashed var(--doodle-border); font-weight: 700; }
-    .button-group { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
-    .button-group button { flex-grow: 1; padding: 0.75rem; border: 2px solid var(--doodle-border); border-radius: 5px; cursor: pointer; background: #fff; font-family: var(--font-main); }
-    .button-group button.active { background: var(--doodle-accent); }
-    .btn-calc { background-color: var(--doodle-secondary); color: white; border-color: var(--doodle-secondary); }
-    .btn-op { background-color: var(--doodle-accent); }
-    .calculator-display { background: #e0e0e0; border: 2px solid var(--doodle-border); padding: 1rem; border-radius: 8px; font-size: 2.5em; text-align: right; margin-bottom: 1rem; min-height: 60px; color: #333; }
-    .calculator-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
-    .calculator-grid button { padding: 1rem; font-size: 1.5em; }
-    .calculator-footer { display: flex; gap: 0.5rem; margin-top: 1rem; }
-    .calculator-footer button { flex: 1; padding: 0.75rem; }
-    .task-list { list-style: none; padding: 0; margin-top: 1rem; }
-    .task-list li { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px dashed var(--doodle-border); }
-    .task-list li span { cursor: pointer; }
-    .task-list li.completed span { text-decoration: line-through; opacity: 0.6; }
-    .task-list li button { background: none; border: none; color: var(--doodle-primary); font-size: 1.5em; cursor: pointer; }
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-    .modal-content { background: var(--note-bg); padding: 2rem; border: 2px solid var(--doodle-border); width: 90%; max-width: 500px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); transform: rotate(-1deg); }
-    .color-palette { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-    .color-swatch { width: 30px; height: 30px; border-radius: 50%; cursor: pointer; border: 2px solid var(--doodle-border); }
-    .color-swatch.active { border-width: 4px; transform: scale(1.1); }
-    .password-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; }
-    .forgot-password { display: block; text-align: right; margin-top: -0.5rem; margin-bottom: 1rem; font-size: 0.9em; }
-    .divider { text-align: center; margin: 1rem 0; font-weight: 700; }
-    .social-login { display: flex; justify-content: center; gap: 1rem; }
-    .social-btn { font-family: sans-serif; font-weight: bold; width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--doodle-border); cursor: pointer; }
-    .social-btn.google { background: #db4437; color: white; }
-    .social-btn.facebook { background: #3b5998; color: white; }
-    .social-btn.microsoft { background: #f25022; color: white; }
-    .social-btn.apple { background: #000; color: white; }
-    .link-btn { background: none; border: none; text-decoration: underline; color: var(--doodle-text); cursor: pointer; display: block; margin: 1rem auto 0; }
-    .global-notification { position: fixed; top: 0; left: 0; width: 100%; background: var(--doodle-accent); z-index: 1001; padding: 0.5rem; text-align: center; font-weight: 700; box-shadow: 0 2px 10px var(--shadow-color); }
-    .notification-item { display: flex; justify-content: center; align-items: center; gap: 1rem; }
-    .notification-item button { padding: 2px 8px; font-size: 0.9em; }
-    .timer-display { font-size: 4em; text-align: center; margin: 1rem 0; }
-    .lap-list { list-style: none; padding: 0; margin-top: 1rem; max-height: 150px; overflow-y: auto; }
-    .countdown-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; border-bottom: 1px dashed var(--doodle-border); }
-    .countdown-item.water { color: #3498db; font-weight: bold; }
-    .countdown-controls { display: flex; align-items: center; gap: 0.5rem; }
-    .countdown-controls button { padding: 0 0.5rem; font-size: 1.2em; }
-    .browser-card iframe { width: 100%; height: 400px; border: 2px solid var(--doodle-border); margin-top: 1rem; }
-    .ttt-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; max-width: 300px; margin: 20px auto; }
-    .ttt-cell { width: 100px; height: 100px; background: #fff; border: 3px solid var(--doodle-border); display: flex; justify-content: center; align-items: center; font-size: 3em; font-weight: bold; cursor: pointer; color: var(--doodle-primary); }
-    .ludo-board { width: 300px; height: 300px; border: 2px solid var(--doodle-border); position: relative; margin: 1rem auto; background: var(--doodle-bg); }
-    .player-home { position: absolute; width: 120px; height: 120px; }
-    .player-home.red { top: 0; left: 0; background: #e74c3c88; }
-    .player-home.green { top: 0; right: 0; background: #2ecc7188; }
-    .player-home.yellow { bottom: 0; right: 0; background: #f1c40f88; }
-    .player-home.blue { bottom: 0; left: 0; background: #3498db88; }
-  `}</style>
-);
+    <div id="scientific-calc-modal" class="modal-overlay"></div>
+    <div id="settings-modal" class="modal-overlay"></div>
+    <div id="account-modal" class="modal-overlay"></div>
 
 
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        
+        // =================================================================
+        // --- 1. CORE APP STRUCTURE & STATE
+        // =================================================================
+        const app = {
+            // --- App State ---
+            activeTool: null,
+            timerState: { type: null, interval: null, elapsed: 0, startTime: 0, totalSeconds: 0 },
+            tasks: [],
+            counters: [],
+
+            // --- DOM Elements ---
+            dom: {
+                // Main Layout
+                time: document.getElementById('time'),
+                date: document.getElementById('date'),
+                stickyCalculator: document.getElementById('sticky-calculator-container'),
+                toolGrid: document.getElementById('tool-grid'),
+                componentView: document.getElementById('component-view'),
+                mainTaskList: document.getElementById('main-task-list'),
+                globalNotificationBar: document.getElementById('global-notification-bar'),
+                // Modals
+                sciCalcModal: document.getElementById('scientific-calc-modal'),
+                settingsModal: document.getElementById('settings-modal'),
+                accountModal: document.getElementById('account-modal'),
+                // Header Buttons
+                settingsBtn: document.getElementById('settings-btn'),
+                accountBtn: document.getElementById('account-btn'),
+                logoutBtn: document.getElementById('logout-btn'),
+            },
+
+            // --- Initialization ---
+            init() {
+                console.log("Tooler App Initializing... 🛠️");
+                this.clock.start();
+                this.renderToolGrid();
+                this.calculator.render('sticky');
+                this.attachEventListeners();
+                this.tasks.render(); // Initial render of tasks
+                this.counters.render(); // Initial render of counters
+            },
+            
+            // --- Event Listeners ---
+            attachEventListeners() {
+                this.dom.settingsBtn.addEventListener('click', () => this.settings.show());
+                this.dom.accountBtn.addEventListener('click', () => this.auth.show());
+                this.dom.logoutBtn.addEventListener('click', () => this.auth.logout());
+            },
+
+            // --- View Management ---
+            showTool(toolId) {
+                // Global notification check BEFORE switching view
+                if (this.timerState.interval) {
+                    this.showGlobalNotification();
+                }
+
+                this.activeTool = toolId;
+                this.dom.componentView.innerHTML = ''; // Clear previous tool
+                
+                // Add a title to the component view
+                const toolData = this.tools[toolId];
+                if (toolData) {
+                    const title = document.createElement('h2');
+                    title.className = 'container-title';
+                    title.textContent = toolData.name;
+                    this.dom.componentView.appendChild(title);
+                }
+
+                const content = document.createElement('div');
+                content.className = 'doodle-box';
+
+                switch(toolId) {
+                    case 'age-calculator': content.innerHTML = this.templates.ageCalculator(); break;
+                    case 'converters': content.innerHTML = this.templates.converters(); break;
+                    case 'stopwatch': this.stopwatch.render(content); break;
+                    case 'timer': this.timer.render(content); break;
+                    case 'sizer': content.innerHTML = this.templates.sizer(); break;
+                    case 'countdown-tracker': this.counters.render(content); break;
+                    case 'task-manager': this.tasks.render(content); break;
+                    case 'currency-converter': content.innerHTML = this.templates.currencyConverter(); break;
+                    case 'games': this.games.renderSelection(content); break;
+                    case 'browser': content.innerHTML = this.templates.browser(); break;
+                }
+                this.dom.componentView.appendChild(content);
+
+                // Scroll to the new tool
+                this.dom.componentView.scrollIntoView({ behavior: 'smooth' });
+            },
+            
+            // --- Global Notification Bar ---
+            showGlobalNotification() {
+                const bar = this.dom.globalNotificationBar;
+                bar.style.display = 'flex';
+                if (this.timerState.type === 'stopwatch') {
+                    bar.innerHTML = this.templates.globalNotification('Stopwatch', this.stopwatch.formatTime(), 'stopwatch');
+                } else if (this.timerState.type === 'timer') {
+                    bar.innerHTML = this.templates.globalNotification('Timer', `${this.timer.formatTime()} remaining`, 'timer');
+                }
+            },
+
+            hideGlobalNotification() {
+                this.dom.globalNotificationBar.style.display = 'none';
+            },
+
+            // --- Tool Data ---
+            tools: {
+                'age-calculator': { name: 'Age Calculator', icon: '🎂' },
+                'converters': { name: 'Unit Converters', icon: '📏' },
+                'stopwatch': { name: 'Stopwatch', icon: '⏱️' },
+                'timer': { name: 'Timer', icon: '⏳' },
+                'sizer': { name: 'Sizer Tool', icon: '
