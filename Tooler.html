@@ -276,17 +276,19 @@
         /* Tool View Sliding Panel Styles */
 #tool-view-container {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: var(--bg-color, #fff); /* आपके थीम से रंग उठाएगा */
-    z-index: 1000;
-    transform: translateX(100%);
-    transition: transform 0.4s ease-in-out;
-    display: flex;
-    flex-direction: column;
-    box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+   top: 0;
+            right: 0;
+            width: 100%;
+            max-width: 800px;
+            height: 100%;
+            background: var(--doodle-bg);
+            z-index: 2000;
+            transform: translateX(100%);
+            transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: -5px 0 25px var(--shadow-color);
+            display: flex;
+            flex-direction: column;
+        
 }
 
 #tool-view-container.active {
@@ -308,27 +310,38 @@
 }
 
 #tool-view-close-btn {
-    background: transparent;
-    border: none;
-    font-size: 1.1em;
-    cursor: pointer;
-    padding: 5px 10px;
-}
+  background: var(--doodle-primary);
+            color: white;
+            border: 2px solid var(--doodle-border);
+            padding: 8px 16px;
+            font-size: 1.2em;
+            cursor: pointer;
+            border-radius: 5px;
+            font-family: var(--font-main);
+            font-weight: 700;
+            margin-right: 15px;
+        }
+#tool-view-title {
+            font-size: 2em;
+            font-weight: 700;
+            color: var(--doodle-primary);
+        }
 
-#tool-view-content {
-    flex-grow: 1;
-    overflow-y: auto;
-    padding: 20px;
-}
+        #tool-view-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 25px;
+            background: var(--doodle-bg);
+        }
 
-/* यह क्लास body में तब लगेगी जब पैनल खुला हो */
-body.tool-view-open .main-content {
-    /* Optional: मुख्य कंटेंट को फ्रीज या धुंधला करने के लिए */
-    filter: blur(2px);
-    pointer-events: none;
-}
+body.tool-view-open {
+            overflow: hidden;
+        }
 
-
+        body.tool-view-open .container {
+            filter: blur(3px);
+            pointer-events: none;
+        }
         /* Tool Container */
         .tool-container {
             background: var(--note-bg);
@@ -339,6 +352,7 @@ body.tool-view-open .main-content {
             display: none;
             transform: rotate(-0.5deg);
             animation: slideIn 0.4s ease-out;
+            position: relative;
         }
 
         .tool-container.active {
@@ -788,6 +802,10 @@ body.tool-view-open .main-content {
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
                 Compass
             </button>
+              <button class="tool-btn" onclick="app.showTool('password-generator', 'Password Generator')">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                Password Generator
+            </button>
         </div>
 
         <!-- Tool Containers -->
@@ -1065,6 +1083,51 @@ body.tool-view-open .main-content {
         </div>
     </div>
 
+        <div id="password-generator" class="tool-container">
+            <div class="tool-header">
+                <h2>🔐 Password Generator</h2>
+                <button class="btn-clear" onclick="app.closeTool()">Close</button>
+            </div>
+
+            <div class="input-group" style="position: relative;">
+                <label>Your New Password:</label>
+                <input type="text" id="pg-result" readonly placeholder="Click 'Generate'..." style="padding: 12px; font-size: 1.2em; padding-right: 60px;">
+                <button id="pg-copy-btn" title="Copy to clipboard" style="position: absolute; right: 10px; top: 42px; padding: 8px; background: none; border: 2px solid var(--doodle-border); cursor: pointer; border-radius: 5px;">
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="input-group">
+                <label for="pg-length">Password Length: <span id="pg-length-val" style="font-weight:bold; color: var(--doodle-primary);">16</span></label>
+                <input type="range" id="pg-length" min="8" max="64" value="16" style="width: 100%; cursor: pointer;">
+            </div>
+            
+            <div class="input-row" style="grid-template-columns: 1fr 1fr; margin-bottom: 20px; gap: 15px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="pg-upper" checked style="width: 20px; height: 20px; cursor: pointer;">
+                    <label for="pg-upper" style="cursor: pointer;">Uppercase (A-Z)</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="pg-lower" checked style="width: 20px; height: 20px; cursor: pointer;">
+                    <label for="pg-lower" style="cursor: pointer;">Lowercase (a-z)</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="pg-numbers" checked style="width: 20px; height: 20px; cursor: pointer;">
+                    <label for="pg-numbers" style="cursor: pointer;">Numbers (0-9)</label>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="pg-symbols" checked style="width: 20px; height: 20px; cursor: pointer;">
+                    <label for="pg-symbols" style="cursor: pointer;">Symbols (!@#)</label>
+                </div>
+            </div>
+
+            <button id="pg-gen-btn" class="btn-calculate" style="width: 100%; font-size: 1.3em; padding: 15px;">Generate Password</button>
+        </div>
+        </div> 
+
     <!-- Modals -->
     <div id="history-modal" class="modal-overlay">
         <div class="modal-content">
@@ -1189,14 +1252,15 @@ body.tool-view-open .main-content {
             currentTool: null,
             isLoggedIn: false,
             
-            init() {
-                this.clock.start();
-                this.calc.init();
-                this.tasks.init();
-                this.counters.init();
-                this.setupEventListeners();
-                this.sizer.switchType('ring');
-            },
+                  init() {
+            this.clock.start();
+            this.calc.init();
+            this.tasks.init();
+            this.counters.init();
+            this.setupEventListeners();
+            this.sizer.switchType('ring');
+            this.passGen.init(); // <-- YEH NAYI LINE ADD KAREIN
+        },
 
             setupEventListeners() {
                 document.getElementById('theme-toggle-btn').onclick = () => this.toggleTheme();
@@ -1861,6 +1925,118 @@ body.tool-view-open .main-content {
                     document.getElementById('level-text').textContent = `Level: Tilt X: ${gamma.toFixed(0)}°, Tilt Y: ${beta.toFixed(0)}°`;
                 }
             },
+
+            passGen: {
+                // Character sets
+                charsets: {
+                    upper: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+                    lower: 'abcdefghijklmnopqrstuvwxyz',
+                    numbers: '0123456789',
+                    symbols: '!@#$%^&*()_+-=[]{}|;:,.<>?'
+                },
+                
+                // Event listeners setup karne ke liye
+                init() {
+                    const lengthSlider = document.getElementById('pg-length');
+                    const lengthVal = document.getElementById('pg-length-val');
+                    const copyBtn = document.getElementById('pg-copy-btn');
+                    const genBtn = document.getElementById('pg-gen-btn');
+
+                    if (lengthSlider && lengthVal) {
+                        // Slider value ko update karein
+                        lengthSlider.oninput = () => {
+                            lengthVal.textContent = lengthSlider.value;
+                        };
+                    }
+                    if (copyBtn) {
+                        // Copy button ka listener
+                        copyBtn.onclick = () => this.copy();
+                    }
+                    if (genBtn) {
+                        // Generate button ka listener
+                        genBtn.onclick = () => this.generate();
+                    }
+                },
+
+                // Asli password generation function
+                generate() {
+                    // HTML se saare elements select karein
+                    const lengthEl = document.getElementById('pg-length');
+                    const upperEl = document.getElementById('pg-upper');
+                    const lowerEl = document.getElementById('pg-lower');
+                    const numbersEl = document.getElementById('pg-numbers');
+                    const symbolsEl = document.getElementById('pg-symbols');
+                    const resultEl = document.getElementById('pg-result');
+
+                    // Agar elements nahi mile (error)
+                    if (!lengthEl || !upperEl || !lowerEl || !numbersEl || !symbolsEl || !resultEl) {
+                        console.error('Password generator elements nahi mile!');
+                        return;
+                    }
+
+                    // Options ki values lein
+                    const length = parseInt(lengthEl.value);
+                    const includeUpper = upperEl.checked;
+                    const includeLower = lowerEl.checked;
+                    const includeNumbers = numbersEl.checked;
+                    const includeSymbols = symbolsEl.checked;
+
+                    // Ek master character list banayein
+                    let masterCharset = '';
+                    if (includeUpper) masterCharset += this.charsets.upper;
+                    if (includeLower) masterCharset += this.charsets.lower;
+                    if (includeNumbers) masterCharset += this.charsets.numbers;
+                    if (includeSymbols) masterCharset += this.charsets.symbols;
+
+                    // Agar koi option select nahi hai
+                    if (masterCharset === '') {
+                        resultEl.value = 'Please select at least one option!';
+                        return;
+                    }
+
+                    let password = '';
+                    
+                    // Secure random values ke liye window.crypto ka istemal karein
+                    // (Math.random() se behtar hai)
+                    const cryptoArray = new Uint32Array(length);
+                    window.crypto.getRandomValues(cryptoArray);
+
+                    for (let i = 0; i < length; i++) {
+                        // Har random number se ek random index chunein
+                        const randomIndex = cryptoArray[i] % masterCharset.length;
+                        password += masterCharset[randomIndex];
+                    }
+
+                    // Result ko display karein
+                    resultEl.value = password;
+                },
+                
+                // Clipboard par copy karne ka function
+                copy() {
+                    const passwordInput = document.getElementById('pg-result');
+                    const copyBtn = document.getElementById('pg-copy-btn');
+                    if (!passwordInput || !copyBtn) return;
+                    
+                    const pass = passwordInput.value;
+                    
+                    // Check karein ki copy karne ke liye password hai
+                    if (pass && pass !== 'Please select at least one option!') {
+                        navigator.clipboard.writeText(pass)
+                            .then(() => {
+                                // Copy hone par user ko feedback dein
+                                const originalContent = copyBtn.innerHTML;
+                                copyBtn.innerHTML = '✔️'; // Tick mark
+                                setTimeout(() => {
+                                    copyBtn.innerHTML = originalContent; // Wapas icon par set karein
+                                }, 1500);
+                            })
+                            .catch(err => {
+                                alert('Password copy nahi ho saka.');
+                            });
+                    }
+                }
+            },
+
             
             auth: {
                 switchTab(tab) {
