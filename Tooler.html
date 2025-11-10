@@ -2068,7 +2068,7 @@ body.tool-view-open {
                     if (this.timeout) clearTimeout(this.timeout);
                     this.timeout = setTimeout(() => this.hide(), duration);
                     
-                    document.getElementById('notification-stop').onclick = () => this.hide();
+                  document.getElementById('notification-stop').onclick = () => this.hide();
                     document.getElementById('notification-pause').onclick = () => clearTimeout(this.timeout);
                 },
                 hide() {
