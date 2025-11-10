@@ -705,9 +705,9 @@ body.tool-view-open {
                     <button class="header-btn" id="theme-toggle-btn" title="Toggle Theme">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                     </button>
-                    <button class="header-btn" id="settings-btn" title="Settings">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m4.22-13.22l-4.22 4.22m0 6l4.22 4.22M23 12h-6m-6 0H5m13.22 4.22l-4.22-4.22m0-6l4.22-4.22"></path></svg>
-                  </button>
+                   <button class="header-btn" id="settings-btn" title="Settings">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.07-.94l2.03-1.58a.5.5 0 0 0 .11-.63l-1.8-3.12a.5.5 0 0 0-.61-.22l-2.39 1.04a8.2 8.2 0 0 0-1.6-.94L14.4 3.5a.5.5 0 0 0-.5-.5h-3.8a.5.5 0 0 0-.5.5l-.34 2.68a8.2 8.2 0 0 0-1.6.94l-2.39-1.04a.5.5 0 0 0-.61.22l-1.8 3.12a.5.5 0 0 0 .11.63l2.03 1.58c-.05.3-.07.64-.07.94s.02.64.07.94l-2.03 1.58a.5.5 0 0 0-.11.63l1.8 3.12a.5.5 0 0 0 .61.22l2.39-1.04a8.2 8.2 0 0 0 1.6.94l.34 2.68a.5.5 0 0 0 .5.5h3.8a.5.5 0 0 0 .5-.5l.34-2.68a8.2 8.2 0 0 0 1.6-.94l2.39 1.04a.5.5 0 0 0 .61-.22l1.8-3.12a.5.5 0 0 0-.11-.63l-2.03-1.58z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+               </button>
                   <button class="header-btn" id="account-btn" title="Account">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                     </button>
@@ -759,53 +759,53 @@ body.tool-view-open {
         </div>
 
         <!-- Tool Grid -->
-        <div class="tool-grid">
-           <button class="tool-btn" onclick="app.showTool('age-calculator')">
+       <div class="tool-grid">
+<button class="tool-btn" onclick="app.showTool('age-calculator', 'Age Calculator')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 Age Calculator
             </button>
-            <button class="tool-btn" onclick="app.showTool('converters')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="19" x2="12" y2="5"></line><polyline points="5 12 12 5 19 12"></polyline></svg>
-             Converters
-            </button>
-            <button class="tool-btn" onclick="app.showTool('stopwatch')">
+           <button class="tool-btn" onclick="app.showTool('converters', 'Converters')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+    Converters
+</button>
+            <button class="tool-btn" onclick="app.showTool('stopwatch', 'Stopwatch')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
              Stopwatch
             </button>
-            <button class="tool-btn" onclick="app.showTool('timer')">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2h4"></path><path d="M12 14v-4"></path><path d="M4 13a8 8 0 0 1 16 0"></path></svg>
-             Timer
-            </button>
-            <button class="tool-btn" onclick="app.showTool('sizer')">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4m0-4h.01"></path></svg>
-                Sizer Tool
-            </button>
-            <button class="tool-btn" onclick="app.showTool('countdown')">
+            <button class="tool-btn" onclick="app.showTool('timer', 'Timer')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2 2"></path><path d="M5 3L3 5"></path><path d="M19 3l2 2"></path><path d="M10 2h4"></path></svg>
+    Timer
+</button>
+           <button class="tool-btn" onclick="app.showTool('sizer', 'Sizer Tool')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+    Sizer Tool
+</button>
+            <button class="tool-btn" onclick="app.showTool('countdown', 'Countdown')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>
              Counters
             </button>
-            <button class="tool-btn" onclick="app.showTool('tasks')">
+            <button class="tool-btn" onclick="app.showTool('tasks', 'Task Manager')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"></path><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
              Task Manager
             </button>
-            <button class="tool-btn" onclick="app.showTool('currency')">
+            <button class="tool-btn" onclick="app.showTool('currency', 'Currency Converter')">
                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
               Currency
             </button>
-            <button class="tool-btn" onclick="app.showTool('games')">
+            <button class="tool-btn" onclick="app.showTool('games', 'Games')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg>
               Games
             </button>
-            <button class="tool-btn" onclick="app.showTool('browser')">
+            <button class="tool-btn" onclick="app.showTool('browser', 'Browser')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
                 Browser
             </button>
-            <button class="tool-btn" onclick="app.showTool('compass')">
+            <button class="tool-btn" onclick="app.showTool('compass', 'Compass')">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"></polygon></svg>
              Compass
 
             </button>
-              <button class="tool-btn" onclick="app.showTool('password-generator', 'Password Generator')">
+              <button class="tool-btn" onclick="app.showTool('password-generator', 'Password Generator', 'Generate secure passwords')">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
                 Password Generator
             </button> 
@@ -1082,6 +1082,12 @@ body.tool-view-open {
                 <button class="btn-clear" onclick="app.closeTool()">Close</button>
             </div>
 
+
+            <!-- container close -->
+
+<!-- Tool View Sliding Panel -->
+
+
             <div class="input-group" style="position: relative;">
                 <label>Your New Password:</label>
                 <input type="text" id="pg-result" readonly placeholder="Click 'Generate'..." style="padding: 12px; font-size: 1.2em; padding-right: 60px;">
@@ -1096,8 +1102,9 @@ body.tool-view-open {
                 <label for="pg-length">Password Length: <span id="pg-length-val" style="font-weight:bold; color: var(--doodle-primary);">16</span></label>
                 <input type="range" id="pg-length" min="8" max="64" value="16" style="width: 100%; cursor: pointer;">
              </div>
-            
-            <div class="input-row" style="grid-template-columns: 1fr 1fr; margin-bottom: 20px; gap: 15px;">
+           
+           
+             <div class="input-row" style="grid-template-columns: 1fr 1fr; margin-bottom: 20px; gap: 15px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
                     <input type="checkbox" id="pg-upper" checked style="width: 20px; height: 20px; cursor: pointer;">
                     <label for="pg-upper" style="cursor: pointer;">Uppercase (A-Z)</label>
@@ -1203,7 +1210,16 @@ body.tool-view-open {
             
             <button class="btn-clear" style="width: 100%; margin-top: 20px;" onclick="app.closeModal('auth')">Close</button>
         </div>  </div>
-
+        
+<div id="tool-view-container">
+    <div class="tool-view-header">
+        <button id="tool-view-close-btn">✕ Close</button>
+        <h2 id="tool-view-title">Tool</h2>
+    </div>
+    <div id="tool-view-content">
+        <!-- Tools yahan dynamically load honge -->
+    </div>
+</div>
 
  <footer class="main-footer">
          <p style="text-align: center; padding: 40px 0; color: var(--text-secondary); margin-top: 40px;"></p>
@@ -1214,6 +1230,9 @@ body.tool-view-open {
             <p style="font-size: calc(12px * var(--font-size-multiplier)); margin-top: 10px;">All Right's Reserved by <b><i>Ayush Harinkhede</i></b></p> <!--jaaydaad apne  naam hai babua -->
          <button id="footer-logout-btn" class="btn-clear" style="display:none; margin-top: 10px;">Logout</button>
          </footer>  </div>
+
+         
+
 
     <div id="tool-templates" style="display: none;">
         <div id="age-calculator" class="tool-container"></div>
@@ -1232,8 +1251,34 @@ body.tool-view-open {
     <div id="history-modal" class="modal-overlay"></div>
     <div id="scientific-modal" class="modal-overlay"></div>
     <div id="auth-modal" class="modal-overlay"></div>
-    <div id="settings-modal" class="modal-overlay"></div>
 
+<div id="settings-modal" class="modal-overlay">    <div class="modal-content">
+        <h2>⚙️ Settings</h2>
+        
+        <div class="input-group">
+            <label>🎨 Theme Color:</label>
+            <select id="setting-theme-color">
+                <option value="default">Doodle Yellow</option>
+                <option value="blue">Ocean Blue</option>
+                <option value="green">Forest Green</option>
+                <option value="purple">Royal Purple</option>
+            </select>
+        </div>
+        
+        <div class="input-group">
+            <label>📏 Font Size: <span id="font-size-val">16px</span></label>
+            <input type="range" id="setting-font-size" min="12" max="24" value="16" step="1">
+        </div>
+        
+        <div class="input-group">
+            <label>🔊 Sound Effects:</label>
+            <input type="checkbox" id="setting-sound" checked style="width: 25px; height: 25px;">
+        </div>
+        
+        <button class="btn-calculate" onclick="app.settings.apply()">Apply Settings</button>
+        <button class="btn-clear" onclick="app.closeModal('settings')">Close</button>
+    </div>
+</div>
     <script>
         const app = {
             currentTool: null,
@@ -1249,35 +1294,182 @@ body.tool-view-open {
             this.passGen.init(); // <-- YEH NAYI LINE ADD KAREIN
         },
 
-            setupEventListeners() {
-                document.getElementById('theme-toggle-btn').onclick = () => this.toggleTheme();
-                document.getElementById('account-btn').onclick = () => this.showModal('auth');
-                document.getElementById('logout-btn').onclick = () => this.auth.logout();
-                
-                // Converter inputs
-                document.getElementById('temp-input').oninput = () => this.converters.temp();
-                document.getElementById('temp-from').onchange = () => this.converters.temp();
-                document.getElementById('weight-input').oninput = () => this.converters.weight();
-                document.getElementById('weight-from').onchange = () => this.converters.weight();
-                document.getElementById('weight-to').onchange = () => this.converters.weight();
-                document.getElementById('length-input').oninput = () => this.converters.length();
-                document.getElementById('length-from').onchange = () => this.converters.length();
-                document.getElementById('length-to').onchange = () => this.converters.length();
-                
-                // Task input enter key
-                document.getElementById('task-input').onkeypress = (e) => {
-                    if (e.key === 'Enter') this.tasks.add();
-                };  },
+         etupEventListeners() {
+    // Tool view close button
+    const toolViewCloseBtn = document.getElementById('tool-view-close-btn');
+    if (toolViewCloseBtn) {
+        toolViewCloseBtn.onclick = () => {
+            document.getElementById('tool-view-container').classList.remove('active');
+            document.body.classList.remove('tool-view-open');
+            this.currentTool = null;
+        };
+    }
+    
+    // Header buttons
+    const themeBtn = document.getElementById('theme-toggle-btn');
+    if (themeBtn) themeBtn.onclick = () => this.toggleTheme();
+    
+    const settingsBtn = document.getElementById('settings-btn');
+    if (settingsBtn) settingsBtn.onclick = () => this.showModal('settings');
+    
+    const accountBtn = document.getElementById('account-btn');
+    if (accountBtn) accountBtn.onclick = () => this.showModal('auth');
+    
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) logoutBtn.onclick = () => this.auth.logout();
+    
+    // Task input enter key
+    const taskInput = document.getElementById('task-input');
+    if (taskInput) {
+        taskInput.onkeypress = (e) => {
+            if (e.key === 'Enter') this.tasks.add();
+        };
+    }
+    
+    // Calculator keyboard support
+    document.addEventListener('keydown', (e) => {
+        if (e.key >= '0' && e.key <= '9') this.calc.append(e.key);
+        else if (e.key === '+') this.calc.append('+');
+        else if (e.key === '-') this.calc.append('-');
+        else if (e.key === '*') this.calc.append('*');
+        else if (e.key === '/') this.calc.append('/');
+        else if (e.key === '%') this.calc.append('%');
+        else if (e.key === '.') this.calc.append('.');
+        else if (e.key === 'Enter') this.calc.calculate();
+        else if (e.key === 'Escape') this.calc.clear();
+        else if (e.key === 'Backspace') {
+            e.preventDefault();
+            this.calc.backspace();
+        }
+    });
+},
 
-            showTool(toolId) {
-                if (this.currentTool) {
-                    document.getElementById(this.currentTool).classList.remove('active');
-                }
-                this.currentTool = toolId;
-                document.getElementById(toolId).classList.add('active');
-                document.getElementById(toolId).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            },
+showTool(toolId, toolName) {
+    const container = document.getElementById('tool-view-container');
+    const content = document.getElementById('tool-view-content');
+    const title = document.getElementById('tool-view-title');
+    
+    // Original tool element ko find karo
+    const originalTool = document.getElementById(toolId);
+    if (!originalTool) {
+        console.error('Tool not found:', toolId);
+        return;
+    }
+    
+    // Content clear karo aur tool ko show karo
+    content.innerHTML = '';
+    const toolClone = originalTool.cloneNode(true);
+    toolClone.style.display = 'block';
+    toolClone.classList.add('active');
+    content.appendChild(toolClone);
+    
+    // Re-attach event listeners for cloned elements
+    this.reattachToolListeners(toolId);
+    
+    // Title set karo
+    title.textContent = toolName || toolId.replace(/-/g, ' ').toUpperCase();
+    
+    // Panel show karo
+    container.classList.add('active');
+    document.body.classList.add('tool-view-open');
+    this.currentTool = toolId;
+},
 
+reattachToolListeners(toolId) {
+    // Age calculator listeners
+    if (toolId === 'age-calculator') {
+        const calcBtn = document.querySelector('#tool-view-content .btn-calculate');
+        if (calcBtn) calcBtn.onclick = () => this.ageCalc.calculate();
+    }
+    
+    // Converters listeners
+    if (toolId === 'converters') {
+        const tempInput = document.querySelector('#tool-view-content #temp-input');
+        const tempFrom = document.querySelector('#tool-view-content #temp-from');
+        if (tempInput) tempInput.oninput = () => this.converters.temp();
+        if (tempFrom) tempFrom.onchange = () => this.converters.temp();
+        
+        const weightInput = document.querySelector('#tool-view-content #weight-input');
+        const weightFrom = document.querySelector('#tool-view-content #weight-from');
+        const weightTo = document.querySelector('#tool-view-content #weight-to');
+        if (weightInput) weightInput.oninput = () => this.converters.weight();
+        if (weightFrom) weightFrom.onchange = () => this.converters.weight();
+        if (weightTo) weightTo.onchange = () => this.converters.weight();
+        
+        const lengthInput = document.querySelector('#tool-view-content #length-input');
+        const lengthFrom = document.querySelector('#tool-view-content #length-from');
+        const lengthTo = document.querySelector('#tool-view-content #length-to');
+        if (lengthInput) lengthInput.oninput = () => this.converters.length();
+        if (lengthFrom) lengthFrom.onchange = () => this.converters.length();
+        if (lengthTo) lengthTo.onchange = () => this.converters.length();
+    }
+    
+    // Stopwatch listeners
+    if (toolId === 'stopwatch') {
+        const startBtn = document.querySelector('#tool-view-content #sw-start-btn');
+        const lapBtn = document.querySelectorAll('#tool-view-content .btn-accent')[0];
+        const resetBtn = document.querySelector('#tool-view-content .btn-clear');
+        if (startBtn) startBtn.onclick = () => this.stopwatch.toggle();
+        if (lapBtn) lapBtn.onclick = () => this.stopwatch.lap();
+        if (resetBtn) resetBtn.onclick = () => this.stopwatch.reset();
+    }
+    
+    // Timer listeners
+    if (toolId === 'timer') {
+        const startBtn = document.querySelector('#tool-view-content #timer-start-btn');
+        const resetBtn = document.querySelector('#tool-view-content .btn-clear');
+        if (startBtn) startBtn.onclick = () => this.timer.toggle();
+        if (resetBtn) resetBtn.onclick = () => this.timer.reset();
+    }
+    
+    // Currency converter listeners
+    if (toolId === 'currency') {
+        const convertBtn = document.querySelector('#tool-view-content .btn-calculate');
+        if (convertBtn) convertBtn.onclick = () => this.currency.convert();
+    }
+    
+    // Compass listeners
+    if (toolId === 'compass') {
+        const startBtn = document.querySelector('#tool-view-content .btn-calculate');
+        if (startBtn) startBtn.onclick = () => this.compass.start();
+    }
+    
+    // Password generator listeners
+    if (toolId === 'password-generator') {
+        this.passGen.init();
+    }
+    
+    // Tasks listeners
+    if (toolId === 'tasks') {
+        const addBtn = document.querySelector('#tool-view-content .btn-calculate');
+        const taskInput = document.querySelector('#tool-view-content #task-input');
+        if (addBtn) addBtn.onclick = () => this.tasks.add();
+        if (taskInput) taskInput.onkeypress = (e) => {
+            if (e.key === 'Enter') this.tasks.add();
+        };
+    }
+    
+    // Counters listeners
+    if (toolId === 'countdown') {
+        const addBtn = document.querySelector('#tool-view-content .btn-calculate');
+        if (addBtn) addBtn.onclick = () => this.counters.add();
+    }
+    
+    // Games listeners
+    if (toolId === 'games') {
+        // Game selection buttons will be handled dynamically
+    }
+    
+    // Browser listeners
+    if (toolId === 'browser') {
+        const goBtn = document.querySelector('#tool-view-content .btn-calculate');
+        if (goBtn) goBtn.onclick = () => this.browser.go();
+        const urlInput = document.querySelector('#tool-view-content #browser-url');
+        if (urlInput) urlInput.onkeypress = (e) => {
+            if (e.key === 'Enter') this.browser.go();
+        };
+    }
+},
             closeTool() {
                 if (this.currentTool) {
                     document.getElementById(this.currentTool).classList.remove('active');
@@ -1285,12 +1477,25 @@ body.tool-view-open {
                 }
             },
 
-            showModal(modalId) {
-                document.getElementById(`${modalId}-modal`).classList.add('active');
-                if (modalId === 'scientific') {
-                    document.getElementById('sci-display').textContent = this.calc.expression;
-                }
-            },
+           showModal(modalId) {
+    const modal = document.getElementById(`${modalId}-modal`);
+    if (!modal) {
+        console.error('Modal not found:', modalId);
+        return;
+    }
+    modal.classList.add('active');
+    
+    if (modalId === 'scientific') {
+        const sciDisplay = document.getElementById('sci-display');
+        if (sciDisplay) {
+            sciDisplay.textContent = this.calc.expression || '0';
+        }
+    }
+    
+    if (modalId === 'history') {
+        this.calc.updateHistoryView();
+    }
+},
 
             closeModal(modalId) {
                 document.getElementById(`${modalId}-modal`).classList.remove('active');
@@ -1359,31 +1564,34 @@ body.tool-view-open {
                     this.updateDisplay();
                 },
                 
-                calculate() {
-                    try {
-                        let expr = this.expression
-                            .replace(/×/g, '*')
-                            .replace(/÷/g, '/')
-                            .replace(/%/g, '/100');
-                        
-                        const result = eval(expr);
-                        
-                        if (isNaN(result) || !isFinite(result)) {
-                            throw new Error('Invalid');
-                        }
-                        
-                        this.history.unshift(`${this.expression} = ${result}`);
-                        if (this.history.length > 50) this.history.pop();
-                        localStorage.setItem('calcHistory', JSON.stringify(this.history));
-                        
-                        this.expression = result.toString();
-                    } catch {
-                        this.expression = 'Error';
-                    }
-                    this.updateDisplay();
-                    this.updateHistoryView();
-                },
-                
+               calculate() {
+    try {
+        let expr = this.expression
+            .replace(/×/g, '*')
+            .replace(/÷/g, '/')
+            .replace(/%/g, '/100')
+            .replace(/π/g, 'Math.PI')
+            .replace(/√/g, 'Math.sqrt');
+        
+        // Safely evaluate
+        const result = Function('"use strict"; return (' + expr + ')')();
+        
+        if (isNaN(result) || !isFinite(result)) {
+            throw new Error('Invalid');
+        }
+        
+        this.history.unshift(`${this.expression} = ${result}`);
+        if (this.history.length > 50) this.history.pop();
+        localStorage.setItem('calcHistory', JSON.stringify(this.history));
+        
+        this.expression = result.toString();
+    } catch(e) {
+        this.expression = 'Error';
+        console.error('Calculation error:', e);
+    }
+    this.updateDisplay();
+    this.updateHistoryView();
+}
                 updateHistoryView() {
                     const content = document.getElementById('history-content');
                     if (this.history.length === 0) {
@@ -1449,26 +1657,37 @@ body.tool-view-open {
             },
 
             converters: {
-                temp() {
-                    const val = parseFloat(document.getElementById('temp-input').value);
-                    const from = document.getElementById('temp-from').value;
-                    
-                    if (isNaN(val)) {
-                        document.getElementById('temp-output').value = '';
-                        return;
-                    }
-                    
-                    let celsius;
-                    if (from === 'c') celsius = val;
-                    else if (from === 'f') celsius = (val - 32) * 5/9;
-                    else if (from === 'k') celsius = val - 273.15;
-                    
-                    const fahrenheit = (celsius * 9/5) + 32;
-                    const kelvin = celsius + 273.15;
-                    
-                    const result = `${celsius.toFixed(2)} °C\n${fahrenheit.toFixed(2)} °F\n${kelvin.toFixed(2)} K`;
-                    document.getElementById('temp-output').value = result;
-                },
+                
+             temp() {
+    // Try both selectors (for tool view and original)
+    const input = document.querySelector('#tool-view-content #temp-input') || 
+                  document.getElementById('temp-input');
+    const fromSelect = document.querySelector('#tool-view-content #temp-from') || 
+                       document.getElementById('temp-from');
+    const output = document.querySelector('#tool-view-content #temp-output') || 
+                   document.getElementById('temp-output');
+    
+    if (!input || !fromSelect || !output) return;
+    
+    const val = parseFloat(input.value);
+    const from = fromSelect.value;
+    
+    if (isNaN(val)) {
+        output.value = '';
+        return;
+    }
+    
+    let celsius;
+    if (from === 'c') celsius = val;
+    else if (from === 'f') celsius = (val - 32) * 5/9;
+    else if (from === 'k') celsius = val - 273.15;
+    
+    const fahrenheit = (celsius * 9/5) + 32;
+    const kelvin = celsius + 273.15;
+    
+    const result = `${celsius.toFixed(2)} °C\n${fahrenheit.toFixed(2)} °F\n${kelvin.toFixed(2)} K`;
+    output.value = result;
+},
                 
                 weight() {
                     const val = parseFloat(document.getElementById('weight-input').value);
@@ -1661,12 +1880,78 @@ body.tool-view-open {
                     const content = document.getElementById('sizer-content');
                     let html = '';
                     switch (type) {
-                        case 'ring':
-                            html = `<h4>💍 Ring Size</h4><p>Wrap a string around your finger, mark it, and measure the length in millimeters.</p><div class="input-group"><label>Length (mm):</label><input type="number" oninput="app.sizer.calcRing(this.value)" placeholder="e.g., 54.5"></div><div class="result"><div id="ring-result" class="result-text">US Size: --</div></div>`;
-                            break;
-                        case 'bangle':
-                             html = `<h4>✨ Bangle Size</h4><p>Measure the diameter of a bangle that fits you well in millimeters.</p><div class="input-group"><label>Diameter (mm):</label><input type="number" oninput="app.sizer.calcBangle(this.value)" placeholder="e.g., 60"></div><div class="result"><div id="bangle-result" class="result-text">Size: --</div></div>`;
-                            break;
+                       case 'ring':
+    html = `
+        <h4>💍 Ring Size Visualizer</h4>
+        <div style="text-align:center; margin:30px 0;">
+            <div id="ring-visual" style="width:200px; height:200px; border:4px solid var(--doodle-primary); border-radius:50%; margin:0 auto; position:relative; background:rgba(255,107,107,0.1);">
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:2em; font-weight:bold;" id="ring-size-display">Size: 7</div>
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Adjust Size: <span id="ring-size-val">7</span></label>
+            <input type="range" id="ring-sizer-slider" min="4" max="13" value="7" step="0.5" style="width:100%;">
+        </div>
+        <p style="text-align:center; margin-top:15px;">📱 Place your ring on the screen circle to compare</p>
+        <div class="result">
+            <div id="ring-measure-result">Diameter: 17.3mm | Circumference: 54.4mm</div>
+        </div>
+    `;
+    content.innerHTML = html;
+    
+    // Slider event
+    document.getElementById('ring-sizer-slider').oninput = function() {
+        const size = parseFloat(this.value);
+        document.getElementById('ring-size-val').textContent = size;
+        document.getElementById('ring-size-display').textContent = 'Size: ' + size;
+        
+        // Calculate dimensions (US ring size formula)
+        const diameter = 11.63 + (size * 0.813);
+        const circumference = diameter * Math.PI;
+        const pixelSize = diameter * 3.7795275591; // mm to pixels (96 DPI)
+        
+        document.getElementById('ring-visual').style.width = pixelSize + 'px';
+        document.getElementById('ring-visual').style.height = pixelSize + 'px';
+        
+        document.getElementById('ring-measure-result').textContent = 
+            `Diameter: ${diameter.toFixed(1)}mm | Circumference: ${circumference.toFixed(1)}mm`;
+    };
+    break;
+                 case 'bangle':
+    html = `
+        <h4>✨ Bangle Size Visualizer</h4>
+        <div style="text-align:center; margin:30px 0;">
+            <div id="bangle-visual" style="width:250px; height:250px; border:6px solid var(--doodle-secondary); border-radius:50%; margin:0 auto; position:relative; background:rgba(78,205,196,0.1);">
+                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); font-size:1.8em; font-weight:bold;" id="bangle-size-display">2.6</div>
+            </div>
+        </div>
+        <div class="input-group">
+            <label>Adjust Diameter (inches): <span id="bangle-size-val">2.6</span></label>
+            <input type="range" id="bangle-sizer-slider" min="2.0" max="3.0" value="2.6" step="0.1" style="width:100%;">
+        </div>
+        <p style="text-align:center; margin-top:15px;">📱 Place your bangle on the screen circle to compare</p>
+        <div class="result">
+            <div id="bangle-measure-result">Diameter: 66mm | Circumference: 207mm</div>
+        </div>
+    `;
+    content.innerHTML = html;
+    
+    document.getElementById('bangle-sizer-slider').oninput = function() {
+        const inches = parseFloat(this.value);
+        document.getElementById('bangle-size-val').textContent = inches;
+        document.getElementById('bangle-size-display').textContent = inches + '"';
+        
+        const diameter = inches * 25.4; // inches to mm
+        const circumference = diameter * Math.PI;
+        const pixelSize = diameter * 3.7795275591;
+        
+        document.getElementById('bangle-visual').style.width = pixelSize + 'px';
+        document.getElementById('bangle-visual').style.height = pixelSize + 'px';
+        
+        document.getElementById('bangle-measure-result').textContent = 
+            `Diameter: ${diameter.toFixed(0)}mm | Circumference: ${circumference.toFixed(0)}mm`;
+    };
+    break;
                          case 'watch':
                              html = `<h4>⌚ Watch Strap Size</h4><p>Measure your wrist circumference in millimeters.</p><div class="input-group"><label>Wrist Circumference (mm):</label><input type="number" oninput="app.sizer.calcWatch(this.value)" placeholder="e.g., 180"></div><div class="result"><div id="watch-result" class="result-text">Recommended Size: --</div></div>`;
                             break;
@@ -1730,24 +2015,22 @@ body.tool-view-open {
                     this.save();
                     this.render();
                 },
-                render() {
-                    const list = document.getElementById('counter-list');
-                    if (this.data.length === 0) {
-                        list.innerHTML = `<p style="opacity:0.6;">No counters yet.</p>`;
-                        return;
-                    }
-                    list.innerHTML = this.data.map(c => `
-                        <div class="counter-item">
-                            <span class="counter-name">${c.name}</span>
-                            <div class="counter-controls">
-                                <button onclick="app.counters.update(${c.id}, -1)">-</button>
-                                <span class="counter-value">${c.value}</span>
-                                <button onclick="app.counters.update(${c.id}, 1)">+</button>
-                                <button class="btn-clear" style="margin-left:10px;" onclick="app.counters.remove(${c.id})">X</button>
-                            </div>
-                        </div>
-                    `).join('');
-                }
+render() {
+    const list = document.querySelector('#tool-view-content #task-list, #task-list');
+    if (!list) return;
+    
+    if (this.data.length === 0) {
+        list.innerHTML = `<p style="opacity: 0.6;">No tasks yet. Add some from the Task Manager!</p>`;
+        return;
+    }
+    list.innerHTML = this.data.map(t => `
+        <div class="task-item ${t.completed ? 'completed' : ''}">
+            <input type="checkbox" onchange="app.tasks.toggle(${t.id})" ${t.completed ? 'checked' : ''}>
+            <span class="task-text">${t.text}</span>
+            <button class="btn-clear" onclick="app.tasks.remove(${t.id})">Delete</button>
+        </div>
+    `).join('');
+}
             },
 
             tasks: {
@@ -1815,20 +2098,83 @@ body.tool-view-open {
                 }
             },
 
-            games: {
-                select(game) {
-                    const area = document.getElementById('game-area');
-                    let html = '';
-                    switch (game) {
-                        case 'ttt':
-                            html = `<div id="tic-tac-toe-board"></div><div id="ttt-status" class="result" style="text-align:center;">Player X's turn</div><button class="btn-calculate" style="margin: 10px auto; display: block;" onclick="app.games.ttt.init()">Restart</button>`;
-                            area.innerHTML = html;
-                            this.ttt.init();
-                            break;
-                        default:
-                            area.innerHTML = `<p style="text-align:center; opacity:0.7;">${game.toUpperCase()} coming soon!</p>`;
-                    }
-                },
+           games: {
+    select(game) {
+        const area = document.getElementById('game-area');
+        let html = '';
+        switch (game) {
+            case 'ttt':
+                html = `<div id="tic-tac-toe-board"></div><div id="ttt-status" class="result" style="text-align:center;">Player X's turn</div><button class="btn-calculate" style="margin: 10px auto; display: block;" onclick="app.games.ttt.init()">Restart</button>`;
+                area.innerHTML = html;
+                this.ttt.init();
+                break;
+            
+            case 'snake':
+                html = `
+                    <canvas id="snake-canvas" width="400" height="400"></canvas>
+                    <div class="result" style="text-align:center;">
+                        <div>Score: <span id="snake-score">0</span></div>
+                        <button class="btn-calculate" onclick="app.games.snake.start()">Start Game</button>
+                    </div>
+                `;
+                area.innerHTML = html;
+                this.snake.init();
+                break;
+
+            case 'ludo':
+                html = `
+                    <div style="text-align:center;">
+                        <div id="ludo-board" style="width:400px; height:400px; margin:20px auto; background:#fff; border:3px solid var(--doodle-border); display:grid; grid-template-columns: repeat(15, 1fr); grid-template-rows: repeat(15, 1fr);"></div>
+                        <div class="result">
+                            <div>Current Player: <span id="ludo-player" style="font-weight:bold;">Red</span></div>
+                            <button class="btn-calculate" onclick="app.games.ludo.rollDice()">Roll Dice 🎲</button>
+                            <div>Dice: <span id="ludo-dice">-</span></div>
+                        </div>
+                    </div>
+                `;
+                area.innerHTML = html;
+                this.ludo.init();
+                break;
+
+            case 'uno':
+                html = `
+                    <div style="text-align:center;">
+                        <div id="uno-game" style="padding:20px;">
+                            <div style="margin:20px 0;">
+                                <h4>Current Card:</h4>
+                                <div id="uno-current-card" style="width:100px; height:150px; margin:0 auto; border:3px solid #000; display:flex; align-items:center; justify-content:center; font-size:2em; background:#ff6b6b; color:#fff; border-radius:10px;">7</div>
+                            </div>
+                            <div style="margin:20px 0;">
+                                <h4>Your Cards:</h4>
+                                <div id="uno-player-cards" style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;"></div>
+                            </div>
+                            <button class="btn-calculate" onclick="app.games.uno.drawCard()">Draw Card</button>
+                        </div>
+                    </div>
+                `;
+                area.innerHTML = html;
+                this.uno.init();
+                break;
+
+            case 'stack':
+                html = `
+                    <div style="text-align:center;">
+                        <canvas id="stack-canvas" width="400" height="500"></canvas>
+                        <div class="result">
+                            <div>Level: <span id="stack-level">1</span></div>
+                            <button class="btn-calculate" onclick="app.games.stack.drop()">Drop Block</button>
+                        </div>
+                    </div>
+                `;
+                area.innerHTML = html;
+                this.stack.init();
+                break;
+                
+            default:
+                area.innerHTML = `<p style="text-align:center; opacity:0.7;">${game.toUpperCase()} coming soon!</p>`;
+        }
+    },
+
                 ttt: {
                     board: [],
                     currentPlayer: 'X',
@@ -1877,40 +2223,340 @@ body.tool-view-open {
                         }
                     }
                 }
-            },
+snake: {
+    canvas: null,
+    ctx: null,
+    snake: [],
+    food: {},
+    direction: 'right',
+    score: 0,
+    gameLoop: null,
+    
+    init() {
+        this.canvas = document.getElementById('snake-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.snake = [{x: 200, y: 200}];
+        this.score = 0;
+        this.direction = 'right';
+        this.spawnFood();
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' && this.direction !== 'down') this.direction = 'up';
+            if (e.key === 'ArrowDown' && this.direction !== 'up') this.direction = 'down';
+            if (e.key === 'ArrowLeft' && this.direction !== 'right') this.direction = 'left';
+            if (e.key === 'ArrowRight' && this.direction !== 'left') this.direction = 'right';
+        });
+    },
+    
+    start() {
+        if (this.gameLoop) clearInterval(this.gameLoop);
+        this.gameLoop = setInterval(() => this.update(), 100);
+    },
+    
+    update() {
+        const head = {...this.snake[0]};
+        
+        if (this.direction === 'up') head.y -= 20;
+        if (this.direction === 'down') head.y += 20;
+        if (this.direction === 'left') head.x -= 20;
+        if (this.direction === 'right') head.x += 20;
+        
+        // Wall collision
+        if (head.x < 0 || head.x >= 400 || head.y < 0 || head.y >= 400) {
+            clearInterval(this.gameLoop);
+            alert('Game Over! Score: ' + this.score);
+            return;
+        }
+        
+        // Self collision
+        if (this.snake.some(segment => segment.x === head.x && segment.y === head.y)) {
+            clearInterval(this.gameLoop);
+            alert('Game Over! Score: ' + this.score);
+            return;
+        }
+        
+        this.snake.unshift(head);
+        
+        // Food collision
+        if (head.x === this.food.x && head.y === this.food.y) {
+            this.score++;
+            document.getElementById('snake-score').textContent = this.score;
+            this.spawnFood();
+        } else {
+            this.snake.pop();
+        }
+        
+        this.draw();
+    },
+    
+    spawnFood() {
+        this.food = {
+            x: Math.floor(Math.random() * 20) * 20,
+            y: Math.floor(Math.random() * 20) * 20
+        };
+    },
+    
+    draw() {
+        this.ctx.fillStyle = '#fff';
+        this.ctx.fillRect(0, 0, 400, 400);
+        
+        // Draw snake
+        this.ctx.fillStyle = '#4ecdc4';
+        this.snake.forEach(segment => {
+            this.ctx.fillRect(segment.x, segment.y, 18, 18);
+        });
+        
+        // Draw food
+        this.ctx.fillStyle = '#ff6b6b';
+        this.ctx.fillRect(this.food.x, this.food.y, 18, 18);
+    }
+},
+
+ludo: {
+    players: ['Red', 'Blue', 'Green', 'Yellow'],
+    currentPlayer: 0,
+    positions: [0, 0, 0, 0],
+    
+    init() {
+        document.getElementById('ludo-player').textContent = this.players[this.currentPlayer];
+        document.getElementById('ludo-player').style.color = this.players[this.currentPlayer].toLowerCase();
+    },
+    
+    rollDice() {
+        const dice = Math.floor(Math.random() * 6) + 1;
+        document.getElementById('ludo-dice').textContent = dice;
+        
+        this.positions[this.currentPlayer] += dice;
+        
+        if (this.positions[this.currentPlayer] >= 100) {
+            alert(this.players[this.currentPlayer] + ' wins!');
+            this.positions = [0, 0, 0, 0];
+        }
+        
+        this.currentPlayer = (this.currentPlayer + 1) % 4;
+        document.getElementById('ludo-player').textContent = this.players[this.currentPlayer];
+        document.getElementById('ludo-player').style.color = this.players[this.currentPlayer].toLowerCase();
+    }
+},
+
+uno: {
+    deck: [],
+    playerHand: [],
+    currentCard: {},
+    
+    init() {
+        this.deck = [];
+        const colors = ['red', 'blue', 'green', 'yellow'];
+        for (let color of colors) {
+            for (let i = 0; i <= 9; i++) {
+                this.deck.push({color, number: i});
+            }
+        }
+        
+        this.playerHand = [];
+        for (let i = 0; i < 7; i++) {
+            this.drawCard();
+        }
+        
+        this.currentCard = this.deck.pop();
+        this.updateDisplay();
+    },
+    
+    drawCard() {
+        if (this.deck.length === 0) return;
+        const card = this.deck.pop();
+        this.playerHand.push(card);
+        this.updateDisplay();
+    },
+    
+    updateDisplay() {
+        const cardEl = document.getElementById('uno-current-card');
+        cardEl.textContent = this.currentCard.number;
+        cardEl.style.background = this.currentCard.color;
+        
+        const handEl = document.getElementById('uno-player-cards');
+        handEl.innerHTML = this.playerHand.map((card, i) => 
+            `<div style="width:60px; height:90px; border:2px solid #000; display:flex; align-items:center; justify-content:center; background:${card.color}; color:#fff; font-weight:bold; border-radius:5px; cursor:pointer;" onclick="app.games.uno.playCard(${i})">${card.number}</div>`
+        ).join('');
+    },
+    
+    playCard(index) {
+        const card = this.playerHand[index];
+        if (card.color === this.currentCard.color || card.number === this.currentCard.number) {
+            this.currentCard = card;
+            this.playerHand.splice(index, 1);
+            this.updateDisplay();
+            
+            if (this.playerHand.length === 0) {
+                alert('You win!');
+            }
+        } else {
+            alert('Invalid move!');
+        }
+    }
+},
+
+stack: {
+    canvas: null,
+    ctx: null,
+    blocks: [],
+    currentBlock: null,
+    level: 1,
+    
+    init() {
+        this.canvas = document.getElementById('stack-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.blocks = [{x: 150, y: 480, width: 100, height: 20}];
+        this.level = 1;
+        this.newBlock();
+        this.animate();
+    },
+    
+    newBlock() {
+        const lastBlock = this.blocks[this.blocks.length - 1];
+        this.currentBlock = {
+            x: 0,
+            y: lastBlock.y - 20,
+            width: lastBlock.width,
+            height: 20,
+            direction: 1
+        };
+    },
+    
+    drop() {
+        const lastBlock = this.blocks[this.blocks.length - 1];
+        const overlap = Math.min(
+            this.currentBlock.x + this.currentBlock.width,
+            lastBlock.x + lastBlock.width
+        ) - Math.max(this.currentBlock.x, lastBlock.x);
+        
+        if (overlap > 0) {
+            this.currentBlock.width = overlap;
+            this.currentBlock.x = Math.max(this.currentBlock.x, lastBlock.x);
+            this.blocks.push({...this.currentBlock});
+            this.level++;
+            document.getElementById('stack-level').textContent = this.level;
+            this.newBlock();
+        } else {
+            alert('Game Over! Level: ' + this.level);
+            this.blocks = [{x: 150, y: 480, width: 100, height: 20}];
+            this.level = 1;
+            this.newBlock();
+        }
+    },
+    
+    animate() {
+        this.ctx.fillStyle = '#fff';
+        this.ctx.fillRect(0, 0, 400, 500);
+        
+        // Draw blocks
+        this.ctx.fillStyle = '#4ecdc4';
+        this.blocks.forEach(block => {
+            this.ctx.fillRect(block.x, block.y, block.width, block.height);
+        });
+        
+        // Move and draw current block
+        if (this.currentBlock) {
+            this.currentBlock.x += this.currentBlock.direction * 2;
+            if (this.currentBlock.x <= 0 || this.currentBlock.x + this.currentBlock.width >= 400) {
+                this.currentBlock.direction *= -1;
+            }
+            
+            this.ctx.fillStyle = '#ff6b6b';
+            this.ctx.fillRect(this.currentBlock.x, this.currentBlock.y, this.currentBlock.width, this.currentBlock.height);
+        }
+        
+        requestAnimationFrame(() => this.animate());
+  }
+            }
+        },  
 
             browser: {
-                go() {
-                    let url = document.getElementById('browser-url').value;
-                    if (!url.startsWith('http')) {
-                        url = 'https://' + url;
-                    }
-                    document.getElementById('browser-frame').src = url;
-                }
-            },
+    go() {
+        let url = document.getElementById('browser-url').value.trim();
+        
+        // Agar user ne sirf domain name diya (without www or http)
+        if (!url.includes('.')) {
+            url = url + '.com'; // Default .com add karo
+        }
+        
+        if (!url.startsWith('http://') && !url.startsWith('https://')) {
+            url = 'https://' + url;
+        }
+        
+        if (!url.includes('www.') && url.split('/')[2].split('.').length === 2) {
+            url = url.replace('https://', 'https://www.');
+        }
+        
+        document.getElementById('browser-frame').src = url;
+    }
+}
             
-            compass: {
-                start() {
-                    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-                        DeviceOrientationEvent.requestPermission().then(permissionState => {
-                            if (permissionState === 'granted') {
-                                window.addEventListener('deviceorientation', this.handleOrientation);
-                            }
-                        }).catch(console.error);
-                    } else {
-                         window.addEventListener('deviceorientation', this.handleOrientation);
-                    }
-                },
-                handleOrientation(event) {
-                    const alpha = event.webkitCompassHeading || event.alpha; // For iOS || standard
-                    document.getElementById('compass-needle').style.transform = `translate(-50%, -100%) rotate(${alpha}deg)`;
-                    document.getElementById('compass-text').textContent = `Direction: ${alpha.toFixed(0)}°`;
-
-                    const beta = event.beta; // front-back tilt
-                    const gamma = event.gamma; // left-right tilt
-                    document.getElementById('level-text').textContent = `Level: Tilt X: ${gamma.toFixed(0)}°, Tilt Y: ${beta.toFixed(0)}°`;
-                }
-            },
+          compass: {
+    isActive: false,
+    
+    start() {
+        if (this.isActive) return;
+        this.isActive = true;
+        
+        if ('DeviceOrientationEvent' in window) {
+            if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                // iOS 13+ permission
+                DeviceOrientationEvent.requestPermission()
+                    .then(response => {
+                        if (response === 'granted') {
+                            window.addEventListener('deviceorientation', (e) => this.handleOrientation(e));
+                        } else {
+                            alert('Permission denied for compass');
+                        }
+                    })
+                    .catch(console.error);
+            } else {
+                // Non-iOS or older iOS
+                window.addEventListener('deviceorientation', (e) => this.handleOrientation(e));
+            }
+        } else {
+            alert('Compass not supported on this device');
+        }
+    },
+    
+    handleOrientation(event) {
+        let heading = event.alpha; // 0-360 degrees
+        
+        // For iOS, use webkitCompassHeading
+        if (event.webkitCompassHeading) {
+            heading = event.webkitCompassHeading;
+        }
+        
+        if (heading !== null) {
+            const needle = document.getElementById('compass-needle');
+            if (needle) {
+                needle.style.transform = `translate(-50%, -100%) rotate(${-heading}deg)`;
+            }
+            
+            // Direction text
+            let direction = 'N';
+            if (heading >= 22.5 && heading < 67.5) direction = 'NE';
+            else if (heading >= 67.5 && heading < 112.5) direction = 'E';
+            else if (heading >= 112.5 && heading < 157.5) direction = 'SE';
+            else if (heading >= 157.5 && heading < 202.5) direction = 'S';
+            else if (heading >= 202.5 && heading < 247.5) direction = 'SW';
+            else if (heading >= 247.5 && heading < 292.5) direction = 'W';
+            else if (heading >= 292.5 && heading < 337.5) direction = 'NW';
+            
+            document.getElementById('compass-text').textContent = `Direction: ${direction} (${Math.round(heading)}°)`;
+        }
+        
+        // Level (tilt)
+        const beta = event.beta; // front-back (-180 to 180)
+        const gamma = event.gamma; // left-right (-90 to 90)
+        
+        if (beta !== null && gamma !== null) {
+            document.getElementById('level-text').textContent = 
+                `Level: Front ${Math.round(beta)}° | Side ${Math.round(gamma)}°`;
+        }
+    }
+}
 
             passGen: {
                 // Character sets
@@ -2022,7 +2668,37 @@ body.tool-view-open {
                     }
                 }
             },
-
+settings: {
+    apply() {
+        // Theme color
+        const themeColor = document.getElementById('setting-theme-color').value;
+        const root = document.documentElement;
+        
+        const colorSchemes = {
+            default: { primary: '#ff6b6b', secondary: '#4ecdc4', accent: '#f9d423' },
+            blue: { primary: '#3498db', secondary: '#2ecc71', accent: '#f39c12' },
+            green: { primary: '#27ae60', secondary: '#16a085', accent: '#f1c40f' },
+            purple: { primary: '#9b59b6', secondary: '#8e44ad', accent: '#e74c3c' }
+        };
+        
+        const colors = colorSchemes[themeColor];
+        root.style.setProperty('--doodle-primary', colors.primary);
+        root.style.setProperty('--doodle-secondary', colors.secondary);
+        root.style.setProperty('--doodle-accent', colors.accent);
+        
+        // Font size
+        const fontSize = document.getElementById('setting-font-size').value;
+        document.getElementById('font-size-val').textContent = fontSize + 'px';
+        document.body.style.fontSize = fontSize + 'px';
+        
+        // Sound toggle
+        const sound = document.getElementById('setting-sound').checked;
+        localStorage.setItem('soundEnabled', sound);
+        
+        app.notification.show('✅ Settings Applied!', 3000);
+        app.closeModal('settings');
+    }
+}
             
             auth: {
                 switchTab(tab) {
@@ -2077,7 +2753,16 @@ body.tool-view-open {
                 }
             }    };
 
-        window.onload = () => app.init();
+document.addEventListener('DOMContentLoaded', () => {
+    app.init();
+});
+
+// Backup
+window.onload = () => {
+    if (!app.clock.interval) {
+        app.init();
+    }
+};
     </script>
 </body>
 </html>
