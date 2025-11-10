@@ -1551,7 +1551,7 @@ body.tool-view-open {
                 formatTime(ms) {
                     const date = new Date(ms);
                     const minutes = date.getUTCMinutes().toString().padStart(2, '0');
-                    const seconds = date.getUTCSeconds().toString().padStart(2, '0');
+                     const seconds = date.getUTCSeconds().toString().padStart(2, '0');
                     const milliseconds = Math.floor(date.getUTCMilliseconds() / 10).toString().padStart(2, '0');
                     return `${minutes}:${seconds}:${milliseconds}`;
                 },
