@@ -2026,10 +2026,10 @@ body.tool-view-open {
             
             auth: {
                 switchTab(tab) {
-                    document.querySelector('.auth-tab.active').classList.remove('active');
-                    document.querySelector(`.auth-tab[onclick*="${tab}"]`).classList.add('active');
+                   document.querySelector('.auth-tab.active').classList.remove('active');
+                   document.querySelector(`.auth-tab[onclick*="${tab}"]`).classList.add('active');
                     document.querySelector('.auth-content.active').classList.remove('active');
-                    document.getElementById(`${tab}-content`).classList.add('active');
+              document.getElementById(`${tab}-content`).classList.add('active');
                 },
                 togglePassword(id) {
                     const input = document.getElementById(id);
