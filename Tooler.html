@@ -1984,7 +1984,7 @@ body.tool-view-open {
                     
                     // Secure random values ke liye window.crypto ka istemal karein
                     // (Math.random() se behtar hai)
-                    const cryptoArray = new Uint32Array(length);
+                 const cryptoArray = new Uint32Array(length);
                     window.crypto.getRandomValues(cryptoArray);
 
                     for (let i = 0; i < length; i++) {
