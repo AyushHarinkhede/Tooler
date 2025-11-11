@@ -1273,7 +1273,7 @@ body.tool-view-open {
               if (this.currentTool) {
                     document.getElementById(this.currentTool).classList.remove('active');
                 }
-                this.currentTool = toolId;
+                 this.currentTool = toolId;
                 document.getElementById(toolId).classList.add('active');
                 document.getElementById(toolId).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             },
