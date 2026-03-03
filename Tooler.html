@@ -24,16 +24,16 @@
         }
 
         html[data-theme="dark"] {
-            --doodle-bg: #2c3e50;
-            --doodle-text: #ecf0f1;
-            --doodle-primary: #e74c3c;
-            --doodle-secondary: #1abc9c;
-            --doodle-accent: #f1c40f;
-            --doodle-border: #ecf0f1;
-            --note-bg: #34495e;
+            --doodle-bg: #1a1a2e;
+            --doodle-text: #f0f0f0;
+            --doodle-primary: #4a9eff;
+            --doodle-secondary: #00d4ff;
+            --doodle-accent: #ff6b6b;
+            --doodle-border: #4a9eff;
+            --note-bg: #2d3748;
             --shadow-color: rgba(0,0,0,0.4);
-            --line-color: rgba(236, 240, 241, 0.2);
-            --tape-color: rgba(241, 196, 15, 0.4);
+            --line-color: rgba(74, 144, 226, 0.2);
+            --tape-color: rgba(255, 107, 107, 0.4);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -46,10 +46,34 @@
             transition: background-color 0.3s, color 0.3s;
             overflow-x: hidden;
             font-weight: 400;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-drag: none;
+            -khtml-user-drag: none;
+            -moz-user-drag: none;
+            -ms-user-drag: none;
+            pointer-events: none;
              background-image:
                 repeating-linear-gradient(var(--doodle-bg) 0px, var(--doodle-bg) 24px, var(--line-color) 25px),
                 linear-gradient(to right, var(--doodle-bg) 0px, var(--doodle-bg) 49px, #ff6b6b44 50px);
             background-size: 100% 25px, 100% 100%;
+        }
+        
+        body * {
+            pointer-events: auto !important;
+        }
+        
+        body input, body button, body select, body textarea {
+            pointer-events: auto !important;
+            user-select: text !important;
+            -webkit-user-select: text !important;
+            -moz-user-select: text !important;
+            -ms-user-select: text !important;
         }
 
         .container { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
@@ -68,6 +92,13 @@
 
         .title-area { display: flex; align-items: center; gap: 15px; }
         .title-area .bookmark-pin { font-size: 2.5em; transform: rotate(-15deg); color: var(--doodle-primary); }
+        .title-area .clock-icon { 
+            width: 24px; 
+            height: 24px; 
+            fill: none; 
+            stroke: var(--doodle-primary); 
+            stroke-width: 2;
+        }
         .main-header h1 {
             font-size: 3.5em; color: var(--doodle-text); font-weight: 700;
             background: var(--note-bg); padding: 5px 15px;
@@ -185,9 +216,19 @@
             box-shadow: 2px 2px 0px var(--doodle-border);
         }
 
+        html[data-theme="dark"] button, html[data-theme="dark"] .tool-btn {
+            background: #2d3748;
+            color: #f0f0f0;
+            box-shadow: 2px 2px 0px #4a9eff;
+        }
+
         button:hover, .tool-btn:hover {
             transform: translateY(-2px);
             box-shadow: 4px 4px 0px var(--doodle-border);
+        }
+
+        html[data-theme="dark"] button:hover, html[data-theme="dark"] .tool-btn:hover {
+            box-shadow: 4px 4px 0px #4a9eff;
         }
 
         button:active, .tool-btn:active {
@@ -199,6 +240,11 @@
         .btn-clear { background-color: var(--doodle-primary); color: white; border-color: var(--doodle-primary); }
         .btn-operation { background-color: var(--doodle-secondary); color: #fff; }
         .btn-accent { background-color: var(--doodle-accent); color: var(--doodle-text); }
+
+        html[data-theme="dark"] .btn-calculate { background-color: #00d4ff; color: #1a1a2e; border-color: #00d4ff; }
+        html[data-theme="dark"] .btn-clear { background-color: #4a9eff; color: #f0f0f0; border-color: #4a9eff; }
+        html[data-theme="dark"] .btn-operation { background-color: #00d4ff; color: #1a1a2e; }
+        html[data-theme="dark"] .btn-accent { background-color: #ff6b6b; color: #f0f0f0; }
 
         /* Tool Grid */
         .tool-grid {
@@ -420,6 +466,13 @@ body.tool-view-open {
               font-family: var(--font-main);
         }
 
+        html[data-theme="dark"] .input-group input,
+        html[data-theme="dark"] .input-group select {
+            background: #2d3748;
+            color: #f0f0f0;
+            border-color: #4a9eff;
+        }
+
         .input-row {
           display: grid;
        grid-template-columns: 1fr 1fr;
@@ -433,6 +486,11 @@ body.tool-view-open {
              border-radius: 5px;
           margin-top: 20px;
       border: 2px dashed var(--doodle-border);
+        }
+
+        html[data-theme="dark"] .result {
+            background: rgba(45, 55, 72, 0.8);
+            border-color: #4a9eff;
         }
 
         .result-text {
@@ -471,6 +529,12 @@ body.tool-view-open {
           transform: rotate(-1deg);
         }
 
+        html[data-theme="dark"] .modal-content {
+            background: #2d3748;
+            border-color: #4a9eff;
+            box-shadow: 0 10px 30px rgba(74, 144, 226, 0.3);
+        }
+
     .modal-content h2 {
    color: var(--doodle-primary);
           margin-bottom: 20px;
@@ -488,6 +552,11 @@ body.tool-view-open {
             justify-content: space-between;
             align-items: center;
         }
+
+    html[data-theme="dark"] .counter-item {
+        background: #2d3748;
+        border-color: #4a9eff;
+    }
     .counter-name {
         font-size: 1.3em;
     font-weight: 700;
@@ -541,9 +610,20 @@ body.tool-view-open {
             transition: all 0.2s;
         }
  
+        html[data-theme="dark"] .ttt-cell {
+            background: #2d3748;
+            border-color: #4a9eff;
+            color: #4a9eff;
+        }
+ 
         .ttt-cell:hover {
             background: #f0f0f0; 
             transform: scale(1.05); 
+        }
+
+        html[data-theme="dark"] .ttt-cell:hover {
+            background: #4a9eff;
+            color: #f0f0f0;
         }
 
         #snake-canvas {
@@ -553,12 +633,22 @@ body.tool-view-open {
             margin: 20px auto;
         }
 
+        html[data-theme="dark"] #snake-canvas {
+            background: #2d3748;
+            border-color: #4a9eff;
+        }
+
         /* Browser iframe */
         #browser-frame {
             width: 100%;
             height: 600px;
             border: 3px solid var(--doodle-border);
             background: #fff;
+        }
+
+        html[data-theme="dark"] #browser-frame {
+            background: #2d3748;
+            border-color: #4a9eff;
         }
 
         /* Auth Modal */
@@ -579,10 +669,22 @@ body.tool-view-open {
             transition: all 0.2s;
         }
 
+        html[data-theme="dark"] .auth-tab {
+            background: #2d3748;
+            border-color: #4a9eff;
+            color: #f0f0f0;
+        }
+
         .auth-tab.active {
             background: var(--doodle-accent);
             transform: translateY(-3px);
             box-shadow: 3px 3px 0 var(--doodle-border);
+        }
+
+        html[data-theme="dark"] .auth-tab.active {
+            background: #4a9eff;
+            color: #1a1a2e;
+            box-shadow: 3px 3px 0 #4a9eff;
         }
 
         .auth-content {
@@ -767,7 +869,7 @@ body.tool-view-open {
              Converters
             </button>
             <button class="tool-btn" onclick="app.showTool('stopwatch')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 2v3"></path><path d="M9 4h6"></path><circle cx="12" cy="4" r="1.5"></circle><path d="M12 12v3"></path><path d="M12 8l-3 3"></path><path d="M15 9l-1 1"></path></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 2v3"></path><path d="M9 4h6"></path><circle cx="12" cy="4" r="1.5"></circle><path d="M12 12v3"></path><path d="M12 9l-2 2"></path><path d="M15 9l-1 1"></path></svg>
              Stopwatch
             </button>
             <button class="tool-btn" onclick="app.showTool('timer')">
@@ -775,7 +877,7 @@ body.tool-view-open {
              Timer
             </button>
             <button class="tool-btn" onclick="app.showTool('sizer')">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4m0-4h.01"></path></svg>
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 2v3"></path><path d="M9 4h6"></path><circle cx="12" cy="4" r="1"></circle><path d="M12 12v3"></path><path d="M12 9l-2 2"></path><path d="M16 6l-1 1"></path></svg>
                 Sizer Tool
             </button>
             <button class="tool-btn" onclick="app.showTool('countdown')">
@@ -955,7 +1057,11 @@ body.tool-view-open {
             <div style="font-size: 3em; text-align: center; margin: 30px 0;" id="timer-display">05:00</div>
             <div style="display: flex; justify-content: center; gap: 15px;">
                 <button id="timer-start-btn" class="btn-calculate" onclick="app.timer.toggle()" style="display: flex; align-items: center; gap: 8px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 6v6l4 2"></path></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <line x1="10" x2="14" y1="2" y2="2"></line>
+  <line x1="12" x2="15" y1="14" y2="11"></line>
+  <circle cx="12" cy="14" r="8"></circle>
+</svg>
                     Start
                 </button>
                 <button class="btn-clear" onclick="app.timer.reset()" style="display: flex; align-items: center; gap: 8px;">
@@ -1039,7 +1145,6 @@ body.tool-view-open {
                 <div class="input-group">
                     <label>To:</label>
                     <select id="currency-to">
-                        <option value="EUR">EUR - Euro</option>
                         <option value="USD">USD - US Dollar</option>
                         <option value="GBP">GBP - British Pound</option>
                         <option value="JPY">JPY - Japanese Yen</option>
@@ -1162,12 +1267,16 @@ body.tool-view-open {
                 <button onclick="app.calc.append('Math.tan(')">tan</button>
                 <button onclick="app.calc.append('Math.sqrt(')">√</button>
                 <button onclick="app.calc.append('Math.log(')">log</button>
-                <button onclick="app.calc.append('Math.pow(')">x^y</button>
+                <button onclick="app.calc.append('Math.exp(')">e^x</button>
+                <button onclick="app.calc.append('Math.abs(')">|x|</button>
                 <button onclick="app.calc.append('(')">(</button>
                 <button onclick="app.calc.append(')')">)</button>
                 <button onclick="app.calc.append('Math.PI')">π</button>
                 <button onclick="app.calc.append('Math.E')">e</button>
                 <button onclick="app.calc.append('**')">^</button>
+                <button onclick="app.calc.append('Math.floor(')">⌊x⌋</button>
+                <button onclick="app.calc.append('Math.ceil(')">⌈x⌉</button>
+                <button onclick="app.calc.append('Math.round(')">round</button>
                 <button class="btn-calculate" onclick="app.calc.calculate()">=</button>
             </div>
             <button class="btn-clear" onclick="app.closeModal('scientific')">Close</button>
@@ -1190,7 +1299,12 @@ body.tool-view-open {
                     <input type="password" id="login-password" placeholder="Enter password">
                     <button class="password-toggle" onclick="app.auth.togglePassword('login-password')">Show/Hide</button>
                 </div>
-                <a href="#" style="color: var(--doodle-primary); text-decoration: underline;">Forgot Password?</a>
+                <div class="input-group">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="remember-me" style="width: 14px; height: 14px; cursor: pointer;">
+                        <label for="remember-me" style="cursor: pointer; margin: 0;">Remember me</label>
+                    </div>
+                </div>
                 <button class="btn-calculate" style="width: 100%; margin-top: 15px;" onclick="app.auth.login()">Login</button>
             </div>
             
@@ -1207,6 +1321,12 @@ body.tool-view-open {
                     <label>Password:</label>
                     <input type="password" id="signup-password" placeholder="Create password">
                     <button class="password-toggle" onclick="app.auth.togglePassword('signup-password')">Show/Hide</button>
+                </div>
+                <div class="input-group">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <input type="checkbox" id="remember-me-signup" style="width: 14px; height: 14px; cursor: pointer;">
+                        <label for="remember-me-signup" style="cursor: pointer; margin: 0;">Remember me</label>
+                    </div>
                 </div>
                 <button class="btn-calculate" style="width: 100%; margin-top: 15px;" onclick="app.auth.signup()">Sign Up</button>
             </div>
@@ -1232,13 +1352,22 @@ body.tool-view-open {
 
  <footer class="main-footer">
          <p style="text-align: center; padding: 40px 0; color: var(--text-secondary); margin-top: 40px;"></p>
-            <p style="font-size: calc(14px * var(--font-size-multiplier));">© 2024-2025 Tooler - Your Doodle Toolkit. Made with love</p> <!--mera pehla pyar temhare liye -->
+            <p style="font-size: calc(14px * var(--font-size-multiplier));">© 2026 Tooler - Your Doodle Toolkit. Made with love</p> <!--mera pehla pyar temhare liye -->
             <p style="font-size: calc(12px * var(--font-size-multiplier)); margin-top: 10px;">Creative | Innovative | Passionate</p> <!--Ye to mujheee pata hi nahi tha ki ye me hu -->
                          <a href="#" onclick="app.showModal('privacyPolicy')" data-key="footerPrivacy">Privacy Policy</a> | <!-- aapki privacy aapke haathme hamare gale mat padho-->
             <a href="#" onclick="app.showModal('termsOfService')" data-key="footerTerms">Terms of Service</a> <!-- Term koi bhi ho hamare ruel har waqt change hote hai to koi bolbol nahi chup chaap rehne ka-->
             <p style="font-size: calc(12px * var(--font-size-multiplier)); margin-top: 10px;">All Right's Reserved by <b><i>Ayush Harinkhede</i></b></p> <!--jaaydaad apne  naam hai babua -->
          <button id="footer-logout-btn" class="btn-clear" style="display:none; margin-top: 10px;">Logout</button>
-         </footer>  </div>
+         </footer>  <div id="logout-confirm-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Confirm Logout</h2>
+            <p>Are you sure you want to logout?</p>
+            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
+                <button class="btn-clear" onclick="app.auth.confirmLogout()">Yes, Logout</button>
+                <button class="btn-accent" onclick="app.auth.cancelLogout()">Cancel</button>
+            </div>
+        </div>
+    </div>
 
     <div id="tool-templates" style="display: none;">
         <div id="age-calculator" class="tool-container"></div>
@@ -1323,7 +1452,8 @@ body.tool-view-open {
     <div id="scientific-modal" class="modal-overlay"></div>
     <div id="auth-modal" class="modal-overlay"></div>
     <div id="settings-modal" class="modal-overlay">
-        <div class="modal-content">
+        <div class="modal-content" style="position: relative;">
+            <button class="btn-clear" onclick="app.closeModal('settings')" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 12px;">×</button>
             <h2>Settings</h2>
             
             <div class="input-group">
@@ -1364,8 +1494,7 @@ body.tool-view-open {
                 <button class="btn-clear" onclick="app.settings.clearAllData()">Clear All Data</button>
             </div>
             
-            <button class="btn-calculate" style="width: 100%; margin-top: 20px;" onclick="app.closeModal('settings')">Save & Close</button>
-        </div>
+            </div>
     </div>
 
     <script>
@@ -1382,6 +1511,7 @@ body.tool-view-open {
             this.sizer.switchType('ring');
             this.passGen.init();
             this.settings.init();
+            this.auth.init();
         },
 
             setupEventListeners() {
@@ -1389,6 +1519,7 @@ body.tool-view-open {
                 document.getElementById('settings-btn').onclick = () => this.showModal('settings');
                 document.getElementById('account-btn').onclick = () => this.showModal('auth');
                 document.getElementById('logout-btn').onclick = () => this.auth.logout();
+                document.getElementById('footer-logout-btn').onclick = () => this.auth.logout();
                 
                 // Converter inputs
                 document.getElementById('temp-input').oninput = () => this.converters.temp();
@@ -1447,10 +1578,10 @@ body.tool-view-open {
                 update() {
                     const now = new Date();
                     const hour = now.getHours();
-                     let greeting = "Good Day! ☀️";
-                    if (hour < 12) greeting = "Good Morning ☀️";
-                    else if (hour < 18) greeting = "Good Afternoon ☕";
-                    else greeting = "Good Evening 🌙";
+                     let greeting = "Good Day!";
+                    if (hour < 12) greeting = "Good Morning";
+                    else if (hour < 18) greeting = "Good Afternoon";
+                    else greeting = "Good Evening";
                     
                     document.getElementById('greeting').textContent = greeting;
                     document.getElementById('time').textContent = now.toLocaleTimeString('en-US');
@@ -1500,12 +1631,60 @@ body.tool-view-open {
                         let expr = this.expression
                             .replace(/×/g, '*')
                             .replace(/÷/g, '/')
-                            .replace(/%/g, '/100');
+                            .replace(/%/g, '/100')
+                            .replace(/Math\.PI/g, Math.PI.toString())
+                            .replace(/Math\.E/g, Math.E.toString());
                         
-                        const result = eval(expr);
+                        // Enhanced Scientific Calculator Logic
+                        // 1. Handle Scientific Functions with proper math
+                        expr = expr.replace(/Math\.(sin|cos|tan|sqrt|log|pow|abs|exp|floor|ceil|round)\(([^)]+)\)/g, (match, func, arg) => {
+                            const args = arg.split(',').map(a => a.trim());
+                            switch(func) {
+                                case 'sin': return Math.sin(parseFloat(args[0]) * Math.PI / 180).toString();
+                                case 'cos': return Math.cos(parseFloat(args[0]) * Math.PI / 180).toString();
+                                case 'tan': return Math.tan(parseFloat(args[0]) * Math.PI / 180).toString();
+                                case 'sqrt': return Math.sqrt(parseFloat(args[0])).toString();
+                                case 'log': return Math.log(parseFloat(args[0])).toString();
+                                case 'exp': return Math.exp(parseFloat(args[0])).toString();
+                                case 'abs': return Math.abs(parseFloat(args[0])).toString();
+                                case 'floor': return Math.floor(parseFloat(args[0])).toString();
+                                case 'ceil': return Math.ceil(parseFloat(args[0])).toString();
+                                case 'round': return Math.round(parseFloat(args[0])).toString();
+                                case 'pow': return Math.pow(parseFloat(args[0]), parseFloat(args[1] || 2)).toString();
+                                default: return match;
+                            }
+                        });
+                        
+                        // 2. Handle Scientific Notation (e.g., 1.5e3 = 1500)
+                        expr = expr.replace(/(\d+\.?\d*)[eE]([+-]?\d+)/g, (match, base, exp) => {
+                            const baseNum = parseFloat(base);
+                            const expNum = parseInt(exp);
+                            return (baseNum * Math.pow(10, expNum)).toString();
+                        });
+                        
+                        // 3. Handle Power Notation (^)
+                        expr = expr.replace(/(\d+\.?\d*)\^(\-?\d+\.?\d*)/g, (match, base, exp) => {
+                            return `Math.pow(${base}, ${exp})`;
+                        });
+                        
+                        // 4. Handle Factorials (n!)
+                        expr = expr.replace(/(\d+)!/g, (match, n) => {
+                            let result = 1;
+                            for(let i = 2; i <= parseInt(n); i++) {
+                                result *= i;
+                            }
+                            return result.toString();
+                        });
+                        
+                        // 5. Handle Constants (π, e)
+                        expr = expr.replace(/π/g, Math.PI.toString());
+                        expr = expr.replace(/(?<!Math\.)e/g, Math.E.toString());
+                        
+                        // 6. Safe evaluation with proper order of operations
+                        const result = Function('"use strict"; return (' + expr + ')')();
                         
                         if (isNaN(result) || !isFinite(result)) {
-                            throw new Error('Invalid');
+                            throw new Error('Invalid Expression');
                         }
                         
                         this.history.unshift(`${this.expression} = ${result}`);
@@ -2170,27 +2349,93 @@ body.tool-view-open {
                 togglePassword(id) {
                     const input = document.getElementById(id);
                     input.type = input.type === 'password' ? 'text' : 'password';
-            },
-            login() {
-                    alert('Login functionality is a demo.');
-                    app.isLoggedIn = true;
-                    this.updateUI();
-                    app.closeModal('auth');
+                },
+                init() {
+                    // Check for remember me functionality
+                    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+                    const userEmail = localStorage.getItem('userEmail');
+                    const userName = localStorage.getItem('userName');
+                    
+                    if (rememberMe && userEmail) {
+                        // Auto-fill login form if remember me was checked
+                        document.getElementById('login-email').value = userEmail;
+                        document.getElementById('remember-me').checked = true;
+                        
+                        // For signup form
+                        if (userName) {
+                            document.getElementById('signup-email').value = userEmail;
+                            document.getElementById('signup-name').value = userName;
+                            document.getElementById('remember-me-signup').checked = true;
+                        }
+                    }
+                },
+                login() {
+                    const email = document.getElementById('login-email').value;
+                    const password = document.getElementById('login-password').value;
+                    const rememberMe = document.getElementById('remember-me').checked;
+                    
+                    // Basic validation
+                    if (!email || !password) {
+                        alert('Please enter email and password');
+                        return;
+                    }
+                    
+                    // Simulate authentication (in real app, this would be an API call)
+                    if (email === 'user@example.com' && password === 'password') {
+                        app.isLoggedIn = true;
+                        localStorage.setItem('userEmail', email);
+                        localStorage.setItem('rememberMe', rememberMe);
+                        localStorage.setItem('loginTime', new Date().toISOString());
+                        this.updateUI();
+                        app.closeModal('auth');
+                        app.notification.show('Welcome back! You are now logged in.');
+                    } else {
+                        alert('Invalid credentials. For demo, use user@example.com and password');
+                    }
                 },
                 signup() {
-                    alert('Signup functionality is a demo.');
+                    const name = document.getElementById('signup-name').value;
+                    const email = document.getElementById('signup-email').value;
+                    const password = document.getElementById('signup-password').value;
+                    const rememberMe = document.getElementById('remember-me-signup').checked;
+                    
+                    // Basic validation
+                    if (!name || !email || !password) {
+                        alert('Please fill all fields');
+                        return;
+                    }
+                    
+                    // Simulate authentication
                     app.isLoggedIn = true;
+                    localStorage.setItem('userName', name);
+                    localStorage.setItem('userEmail', email);
+                    localStorage.setItem('rememberMe', rememberMe);
+                    localStorage.setItem('loginTime', new Date().toISOString());
                     this.updateUI();
                     app.closeModal('auth');
+                    app.notification.show('Account created successfully!');
                 },
                 logout() {
-                    if (!confirm("Are you sure you want to log out?")) return;
+                    // Show confirmation modal instead of direct logout
+                    app.showModal('logout-confirm');
+                },
+                confirmLogout() {
                     app.isLoggedIn = false;
+                    localStorage.removeItem('userEmail');
+                    localStorage.removeItem('userName');
+                    localStorage.removeItem('rememberMe');
+                    localStorage.removeItem('loginTime');
                     this.updateUI();
+                    app.closeModal('logout-confirm');
+                    app.notification.show('You have been logged out successfully.');
+                },
+                cancelLogout() {
+                    app.closeModal('logout-confirm');
                 },
                 updateUI() {
-                     document.getElementById('account-btn').style.display = app.isLoggedIn ? 'none' : 'block';
-                     document.getElementById('logout-btn').style.display = app.isLoggedIn ? 'block' : 'none';
+                    document.getElementById('account-btn').style.display = app.isLoggedIn ? 'none' : 'block';
+                    document.getElementById('logout-btn').style.display = app.isLoggedIn ? 'block' : 'none';
+                    document.getElementById('footer-logout-btn').style.display = app.isLoggedIn ? 'block' : 'none';
                 }
             },
             
