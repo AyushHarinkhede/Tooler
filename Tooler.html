@@ -38,8 +38,6 @@
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
-        html { scroll-behavior: smooth; }
-
         body {
             font-family: var(--font-main);
             background-color: var(--doodle-bg);
@@ -706,8 +704,8 @@ body.tool-view-open {
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                     </button>
                     <button class="header-btn" id="settings-btn" title="Settings">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M12 1v6m0 6v6m4.22-13.22l-4.22 4.22m0 6l4.22 4.22M23 12h-6m-6 0H5m13.22 4.22l-4.22-4.22m0-6l4.22-4.22"></path></svg>
-                  </button>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                    </button>
                   <button class="header-btn" id="account-btn" title="Account">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                     </button>
@@ -769,11 +767,11 @@ body.tool-view-open {
              Converters
             </button>
             <button class="tool-btn" onclick="app.showTool('stopwatch')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 2v3"></path><path d="M9 4h6"></path><circle cx="12" cy="4" r="1.5"></circle><path d="M12 12v3"></path><path d="M12 8l-3 3"></path><path d="M15 9l-1 1"></path></svg>
              Stopwatch
             </button>
             <button class="tool-btn" onclick="app.showTool('timer')">
-             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 2h4"></path><path d="M12 14v-4"></path><path d="M4 13a8 8 0 0 1 16 0"></path></svg>
+             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 2v3"></path><path d="M9 4h6"></path><circle cx="12" cy="4" r="1"></circle><path d="M12 12v4"></path><path d="M12 8l-2 2"></path><path d="M16 6l-1 1"></path></svg>
              Timer
             </button>
             <button class="tool-btn" onclick="app.showTool('sizer')">
@@ -921,10 +919,19 @@ body.tool-view-open {
                 <button class="btn-clear" onclick="app.closeTool()">Close</button>
             </div>
             <div style="font-size: 3em; text-align: center; margin: 30px 0;" id="stopwatch-display">00:00:00</div>
-            <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
-                <button id="sw-start-btn" class="btn-calculate" onclick="app.stopwatch.toggle()">Start</button>
-                <button class="btn-accent" onclick="app.stopwatch.lap()">Lap</button>
-                <button class="btn-clear" onclick="app.stopwatch.reset()">Reset</button>
+            <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 20px;">
+                <button id="sw-start-btn" class="btn-calculate" onclick="app.stopwatch.toggle()" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 2v4m0 12v4"></path><path d="M12 12v3"></path><path d="M12 9l-2 2"></path></svg>
+                    Start
+                </button>
+                <button class="btn-accent" onclick="app.stopwatch.lap()" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6m0 4v6m4.22-13.22l-4.22 4.22m0 6l4.22 4.22M23 12h-6m-6 0H5"></path></svg>
+                    Lap
+                </button>
+                <button class="btn-clear" onclick="app.stopwatch.reset()" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                    Reset
+                </button>
             </div>
             <div class="result" id="lap-times">
                 <strong>Lap Times:</strong>
@@ -946,9 +953,15 @@ body.tool-view-open {
                     <input type="number" id="timer-sec" min="0" max="59" value="0">
                 </div> </div>
             <div style="font-size: 3em; text-align: center; margin: 30px 0;" id="timer-display">05:00</div>
-            <div style="display: flex; justify-content: center; gap: 10px;">
-                <button id="timer-start-btn" class="btn-calculate" onclick="app.timer.toggle()">Start</button>
-                <button class="btn-clear" onclick="app.timer.reset()">Reset</button>
+            <div style="display: flex; justify-content: center; gap: 15px;">
+                <button id="timer-start-btn" class="btn-calculate" onclick="app.timer.toggle()" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 6v6l4 2"></path></svg>
+                    Start
+                </button>
+                <button class="btn-clear" onclick="app.timer.reset()" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
+                    Reset
+                </button>
             </div> </div>
 
         <div id="sizer" class="tool-container">
@@ -956,11 +969,23 @@ body.tool-view-open {
                 <h2>Sizer Tool</h2>
                 <button class="btn-clear" onclick="app.closeTool()">Close</button>
             </div>
-            <div style="display: flex; justify-content: center; gap: 10px; margin-bottom: 20px;">
-                <button class="btn-accent" onclick="app.sizer.switchType('ring')">Ring</button>
-                <button class="btn-accent" onclick="app.sizer.switchType('bangle')">Bangle</button>
-                <button class="btn-accent" onclick="app.sizer.switchType('watch')">Watch</button>
-                <button class="btn-accent" onclick="app.sizer.switchType('height')">Height</button>
+            <div style="display: flex; justify-content: center; gap: 15px; margin-bottom: 20px; flex-wrap: wrap;">
+                <button class="btn-accent" onclick="app.sizer.switchType('ring')" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="6"></circle></svg>
+                    Ring
+                </button>
+                <button class="btn-accent" onclick="app.sizer.switchType('bangle')" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><circle cx="12" cy="12" r="4"></circle></svg>
+                    Bangle
+                </button>
+                <button class="btn-accent" onclick="app.sizer.switchType('watch')" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="9" x2="15" y2="9"></line><line x1="12" y1="9" x2="12" y2="15"></line></svg>
+                    Watch
+                </button>
+                <button class="btn-accent" onclick="app.sizer.switchType('height')" style="display: flex; align-items: center; gap: 8px;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.828 2.828 0 1 1 4 0L17 3z"></path><path d="M17 7v14"></path><path d="M3 21h18"></path><path d="M7 21v-4a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4"></path></svg>
+                    Height
+                </button>
              </div>
           <div id="sizer-content"></div>  </div>
 
@@ -1209,8 +1234,8 @@ body.tool-view-open {
          <p style="text-align: center; padding: 40px 0; color: var(--text-secondary); margin-top: 40px;"></p>
             <p style="font-size: calc(14px * var(--font-size-multiplier));">© 2024-2025 Tooler - Your Doodle Toolkit. Made with love</p> <!--mera pehla pyar temhare liye -->
             <p style="font-size: calc(12px * var(--font-size-multiplier)); margin-top: 10px;">Creative | Innovative | Passionate</p> <!--Ye to mujheee pata hi nahi tha ki ye me hu -->
-                         <a href="#" onclick="openModal('privacyPolicyModal')" data-key="footerPrivacy">Privacy Policy</a> | <!-- aapki privacy aapke haathme hamare gale mat padho-->
-            <a href="#" onclick="openModal('termsOfServiceModal')" data-key="footerTerms">Terms of Service</a> <!-- Term koi bhi ho hamare ruel har waqt change hote hai to koi bolbol nahi chup chaap rehne ka-->
+                         <a href="#" onclick="app.showModal('privacyPolicy')" data-key="footerPrivacy">Privacy Policy</a> | <!-- aapki privacy aapke haathme hamare gale mat padho-->
+            <a href="#" onclick="app.showModal('termsOfService')" data-key="footerTerms">Terms of Service</a> <!-- Term koi bhi ho hamare ruel har waqt change hote hai to koi bolbol nahi chup chaap rehne ka-->
             <p style="font-size: calc(12px * var(--font-size-multiplier)); margin-top: 10px;">All Right's Reserved by <b><i>Ayush Harinkhede</i></b></p> <!--jaaydaad apne  naam hai babua -->
          <button id="footer-logout-btn" class="btn-clear" style="display:none; margin-top: 10px;">Logout</button>
          </footer>  </div>
@@ -1229,10 +1254,119 @@ body.tool-view-open {
     
 
 
+    <div id="privacyPolicy-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Privacy Policy</h2>
+            <div style="max-height: 400px; overflow-y: auto; background: #fff; padding: 15px; border: 2px dashed var(--doodle-border); margin: 20px 0;">
+                <h3>Information We Collect</h3>
+                <p>We collect information you provide directly to us, such as when you create an account, use our tools, or contact us for support.</p>
+                
+                <h3>How We Use Your Information</h3>
+                <p>We use the information we collect to provide, maintain, and improve our services, process transactions, and communicate with you.</p>
+                
+                <h3>Data Storage</h3>
+                <p>Your data is stored locally in your browser using localStorage. We do not store your personal information on our servers.</p>
+                
+                <h3>Cookies</h3>
+                <p>We use browser cookies to remember your preferences and settings for a better user experience.</p>
+                
+                <h3>Data Security</h3>
+                <p>We implement appropriate security measures to protect your personal information against unauthorized access.</p>
+                
+                <h3>Your Rights</h3>
+                <p>You have the right to access, update, or delete your personal data at any time through the settings.</p>
+                
+                <h3>Changes to This Policy</h3>
+                <p>We may update this privacy policy from time to time. We will notify you of any changes by posting the new policy on this page.</p>
+                
+                <p><strong>Last updated:</strong> December 2024</p>
+            </div>
+            <button class="btn-clear" onclick="app.closeModal('privacyPolicy')">Close</button>
+        </div>
+    </div>
+
+    <div id="termsOfService-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Terms of Service</h2>
+            <div style="max-height: 400px; overflow-y: auto; background: #fff; padding: 15px; border: 2px dashed var(--doodle-border); margin: 20px 0;">
+                <h3>Acceptance of Terms</h3>
+                <p>By accessing and using Tooler, you accept and agree to be bound by the terms and provision of this agreement.</p>
+                
+                <h3>Use License</h3>
+                <p>Permission is granted to temporarily use Tooler for personal, non-commercial transitory viewing only. This is the grant of a license, not a transfer of title.</p>
+                
+                <h3>Disclaimer</h3>
+                <p>The information on this website is provided on an as-is basis. To the fullest extent permitted by law, this Company disclaims all warranties.</p>
+                
+                <h3>Limitations</h3>
+                <p>In no event shall this Company or its suppliers be liable for any damages (including, without limitation, damages for loss of data or profit) arising from the use of this website.</p>
+                
+                <h3>Accuracy of Materials</h3>
+                <p>The materials appearing on Tooler could include technical, typographical, or photographic errors. We do not warrant that any of the materials on its website are accurate.</p>
+                
+                <h3>Links</h3>
+                <p>Tooler has not reviewed all of the sites linked to our website and is not responsible for the contents of any such linked site.</p>
+                
+                <h3>Modifications</h3>
+                <p>Tooler may revise these terms of service for its website at any time without notice. By using this web site, you are agreeing to be bound by the then current version of these terms of service.</p>
+                
+                <h3>Governing Law</h3>
+                <p>These terms and conditions are governed by and construed in accordance with the laws of India and you irrevocably submit to the exclusive jurisdiction of the courts.</p>
+                
+                <p><strong>Last updated:</strong> December 2024</p>
+            </div>
+            <button class="btn-clear" onclick="app.closeModal('termsOfService')">Close</button>
+        </div>
+    </div>
+
     <div id="history-modal" class="modal-overlay"></div>
     <div id="scientific-modal" class="modal-overlay"></div>
     <div id="auth-modal" class="modal-overlay"></div>
-    <div id="settings-modal" class="modal-overlay"></div>
+    <div id="settings-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2>Settings</h2>
+            
+            <div class="input-group">
+                <label>Font Size:</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <button class="btn-accent" onclick="app.settings.changeFontSize('small')">Small</button>
+                    <button class="btn-accent" onclick="app.settings.changeFontSize('medium')">Medium</button>
+                    <button class="btn-accent" onclick="app.settings.changeFontSize('large')">Large</button>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>Theme:</label>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn-accent" onclick="app.settings.setTheme('doodle')">Doodle</button>
+                    <button class="btn-accent" onclick="app.settings.setTheme('dark')">Dark</button>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>Sound Effects:</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="sound-toggle" style="width: 20px; height: 20px; cursor: pointer;" checked>
+                    <label for="sound-toggle" style="cursor: pointer;">Enable sound effects</label>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>Auto-save:</label>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <input type="checkbox" id="autosave-toggle" style="width: 20px; height: 20px; cursor: pointer;" checked>
+                    <label for="autosave-toggle" style="cursor: pointer;">Auto-save data</label>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>Clear Data:</label>
+                <button class="btn-clear" onclick="app.settings.clearAllData()">Clear All Data</button>
+            </div>
+            
+            <button class="btn-calculate" style="width: 100%; margin-top: 20px;" onclick="app.closeModal('settings')">Save & Close</button>
+        </div>
+    </div>
 
     <script>
         const app = {
@@ -1246,11 +1380,13 @@ body.tool-view-open {
             this.counters.init();
             this.setupEventListeners();
             this.sizer.switchType('ring');
-            this.passGen.init(); // <-- YEH NAYI LINE ADD KAREIN
+            this.passGen.init();
+            this.settings.init();
         },
 
             setupEventListeners() {
                 document.getElementById('theme-toggle-btn').onclick = () => this.toggleTheme();
+                document.getElementById('settings-btn').onclick = () => this.showModal('settings');
                 document.getElementById('account-btn').onclick = () => this.showModal('auth');
                 document.getElementById('logout-btn').onclick = () => this.auth.logout();
                 
@@ -2055,6 +2191,58 @@ body.tool-view-open {
                 updateUI() {
                      document.getElementById('account-btn').style.display = app.isLoggedIn ? 'none' : 'block';
                      document.getElementById('logout-btn').style.display = app.isLoggedIn ? 'block' : 'none';
+                }
+            },
+            
+            settings: {
+                changeFontSize(size) {
+                    const root = document.documentElement;
+                    const sizes = {
+                        small: '14px',
+                        medium: '16px',
+                        large: '18px'
+                    };
+                    root.style.setProperty('--base-font-size', sizes[size]);
+                    localStorage.setItem('fontSize', size);
+                },
+                
+                setTheme(theme) {
+                    document.documentElement.dataset.theme = theme;
+                    localStorage.setItem('theme', theme);
+                },
+                
+                toggleSound() {
+                    const enabled = document.getElementById('sound-toggle').checked;
+                    localStorage.setItem('soundEnabled', enabled);
+                },
+                
+                toggleAutosave() {
+                    const enabled = document.getElementById('autosave-toggle').checked;
+                    localStorage.setItem('autosaveEnabled', enabled);
+                },
+                
+                clearAllData() {
+                    if (confirm('Are you sure you want to clear all data? This will delete all your saved settings, history, and data.')) {
+                        localStorage.clear();
+                        location.reload();
+                    }
+                },
+                
+                init() {
+                    // Load saved settings
+                    const fontSize = localStorage.getItem('fontSize') || 'medium';
+                    const theme = localStorage.getItem('theme') || 'doodle';
+                    const soundEnabled = localStorage.getItem('soundEnabled') !== 'false';
+                    const autosaveEnabled = localStorage.getItem('autosaveEnabled') !== 'false';
+                    
+                    this.changeFontSize(fontSize);
+                    this.setTheme(theme);
+                    document.getElementById('sound-toggle').checked = soundEnabled;
+                    document.getElementById('autosave-toggle').checked = autosaveEnabled;
+                    
+                    // Add event listeners
+                    document.getElementById('sound-toggle').onchange = () => this.toggleSound();
+                    document.getElementById('autosave-toggle').onchange = () => this.toggleAutosave();
                 }
             },
             
