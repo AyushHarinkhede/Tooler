@@ -1314,72 +1314,6 @@ body.tool-view-open {
             <button class="btn-clear" onclick="app.closeModal('scientific')">Close</button>
         </div>  </div>
 
-    <div id="auth-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="auth-tabs">
-                <div class="auth-tab active" onclick="app.auth.switchTab('login')">Login</div>
-                <div class="auth-tab" onclick="app.auth.switchTab('signup')">Sign Up</div>
-            </div>
-            
-            <div id="login-content" class="auth-content active">
-                <div class="input-group">
-                    <label>Email:</label>
-                    <input type="email" id="login-email" placeholder="you@example.com">
-                </div>
-                <div class="input-group password-wrapper">
-                    <label>Password:</label>
-                    <input type="password" id="login-password" placeholder="Enter password">
-                    <button class="password-toggle" onclick="app.auth.togglePassword('login-password')">Show/Hide</button>
-                </div>
-                <div class="input-group">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="remember-me" style="width: 14px; height: 14px; cursor: pointer;">
-                        <label for="remember-me" style="cursor: pointer; margin: 0;">Remember me</label>
-                    </div>
-                </div>
-                <button class="btn-calculate" style="width: 100%; margin-top: 15px;" onclick="app.auth.login()">Login</button>
-            </div>
-            
-            <div id="signup-content" class="auth-content">
-                <div class="input-group">
-                    <label>Name:</label>
-                    <input type="text" id="signup-name" placeholder="Your name">
-                </div>
-                <div class="input-group">
-                    <label>Email:</label>
-                    <input type="email" id="signup-email" placeholder="you@example.com">
-                </div>
-                <div class="input-group password-wrapper">
-                    <label>Password:</label>
-                    <input type="password" id="signup-password" placeholder="Create password">
-                    <button class="password-toggle" onclick="app.auth.togglePassword('signup-password')">Show/Hide</button>
-                </div>
-                <div class="input-group">
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <input type="checkbox" id="remember-me-signup" style="width: 14px; height: 14px; cursor: pointer;">
-                        <label for="remember-me-signup" style="cursor: pointer; margin: 0;">Remember me</label>
-                    </div>
-                </div>
-                <button class="btn-calculate" style="width: 100%; margin-top: 15px;" onclick="app.auth.signup()">Sign Up</button>
-            </div>
-            
-            <div class="social-login">
-                <button class="social-btn">
-                    <span style="color: #4285F4;">Ⓖ</span> Google
-                </button>
-                <button class="social-btn">
-                    <span style="color: #1877F2;">F</span> Facebook
-                </button>
-                <button class="social-btn">
-                    <span style="color: #000;">⊞</span> Microsoft
-                </button>
-                <button class="social-btn">
-                    <span style="color: #000;">Apple</span> Apple
-                </button>
-            </div>
-            
-            <button class="btn-clear" style="width: 100%; margin-top: 20px;" onclick="app.closeModal('auth')">Close</button>
-        </div>  </div>
 
 
  <footer class="main-footer">
@@ -1389,17 +1323,6 @@ body.tool-view-open {
                          <a href="#" onclick="app.showModal('privacyPolicy')" data-key="footerPrivacy">Privacy Policy</a> | <!-- aapki privacy aapke haathme hamare gale mat padho-->
             <a href="#" onclick="app.showModal('termsOfService')" data-key="footerTerms">Terms of Service</a> <!-- Term koi bhi ho hamare ruel har waqt change hote hai to koi bolbol nahi chup chaap rehne ka-->
             <p style="font-size: calc(12px * var(--font-size-multiplier)); margin-top: 10px;">All Right's Reserved by <b><i>Ayush Harinkhede</i></b></p> <!--jaaydaad apne  naam hai babua -->
-         <button id="footer-logout-btn" class="btn-clear" style="display:none; margin-top: 10px;">Logout</button>
-         </footer>  <div id="logout-confirm-modal" class="modal-overlay">
-        <div class="modal-content">
-            <h2>Confirm Logout</h2>
-            <p>Are you sure you want to logout?</p>
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button class="btn-clear" onclick="app.auth.confirmLogout()">Yes, Logout</button>
-                <button class="btn-accent" onclick="app.auth.cancelLogout()">Cancel</button>
-            </div>
-        </div>
-    </div>
 
     <div id="tool-templates" style="display: none;">
         <div id="age-calculator" class="tool-container"></div>
@@ -1486,44 +1409,182 @@ body.tool-view-open {
     <div id="settings-modal" class="modal-overlay">
         <div class="modal-content" style="position: relative;">
             <button class="btn-clear" onclick="app.closeModal('settings')" style="position: absolute; top: 10px; right: 10px; padding: 5px 10px; font-size: 12px;">×</button>
-            <h2>Settings</h2>
+            <h2>⚙️ Settings</h2>
             
-            <div class="input-group">
-                <label>Font Size:</label>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button class="btn-accent" onclick="app.settings.changeFontSize('small')">Small</button>
-                    <button class="btn-accent" onclick="app.settings.changeFontSize('medium')">Medium</button>
-                    <button class="btn-accent" onclick="app.settings.changeFontSize('large')">Large</button>
+            <!-- General Settings -->
+            <div class="settings-section">
+                <h3>🎨 General Settings</h3>
+                
+                <div class="input-group">
+                    <label>Font Size:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn-accent" onclick="app.settings.changeFontSize('small')">📱 Small</button>
+                        <button class="btn-accent" onclick="app.settings.changeFontSize('medium')">💻 Medium</button>
+                        <button class="btn-accent" onclick="app.settings.changeFontSize('large')">🖥️ Large</button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Theme:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-accent" onclick="app.settings.setTheme('doodle')">🎨 Doodle</button>
+                        <button class="btn-accent" onclick="app.settings.setTheme('dark')">🌙 Dark</button>
+                        <button class="btn-accent" onclick="app.settings.setTheme('light')">☀️ Light</button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Language:</label>
+                    <select id="language-select" style="width: 100%; padding: 8px; border: 2px solid var(--doodle-border); border-radius: 5px;">
+                        <option value="en">🇺🇸 English</option>
+                        <option value="hi">🇮🇳 हिंदी</option>
+                        <option value="es">🇪🇸 Español</option>
+                        <option value="fr">🇫🇷 Français</option>
+                    </select>
+                </div>
+                
+                <div class="input-group">
+                    <label>Animation Speed:</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <button class="btn-accent" onclick="app.settings.setAnimationSpeed('slow')">🐌 Slow</button>
+                        <button class="btn-accent" onclick="app.settings.setAnimationSpeed('normal')">⚡ Normal</button>
+                        <button class="btn-accent" onclick="app.settings.setAnimationSpeed('fast')">🚀 Fast</button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Layout:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-accent" onclick="app.settings.setLayout('grid')">📊 Grid</button>
+                        <button class="btn-accent" onclick="app.settings.setLayout('list')">📋 List</button>
+                        <button class="btn-accent" onclick="app.settings.setLayout('compact')">📱 Compact</button>
+                    </div>
                 </div>
             </div>
             
-            <div class="input-group">
-                <label>Theme:</label>
-                <div style="display: flex; gap: 10px;">
-                    <button class="btn-accent" onclick="app.settings.setTheme('doodle')">Doodle</button>
-                    <button class="btn-accent" onclick="app.settings.setTheme('dark')">Dark</button>
+            <!-- Privacy & Security -->
+            <div class="settings-section">
+                <h3>🔒 Privacy & Security</h3>
+                
+                <div class="input-group">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="sound-toggle" style="width: 20px; height: 20px; cursor: pointer;" checked>
+                        <label for="sound-toggle" style="cursor: pointer;">🔊 Enable sound effects</label>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="autosave-toggle" style="width: 20px; height: 20px; cursor: pointer;" checked>
+                        <label for="autosave-toggle" style="cursor: pointer;">💾 Auto-save data</label>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="analytics-toggle" style="width: 20px; height: 20px; cursor: pointer;">
+                        <label for="analytics-toggle" style="cursor: pointer;">📊 Enable analytics</label>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="notifications-toggle" style="width: 20px; height: 20px; cursor: pointer;" checked>
+                        <label for="notifications-toggle" style="cursor: pointer;">🔔 Enable notifications</label>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="offline-mode" style="width: 20px; height: 20px; cursor: pointer;">
+                        <label for="offline-mode" style="cursor: pointer;">📴 Offline mode</label>
+                    </div>
                 </div>
             </div>
             
-            <div class="input-group">
-                <label>Sound Effects:</label>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="sound-toggle" style="width: 20px; height: 20px; cursor: pointer;" checked>
-                    <label for="sound-toggle" style="cursor: pointer;">Enable sound effects</label>
+            <!-- Data Management -->
+            <div class="settings-section">
+                <h3>💾 Data Management</h3>
+                
+                <div class="input-group">
+                    <label>Export Data:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-accent" onclick="app.settings.exportData()">📥 Export All Data</button>
+                        <button class="btn-accent" onclick="app.settings.importData()">📤 Import Data</button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Clear Data:</label>
+                    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn-clear" onclick="app.settings.clearHistory()">🗑️ Clear History</button>
+                        <button class="btn-clear" onclick="app.settings.clearSettings()">⚙️ Clear Settings</button>
+                        <button class="btn-clear" onclick="app.settings.clearAllData()">🗑️ Clear All Data</button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Storage Usage:</label>
+                    <div style="padding: 8px; background: var(--note-bg); border: 1px solid var(--doodle-border); border-radius: 5px;">
+                        <div id="storage-usage">Calculating...</div>
+                    </div>
                 </div>
             </div>
             
-            <div class="input-group">
-                <label>Auto-save:</label>
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <input type="checkbox" id="autosave-toggle" style="width: 20px; height: 20px; cursor: pointer;" checked>
-                    <label for="autosave-toggle" style="cursor: pointer;">Auto-save data</label>
+            <!-- Advanced Settings -->
+            <div class="settings-section">
+                <h3>⚡ Advanced Settings</h3>
+                
+                <div class="input-group">
+                    <label>Performance Mode:</label>
+                    <div style="display: flex; gap: 10px;">
+                        <button class="btn-accent" onclick="app.settings.setPerformanceMode('eco')">🌱 Eco</button>
+                        <button class="btn-accent" onclick="app.settings.setPerformanceMode('balanced')">⚖️ Balanced</button>
+                        <button class="btn-accent" onclick="app.settings.setPerformanceMode('performance')">🚀 Performance</button>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Tool Shortcuts:</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="shortcuts-toggle" style="width: 20px; height: 20px; cursor: pointer;" checked>
+                        <label for="shortcuts-toggle" style="cursor: pointer;">⌨️ Enable keyboard shortcuts</label>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Developer Mode:</label>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="developer-mode" style="width: 20px; height: 20px; cursor: pointer;">
+                        <label for="developer-mode" style="cursor: pointer;">👨‍💻 Enable developer mode</label>
+                    </div>
                 </div>
             </div>
             
-            <div class="input-group">
-                <label>Clear Data:</label>
-                <button class="btn-clear" onclick="app.settings.clearAllData()">Clear All Data</button>
+            <!-- About -->
+            <div class="settings-section">
+                <h3>ℹ️ About</h3>
+                
+                <div class="input-group">
+                    <label>App Version:</label>
+                    <div style="padding: 8px; background: var(--note-bg); border: 1px solid var(--doodle-border); border-radius: 5px;">
+                        <strong>🚀 Tooler v3.0.0</strong> - Your Doodle Toolkit
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>Last Updated:</label>
+                    <div style="padding: 8px; background: var(--note-bg); border: 1px solid var(--doodle-border); border-radius: 5px;">
+                        📅 March 2026 - Latest Features Added
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>System Info:</label>
+                    <div style="padding: 8px; background: var(--note-bg); border: 1px solid var(--doodle-border); border-radius: 5px;">
+                        <div id="system-info">Loading system information...</div>
+                    </div>
+                </div>
             </div>
             
             </div>
@@ -1543,15 +1604,185 @@ body.tool-view-open {
             this.sizer.switchType('ring');
             this.passGen.init();
             this.settings.init();
-            this.auth.init();
         },
 
             setupEventListeners() {
                 document.getElementById('theme-toggle-btn').onclick = () => this.toggleTheme();
                 document.getElementById('settings-btn').onclick = () => this.showModal('settings');
-                document.getElementById('account-btn').onclick = () => this.showModal('auth');
-                document.getElementById('logout-btn').onclick = () => this.auth.logout();
-                document.getElementById('footer-logout-btn').onclick = () => this.auth.logout();
+                
+                // Calculator keyboard support
+                document.addEventListener('keydown', (e) => {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    
+                    const key = e.key;
+                    const shift = e.shiftKey;
+                    const ctrl = e.ctrlKey || e.metaKey;
+                    
+                    // Number keys
+                    if (key >= '0' && key <= '9') {
+                        e.preventDefault();
+                        this.calc.append(key);
+                    }
+                    
+                    // Number pad (numpad)
+                    const numpadKeys = {
+                        'Numpad0': '0', 'Numpad1': '1', 'Numpad2': '2', 'Numpad3': '3',
+                        'Numpad4': '4', 'Numpad5': '5', 'Numpad6': '6', 'Numpad7': '7', 'Numpad8': '8', 'Numpad9': '9',
+                        'NumpadDecimal': '.', 'NumpadEnter': '=',
+                        'NumpadMultiply': '*', 'NumpadAdd': '+', 'NumpadSubtract': '-', 'NumpadDivide': '/'
+                    };
+                    
+                    if (numpadKeys[key]) {
+                        e.preventDefault();
+                        if (key === 'NumpadEnter') {
+                            this.calc.calculate();
+                        } else if (key === 'NumpadDecimal') {
+                            this.calc.append('.');
+                        } else {
+                            this.calc.append(numpadKeys[key]);
+                        }
+                    }
+                    
+                    // Operator keys
+                    const operatorKeys = {
+                        '+': '+', '-': '-', '*': '*', '/': '/', '%': '%',
+                        'Enter': '=', 'Escape': 'Escape', 'Backspace': 'Backspace',
+                        'Delete': 'Delete', 'Tab': 'Tab'
+                    };
+                    
+                    if (operatorKeys[key]) {
+                        e.preventDefault();
+                        if (key === 'Enter' || key === '=') {
+                            this.calc.calculate();
+                        } else if (key === 'Escape') {
+                            this.calc.clear();
+                        } else if (key === 'Backspace') {
+                            this.calc.backspace();
+                        } else if (key === 'Delete') {
+                            this.calc.clear();
+                        } else if (key === 'Tab') {
+                            // Tab could be used for cycling through tools
+                            return;
+                        } else {
+                            this.calc.append(operatorKeys[key]);
+                        }
+                    }
+                    
+                    // Symbol keys with Shift
+                    const shiftSymbols = {
+                        '!': '!', '@': '@', '#': '#', '$': '$', '%': '%',
+                        '^': '^', '&': '&', '*': '*', '(': '(', ')': ')',
+                        '_': '_', '+': '+', '|': '|', '{': '{', '}': '}',
+                        ':': ':', '"': '"', '<': '<', '>': '>', '?': '?',
+                        '~': '~', '`': '`'
+                    };
+                    
+                    if (shift && shiftSymbols[key]) {
+                        e.preventDefault();
+                        this.calc.append(shiftSymbols[key]);
+                    }
+                    
+                    // Special symbol keys without Shift
+                    const symbolKeys = {
+                        '[': '[', ']': ']', '\\': '\\', ';': ';', "'": "'",
+                        ',': ',', '.': '.', '/': '/', '-': '-', '=': '='
+                    };
+                    
+                    if (!shift && symbolKeys[key]) {
+                        e.preventDefault();
+                        this.calc.append(symbolKeys[key]);
+                    }
+                    
+                    // Letter keys for scientific functions
+                    const scientificKeys = {
+                        's': 'Math.sin(', 'c': 'Math.cos(', 't': 'Math.tan(',
+                        'r': 'Math.sqrt(', 'l': 'Math.log(', 'p': 'Math.PI', 'e': 'Math.E',
+                        'a': 'Math.abs(', 'f': 'Math.floor(', 'c': 'Math.ceil('
+                    };
+                    
+                    if (ctrl && !shift && scientificKeys[key.toLowerCase()]) {
+                        e.preventDefault();
+                        this.calc.append(scientificKeys[key.toLowerCase()]);
+                    }
+                    
+                    // Shift + Ctrl combinations for scientific functions
+                    if (ctrl && shift && scientificKeys[key.toLowerCase()]) {
+                        e.preventDefault();
+                        this.calc.append(scientificKeys[key.toLowerCase()]);
+                    }
+                    
+                    // Quick shortcuts
+                    if (ctrl && key === 'c') {
+                        e.preventDefault();
+                        this.calc.clear();
+                    }
+                    if (ctrl && key === 'r') {
+                        e.preventDefault();
+                        location.reload();
+                    }
+                    if (ctrl && key === 'v') {
+                        e.preventDefault();
+                        // Paste from clipboard
+                        navigator.clipboard.readText().then(text => {
+                            if (text) {
+                                const numbers = text.match(/[\d.+\-*/%]/g);
+                                if (numbers) {
+                                    numbers.forEach(num => this.calc.append(num));
+                                }
+                            }
+                        }).catch(err => console.log('Could not paste:', err));
+                    }
+                    
+                    // Arrow keys for scroll behavior
+                    if (key === 'ArrowUp') {
+                        e.preventDefault();
+                        window.scrollBy({ top: -100, left: 0 });
+                    }
+                    if (key === 'ArrowDown') {
+                        e.preventDefault();
+                        window.scrollBy({ top: 100, left: 0 });
+                    }
+                    if (key === 'ArrowLeft') {
+                        e.preventDefault();
+                        window.scrollBy({ top: 0, left: -100 });
+                    }
+                    if (key === 'ArrowRight') {
+                        e.preventDefault();
+                        window.scrollBy({ top: 0, left: 100 });
+                    }
+                    
+                    // Page Up/Down for larger scroll
+                    if (key === 'PageUp') {
+                        e.preventDefault();
+                        window.scrollBy({ top: -300, left: 0 });
+                    }
+                    if (key === 'PageDown') {
+                        e.preventDefault();
+                        window.scrollBy({ top: 300, left: 0 });
+                    }
+                    
+                    // Home/End for top/bottom
+                    if (key === 'Home') {
+                        e.preventDefault();
+                        window.scrollTo({ top: 0, left: 0 });
+                    }
+                    if (key === 'End') {
+                        e.preventDefault();
+                        window.scrollTo({ top: document.body.scrollHeight, left: 0 });
+                    }
+                    
+                    // Space bar for page down
+                    if (key === ' ') {
+                        e.preventDefault();
+                        window.scrollBy({ top: window.innerHeight * 0.8, left: 0 });
+                    }
+                    
+                    // Shift + Space for page up
+                    if (key === ' ' && shift) {
+                        e.preventDefault();
+                        window.scrollBy({ top: -window.innerHeight * 0.8, left: 0 });
+                    }
+                });
                 
                 // Converter inputs
                 document.getElementById('temp-input').oninput = () => this.converters.temp();
@@ -2371,106 +2602,6 @@ body.tool-view-open {
             },
 
             
-            auth: {
-                 switchTab(tab) {
-                document.querySelector('.auth-tab.active').classList.remove('active');
-                   document.querySelector(`.auth-tab[onclick*="${tab}"]`).classList.add('active');
-                  document.querySelector('.auth-content.active').classList.remove('active');
-              document.getElementById(`${tab}-content`).classList.add('active');
-                },
-                togglePassword(id) {
-                    const input = document.getElementById(id);
-                    input.type = input.type === 'password' ? 'text' : 'password';
-                },
-                init() {
-                    // Check for remember me functionality
-                    const rememberMe = localStorage.getItem('rememberMe') === 'true';
-                    const userEmail = localStorage.getItem('userEmail');
-                    const userName = localStorage.getItem('userName');
-                    
-                    if (rememberMe && userEmail) {
-                        // Auto-fill login form if remember me was checked
-                        document.getElementById('login-email').value = userEmail;
-                        document.getElementById('remember-me').checked = true;
-                        
-                        // For signup form
-                        if (userName) {
-                            document.getElementById('signup-email').value = userEmail;
-                            document.getElementById('signup-name').value = userName;
-                            document.getElementById('remember-me-signup').checked = true;
-                        }
-                    }
-                },
-                login() {
-                    const email = document.getElementById('login-email').value;
-                    const password = document.getElementById('login-password').value;
-                    const rememberMe = document.getElementById('remember-me').checked;
-                    
-                    // Basic validation
-                    if (!email || !password) {
-                        alert('Please enter email and password');
-                        return;
-                    }
-                    
-                    // Simulate authentication (in real app, this would be an API call)
-                    if (email === 'user@example.com' && password === 'password') {
-                        app.isLoggedIn = true;
-                        localStorage.setItem('userEmail', email);
-                        localStorage.setItem('rememberMe', rememberMe);
-                        localStorage.setItem('loginTime', new Date().toISOString());
-                        this.updateUI();
-                        app.closeModal('auth');
-                        app.notification.show('Welcome back! You are now logged in.');
-                    } else {
-                        alert('Invalid credentials. For demo, use user@example.com and password');
-                    }
-                },
-                signup() {
-                    const name = document.getElementById('signup-name').value;
-                    const email = document.getElementById('signup-email').value;
-                    const password = document.getElementById('signup-password').value;
-                    const rememberMe = document.getElementById('remember-me-signup').checked;
-                    
-                    // Basic validation
-                    if (!name || !email || !password) {
-                        alert('Please fill all fields');
-                        return;
-                    }
-                    
-                    // Simulate authentication
-                    app.isLoggedIn = true;
-                    localStorage.setItem('userName', name);
-                    localStorage.setItem('userEmail', email);
-                    localStorage.setItem('rememberMe', rememberMe);
-                    localStorage.setItem('loginTime', new Date().toISOString());
-                    this.updateUI();
-                    app.closeModal('auth');
-                    app.notification.show('Account created successfully!');
-                },
-                logout() {
-                    // Show confirmation modal instead of direct logout
-                    app.showModal('logout-confirm');
-                },
-                confirmLogout() {
-                    app.isLoggedIn = false;
-                    localStorage.removeItem('userEmail');
-                    localStorage.removeItem('userName');
-                    localStorage.removeItem('rememberMe');
-                    localStorage.removeItem('loginTime');
-                    this.updateUI();
-                    app.closeModal('logout-confirm');
-                    app.notification.show('You have been logged out successfully.');
-                },
-                cancelLogout() {
-                    app.closeModal('logout-confirm');
-                },
-                updateUI() {
-                    document.getElementById('account-btn').style.display = app.isLoggedIn ? 'none' : 'block';
-                    document.getElementById('logout-btn').style.display = app.isLoggedIn ? 'block' : 'none';
-                    document.getElementById('footer-logout-btn').style.display = app.isLoggedIn ? 'block' : 'none';
-                }
-            },
-            
             settings: {
                 changeFontSize(size) {
                     const root = document.documentElement;
@@ -2540,7 +2671,8 @@ body.tool-view-open {
                     document.getElementById('notification-bar').classList.remove('active');
                  clearTimeout(this.timeout);
              }
-            }    };
+            }
+        };
 
         window.onload = () => app.init();
     </script>
