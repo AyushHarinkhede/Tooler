@@ -2418,32 +2418,247 @@ body.tool-view-open {
             },
 
             games: {
+                currentGameMode: 'pvp', // pvp = player vs player, pvc = player vs computer
+                
                 select(game) {
+                    // Show custom confirmation modal
+                    this.showGameConfirmation(game);
+                },
+                
+                showGameConfirmation(game) {
+                    // Remove existing confirmation if any
+                    const existing = document.getElementById('game-confirmation');
+                    if (existing) existing.remove();
+                    
+                    // Create hover page confirmation in footer area
+                    const confirmation = document.createElement('div');
+                    confirmation.id = 'game-confirmation';
+                    confirmation.style.cssText = `
+                        position: fixed;
+                        bottom: 80px;
+                        left: 50%;
+                        transform: translateX(-50%);
+                        background: var(--doodle-bg);
+                        border: 3px solid var(--doodle-primary);
+                        border-radius: 15px;
+                        padding: 20px;
+                        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                        z-index: 1000;
+                        min-width: 350px;
+                        animation: slideUp 0.3s ease-out;
+                    `;
+                    
+                    confirmation.innerHTML = `
+                        <style>
+                            @keyframes slideUp {
+                                from { transform: translateX(-50%) translateY(100px); opacity: 0; }
+                                to { transform: translateX(-50%) translateY(0); opacity: 1; }
+                            }
+                            @keyframes slideDown {
+                                from { transform: translateX(-50%) translateY(0); opacity: 1; }
+                                to { transform: translateX(-50%) translateY(100px); opacity: 0; }
+                            }
+                        </style>
+                        <h3 style="margin: 0 0 15px 0; color: var(--doodle-text);">🎮 Start New Game</h3>
+                        <p style="margin: 0 0 20px 0; color: var(--doodle-text);">Do you want to start a new <strong style="color: var(--doodle-primary);">${game.toUpperCase()}</strong> game?</p>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button class="btn-calculate" onclick="app.games.confirmGameStart('${game}')">🎯 Start Game</button>
+                            <button class="btn-clear" onclick="app.games.closeGameConfirmation()">❌ Cancel</button>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(confirmation);
+                    this.currentGameModal = confirmation;
+                    this.pendingGame = game;
+                    
+                    // Auto-close after 10 seconds
+                    setTimeout(() => {
+                        if (document.getElementById('game-confirmation')) {
+                            this.closeGameConfirmation();
+                        }
+                    }, 10000);
+                },
+                
+                confirmGameStart(game) {
+                    this.closeGameConfirmation();
+                    this.loadGame(game);
+                },
+                
+                closeGameConfirmation() {
+                    const confirmation = document.getElementById('game-confirmation');
+                    if (confirmation) {
+                        confirmation.style.animation = 'slideDown 0.3s ease-out';
+                        setTimeout(() => {
+                            confirmation.remove();
+                        }, 300);
+                    }
+                    this.currentGameModal = null;
+                    this.pendingGame = null;
+                },
+                
+                loadGame(game) {
                     const area = document.getElementById('game-area');
                     let html = '';
+                    
+                    // Game mode selection
+                    html += `<div style="text-align: center; margin-bottom: 20px;">
+                        <label style="margin-right: 10px;">Game Mode:</label>
+                        <button class="btn-accent" onclick="app.games.setGameMode('pvp')" id="pvp-btn">👥 Player vs Player</button>
+                        <button class="btn-accent" onclick="app.games.setGameMode('pvc')" id="pvc-btn">🤖 Player vs Computer</button>
+                    </div>`;
+                    
                     switch (game) {
                         case 'ttt':
-                            html = `<div id="tic-tac-toe-board"></div><div id="ttt-status" class="result" style="text-align:center;">Player X's turn</div><button class="btn-calculate" style="margin: 10px auto; display: block;" onclick="app.games.ttt.init()">Restart</button>`;
+                            html += `<div style="display: flex; justify-content: space-around; align-items: flex-start; gap: 20px;">
+                                <div>
+                                    <h3>Player Area</h3>
+                                    <div id="tic-tac-toe-board" style="display: grid; grid-template-columns: repeat(3, 80px); grid-template-rows: repeat(3, 80px); gap: 5px; margin: 20px auto;"></div>
+                                    <div id="ttt-status" class="result" style="text-align:center; margin: 10px 0;">Player X's turn</div>
+                                    <div style="text-align: center; margin: 10px 0;">
+                                        <label>Board Size: </label>
+                                        <select id="board-size" onchange="app.games.ttt.changeBoardSize(this.value)">
+                                            <option value="3">3x3</option>
+                                            <option value="4">4x4</option>
+                                            <option value="5">5x5</option>
+                                        </select>
+                                    </div>
+                                    <button class="btn-calculate" style="margin: 10px auto; display: block;" onclick="app.games.ttt.init()">Restart</button>
+                                </div>
+                                <div>
+                                    <h3>Computer</h3>
+                                    <div id="computer-info" style="padding: 20px; background: var(--note-bg); border: 2px solid var(--doodle-border); border-radius: 10px; min-height: 200px;">
+                                        <p>🤖 Computer is thinking...</p>
+                                        <div id="computer-move" style="margin-top: 10px; font-weight: bold; color: var(--doodle-primary);">Waiting for your move...</div>
+                                        <div id="computer-thinking" style="margin-top: 10px; font-style: italic; color: #666;"></div>
+                                    </div>
+                                </div>
+                            </div>`;
                             area.innerHTML = html;
+                            this.setGameMode('pvp');
                             this.ttt.init();
                             break;
                         case 'snake':
-                            html = `<canvas id="snake-canvas" width="400" height="400" style="border: 2px solid var(--doodle-border); margin: 0 auto; display: block;"></canvas><div id="snake-score" class="result" style="text-align:center;">Score: 0</div><div style="text-align:center; margin: 10px 0;"><button class="btn-calculate" onclick="app.games.snake.start()">Start</button><button class="btn-calculate" onclick="app.games.snake.pause()">Pause</button><button class="btn-calculate" onclick="app.games.snake.reset()">Reset</button></div><div style="text-align:center; opacity:0.7;">Use arrow keys to control the snake</div>`;
+                            html = `<div style="text-align: center;">
+                                <canvas id="snake-canvas" width="400" height="400" style="border: 2px solid var(--doodle-border); margin: 0 auto; display: block; background: #f0f0f0;"></canvas>
+                                <div id="snake-score" class="result" style="text-align:center; margin: 10px 0;">Score: 0 | High Score: <span id="snake-high-score">0</span></div>
+                                <div style="text-align:center; margin: 10px 0;">
+                                    <button class="btn-calculate" onclick="app.games.snake.start()">▶️ Start</button>
+                                    <button class="btn-calculate" onclick="app.games.snake.pause()">⏸️ Pause</button>
+                                    <button class="btn-calculate" onclick="app.games.snake.reset()">🔄 Reset</button>
+                                </div>
+                                <div style="text-align:center; opacity:0.7; margin-top: 10px;">
+                                    <p>🎮 Use arrow keys to control snake</p>
+                                    <p>🍎 Eat food to grow and score points</p>
+                                </div>
+                            </div>`;
                             area.innerHTML = html;
                             this.snake.init();
                             break;
                         case 'ludo':
-                            html = `<div id="ludo-board" style="width: 400px; height: 400px; margin: 0 auto; border: 3px solid var(--doodle-border); position: relative; background: white;"></div><div id="ludo-status" class="result" style="text-align:center;">Click "Roll Dice" to start!</div><div style="text-align:center; margin: 10px 0;"><button class="btn-calculate" onclick="app.games.ludo.rollDice()">Roll Dice</button><button class="btn-calculate" onclick="app.games.ludo.reset()">New Game</button></div><div id="ludo-dice" style="text-align:center; font-size: 2em; margin: 10px 0;">🎲</div>`;
+                            html = `<div style="display: flex; justify-content: space-around; align-items: flex-start; gap: 20px;">
+                                <div>
+                                    <h3>Game Board</h3>
+                                    <div id="ludo-board" style="width: 400px; height: 400px; margin: 0 auto; border: 3px solid var(--doodle-border); position: relative; background: white; border-radius: 10px;"></div>
+                                    <div id="ludo-status" class="result" style="text-align:center; margin: 10px 0;">Click "Roll Dice" to start!</div>
+                                    <div style="text-align:center; margin: 10px 0;">
+                                        <button class="btn-calculate" onclick="app.games.ludo.rollDice()">🎲 Roll Dice</button>
+                                        <button class="btn-calculate" onclick="app.games.ludo.reset()">🔄 New Game</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3>Dice & Players</h3>
+                                    <div id="ludo-dice-container" style="text-align: center; margin: 20px 0;">
+                                        <div id="ludo-dice" style="width: 80px; height: 80px; background: white; border: 3px solid var(--doodle-primary); border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; font-size: 2em; margin: 10px auto; cursor: pointer; transition: transform 0.3s ease;" onclick="app.games.ludo.rollDice()">
+                                            <div class="dice-dots" style="display: grid; grid-template-columns: repeat(3, 20px); grid-template-rows: repeat(3, 20px); gap: 5px; padding: 10px;">🎲</div>
+                                        </div>
+                                        <div id="dice-result" style="font-size: 1.5em; font-weight: bold; margin-top: 10px; color: var(--doodle-primary);">Roll to start!</div>
+                                    </div>
+                                    <div id="players-info" style="background: var(--note-bg); border: 2px solid var(--doodle-border); border-radius: 10px; padding: 15px;">
+                                        <h4 style="margin-bottom: 10px;">Players Status</h4>
+                                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                            <div class="player-status">🔴 Red: <span id="red-status">Ready</span></div>
+                                            <div class="player-status">🔵 Blue: <span id="blue-status">Ready</span></div>
+                                            <div class="player-status">🟡 Yellow: <span id="yellow-status">Ready</span></div>
+                                            <div class="player-status">🟢 Green: <span id="green-status">Ready</span></div>
+                                        </div>
+                                        <div id="game-log" style="margin-top: 15px; padding: 10px; background: white; border-radius: 5px; max-height: 100px; overflow-y: auto; font-size: 0.9em;"></div>
+                                    </div>
+                                </div>
+                            </div>`;
                             area.innerHTML = html;
                             this.ludo.init();
                             break;
                         case 'uno':
-                            html = `<div id="uno-deck" style="text-align: center; margin: 20px 0;"><div id="uno-pile" style="display: inline-block; width: 80px; height: 120px; border: 2px solid var(--doodle-border); background: #333; color: white; display: flex; align-items: center; justify-content: center; font-size: 2em; cursor: pointer;">?</div></div><div id="uno-player-cards" style="display: flex; justify-content: center; gap: 5px; margin: 20px 0; flex-wrap: wrap;"></div><div id="uno-status" class="result" style="text-align:center;">Click a card to play it!</div><div style="text-align:center; margin: 10px 0;"><button class="btn-calculate" onclick="app.games.uno.drawCard()">Draw Card</button><button class="btn-calculate" onclick="app.games.uno.reset()">New Game</button></div>`;
+                            html = `<div style="display: flex; justify-content: space-around; align-items: flex-start; gap: 20px;">
+                                <div>
+                                    <h3>Your Cards</h3>
+                                    <div id="uno-player-cards" style="display: flex; justify-content: center; gap: 5px; margin: 20px 0; flex-wrap: wrap; min-height: 120px; padding: 10px; background: var(--note-bg); border: 2px dashed var(--doodle-border); border-radius: 10px;"></div>
+                                    <div style="text-align:center; margin: 10px 0;">
+                                        <button class="btn-calculate" onclick="app.games.uno.drawCard()">🎴 Draw Card</button>
+                                        <button class="btn-calculate" onclick="app.games.uno.reset()">🔄 New Game</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3>Game Area</h3>
+                                    <div id="uno-deck" style="text-align: center; margin: 20px 0;">
+                                        <div style="display: flex; justify-content: center; gap: 20px;">
+                                            <div>
+                                                <h4>Draw Pile</h4>
+                                                <div id="uno-draw-pile" style="width: 80px; height: 120px; background: linear-gradient(45deg, #333, #666); color: white; display: flex; align-items: center; justify-content: center; font-size: 2em; cursor: pointer; border-radius: 8px; transition: transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="app.games.uno.drawCard()">🎴</div>
+                                            </div>
+                                            <div>
+                                                <h4>Discard Pile</h4>
+                                                <div id="uno-pile" style="width: 80px; height: 120px; border: 2px solid var(--doodle-border); background: #333; color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5em; cursor: pointer; border-radius: 8px;">?</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="uno-status" class="result" style="text-align:center; margin: 10px 0;">Click a card to play it!</div>
+                                    <div id="computer-cards" style="margin-top: 20px;">
+                                        <h4>Computer's Cards: <span id="computer-card-count">7</span></h4>
+                                        <div style="display: flex; gap: 2px; justify-content: center;">
+                                            ${Array(7).fill('🎴').map(() => '<div style="width: 40px; height: 60px; background: linear-gradient(45deg, #333, #666); border: 1px solid #333; border-radius: 4px; transition: transform 0.2s ease;"></div>').join('')}
+                                        </div>
+                                        <div id="computer-move" style="margin-top: 10px; font-weight: bold; color: var(--doodle-primary); text-align: center;">Computer is waiting...</div>
+                                    </div>
+                                </div>
+                            </div>`;
                             area.innerHTML = html;
                             this.uno.init();
                             break;
                         case 'stack':
-                            html = `<div id="stack-deck" style="text-align: center; margin: 20px 0;"><div id="stack-pile" style="display: inline-block; width: 100px; height: 140px; border: 2px solid var(--doodle-border); background: linear-gradient(45deg, #ff6b6b, #4ecdc4); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5em; cursor: pointer;">🎴</div></div><div id="stack-player-cards" style="display: flex; justify-content: center; gap: 5px; margin: 20px 0; flex-wrap: wrap;"></div><div id="stack-status" class="result" style="text-align:center;">Click cards to stack them!</div><div style="text-align:center; margin: 10px 0;"><button class="btn-calculate" onclick="app.games.stack.drawCard()">Draw Card</button><button class="btn-calculate" onclick="app.games.stack.reset()">New Game</button></div>`;
+                            html = `<div style="display: flex; justify-content: space-around; align-items: flex-start; gap: 20px;">
+                                <div>
+                                    <h3>Your Cards</h3>
+                                    <div id="stack-player-cards" style="display: flex; justify-content: center; gap: 5px; margin: 20px 0; flex-wrap: wrap; min-height: 120px; padding: 10px; background: var(--note-bg); border: 2px dashed var(--doodle-border); border-radius: 10px;"></div>
+                                    <div style="text-align:center; margin: 10px 0;">
+                                        <button class="btn-calculate" onclick="app.games.stack.drawCard()">🎴 Draw Card</button>
+                                        <button class="btn-calculate" onclick="app.games.stack.reset()">🔄 New Game</button>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3>Game Area</h3>
+                                    <div id="stack-deck" style="text-align: center; margin: 20px 0;">
+                                        <div style="display: flex; justify-content: center; gap: 20px;">
+                                            <div>
+                                                <h4>Draw Pile</h4>
+                                                <div id="stack-draw-pile" style="width: 100px; height: 140px; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5em; cursor: pointer; border-radius: 8px; transition: transform 0.2s ease;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'" onclick="app.games.stack.drawCard()">🎴</div>
+                                            </div>
+                                            <div>
+                                                <h4>Stack Pile</h4>
+                                                <div id="stack-pile" style="width: 100px; height: 140px; border: 2px solid var(--doodle-border); background: linear-gradient(45deg, #ff6b6b, #4ecdc4); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.2em; cursor: pointer; border-radius: 8px;">🎴</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div id="stack-status" class="result" style="text-align:center; margin: 10px 0;">Click cards to stack them!</div>
+                                    <div id="computer-cards-stack" style="margin-top: 20px;">
+                                        <h4>Computer's Cards: <span id="computer-card-count-stack">5</span></h4>
+                                        <div style="display: flex; gap: 2px; justify-content: center;">
+                                            ${Array(5).fill('🎴').map(() => '<div style="width: 50px; height: 70px; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); border: 1px solid #333; border-radius: 4px; transition: transform 0.2s ease;"></div>').join('')}
+                                        </div>
+                                        <div id="computer-move-stack" style="margin-top: 10px; font-weight: bold; color: var(--doodle-primary); text-align: center;">Computer is waiting...</div>
+                                    </div>
+                                </div>
+                            </div>`;
                             area.innerHTML = html;
                             this.stack.init();
                             break;
@@ -2451,51 +2666,255 @@ body.tool-view-open {
                             area.innerHTML = `<p style="text-align:center; opacity:0.7;">${game.toUpperCase()} coming soon!</p>`;
                     }
                 },
+                
+                setGameMode(mode) {
+                    this.currentGameMode = mode;
+                    const pvpBtn = document.getElementById('pvp-btn');
+                    const pvcBtn = document.getElementById('pvc-btn');
+                    
+                    if (pvpBtn && pvcBtn) {
+                        if (mode === 'pvp') {
+                            pvpBtn.classList.add('btn-calculate');
+                            pvpBtn.classList.remove('btn-accent');
+                            pvcBtn.classList.add('btn-accent');
+                            pvcBtn.classList.remove('btn-calculate');
+                        } else {
+                            pvcBtn.classList.add('btn-calculate');
+                            pvcBtn.classList.remove('btn-accent');
+                            pvpBtn.classList.add('btn-accent');
+                            pvpBtn.classList.remove('btn-calculate');
+                        }
+                    }
+                },
                 ttt: {
                     board: [],
                     currentPlayer: 'X',
                     isGameOver: false,
+                    boardSize: 3,
+                    computerPlayer: 'O',
+                    
                     init() {
-                        this.board = Array(9).fill(null);
+                        this.board = Array(this.boardSize * this.boardSize).fill(null);
                         this.currentPlayer = 'X';
                         this.isGameOver = false;
                         this.render();
-                        document.getElementById('ttt-status').textContent = `Player X's turn`;
+                        document.getElementById('ttt-status').textContent = `Player ${this.currentPlayer}'s turn`;
+                        if (app.games.currentGameMode === 'pvp') {
+                            document.getElementById('computer-move').textContent = 'Player vs Player mode';
+                        } else {
+                            document.getElementById('computer-move').textContent = 'Waiting for your move...';
+                        }
                     },
+                    
+                    changeBoardSize(size) {
+                        this.boardSize = parseInt(size);
+                        this.init();
+                    },
+                    
                     render() {
                         const boardEl = document.getElementById('tic-tac-toe-board');
                         boardEl.innerHTML = '';
+                        boardEl.style.gridTemplateColumns = `repeat(${this.boardSize}, 80px)`;
+                        boardEl.style.gridTemplateRows = `repeat(${this.boardSize}, 80px)`;
+                        
                         this.board.forEach((cell, index) => {
                             const cellEl = document.createElement('div');
                             cellEl.classList.add('ttt-cell');
+                            cellEl.style.width = '80px';
+                            cellEl.style.height = '80px';
+                            cellEl.style.border = '2px solid var(--doodle-border)';
+                            cellEl.style.backgroundColor = 'var(--note-bg)';
+                            cellEl.style.display = 'flex';
+                            cellEl.style.alignItems = 'center';
+                            cellEl.style.justifyContent = 'center';
+                            cellEl.style.fontSize = '2.5em';
+                            cellEl.style.fontWeight = 'bold';
+                            cellEl.style.cursor = 'pointer';
+                            cellEl.style.borderRadius = '8px';
+                            cellEl.style.transition = 'all 0.3s ease';
+                            cellEl.style.boxShadow = '0 2px 4px rgba(0,0,0,0.1)';
                             cellEl.textContent = cell || '';
+                            if (cell === 'X') cellEl.style.color = '#e74c3c';
+                            if (cell === 'O') cellEl.style.color = '#3498db';
                             cellEl.onclick = () => this.makeMove(index);
+                            
+                            // Hover effect
+                            cellEl.onmouseover = () => {
+                                if (!cell && !this.isGameOver) {
+                                    cellEl.style.backgroundColor = 'var(--doodle-primary)';
+                                    cellEl.style.color = 'white';
+                                    cellEl.style.transform = 'scale(1.05)';
+                                }
+                            };
+                            cellEl.onmouseout = () => {
+                                if (!cell) {
+                                    cellEl.style.backgroundColor = 'var(--note-bg)';
+                                    cellEl.style.color = 'inherit';
+                                    cellEl.style.transform = 'scale(1)';
+                                }
+                            };
+                            
                             boardEl.appendChild(cellEl);
                         });
                     },
+                    
                     makeMove(index) {
                         if (this.isGameOver || this.board[index]) return;
+                        
                         this.board[index] = this.currentPlayer;
+                        
+                        // Update computer info
+                        if (app.games.currentGameMode === 'pvc') {
+                            if (this.currentPlayer === 'X') {
+                                document.getElementById('computer-move').textContent = `You played position ${index + 1}`;
+                                document.getElementById('computer-thinking').textContent = 'Computer is thinking...';
+                            }
+                        } else {
+                            document.getElementById('computer-move').textContent = `Player ${this.currentPlayer} played position ${index + 1}`;
+                        }
+                        
                         this.checkWinner();
                         if (!this.isGameOver) {
                             this.currentPlayer = this.currentPlayer === 'X' ? 'O' : 'X';
                             document.getElementById('ttt-status').textContent = `Player ${this.currentPlayer}'s turn`;
+                            
+                            // Computer move
+                            if (app.games.currentGameMode === 'pvc' && this.currentPlayer === 'O') {
+                                setTimeout(() => this.makeComputerMove(), 1500);
+                            }
                         }
                         this.render();
                     },
-                    checkWinner() {
-                        const lines = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
-                        for (let line of lines) {
-                            const [a, b, c] = line;
-                            if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) {
-                                this.isGameOver = true;
-                                document.getElementById('ttt-status').textContent = `Player ${this.board[a]} wins!`;
-                                return;
+                    
+                    makeComputerMove() {
+                        const availableMoves = this.board.map((cell, index) => cell === null ? index : null).filter(val => val !== null);
+                        if (availableMoves.length === 0) return;
+                        
+                        document.getElementById('computer-thinking').textContent = 'Analyzing board...';
+                        
+                        // Simple AI: Try to win, block player, or take center/corner
+                        let move = this.findBestMove();
+                        if (move === -1) {
+                            // Take random available move
+                            move = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+                        }
+                        
+                        document.getElementById('computer-move').textContent = `Computer played position ${move + 1}`;
+                        document.getElementById('computer-thinking').textContent = 'Computer made its move!';
+                        this.board[move] = this.computerPlayer;
+                        
+                        this.checkWinner();
+                        if (!this.isGameOver) {
+                            this.currentPlayer = 'X';
+                            document.getElementById('ttt-status').textContent = `Player ${this.currentPlayer}'s turn`;
+                            document.getElementById('computer-thinking').textContent = 'Your turn!';
+                        }
+                        this.render();
+                    },
+                    
+                    findBestMove() {
+                        // Try to win
+                        for (let i = 0; i < this.board.length; i++) {
+                            if (this.board[i] === null) {
+                                this.board[i] = this.computerPlayer;
+                                if (this.checkWinnerForPlayer(this.computerPlayer)) {
+                                    this.board[i] = null;
+                                    return i;
+                                }
+                                this.board[i] = null;
                             }
                         }
+                        
+                        // Try to block player
+                        const player = 'X';
+                        for (let i = 0; i < this.board.length; i++) {
+                            if (this.board[i] === null) {
+                                this.board[i] = player;
+                                if (this.checkWinnerForPlayer(player)) {
+                                    this.board[i] = null;
+                                    return i;
+                                }
+                                this.board[i] = null;
+                            }
+                        }
+                        
+                        // Take center
+                        const center = Math.floor(this.board.length / 2);
+                        if (this.board[center] === null) return center;
+                        
+                        // Take corner
+                        const corners = this.boardSize === 3 ? [0, 2, 6, 8] : [0, 3, 12, 15];
+                        const availableCorners = corners.filter(i => this.board[i] === null);
+                        if (availableCorners.length > 0) {
+                            return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+                        }
+                        
+                        return -1;
+                    },
+                    
+                    checkWinnerForPlayer(player) {
+                        const winPatterns = this.getWinPatterns();
+                        return winPatterns.some(pattern => {
+                            return pattern.every(index => this.board[index] === player);
+                        });
+                    },
+                    
+                    getWinPatterns() {
+                        const patterns = [];
+                        const size = this.boardSize;
+                        
+                        // Rows
+                        for (let i = 0; i < size; i++) {
+                            const row = [];
+                            for (let j = 0; j < size; j++) {
+                                row.push(i * size + j);
+                            }
+                            patterns.push(row);
+                        }
+                        
+                        // Columns
+                        for (let j = 0; j < size; j++) {
+                            const col = [];
+                            for (let i = 0; i < size; i++) {
+                                col.push(i * size + j);
+                            }
+                            patterns.push(col);
+                        }
+                        
+                        // Diagonals
+                        const diag1 = [], diag2 = [];
+                        for (let i = 0; i < size; i++) {
+                            diag1.push(i * size + i);
+                            diag2.push(i * size + (size - 1 - i));
+                        }
+                        patterns.push(diag1, diag2);
+                        
+                        return patterns;
+                    },
+                    
+                    checkWinner() {
+                        const winPatterns = this.getWinPatterns();
+                        
+                        for (let pattern of winPatterns) {
+                            const [a, b, c, ...rest] = pattern;
+                            if (this.board[a] && this.board[a] === this.board[b] && this.board[a] === this.board[c]) {
+                                // Check if all required positions are filled (for larger boards)
+                                if (rest.length === 0 || rest.every(i => this.board[i] === this.board[a])) {
+                                    this.isGameOver = true;
+                                    const winner = this.board[a];
+                                    document.getElementById('ttt-status').textContent = `Player ${winner} wins! 🎉`;
+                                    if (app.games.currentGameMode === 'pvc') {
+                                        document.getElementById('computer-thinking').textContent = winner === 'O' ? 'Computer wins!' : 'You win!';
+                                    }
+                                    return;
+                                }
+                            }
+                        }
+                        
                         if (!this.board.includes(null)) {
                             this.isGameOver = true;
-                            document.getElementById('ttt-status').textContent = `It's a draw!`;
+                            document.getElementById('ttt-status').textContent = `It's a draw! 🤝`;
+                            document.getElementById('computer-thinking').textContent = 'Game ended in a draw!';
                         }
                     }
                 },
@@ -2510,11 +2929,14 @@ body.tool-view-open {
                     dx: 0,
                     dy: 0,
                     score: 0,
+                    highScore: localStorage.getItem('snakeHighScore') || 0,
                     gameRunning: false,
                     gameLoop: null,
                     
                     init() {
                         this.canvas = document.getElementById('snake-canvas');
+                        if (!this.canvas) return;
+                        
                         this.ctx = this.canvas.getContext('2d');
                         this.snake = [{x: 10, y: 10}];
                         this.dx = 0;
@@ -2522,6 +2944,7 @@ body.tool-view-open {
                         this.score = 0;
                         this.placeFood();
                         this.draw();
+                        this.updateScore();
                     },
                     
                     start() {
@@ -2539,7 +2962,15 @@ body.tool-view-open {
                     reset() {
                         this.pause();
                         this.init();
-                        document.getElementById('snake-score').textContent = 'Score: 0';
+                        document.getElementById('snake-score').textContent = 'Score: 0 | High Score: ' + this.highScore;
+                    },
+                    
+                    updateScore() {
+                        document.getElementById('snake-score').textContent = `Score: ${this.score} | High Score: ${this.highScore}`;
+                        if (this.score > this.highScore) {
+                            this.highScore = this.score;
+                            localStorage.setItem('snakeHighScore', this.highScore);
+                        }
                     },
                     
                     update() {
@@ -2564,7 +2995,7 @@ body.tool-view-open {
                         // Check food collision
                         if (head.x === this.food.x && head.y === this.food.y) {
                             this.score += 10;
-                            document.getElementById('snake-score').textContent = `Score: ${this.score}`;
+                            this.updateScore();
                             this.placeFood();
                         } else {
                             this.snake.pop();
@@ -2578,27 +3009,61 @@ body.tool-view-open {
                         this.ctx.fillStyle = '#f0f0f0';
                         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                         
+                        // Draw grid
+                        this.ctx.strokeStyle = '#e0e0e0';
+                        this.ctx.lineWidth = 0.5;
+                        for (let i = 0; i <= this.tileCount; i++) {
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(i * this.gridSize, 0);
+                            this.ctx.lineTo(i * this.gridSize, this.canvas.height);
+                            this.ctx.stroke();
+                            
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(0, i * this.gridSize);
+                            this.ctx.lineTo(this.canvas.width, i * this.gridSize);
+                            this.ctx.stroke();
+                        }
+                        
                         // Draw snake
                         this.ctx.fillStyle = '#4CAF50';
-                        for (let segment of this.snake) {
-                            this.ctx.fillRect(segment.x * this.gridSize, segment.y * this.gridSize, this.gridSize - 2, this.gridSize - 2);
+                        for (let i = 0; i < this.snake.length; i++) {
+                            const segment = this.snake[i];
+                            if (i === 0) {
+                                // Head
+                                this.ctx.fillStyle = '#2E7D32';
+                            } else {
+                                // Body
+                                this.ctx.fillStyle = '#4CAF50';
+                            }
+                            this.ctx.fillRect(segment.x * this.gridSize + 2, segment.y * this.gridSize + 2, this.gridSize - 4, this.gridSize - 4);
                         }
                         
                         // Draw food
                         this.ctx.fillStyle = '#FF5722';
-                        this.ctx.fillRect(this.food.x * this.gridSize, this.food.y * this.gridSize, this.gridSize - 2, this.gridSize - 2);
+                        this.ctx.beginPath();
+                        this.ctx.arc(
+                            this.food.x * this.gridSize + this.gridSize / 2,
+                            this.food.y * this.gridSize + this.gridSize / 2,
+                            this.gridSize / 2 - 2,
+                            0,
+                            Math.PI * 2
+                        );
+                        this.ctx.fill();
                     },
                     
                     placeFood() {
-                        this.food = {
-                            x: Math.floor(Math.random() * this.tileCount),
-                            y: Math.floor(Math.random() * this.tileCount)
-                        };
+                        do {
+                            this.food = {
+                                x: Math.floor(Math.random() * this.tileCount),
+                                y: Math.floor(Math.random() * this.tileCount)
+                            };
+                        } while (this.snake.some(segment => segment.x === this.food.x && segment.y === this.food.y));
                     },
                     
                     gameOver() {
                         this.pause();
-                        alert(`Game Over! Score: ${this.score}`);
+                        alert(`Game Over! Score: ${this.score} | High Score: ${this.highScore}`);
+                        this.reset();
                     },
                     
                     changeDirection(direction) {
@@ -2625,11 +3090,12 @@ body.tool-view-open {
                     board: null,
                     currentPlayer: 1,
                     dice: 0,
+                    diceValue: 0,
                     players: {
-                        1: { color: 'red', pieces: [0, 0, 0, 0], finished: 0 },
-                        2: { color: 'blue', pieces: [0, 0, 0, 0], finished: 0 },
-                        3: { color: 'yellow', pieces: [0, 0, 0, 0], finished: 0 },
-                        4: { color: 'green', pieces: [0, 0, 0, 0], finished: 0 }
+                        1: { color: 'red', pieces: [0, 0, 0, 0], finished: 0, position: 0 },
+                        2: { color: 'blue', pieces: [0, 0, 0, 0], finished: 0, position: 13 },
+                        3: { color: 'yellow', pieces: [0, 0, 0, 0], finished: 0, position: 26 },
+                        4: { color: 'green', pieces: [0, 0, 0, 0], finished: 0, position: 39 }
                     },
                     
                     init() {
@@ -2646,6 +3112,18 @@ body.tool-view-open {
                             {x: 0, y: 300}, {x: 300, y: 300}
                         ];
                         
+                        // Draw main path
+                        const path = document.createElement('div');
+                        path.style.position = 'absolute';
+                        path.style.left = '100px';
+                        path.style.top = '100px';
+                        path.style.width = '200px';
+                        path.style.height = '200px';
+                        path.style.border = '2px solid #333';
+                        path.style.borderRadius = '10px';
+                        path.style.backgroundColor = '#f0f0f0';
+                        this.board.appendChild(path);
+                        
                         // Draw home bases
                         colors.forEach((color, i) => {
                             const base = document.createElement('div');
@@ -2660,13 +3138,18 @@ body.tool-view-open {
                             base.style.gridTemplateColumns = '1fr 1fr';
                             base.style.gap = '5px';
                             base.style.padding = '10px';
+                            base.style.borderRadius = '8px';
                             
                             // Add pieces
                             for (let j = 0; j < 4; j++) {
                                 const piece = document.createElement('div');
                                 piece.style.backgroundColor = 'white';
                                 piece.style.borderRadius = '50%';
+                                piece.style.width = '30px';
+                                piece.style.height = '30px';
+                                piece.style.border = '2px solid #333';
                                 piece.style.cursor = 'pointer';
+                                piece.style.transition = 'all 0.3s ease';
                                 piece.onclick = () => this.movePiece(i + 1, j);
                                 base.appendChild(piece);
                             }
@@ -2676,14 +3159,41 @@ body.tool-view-open {
                     },
                     
                     rollDice() {
-                        this.dice = Math.floor(Math.random() * 6) + 1;
-                        document.getElementById('ludo-dice').textContent = `🎲 ${this.dice}`;
+                        this.diceValue = Math.floor(Math.random() * 6) + 1;
+                        this.dice = this.diceValue;
+                        
+                        // Animate dice
+                        const diceEl = document.getElementById('ludo-dice');
+                        const dots = this.getDiceDots(this.diceValue);
+                        diceEl.innerHTML = `<div class="dice-dots">${dots}</div>`;
+                        
+                        document.getElementById('dice-result').textContent = `You rolled: ${this.diceValue}`;
                         this.updateStatus();
+                        
+                        // Update player status
+                        document.getElementById(`${this.players[this.currentPlayer].color}-status`).textContent = 'Playing...';
+                    },
+                    
+                    getDiceDots(value) {
+                        const dotPositions = {
+                            1: ['<div style="grid-column: 2; grid-row: 2; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div>'],
+                            2: ['<div style="grid-column: 1; grid-row: 3; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 1; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div>'],
+                            3: ['<div style="grid-column: 1; grid-row: 3; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 2; grid-row: 2; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 1; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div>'],
+                            4: ['<div style="grid-column: 1; grid-row: 3; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 3; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 1; grid-row: 1; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 1; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div>'],
+                            5: ['<div style="grid-column: 1; grid-row: 3; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 3; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 1; grid-row: 1; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 1; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 2; grid-row: 2; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div>'],
+                            6: ['<div style="grid-column: 1; grid-row: 1; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 1; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 1; grid-row: 2; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 2; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 1; grid-row: 3; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div><div style="grid-column: 3; grid-row: 3; width: 8px; height: 8px; background: #333; border-radius: 50%;"></div>']
+                        };
+                        return dotPositions[value] || '';
                     },
                     
                     movePiece(player, pieceIndex) {
                         if (this.dice === 0) {
-                            alert('Roll the dice first!');
+                            alert('Roll dice first!');
+                            return;
+                        }
+                        
+                        if (player !== this.currentPlayer) {
+                            alert(`It's Player ${this.currentPlayer}'s turn!`);
                             return;
                         }
                         
@@ -2694,23 +3204,31 @@ body.tool-view-open {
                                 playerData.pieces[pieceIndex] = 52;
                                 playerData.finished++;
                                 if (playerData.finished === 4) {
-                                    alert(`Player ${player} (${playerData.color}) wins!`);
+                                    alert(`Player ${player} (${playerData.color}) wins! 🎉`);
+                                    this.reset();
+                                    return;
                                 }
                             }
                             this.dice = 0;
                             this.currentPlayer = (this.currentPlayer % 4) + 1;
                             this.updateStatus();
+                            
+                            // Reset status
+                            document.getElementById(`${playerData.color}-status`).textContent = 'Ready';
                         }
                     },
                     
                     reset() {
                         this.currentPlayer = 1;
                         this.dice = 0;
+                        this.diceValue = 0;
                         for (let i = 1; i <= 4; i++) {
                             this.players[i].pieces = [0, 0, 0, 0];
                             this.players[i].finished = 0;
+                            document.getElementById(`${this.players[i].color}-status`).textContent = 'Ready';
                         }
-                        document.getElementById('ludo-dice').textContent = '🎲';
+                        document.getElementById('dice-result').textContent = 'Roll to start!';
+                        document.getElementById('ludo-dice').innerHTML = '<div class="dice-dots">🎲</div>';
                         this.updateStatus();
                     },
                     
@@ -2724,6 +3242,7 @@ body.tool-view-open {
                     deck: [],
                     pile: [],
                     playerHand: [],
+                    computerHand: [],
                     currentPlayer: 'player',
                     colors: ['red', 'blue', 'green', 'yellow'],
                     
@@ -2732,6 +3251,9 @@ body.tool-view-open {
                         this.shuffleDeck();
                         this.dealCards();
                         this.render();
+                        if (app.games.currentGameMode === 'pvc') {
+                            setTimeout(() => this.computerPlay(), 2000);
+                        }
                     },
                     
                     createDeck() {
@@ -2763,8 +3285,10 @@ body.tool-view-open {
                     
                     dealCards() {
                         this.playerHand = [];
+                        this.computerHand = [];
                         for (let i = 0; i < 7; i++) {
                             this.playerHand.push(this.deck.pop());
+                            this.computerHand.push(this.deck.pop());
                         }
                         
                         // Start pile
@@ -2776,33 +3300,121 @@ body.tool-view-open {
                         this.pile = [firstCard];
                     },
                     
-                    drawCard() {
+                    drawCard(isComputer = false) {
                         if (this.deck.length === 0) {
                             this.reshuffleDeck();
                         }
                         
                         if (this.deck.length > 0) {
-                            this.playerHand.push(this.deck.pop());
+                            if (isComputer) {
+                                this.computerHand.push(this.deck.pop());
+                                this.showNotification('Computer drew a card', 'info');
+                            } else {
+                                this.playerHand.push(this.deck.pop());
+                                this.showNotification('You drew a card', 'info');
+                            }
                             this.render();
+                            
+                            // After drawing, check if player can play
+                            if (!isComputer && app.games.currentGameMode === 'pvc') {
+                                setTimeout(() => {
+                                    const topCard = this.pile[this.pile.length - 1];
+                                    const canPlay = this.playerHand.some(card => this.canPlayCard(card, topCard));
+                                    if (!canPlay) {
+                                        this.showNotification('You must draw another card or pass', 'warning');
+                                    } else {
+                                        this.showNotification('You can play a card now!', 'success');
+                                    }
+                                }, 1000);
+                            }
                         }
                     },
                     
-                    playCard(index) {
-                        const card = this.playerHand[index];
+                    playCard(index, isComputer = false) {
+                        const hand = isComputer ? this.computerHand : this.playerHand;
+                        const card = hand[index];
                         const topCard = this.pile[this.pile.length - 1];
                         
                         if (this.canPlayCard(card, topCard)) {
-                            this.playerHand.splice(index, 1);
+                            hand.splice(index, 1);
                             this.pile.push(card);
                             
-                            if (this.playerHand.length === 0) {
-                                alert('You win! 🎉');
+                            if (isComputer) {
+                                document.getElementById('computer-move').textContent = `Computer played ${card.color} ${card.value}`;
+                            }
+                            
+                            // Check for wild card color choice
+                            if (card.color === 'wild' && !isComputer) {
+                                const colorChoice = prompt('Choose a color: red, blue, green, yellow');
+                                if (colorChoice && this.colors.includes(colorChoice.toLowerCase())) {
+                                    card.color = colorChoice.toLowerCase();
+                                }
+                            } else if (card.color === 'wild' && isComputer) {
+                                // Computer chooses most common color in hand
+                                const colorCount = {};
+                                this.computerHand.forEach(c => {
+                                    if (c.color !== 'wild') {
+                                        colorCount[c.color] = (colorCount[c.color] || 0) + 1;
+                                    }
+                                });
+                                const mostCommon = Object.keys(colorCount).reduce((a, b) => colorCount[a] > colorCount[b] ? a : b, 'red');
+                                card.color = mostCommon;
+                            }
+                            
+                            if (hand.length === 0) {
+                                const winner = isComputer ? 'Computer' : 'You';
+                                alert(`${winner} win! 🎉`);
                                 this.reset();
+                                return;
                             } else {
                                 this.render();
+                                
+                                // Switch turns
+                                if (app.games.currentGameMode === 'pvc') {
+                                    setTimeout(() => {
+                                        if (isComputer) {
+                                            document.getElementById('computer-move').textContent = 'Your turn!';
+                                        } else {
+                                            this.computerPlay();
+                                        }
+                                    }, 1500);
+                                }
                             }
                         } else {
-                            alert('Cannot play this card!');
+                            if (!isComputer) {
+                                alert('Cannot play this card!');
+                            }
+                        }
+                    },
+                    
+                    computerPlay() {
+                        if (app.games.currentGameMode !== 'pvc') return;
+                        
+                        const topCard = this.pile[this.pile.length - 1];
+                        const playableCards = [];
+                        
+                        this.computerHand.forEach((card, index) => {
+                            if (this.canPlayCard(card, topCard)) {
+                                playableCards.push({ card, index });
+                            }
+                        });
+                        
+                        if (playableCards.length > 0) {
+                            // Play a random playable card
+                            const chosen = playableCards[Math.floor(Math.random() * playableCards.length)];
+                            document.getElementById('computer-move').textContent = 'Computer is thinking...';
+                            setTimeout(() => {
+                                this.playCard(chosen.index, true);
+                            }, 1000);
+                        } else {
+                            // Draw a card
+                            document.getElementById('computer-move').textContent = 'Computer is drawing a card...';
+                            setTimeout(() => {
+                                this.drawCard(true);
+                                setTimeout(() => {
+                                    document.getElementById('computer-move').textContent = 'Your turn!';
+                                }, 1000);
+                            }, 1000);
                         }
                     },
                     
@@ -2823,8 +3435,9 @@ body.tool-view-open {
                     render() {
                         const pileEl = document.getElementById('uno-pile');
                         const topCard = this.pile[this.pile.length - 1];
-                        pileEl.style.backgroundColor = topCard.color;
+                        pileEl.style.backgroundColor = topCard.color === 'wild' ? '#333' : topCard.color;
                         pileEl.textContent = topCard.value;
+                        pileEl.style.color = topCard.color === 'yellow' ? '#333' : 'white';
                         
                         const handEl = document.getElementById('uno-player-cards');
                         handEl.innerHTML = '';
@@ -2833,7 +3446,7 @@ body.tool-view-open {
                             const cardEl = document.createElement('div');
                             cardEl.style.width = '60px';
                             cardEl.style.height = '90px';
-                            cardEl.style.backgroundColor = card.color;
+                            cardEl.style.backgroundColor = card.color === 'wild' ? '#333' : card.color;
                             cardEl.style.border = '2px solid #333';
                             cardEl.style.color = card.color === 'yellow' ? '#333' : 'white';
                             cardEl.style.display = 'flex';
@@ -2842,12 +3455,23 @@ body.tool-view-open {
                             cardEl.style.fontSize = '0.8em';
                             cardEl.style.fontWeight = 'bold';
                             cardEl.style.cursor = 'pointer';
+                            cardEl.style.borderRadius = '8px';
+                            cardEl.style.transition = 'transform 0.2s ease';
                             cardEl.textContent = card.value;
                             cardEl.onclick = () => this.playCard(index);
+                            cardEl.onmouseover = () => cardEl.style.transform = 'scale(1.05)';
+                            cardEl.onmouseout = () => cardEl.style.transform = 'scale(1)';
                             handEl.appendChild(cardEl);
                         });
                         
                         document.getElementById('uno-status').textContent = `Cards in hand: ${this.playerHand.length}`;
+                        document.getElementById('computer-card-count').textContent = this.computerHand.length;
+                        
+                        // Update computer cards display
+                        const computerCardsEl = document.getElementById('computer-cards').querySelector('div[style*="display: flex"]');
+                        computerCardsEl.innerHTML = this.computerHand.map(() => 
+                            '<div style="width: 40px; height: 60px; background: linear-gradient(45deg, #333, #666); border: 1px solid #333; border-radius: 4px; transition: transform 0.2s ease;"></div>'
+                        ).join('');
                     },
                     
                     reset() {
@@ -2859,6 +3483,7 @@ body.tool-view-open {
                     deck: [],
                     pile: [],
                     playerHand: [],
+                    computerHand: [],
                     suits: ['♠', '♥', '♦', '♣'],
                     ranks: ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'],
                     
@@ -2867,6 +3492,9 @@ body.tool-view-open {
                         this.shuffleDeck();
                         this.dealCards();
                         this.render();
+                        if (app.games.currentGameMode === 'pvc') {
+                            setTimeout(() => this.computerPlay(), 2000);
+                        }
                     },
                     
                     createDeck() {
@@ -2895,37 +3523,97 @@ body.tool-view-open {
                     
                     dealCards() {
                         this.playerHand = [];
+                        this.computerHand = [];
                         for (let i = 0; i < 5; i++) {
                             this.playerHand.push(this.deck.pop());
+                            this.computerHand.push(this.deck.pop());
                         }
                         
                         // Start pile
                         this.pile = [this.deck.pop()];
                     },
                     
-                    drawCard() {
+                    drawCard(isComputer = false) {
                         if (this.deck.length > 0) {
-                            this.playerHand.push(this.deck.pop());
+                            if (isComputer) {
+                                this.computerHand.push(this.deck.pop());
+                                document.getElementById('computer-move-stack').textContent = 'Computer drew a card';
+                            } else {
+                                this.playerHand.push(this.deck.pop());
+                            }
                             this.render();
                         }
                     },
                     
-                    playCard(index) {
-                        const card = this.playerHand[index];
+                    playCard(index, isComputer = false) {
+                        const hand = isComputer ? this.computerHand : this.playerHand;
+                        const card = hand[index];
                         const topCard = this.pile[this.pile.length - 1];
                         
                         if (this.canStackCard(card, topCard)) {
-                            this.playerHand.splice(index, 1);
+                            hand.splice(index, 1);
                             this.pile.push(card);
                             
-                            if (this.playerHand.length === 0) {
-                                alert('You win! 🎉 All cards stacked!');
+                            if (isComputer) {
+                                document.getElementById('computer-move-stack').textContent = `Computer played ${card.rank}${card.suit}`;
+                            }
+                            
+                            if (hand.length === 0) {
+                                const winner = isComputer ? 'Computer' : 'You';
+                                alert(`${winner} win! 🎉 All cards stacked!`);
                                 this.reset();
+                                return;
                             } else {
                                 this.render();
+                                
+                                // Switch turns
+                                if (app.games.currentGameMode === 'pvc') {
+                                    setTimeout(() => {
+                                        if (isComputer) {
+                                            document.getElementById('computer-move-stack').textContent = 'Your turn!';
+                                        } else {
+                                            this.computerPlay();
+                                        }
+                                    }, 1500);
+                                }
                             }
                         } else {
-                            alert('Cannot stack this card! Must be same suit or higher rank.');
+                            if (!isComputer) {
+                                alert('Cannot stack this card! Must be same suit or higher rank.');
+                            }
+                        }
+                    },
+                    
+                    computerPlay() {
+                        if (app.games.currentGameMode !== 'pvc') return;
+                        
+                        const topCard = this.pile[this.pile.length - 1];
+                        const playableCards = [];
+                        
+                        this.computerHand.forEach((card, index) => {
+                            if (this.canStackCard(card, topCard)) {
+                                playableCards.push({ card, index });
+                            }
+                        });
+                        
+                        if (playableCards.length > 0) {
+                            // Play the lowest playable card (conservative strategy)
+                            const chosen = playableCards.reduce((min, curr) => 
+                                curr.card.value < min.card.value ? curr : min, playableCards[0]);
+                            
+                            document.getElementById('computer-move-stack').textContent = 'Computer is thinking...';
+                            setTimeout(() => {
+                                this.playCard(chosen.index, true);
+                            }, 1000);
+                        } else {
+                            // Draw a card
+                            document.getElementById('computer-move-stack').textContent = 'Computer is drawing a card...';
+                            setTimeout(() => {
+                                this.drawCard(true);
+                                setTimeout(() => {
+                                    document.getElementById('computer-move-stack').textContent = 'Your turn!';
+                                }, 1000);
+                            }, 1000);
                         }
                     },
                     
@@ -2958,12 +3646,23 @@ body.tool-view-open {
                             cardEl.style.fontSize = '1.2em';
                             cardEl.style.fontWeight = 'bold';
                             cardEl.style.cursor = 'pointer';
+                            cardEl.style.borderRadius = '8px';
+                            cardEl.style.transition = 'transform 0.2s ease';
                             cardEl.innerHTML = `<div>${card.rank}</div><div>${card.suit}</div>`;
                             cardEl.onclick = () => this.playCard(index);
+                            cardEl.onmouseover = () => cardEl.style.transform = 'scale(1.05)';
+                            cardEl.onmouseout = () => cardEl.style.transform = 'scale(1)';
                             handEl.appendChild(cardEl);
                         });
                         
                         document.getElementById('stack-status').textContent = `Cards: ${this.playerHand.length} | Top: ${topCard.rank}${topCard.suit}`;
+                        document.getElementById('computer-card-count-stack').textContent = this.computerHand.length;
+                        
+                        // Update computer cards display
+                        const computerCardsEl = document.getElementById('computer-cards-stack').querySelector('div[style*="display: flex"]');
+                        computerCardsEl.innerHTML = this.computerHand.map(() => 
+                            '<div style="width: 50px; height: 70px; background: linear-gradient(45deg, #ff6b6b, #4ecdc4); border: 1px solid #333; border-radius: 4px; transition: transform 0.2s ease;"></div>'
+                        ).join('');
                     },
                     
                     reset() {
