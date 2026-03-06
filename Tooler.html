@@ -236,12 +236,62 @@
             box-shadow: none;
         }
 
-        .btn-calculate { background-color: var(--doodle-secondary); color: white; border-color: var(--doodle-secondary); }
+        .btn-calculate { 
+            background: linear-gradient(135deg, #4CAF50, #45a049);
+            color: white; 
+            border-color: #4CAF50;
+            font-weight: 800;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 
+                0 4px 8px rgba(76, 175, 80, 0.3),
+                inset 0 2px 4px rgba(255,255,255,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-calculate::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-calculate:hover::before {
+            left: 100%;
+        }
+        
+        .btn-calculate:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 6px 12px rgba(76, 175, 80, 0.4),
+                inset 0 2px 4px rgba(255,255,255,0.3);
+            background: linear-gradient(135deg, #45a049, #4CAF50);
+        }
         .btn-clear { background-color: var(--doodle-primary); color: white; border-color: var(--doodle-primary); }
         .btn-operation { background-color: var(--doodle-secondary); color: #fff; }
         .btn-accent { background-color: var(--doodle-accent); color: var(--doodle-text); }
 
-        html[data-theme="dark"] .btn-calculate { background-color: #00d4ff; color: #1a1a2e; border-color: #00d4ff; }
+        html[data-theme="dark"] .btn-calculate { 
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: #1a1a2e; 
+            border-color: #00d4ff;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            box-shadow: 
+                0 4px 8px rgba(0, 212, 255, 0.4),
+                inset 0 2px 4px rgba(255,255,255,0.1);
+        }
+        
+        html[data-theme="dark"] .btn-calculate:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                0 6px 12px rgba(0, 212, 255, 0.5),
+                inset 0 2px 4px rgba(255,255,255,0.2);
+            background: linear-gradient(135deg, #0099cc, #00d4ff);
+        }
         html[data-theme="dark"] .btn-clear { background-color: #4a9eff; color: #f0f0f0; border-color: #4a9eff; }
         html[data-theme="dark"] .btn-operation { background-color: #00d4ff; color: #1a1a2e; }
         html[data-theme="dark"] .btn-accent { background-color: #ff6b6b; color: #f0f0f0; }
@@ -656,45 +706,154 @@ body.tool-view-open {
             position: relative;
             display: inline-block;
             width: 60px;
-            height: 30px;
+            height: 32px;
+            background: linear-gradient(135deg, #e0e0e0, #f5f5f5);
+            border: 3px solid var(--doodle-border);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                inset 0 2px 4px rgba(0,0,0,0.1),
+                0 3px 6px rgba(0,0,0,0.1);
         }
-        
+
+        .toggle-switch::before {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #ffffff, #f0f0f0);
+            border-radius: 50%;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 
+                0 2px 4px rgba(0,0,0,0.2),
+                0 0 0 1px rgba(255,255,255,0.8);
+            z-index: 2;
+        }
+
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 3px;
+            left: 3px;
+            width: 20px;
+            height: 20px;
+            background: var(--doodle-primary);
+            border-radius: 50%;
+            transform: scale(0);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            opacity: 0;
+            z-index: 1;
+        }
+
         .toggle-switch input {
             opacity: 0;
             width: 0;
             height: 0;
         }
-        
-        .toggle-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: #ccc;
-            transition: 0.4s;
-            border-radius: 30px;
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(28px);
+            background: linear-gradient(135deg, var(--doodle-accent), var(--doodle-primary));
+            box-shadow: 
+                0 2px 8px rgba(0,0,0,0.3),
+                0 0 0 2px rgba(255,255,255,0.4);
         }
-        
-        .toggle-slider:before {
-            position: absolute;
-            content: "";
-            height: 22px;
-            width: 22px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            transition: 0.4s;
-            border-radius: 50%;
+
+        .toggle-switch input:checked + .toggle-slider::after {
+            transform: scale(1);
+            opacity: 0.3;
         }
-        
+
         .toggle-switch input:checked + .toggle-slider {
-            background-color: var(--doodle-primary);
+            background: linear-gradient(135deg, var(--doodle-accent), var(--doodle-primary));
+            border-color: var(--doodle-primary);
+            box-shadow: 
+                inset 0 2px 4px rgba(0,0,0,0.1),
+                0 3px 8px var(--doodle-primary);
         }
-        
-        .toggle-switch input:checked + .toggle-slider:before {
-            transform: translateX(26px);
+
+        .toggle-switch:hover {
+            transform: translateY(-2px);
+            box-shadow: 
+                inset 0 2px 4px rgba(0,0,0,0.1),
+                0 5px 10px rgba(0,0,0,0.15);
+        }
+
+        .toggle-switch:active {
+            transform: translateY(0);
+        }
+
+        /* Theme-aware toggle styles */
+        html[data-theme="dark"] .toggle-switch {
+            background: linear-gradient(135deg, #2d3748, #4a5568);
+            border-color: #4a9eff;
+            box-shadow: 
+                inset 0 2px 4px rgba(0,0,0,0.3),
+                0 3px 6px rgba(74, 158, 255, 0.2);
+        }
+
+        html[data-theme="dark"] .toggle-switch::before {
+            background: linear-gradient(135deg, #718096, #4a5568);
+            box-shadow: 
+                0 2px 4px rgba(0,0,0,0.4),
+                0 0 0 1px rgba(74, 158, 255, 0.3);
+        }
+
+        html[data-theme="dark"] .toggle-switch::after {
+            background: #4a9eff;
+        }
+
+        html[data-theme="dark"] .toggle-switch input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #4a9eff, #00d4ff);
+            border-color: #00d4ff;
+            box-shadow: 
+                inset 0 2px 4px rgba(0,0,0,0.2),
+                0 3px 8px #00d4ff;
+        }
+
+        html[data-theme="dark"] .toggle-switch input:checked + .toggle-slider::before {
+            background: linear-gradient(135deg, #00d4ff, #4a9eff);
+            box-shadow: 
+                0 2px 8px rgba(0,0,0,0.4),
+                0 0 0 2px rgba(0, 212, 255, 0.5);
+        }
+
+        /* High contrast toggle styles */
+        html.high-contrast .toggle-switch {
+            background: #000000;
+            border-color: #FFFF00;
+            box-shadow: 
+                inset 0 2px 4px #FFFF00,
+                0 3px 6px #FFFF00;
+        }
+
+        html.high-contrast .toggle-switch::before {
+            background: #FFFFFF;
+            box-shadow: 
+                0 2px 4px #000000,
+                0 0 0 2px #FFFF00;
+        }
+
+        html.high-contrast .toggle-switch::after {
+            background: #FFFF00;
+        }
+
+        html.high-contrast .toggle-switch input:checked + .toggle-slider {
+            background: #FFFF00;
+            border-color: #FFFF00;
+            box-shadow: 
+                inset 0 2px 4px #FFFF00,
+                0 3px 8px #FFFF00;
+        }
+
+        html.high-contrast .toggle-switch input:checked + .toggle-slider::before {
+            background: #000000;
+            box-shadow: 
+                0 2px 8px #FFFF00,
+                0 0 0 2px #FFFF00;
         }
         
         /* Settings Item Styles */
@@ -953,10 +1112,9 @@ body.tool-view-open {
                     </button>
                     <button class="header-btn" id="settings-btn" title="Settings">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 15.5a3.5 3.5 0 0 1 0-7 3.5 3.5 0 0 1 0 7zm0-7a3.5 3.5 0 0 1 0-7 3.5 3.5 0 0 1 0 7zm0-7a3.5 3.5 0 0 1 0-7 3.5 3.5 0 0 1 0 7zm0-7a3.5 3.5 0 0 1 0-7 3.5 3.5 0 0 1 0 7z"></path>
                             <circle cx="12" cy="12" r="3"></circle>
                             <path d="M12 1v6m0 2v6m0 2h6m-6 0h6m-6 0h6"></path>
-                            <circle cx="12" cy="12" r="2"></circle>
-                            <path d="M9 12l2 2m0 0l2-2m0 0l2 2m0 0l-2-2"></path>
                         </svg>
                     </button>
                 </div> </div>
@@ -1638,41 +1796,47 @@ body.tool-view-open {
                 <h3 style="color: var(--doodle-secondary); margin-bottom: 20px; font-size: 20px;"> Feature Toggles</h3>
                 
                 <!-- Sound -->
-                <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--note-bg); border-radius: 10px; margin-bottom: 15px;">
-                    <label style="font-weight: 600; color: var(--doodle-text);">Sound Effects:</label>
-                    <label class="toggle-switch" style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                        <input type="checkbox" id="sound-toggle" style="opacity: 0; width: 0; height: 0;">
-                        <span class="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.4s; border-radius: 30px;">
-                            <span class="toggle-slider:before" style="position: absolute; content: ''; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: 0.4s; border-radius: 50%;"></span>
-                        </span>
-                    </label>
-                    <span class="setting-display" data-setting="sound" style="font-weight: 700; color: var(--doodle-primary);"> On</span>
+                <div class="setting-item">
+                    <label for="sound-toggle">🔊 Sound Effects</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="sound-toggle" onchange="app.settings.toggleSound()">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span class="setting-display" data-setting="sound">🔊 On</span>
                 </div>
                 
                 <!-- Notifications -->
-                <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--note-bg); border-radius: 10px; margin-bottom: 15px;">
-                    <label style="font-weight: 600; color: var(--doodle-text);">Notifications:</label>
-                    <label class="toggle-switch" style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                        <input type="checkbox" id="notification-toggle" style="opacity: 0; width: 0; height: 0;">
-                        <span class="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.4s; border-radius: 30px;">
-                            <span class="toggle-slider:before" style="position: absolute; content: ''; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: 0.4s; border-radius: 50%;"></span>
-                        </span>
-                    </label>
-                    <span class="setting-display" data-setting="notifications" style="font-weight: 700; color: var(--doodle-primary);"> On</span>
+                <div class="setting-item">
+                    <label for="notification-toggle">🔔 Notifications</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="notification-toggle" onchange="app.settings.toggleNotifications()">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span class="setting-display" data-setting="notifications">🔔 On</span>
                 </div>
                 
-                <!-- Auto Save -->
-                <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--note-bg); border-radius: 10px; margin-bottom: 15px;">
-                    <label style="font-weight: 600; color: var(--doodle-text);">Auto Save:</label>
-                    <label class="toggle-switch" style="position: relative; display: inline-block; width: 60px; height: 30px;">
-                        <input type="checkbox" id="autosave-toggle" style="opacity: 0; width: 0; height: 0;">
-                        <span class="toggle-slider" style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.4s; border-radius: 30px;">
-                            <span class="toggle-slider:before" style="position: absolute; content: ''; height: 22px; width: 22px; left: 4px; bottom: 4px; background-color: white; transition: 0.4s; border-radius: 50%;"></span>
-                        </span>
-                    </label>
-                    <span class="setting-display" data-setting="autosave" style="font-weight: 700; color: var(--doodle-primary);"> On</span>
+                <!-- Auto-save -->
+                <div class="setting-item">
+                    <label for="autosave-toggle">💾 Auto-save</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="autosave-toggle" onchange="app.settings.toggleAutoSave()">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span class="setting-display" data-setting="autosave">💾 On</span>
                 </div>
-            </div>
+                
+                <!-- High Contrast -->
+                <div class="setting-item">
+                    <label for="contrast-toggle">🌓 High Contrast</label>
+                    <div class="toggle-switch">
+                        <input type="checkbox" id="contrast-toggle" onchange="app.settings.toggleHighContrast()">
+                        <span class="toggle-slider"></span>
+                    </div>
+                    <span class="setting-display" data-setting="highContrast">🌓 Off</span>
+                </div>
+                                    
+                <!-- Auto Save -->
+                            </div>
             
             <!-- Data Management -->
             <div class="settings-section" style="margin-bottom: 25px;">
