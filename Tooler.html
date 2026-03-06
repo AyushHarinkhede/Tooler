@@ -1735,20 +1735,44 @@ body.tool-view-open {
                     
                     // Arrow keys for scroll behavior
                     if (key === 'ArrowUp') {
-                        e.preventDefault();
-                        window.scrollBy({ top: -100, left: 0 });
+                        // Check if snake game is active
+                        if (document.getElementById('snake-canvas') && document.getElementById('snake-canvas').style.display !== 'none') {
+                            e.preventDefault();
+                            this.games.snake.changeDirection('up');
+                        } else {
+                            e.preventDefault();
+                            window.scrollBy({ top: -100, left: 0 });
+                        }
                     }
                     if (key === 'ArrowDown') {
-                        e.preventDefault();
-                        window.scrollBy({ top: 100, left: 0 });
+                        // Check if snake game is active
+                        if (document.getElementById('snake-canvas') && document.getElementById('snake-canvas').style.display !== 'none') {
+                            e.preventDefault();
+                            this.games.snake.changeDirection('down');
+                        } else {
+                            e.preventDefault();
+                            window.scrollBy({ top: 100, left: 0 });
+                        }
                     }
                     if (key === 'ArrowLeft') {
-                        e.preventDefault();
-                        window.scrollBy({ top: 0, left: -100 });
+                        // Check if snake game is active
+                        if (document.getElementById('snake-canvas') && document.getElementById('snake-canvas').style.display !== 'none') {
+                            e.preventDefault();
+                            this.games.snake.changeDirection('left');
+                        } else {
+                            e.preventDefault();
+                            window.scrollBy({ top: 0, left: -100 });
+                        }
                     }
                     if (key === 'ArrowRight') {
-                        e.preventDefault();
-                        window.scrollBy({ top: 0, left: 100 });
+                        // Check if snake game is active
+                        if (document.getElementById('snake-canvas') && document.getElementById('snake-canvas').style.display !== 'none') {
+                            e.preventDefault();
+                            this.games.snake.changeDirection('right');
+                        } else {
+                            e.preventDefault();
+                            window.scrollBy({ top: 0, left: 100 });
+                        }
                     }
                     
                     // Page Up/Down for larger scroll
@@ -2403,6 +2427,26 @@ body.tool-view-open {
                             area.innerHTML = html;
                             this.ttt.init();
                             break;
+                        case 'snake':
+                            html = `<canvas id="snake-canvas" width="400" height="400" style="border: 2px solid var(--doodle-border); margin: 0 auto; display: block;"></canvas><div id="snake-score" class="result" style="text-align:center;">Score: 0</div><div style="text-align:center; margin: 10px 0;"><button class="btn-calculate" onclick="app.games.snake.start()">Start</button><button class="btn-calculate" onclick="app.games.snake.pause()">Pause</button><button class="btn-calculate" onclick="app.games.snake.reset()">Reset</button></div><div style="text-align:center; opacity:0.7;">Use arrow keys to control the snake</div>`;
+                            area.innerHTML = html;
+                            this.snake.init();
+                            break;
+                        case 'ludo':
+                            html = `<div id="ludo-board" style="width: 400px; height: 400px; margin: 0 auto; border: 3px solid var(--doodle-border); position: relative; background: white;"></div><div id="ludo-status" class="result" style="text-align:center;">Click "Roll Dice" to start!</div><div style="text-align:center; margin: 10px 0;"><button class="btn-calculate" onclick="app.games.ludo.rollDice()">Roll Dice</button><button class="btn-calculate" onclick="app.games.ludo.reset()">New Game</button></div><div id="ludo-dice" style="text-align:center; font-size: 2em; margin: 10px 0;">🎲</div>`;
+                            area.innerHTML = html;
+                            this.ludo.init();
+                            break;
+                        case 'uno':
+                            html = `<div id="uno-deck" style="text-align: center; margin: 20px 0;"><div id="uno-pile" style="display: inline-block; width: 80px; height: 120px; border: 2px solid var(--doodle-border); background: #333; color: white; display: flex; align-items: center; justify-content: center; font-size: 2em; cursor: pointer;">?</div></div><div id="uno-player-cards" style="display: flex; justify-content: center; gap: 5px; margin: 20px 0; flex-wrap: wrap;"></div><div id="uno-status" class="result" style="text-align:center;">Click a card to play it!</div><div style="text-align:center; margin: 10px 0;"><button class="btn-calculate" onclick="app.games.uno.drawCard()">Draw Card</button><button class="btn-calculate" onclick="app.games.uno.reset()">New Game</button></div>`;
+                            area.innerHTML = html;
+                            this.uno.init();
+                            break;
+                        case 'stack':
+                            html = `<div id="stack-deck" style="text-align: center; margin: 20px 0;"><div id="stack-pile" style="display: inline-block; width: 100px; height: 140px; border: 2px solid var(--doodle-border); background: linear-gradient(45deg, #ff6b6b, #4ecdc4); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5em; cursor: pointer;">🎴</div></div><div id="stack-player-cards" style="display: flex; justify-content: center; gap: 5px; margin: 20px 0; flex-wrap: wrap;"></div><div id="stack-status" class="result" style="text-align:center;">Click cards to stack them!</div><div style="text-align:center; margin: 10px 0;"><button class="btn-calculate" onclick="app.games.stack.drawCard()">Draw Card</button><button class="btn-calculate" onclick="app.games.stack.reset()">New Game</button></div>`;
+                            area.innerHTML = html;
+                            this.stack.init();
+                            break;
                         default:
                             area.innerHTML = `<p style="text-align:center; opacity:0.7;">${game.toUpperCase()} coming soon!</p>`;
                     }
@@ -2453,6 +2497,477 @@ body.tool-view-open {
                             this.isGameOver = true;
                             document.getElementById('ttt-status').textContent = `It's a draw!`;
                         }
+                    }
+                },
+                
+                snake: {
+                    canvas: null,
+                    ctx: null,
+                    gridSize: 20,
+                    tileCount: 20,
+                    snake: [],
+                    food: {},
+                    dx: 0,
+                    dy: 0,
+                    score: 0,
+                    gameRunning: false,
+                    gameLoop: null,
+                    
+                    init() {
+                        this.canvas = document.getElementById('snake-canvas');
+                        this.ctx = this.canvas.getContext('2d');
+                        this.snake = [{x: 10, y: 10}];
+                        this.dx = 0;
+                        this.dy = 0;
+                        this.score = 0;
+                        this.placeFood();
+                        this.draw();
+                    },
+                    
+                    start() {
+                        if (!this.gameRunning) {
+                            this.gameRunning = true;
+                            this.gameLoop = setInterval(() => this.update(), 100);
+                        }
+                    },
+                    
+                    pause() {
+                        this.gameRunning = false;
+                        clearInterval(this.gameLoop);
+                    },
+                    
+                    reset() {
+                        this.pause();
+                        this.init();
+                        document.getElementById('snake-score').textContent = 'Score: 0';
+                    },
+                    
+                    update() {
+                        const head = {x: this.snake[0].x + this.dx, y: this.snake[0].y + this.dy};
+                        
+                        // Check wall collision
+                        if (head.x < 0 || head.x >= this.tileCount || head.y < 0 || head.y >= this.tileCount) {
+                            this.gameOver();
+                            return;
+                        }
+                        
+                        // Check self collision
+                        for (let segment of this.snake) {
+                            if (head.x === segment.x && head.y === segment.y) {
+                                this.gameOver();
+                                return;
+                            }
+                        }
+                        
+                        this.snake.unshift(head);
+                        
+                        // Check food collision
+                        if (head.x === this.food.x && head.y === this.food.y) {
+                            this.score += 10;
+                            document.getElementById('snake-score').textContent = `Score: ${this.score}`;
+                            this.placeFood();
+                        } else {
+                            this.snake.pop();
+                        }
+                        
+                        this.draw();
+                    },
+                    
+                    draw() {
+                        // Clear canvas
+                        this.ctx.fillStyle = '#f0f0f0';
+                        this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                        
+                        // Draw snake
+                        this.ctx.fillStyle = '#4CAF50';
+                        for (let segment of this.snake) {
+                            this.ctx.fillRect(segment.x * this.gridSize, segment.y * this.gridSize, this.gridSize - 2, this.gridSize - 2);
+                        }
+                        
+                        // Draw food
+                        this.ctx.fillStyle = '#FF5722';
+                        this.ctx.fillRect(this.food.x * this.gridSize, this.food.y * this.gridSize, this.gridSize - 2, this.gridSize - 2);
+                    },
+                    
+                    placeFood() {
+                        this.food = {
+                            x: Math.floor(Math.random() * this.tileCount),
+                            y: Math.floor(Math.random() * this.tileCount)
+                        };
+                    },
+                    
+                    gameOver() {
+                        this.pause();
+                        alert(`Game Over! Score: ${this.score}`);
+                    },
+                    
+                    changeDirection(direction) {
+                        if (!this.gameRunning) return;
+                        
+                        switch(direction) {
+                            case 'up':
+                                if (this.dy === 0) { this.dx = 0; this.dy = -1; }
+                                break;
+                            case 'down':
+                                if (this.dy === 0) { this.dx = 0; this.dy = 1; }
+                                break;
+                            case 'left':
+                                if (this.dx === 0) { this.dx = -1; this.dy = 0; }
+                                break;
+                            case 'right':
+                                if (this.dx === 0) { this.dx = 1; this.dy = 0; }
+                                break;
+                        }
+                    }
+                },
+                
+                ludo: {
+                    board: null,
+                    currentPlayer: 1,
+                    dice: 0,
+                    players: {
+                        1: { color: 'red', pieces: [0, 0, 0, 0], finished: 0 },
+                        2: { color: 'blue', pieces: [0, 0, 0, 0], finished: 0 },
+                        3: { color: 'yellow', pieces: [0, 0, 0, 0], finished: 0 },
+                        4: { color: 'green', pieces: [0, 0, 0, 0], finished: 0 }
+                    },
+                    
+                    init() {
+                        this.board = document.getElementById('ludo-board');
+                        this.drawBoard();
+                        this.updateStatus();
+                    },
+                    
+                    drawBoard() {
+                        this.board.innerHTML = '';
+                        const colors = ['red', 'blue', 'yellow', 'green'];
+                        const positions = [
+                            {x: 0, y: 0}, {x: 300, y: 0}, 
+                            {x: 0, y: 300}, {x: 300, y: 300}
+                        ];
+                        
+                        // Draw home bases
+                        colors.forEach((color, i) => {
+                            const base = document.createElement('div');
+                            base.style.position = 'absolute';
+                            base.style.left = positions[i].x + 'px';
+                            base.style.top = positions[i].y + 'px';
+                            base.style.width = '100px';
+                            base.style.height = '100px';
+                            base.style.backgroundColor = color;
+                            base.style.border = '2px solid #333';
+                            base.style.display = 'grid';
+                            base.style.gridTemplateColumns = '1fr 1fr';
+                            base.style.gap = '5px';
+                            base.style.padding = '10px';
+                            
+                            // Add pieces
+                            for (let j = 0; j < 4; j++) {
+                                const piece = document.createElement('div');
+                                piece.style.backgroundColor = 'white';
+                                piece.style.borderRadius = '50%';
+                                piece.style.cursor = 'pointer';
+                                piece.onclick = () => this.movePiece(i + 1, j);
+                                base.appendChild(piece);
+                            }
+                            
+                            this.board.appendChild(base);
+                        });
+                    },
+                    
+                    rollDice() {
+                        this.dice = Math.floor(Math.random() * 6) + 1;
+                        document.getElementById('ludo-dice').textContent = `🎲 ${this.dice}`;
+                        this.updateStatus();
+                    },
+                    
+                    movePiece(player, pieceIndex) {
+                        if (this.dice === 0) {
+                            alert('Roll the dice first!');
+                            return;
+                        }
+                        
+                        const playerData = this.players[player];
+                        if (playerData.pieces[pieceIndex] < 52) {
+                            playerData.pieces[pieceIndex] += this.dice;
+                            if (playerData.pieces[pieceIndex] >= 52) {
+                                playerData.pieces[pieceIndex] = 52;
+                                playerData.finished++;
+                                if (playerData.finished === 4) {
+                                    alert(`Player ${player} (${playerData.color}) wins!`);
+                                }
+                            }
+                            this.dice = 0;
+                            this.currentPlayer = (this.currentPlayer % 4) + 1;
+                            this.updateStatus();
+                        }
+                    },
+                    
+                    reset() {
+                        this.currentPlayer = 1;
+                        this.dice = 0;
+                        for (let i = 1; i <= 4; i++) {
+                            this.players[i].pieces = [0, 0, 0, 0];
+                            this.players[i].finished = 0;
+                        }
+                        document.getElementById('ludo-dice').textContent = '🎲';
+                        this.updateStatus();
+                    },
+                    
+                    updateStatus() {
+                        const status = `Player ${this.currentPlayer}'s turn ${this.dice ? `(Dice: ${this.dice})` : ''}`;
+                        document.getElementById('ludo-status').textContent = status;
+                    }
+                },
+                
+                uno: {
+                    deck: [],
+                    pile: [],
+                    playerHand: [],
+                    currentPlayer: 'player',
+                    colors: ['red', 'blue', 'green', 'yellow'],
+                    
+                    init() {
+                        this.createDeck();
+                        this.shuffleDeck();
+                        this.dealCards();
+                        this.render();
+                    },
+                    
+                    createDeck() {
+                        this.deck = [];
+                        const values = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Skip', 'Reverse', '+2'];
+                        
+                        this.colors.forEach(color => {
+                            values.forEach(value => {
+                                this.deck.push({ color, value });
+                                if (value !== '0') {
+                                    this.deck.push({ color, value });
+                                }
+                            });
+                        });
+                        
+                        // Add wild cards
+                        for (let i = 0; i < 4; i++) {
+                            this.deck.push({ color: 'wild', value: 'Wild' });
+                            this.deck.push({ color: 'wild', value: '+4' });
+                        }
+                    },
+                    
+                    shuffleDeck() {
+                        for (let i = this.deck.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+                        }
+                    },
+                    
+                    dealCards() {
+                        this.playerHand = [];
+                        for (let i = 0; i < 7; i++) {
+                            this.playerHand.push(this.deck.pop());
+                        }
+                        
+                        // Start pile
+                        let firstCard;
+                        do {
+                            firstCard = this.deck.pop();
+                        } while (firstCard.color === 'wild');
+                        
+                        this.pile = [firstCard];
+                    },
+                    
+                    drawCard() {
+                        if (this.deck.length === 0) {
+                            this.reshuffleDeck();
+                        }
+                        
+                        if (this.deck.length > 0) {
+                            this.playerHand.push(this.deck.pop());
+                            this.render();
+                        }
+                    },
+                    
+                    playCard(index) {
+                        const card = this.playerHand[index];
+                        const topCard = this.pile[this.pile.length - 1];
+                        
+                        if (this.canPlayCard(card, topCard)) {
+                            this.playerHand.splice(index, 1);
+                            this.pile.push(card);
+                            
+                            if (this.playerHand.length === 0) {
+                                alert('You win! 🎉');
+                                this.reset();
+                            } else {
+                                this.render();
+                            }
+                        } else {
+                            alert('Cannot play this card!');
+                        }
+                    },
+                    
+                    canPlayCard(card, topCard) {
+                        if (card.color === 'wild') return true;
+                        if (card.color === topCard.color) return true;
+                        if (card.value === topCard.value) return true;
+                        return false;
+                    },
+                    
+                    reshuffleDeck() {
+                        const topCard = this.pile.pop();
+                        this.deck = this.pile;
+                        this.pile = [topCard];
+                        this.shuffleDeck();
+                    },
+                    
+                    render() {
+                        const pileEl = document.getElementById('uno-pile');
+                        const topCard = this.pile[this.pile.length - 1];
+                        pileEl.style.backgroundColor = topCard.color;
+                        pileEl.textContent = topCard.value;
+                        
+                        const handEl = document.getElementById('uno-player-cards');
+                        handEl.innerHTML = '';
+                        
+                        this.playerHand.forEach((card, index) => {
+                            const cardEl = document.createElement('div');
+                            cardEl.style.width = '60px';
+                            cardEl.style.height = '90px';
+                            cardEl.style.backgroundColor = card.color;
+                            cardEl.style.border = '2px solid #333';
+                            cardEl.style.color = card.color === 'yellow' ? '#333' : 'white';
+                            cardEl.style.display = 'flex';
+                            cardEl.style.alignItems = 'center';
+                            cardEl.style.justifyContent = 'center';
+                            cardEl.style.fontSize = '0.8em';
+                            cardEl.style.fontWeight = 'bold';
+                            cardEl.style.cursor = 'pointer';
+                            cardEl.textContent = card.value;
+                            cardEl.onclick = () => this.playCard(index);
+                            handEl.appendChild(cardEl);
+                        });
+                        
+                        document.getElementById('uno-status').textContent = `Cards in hand: ${this.playerHand.length}`;
+                    },
+                    
+                    reset() {
+                        this.init();
+                    }
+                },
+                
+                stack: {
+                    deck: [],
+                    pile: [],
+                    playerHand: [],
+                    suits: ['♠', '♥', '♦', '♣'],
+                    ranks: ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'],
+                    
+                    init() {
+                        this.createDeck();
+                        this.shuffleDeck();
+                        this.dealCards();
+                        this.render();
+                    },
+                    
+                    createDeck() {
+                        this.deck = [];
+                        this.suits.forEach(suit => {
+                            this.ranks.forEach(rank => {
+                                this.deck.push({ suit, rank, value: this.getCardValue(rank) });
+                            });
+                        });
+                    },
+                    
+                    getCardValue(rank) {
+                        if (rank === 'A') return 1;
+                        if (rank === 'J') return 11;
+                        if (rank === 'Q') return 12;
+                        if (rank === 'K') return 13;
+                        return parseInt(rank);
+                    },
+                    
+                    shuffleDeck() {
+                        for (let i = this.deck.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [this.deck[i], this.deck[j]] = [this.deck[j], this.deck[i]];
+                        }
+                    },
+                    
+                    dealCards() {
+                        this.playerHand = [];
+                        for (let i = 0; i < 5; i++) {
+                            this.playerHand.push(this.deck.pop());
+                        }
+                        
+                        // Start pile
+                        this.pile = [this.deck.pop()];
+                    },
+                    
+                    drawCard() {
+                        if (this.deck.length > 0) {
+                            this.playerHand.push(this.deck.pop());
+                            this.render();
+                        }
+                    },
+                    
+                    playCard(index) {
+                        const card = this.playerHand[index];
+                        const topCard = this.pile[this.pile.length - 1];
+                        
+                        if (this.canStackCard(card, topCard)) {
+                            this.playerHand.splice(index, 1);
+                            this.pile.push(card);
+                            
+                            if (this.playerHand.length === 0) {
+                                alert('You win! 🎉 All cards stacked!');
+                                this.reset();
+                            } else {
+                                this.render();
+                            }
+                        } else {
+                            alert('Cannot stack this card! Must be same suit or higher rank.');
+                        }
+                    },
+                    
+                    canStackCard(card, topCard) {
+                        if (card.suit === topCard.suit) return true;
+                        if (card.value > topCard.value) return true;
+                        return false;
+                    },
+                    
+                    render() {
+                        const pileEl = document.getElementById('stack-pile');
+                        const topCard = this.pile[this.pile.length - 1];
+                        pileEl.textContent = `${topCard.rank}${topCard.suit}`;
+                        pileEl.style.color = (topCard.suit === '♥' || topCard.suit === '♦') ? 'red' : 'black';
+                        
+                        const handEl = document.getElementById('stack-player-cards');
+                        handEl.innerHTML = '';
+                        
+                        this.playerHand.forEach((card, index) => {
+                            const cardEl = document.createElement('div');
+                            cardEl.style.width = '70px';
+                            cardEl.style.height = '100px';
+                            cardEl.style.backgroundColor = 'white';
+                            cardEl.style.border = '2px solid #333';
+                            cardEl.style.color = (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
+                            cardEl.style.display = 'flex';
+                            cardEl.style.flexDirection = 'column';
+                            cardEl.style.alignItems = 'center';
+                            cardEl.style.justifyContent = 'center';
+                            cardEl.style.fontSize = '1.2em';
+                            cardEl.style.fontWeight = 'bold';
+                            cardEl.style.cursor = 'pointer';
+                            cardEl.innerHTML = `<div>${card.rank}</div><div>${card.suit}</div>`;
+                            cardEl.onclick = () => this.playCard(index);
+                            handEl.appendChild(cardEl);
+                        });
+                        
+                        document.getElementById('stack-status').textContent = `Cards: ${this.playerHand.length} | Top: ${topCard.rank}${topCard.suit}`;
+                    },
+                    
+                    reset() {
+                        this.init();
                     }
                 }
             },
