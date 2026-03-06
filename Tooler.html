@@ -1564,7 +1564,7 @@ body.tool-view-open {
                 document.getElementById('length-to').onchange = () => this.converters.length();
                 
                 // Task input enter key
-                document.getElementById('task-input').onkeypress = (e) => {
+                document.getElementById('task-input').onkeypress = (e) => { 
                     if (e.key === 'Enter') this.tasks.add();
                  };  },
 
