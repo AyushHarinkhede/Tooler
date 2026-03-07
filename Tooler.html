@@ -549,6 +549,440 @@ body.tool-view-open {
             white-space: pre-wrap;
         }
 
+        /* Interactive Sizer Styles */
+        .sizer-visual-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+            border: 2px dashed var(--doodle-border);
+        }
+
+        .ring-guide {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 20px 0;
+        }
+
+        .ring-circle {
+            position: absolute;
+            border: 3px solid var(--doodle-primary);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 20px rgba(0, 123, 255, 0.3);
+        }
+
+        .ring-size-label {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+            color: var(--doodle-primary);
+            font-size: 14px;
+        }
+
+        .bangle-guide {
+            position: relative;
+            width: 250px;
+            height: 250px;
+            margin: 20px 0;
+        }
+
+        .bangle-circle {
+            position: absolute;
+            border: 4px solid var(--doodle-accent);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+            box-shadow: 0 0 25px rgba(255, 107, 107, 0.3);
+        }
+
+        .size-controls {
+            display: flex;
+            gap: 10px;
+            margin: 15px 0;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .size-preset {
+            padding: 8px 12px;
+            background: var(--doodle-secondary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .size-preset:hover {
+            background: var(--doodle-primary);
+            transform: scale(1.05);
+        }
+
+        .calibration-info {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid #ffc107;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
+            text-align: center;
+        }
+
+        .watch-band-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .band-type {
+            padding: 10px;
+            border: 2px solid var(--doodle-border);
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .band-type:hover {
+            border-color: var(--doodle-primary);
+            background: rgba(0, 123, 255, 0.1);
+        }
+
+        .band-type.selected {
+            border-color: var(--doodle-primary);
+            background: rgba(0, 123, 255, 0.2);
+        }
+
+        .height-reference {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 255, 0, 0.05);
+            border: 1px solid #28a745;
+            border-radius: 5px;
+        }
+
+        .height-bar {
+            width: 40px;
+            background: linear-gradient(to top, #28a745, #20c997);
+            border-radius: 3px;
+            margin-right: 15px;
+            position: relative;
+        }
+
+        /* Enhanced Ring & Bangle Sizer Styles */
+        .sizer-workspace {
+            position: relative;
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 15px;
+            margin: 20px 0;
+            overflow: hidden;
+            min-height: 400px;
+        }
+
+        .measurement-grid {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image: 
+                linear-gradient(rgba(0,123,255,0.1) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,123,255,0.1) 1px, transparent 1px);
+            background-size: 20px 20px;
+            pointer-events: none;
+        }
+
+        .calibration-area {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 193, 7, 0.9);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 10;
+        }
+
+        .calibration-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .calibration-item:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .calibration-coin {
+            width: 24px;
+            height: 24px;
+            border: 2px solid #6c757d;
+            border-radius: 50%;
+            background: #ffd700;
+        }
+
+        .calibration-card {
+            width: 30px;
+            height: 20px;
+            border: 1px solid #6c757d;
+            border-radius: 2px;
+            background: #fff;
+        }
+
+        .ring-sizer-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+        }
+
+        .ring-circle-enhanced {
+            position: relative;
+            border: 4px solid #007bff;
+            border-radius: 50%;
+            background: rgba(0, 123, 255, 0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 
+                0 0 0 2px rgba(0, 123, 255, 0.2),
+                0 0 20px rgba(0, 123, 255, 0.3),
+                inset 0 0 20px rgba(0, 123, 255, 0.1);
+        }
+
+        .ring-circle-enhanced:hover {
+            box-shadow: 
+                0 0 0 3px rgba(0, 123, 255, 0.3),
+                0 0 30px rgba(0, 123, 255, 0.4),
+                inset 0 0 25px rgba(0, 123, 255, 0.2);
+        }
+
+        .ring-measurements {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: #007bff;
+            white-space: nowrap;
+        }
+
+        .ring-diameter-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: rgba(255, 0, 0, 0.5);
+            transform: translateY(-50%);
+        }
+
+        .ring-diameter-label {
+            position: absolute;
+            top: -20px;
+            right: -40px;
+            font-size: 10px;
+            color: #dc3545;
+            font-weight: bold;
+        }
+
+        .bangle-sizer-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+        }
+
+        .bangle-circle-enhanced {
+            position: relative;
+            border: 6px solid #dc3545;
+            border-radius: 50%;
+            background: rgba(220, 53, 69, 0.05);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            box-shadow: 
+                0 0 0 3px rgba(220, 53, 69, 0.2),
+                0 0 25px rgba(220, 53, 69, 0.3),
+                inset 0 0 25px rgba(220, 53, 69, 0.1);
+        }
+
+        .bangle-measurements {
+            position: absolute;
+            top: -35px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: #dc3545;
+            white-space: nowrap;
+        }
+
+        .size-comparison-rings {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            gap: 15px;
+            z-index: 8;
+        }
+
+        .comparison-ring {
+            width: 40px;
+            height: 40px;
+            border: 2px solid #6c757d;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+            background: rgba(255, 255, 255, 0.8);
+        }
+
+        .comparison-ring:hover {
+            transform: scale(1.2);
+            border-color: #007bff;
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.4);
+        }
+
+        .size-chart {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 11px;
+            z-index: 8;
+            max-width: 200px;
+        }
+
+        .size-chart h5 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            color: #495057;
+        }
+
+        .size-chart-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 2px 0;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .size-chart-row:last-child {
+            border-bottom: none;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            border: 3px solid #fff;
+            border-radius: 50%;
+            cursor: nwse-resize;
+            bottom: -12px;
+            right: -12px;
+            z-index: 15;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: white;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .resize-handle:hover {
+            background: linear-gradient(135deg, #0056b3, #004085);
+            transform: scale(1.2);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+        }
+
+        .resize-handle::after {
+            content: '↔';
+            font-size: 14px;
+        }
+
+        .bangle-circle-enhanced .resize-handle {
+            background: linear-gradient(135deg, #dc3545, #c82333);
+        }
+
+        .bangle-circle-enhanced .resize-handle:hover {
+            background: linear-gradient(135deg, #c82333, #a02622);
+        }
+
+        .instructions-panel {
+            background: rgba(0, 123, 255, 0.1);
+            border: 1px solid #007bff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            font-size: 13px;
+        }
+
+        .instructions-panel h5 {
+            margin: 0 0 10px 0;
+            color: #007bff;
+            font-size: 14px;
+        }
+
+        .instructions-panel ol {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .instructions-panel li {
+            margin: 5px 0;
+        }
+
+        .ruler-guide {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 30px;
+            background: linear-gradient(to right, 
+                transparent 0%, transparent 49.5%, 
+                #000 49.5%, #000 50.5%, 
+                transparent 50.5%, transparent 100%);
+            background-size: 50px 30px;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
         /* Modal */
   .modal-overlay {
      position: fixed;
@@ -1937,25 +2371,22 @@ body.tool-view-open {
                 document.getElementById('theme-toggle-btn').onclick = () => this.toggleTheme();
                 document.getElementById('settings-btn').onclick = () => this.showModal('settings');
                 
-                // Add hover sound effects to all buttons
-                document.addEventListener('DOMContentLoaded', () => {
-                    // Add hover sounds to buttons
-                    const buttons = document.querySelectorAll('button, .tool-btn, .btn-calculate, .btn-accent, .btn-secondary, .btn-clear');
-                    buttons.forEach(button => {
-                        button.addEventListener('mouseenter', () => {
-                            app.sound.playSound('hover');
-                        });
-                        button.addEventListener('click', () => {
-                            app.sound.playSound('click');
-                        });
+                // Add hover sounds to buttons
+                const buttons = document.querySelectorAll('button, .tool-btn, .btn-calculate, .btn-accent, .btn-secondary, .btn-clear');
+                buttons.forEach(button => {
+                    button.addEventListener('mouseenter', () => {
+                        app.sound.playSound('hover');
                     });
-                    
-                    // Add hover sounds to tool buttons
-                    const toolButtons = document.querySelectorAll('.tool-btn');
-                    toolButtons.forEach(button => {
-                        button.addEventListener('mouseenter', () => {
-                            app.sound.playSound('hover');
-                        });
+                    button.addEventListener('click', () => {
+                        app.sound.playSound('click');
+                    });
+                });
+                
+                // Add hover sounds to tool buttons specifically
+                const toolButtons = document.querySelectorAll('.tool-btn');
+                toolButtons.forEach(button => {
+                    button.addEventListener('mouseenter', () => {
+                        app.sound.playSound('hover');
                     });
                 });
                 
@@ -2201,8 +2632,20 @@ body.tool-view-open {
 
             toggleTheme() {
                 const html = document.documentElement;
-                 const current = html.dataset.theme;
-                html.dataset.theme = current === 'doodle' ? 'dark' : 'doodle';
+                const current = html.dataset.theme;
+                const themes = ['doodle', 'dark', 'light'];
+                const currentIndex = themes.indexOf(current);
+                const nextIndex = (currentIndex + 1) % themes.length;
+                html.dataset.theme = themes[nextIndex];
+                
+                // Update theme display in settings
+                const themeDisplay = document.querySelector('[data-setting="theme"]');
+                if (themeDisplay) {
+                    themeDisplay.textContent = themes[nextIndex].charAt(0).toUpperCase() + themes[nextIndex].slice(1);
+                }
+                
+                // Save theme preference
+                localStorage.setItem('theme', themes[nextIndex]);
             }, 
   
             clock:  {
@@ -2623,44 +3066,506 @@ body.tool-view-open {
             },
 
             sizer: {
+                currentType: 'ring',
+                selectedBandType: 'standard',
+                scale: 1,
+                isDragging: false,
+                dragElement: null,
+                
                 switchType(type) {
+                    this.currentType = type;
                     const content = document.getElementById('sizer-content');
                     let html = '';
                     switch (type) {
                         case 'ring':
-                            html = `<h4>Ring Size</h4><p>Wrap a string around your finger, mark it, and measure the length in millimeters.</p><div class="input-group"><label>Length (mm):</label><input type="number" oninput="app.sizer.calcRing(this.value)" placeholder="e.g., 54.5"></div><div class="result"><div id="ring-result" class="result-text">US Size: --</div></div>`;
+                            html = `<h4>Ring Size - Professional Interactive Sizer</h4>
+                                    <div class="instructions-panel">
+                                        <h5>📏 How to Use:</h5>
+                                        <ol>
+                                            <li>Calibrate your screen using a coin or credit card below</li>
+                                            <li>Place your existing ring on screen to match the circle</li>
+                                            <li>Use size presets or drag the resize handle for precise adjustment</li>
+                                            <li>Check the size chart for international conversions</li>
+                                        </ol>
+                                    </div>
+                                    <div class="sizer-workspace" id="ring-workspace">
+                                        <div class="measurement-grid"></div>
+                                        <div class="ruler-guide"></div>
+                                        <div class="calibration-area">
+                                            <div style="font-weight: bold; margin-bottom: 8px;">🎯 Calibrate Screen:</div>
+                                            <div class="calibration-item" onclick="app.sizer.calibrateWithCoin()">
+                                                <div class="calibration-coin"></div>
+                                                <span>₹1 Coin (25mm)</span>
+                                            </div>
+                                            <div class="calibration-item" onclick="app.sizer.calibrateWithCard()">
+                                                <div class="calibration-card"></div>
+                                                <span>Credit Card (85.6×54mm)</span>
+                                            </div>
+                                        </div>
+                                        <div class="ring-sizer-container">
+                                            <div class="ring-circle-enhanced" id="ring-visual" style="width: 80px; height: 80px;">
+                                                <div class="ring-measurements">
+                                                    <div>Size 7</div>
+                                                    <div style="font-size: 10px; color: #6c757d;">17.3mm diameter</div>
+                                                </div>
+                                                <div class="ring-diameter-line"></div>
+                                                <div class="ring-diameter-label">17.3mm</div>
+                                                <div class="resize-handle" id="ring-resize"></div>
+                                            </div>
+                                        </div>
+                                        <div class="size-comparison-rings">
+                                            <div class="comparison-ring" onclick="app.sizer.setRingSize(5)">5</div>
+                                            <div class="comparison-ring" onclick="app.sizer.setRingSize(6)">6</div>
+                                            <div class="comparison-ring" onclick="app.sizer.setRingSize(7)">7</div>
+                                            <div class="comparison-ring" onclick="app.sizer.setRingSize(8)">8</div>
+                                            <div class="comparison-ring" onclick="app.sizer.setRingSize(9)">9</div>
+                                        </div>
+                                        <div class="size-chart">
+                                            <h5>📊 Size Chart</h5>
+                                            <div class="size-chart-row">
+                                                <span>US 5:</span>
+                                                <span>14.8mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>US 6:</span>
+                                                <span>16.5mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>US 7:</span>
+                                                <span>17.3mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>US 8:</span>
+                                                <span>18.1mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>US 9:</span>
+                                                <span>18.9mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>US 10:</span>
+                                                <span>19.8mm</span>
+                                            </div>
+                                        </div>
+                                        <div class="size-presets">
+                                            <div style="font-weight: 600; margin-bottom: 10px; color: var(--doodle-text);">Quick Size Selection:</div>
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 8px;">
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(3)" style="font-size: 11px;">Size 3</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(4)" style="font-size: 11px;">Size 4</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(5)" style="font-size: 11px;">Size 5</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(6)" style="font-size: 11px;">Size 6</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(7)" style="font-size: 11px;">Size 7</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(8)" style="font-size: 11px;">Size 8</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(9)" style="font-size: 11px;">Size 9</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(10)" style="font-size: 11px;">Size 10</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(11)" style="font-size: 11px;">Size 11</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(12)" style="font-size: 11px;">Size 12</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(13)" style="font-size: 11px;">Size 13</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(14)" style="font-size: 11px;">Size 14</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(15)" style="font-size: 11px;">Size 15</button>
+                                                <button class="btn-secondary" onclick="app.sizer.setRingSize(16)" style="font-size: 11px;">Size 16</button>
+                                            </div>
+                                        </div>
+                                    <p style="margin: 15px 0;">Or measure manually: Wrap a string around your finger, mark it, and measure length in millimeters.</p>
+                                    <div class="input-group">
+                                        <label>Circumference (mm):</label>
+                                        <input type="number" oninput="app.sizer.calcRing(this.value)" placeholder="e.g., 54.5" id="ring-mm-input">
+                                    </div>
+                                    <div class="result">
+                                        <div id="ring-result" class="result-text">US Size: -- | Diameter: --mm | UK: -- | EU: --</div>
+                                    </div>`;
                             break;
                         case 'bangle':
-                             html = `<h4>Bangle Size</h4><p>Measure the diameter of a bangle that fits you well in millimeters.</p><div class="input-group"><label>Diameter (mm):</label><input type="number" oninput="app.sizer.calcBangle(this.value)" placeholder="e.g., 60"></div><div class="result"><div id="bangle-result" class="result-text">Size: --</div></div>`;
+                            html = `<h4>Bangle Size - Professional Interactive Sizer</h4>
+                                    <div class="instructions-panel">
+                                        <h5>📏 How to Use:</h5>
+                                        <ol>
+                                            <li>Calibrate your screen using a coin or credit card below</li>
+                                            <li>Place your existing bangle on the screen to match the circle</li>
+                                            <li>Use size presets for quick selection or drag for precise adjustment</li>
+                                            <li>Multiple rings show different sizes for easy comparison</li>
+                                        </ol>
+                                    </div>
+                                    <div class="sizer-workspace" id="bangle-workspace">
+                                        <div class="measurement-grid"></div>
+                                        <div class="ruler-guide"></div>
+                                        <div class="calibration-area">
+                                            <div style="font-weight: bold; margin-bottom: 8px;">🎯 Calibrate Screen:</div>
+                                            <div class="calibration-item" onclick="app.sizer.calibrateWithCoin()">
+                                                <div class="calibration-coin"></div>
+                                                <span>₹1 Coin (25mm)</span>
+                                            </div>
+                                            <div class="calibration-item" onclick="app.sizer.calibrateWithCard()">
+                                                <div class="calibration-card"></div>
+                                                <span>Credit Card (85.6×54mm)</span>
+                                            </div>
+                                        </div>
+                                        <div class="bangle-sizer-container">
+                                            <div class="bangle-circle-enhanced" id="bangle-visual" style="width: 140px; height: 140px;">
+                                                <div class="bangle-measurements">
+                                                    <div>2.4 inches</div>
+                                                    <div style="font-size: 10px; color: #6c757d;">61mm diameter</div>
+                                                </div>
+                                                <div class="resize-handle" id="bangle-resize"></div>
+                                            </div>
+                                        </div>
+                                        <div class="size-comparison-rings">
+                                            <div class="comparison-ring" onclick="app.sizer.setBangleSize(2.0)" style="width: 50px; height: 50px;">2.0"</div>
+                                            <div class="comparison-ring" onclick="app.sizer.setBangleSize(2.2)" style="width: 55px; height: 55px;">2.2"</div>
+                                            <div class="comparison-ring" onclick="app.sizer.setBangleSize(2.4)" style="width: 60px; height: 60px;">2.4"</div>
+                                            <div class="comparison-ring" onclick="app.sizer.setBangleSize(2.6)" style="width: 65px; height: 65px;">2.6"</div>
+                                            <div class="comparison-ring" onclick="app.sizer.setBangleSize(2.8)" style="width: 70px; height: 70px;">2.8"</div>
+                                        </div>
+                                        <div class="size-chart">
+                                            <h5>📊 Bangle Size Chart</h5>
+                                            <div class="size-chart-row">
+                                                <span>2.0":</span>
+                                                <span>50.8mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>2.2":</span>
+                                                <span>55.9mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>2.4":</span>
+                                                <span>61.0mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>2.6":</span>
+                                                <span>66.0mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>2.8":</span>
+                                                <span>71.1mm</span>
+                                            </div>
+                                            <div class="size-chart-row">
+                                                <span>3.0":</span>
+                                                <span>76.2mm</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="size-controls">
+                                        <div style="font-weight: 600; margin-bottom: 10px; color: var(--doodle-text);">Quick Size Selection:</div>
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(60px, 1fr)); gap: 8px;">
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(2.0)" style="font-size: 11px;">2.0"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(2.2)" style="font-size: 11px;">2.2"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(2.4)" style="font-size: 11px;">2.4"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(2.6)" style="font-size: 11px;">2.6"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(2.8)" style="font-size: 11px;">2.8"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(3.0)" style="font-size: 11px;">3.0"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(3.2)" style="font-size: 11px;">3.2"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(3.4)" style="font-size: 11px;">3.4"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(3.6)" style="font-size: 11px;">3.6"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(3.8)" style="font-size: 11px;">3.8"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(4.0)" style="font-size: 11px;">4.0"</button>
+                                            <button class="btn-secondary" onclick="app.sizer.setBangleSize(4.2)" style="font-size: 11px;">4.2"</button>
+                                        </div>
+                                    </div>
+                                    <p style="margin: 15px 0;">Or measure manually: Measure diameter of a bangle that fits you well in millimeters.</p>
+                                    <div class="input-group">
+                                        <label>Diameter (mm):</label>
+                                        <input type="number" oninput="app.sizer.calcBangle(this.value)" placeholder="e.g., 61" id="bangle-mm-input">
+                                    </div>
+                                    <div class="result">
+                                        <div id="bangle-result" class="result-text">Diameter: -- | Circumference: --mm | Size: --</div>
+                                    </div>`;
                             break;
                          case 'watch':
-                             html = `<h4>Watch Strap Size</h4><p>Measure your wrist circumference in millimeters.</p><div class="input-group"><label>Wrist Circumference (mm):</label><input type="number" oninput="app.sizer.calcWatch(this.value)" placeholder="e.g., 180"></div><div class="result"><div id="watch-result" class="result-text">Recommended Size: --</div></div>`;
+                             html = `<h4>Watch Strap Size</h4>
+                                     <p>Select your watch band type for more accurate sizing:</p>
+                                     <div class="watch-band-options">
+                                         <div class="band-type" onclick="app.sizer.selectBandType('leather', this)">
+                                             <div>🧥</div>
+                                             <div>Leather</div>
+                                         </div>
+                                         <div class="band-type selected" onclick="app.sizer.selectBandType('metal', this)">
+                                             <div>⚙️</div>
+                                             <div>Metal</div>
+                                         </div>
+                                         <div class="band-type" onclick="app.sizer.selectBandType('rubber', this)">
+                                             <div>🏃</div>
+                                             <div>Sport/Rubber</div>
+                                         </div>
+                                         <div class="band-type" onclick="app.sizer.selectBandType('nato', this)">
+                                             <div>🎖️</div>
+                                             <div>NATO Strap</div>
+                                         </div>
+                                     </div>
+                                     <div class="input-group">
+                                         <label>Wrist Circumference (mm):</label>
+                                         <input type="number" oninput="app.sizer.calcWatch(this.value)" placeholder="e.g., 180" id="watch-mm-input">
+                                     </div>
+                                     <div class="result">
+                                         <div id="watch-result" class="result-text">Recommended Size: --</div>
+                                     </div>`;
                             break;
                         case 'height':
-                            html = `<h4>Height Conversion</h4><div class="input-row"><div class="input-group"><label>Feet:</label><input type="number" id="h-feet" oninput="app.sizer.calcHeight()"></div><div class="input-group"><label>Inches:</label><input type="number" id="h-inches" oninput="app.sizer.calcHeight()"></div></div><div class="result"><div id="height-result" class="result-text">Centimeters: --</div></div>`;
+                            html = `<h4>Height Conversion</h4>
+                                    <div class="height-reference">
+                                        <div class="height-bar" id="height-bar" style="height: 170px;"></div>
+                                        <div>
+                                            <div id="height-visual" style="font-size: 18px; font-weight: bold;">5'7" (170 cm)</div>
+                                            <div style="font-size: 12px; color: #666; margin-top: 5px;">Visual height reference</div>
+                                        </div>
+                                    </div>
+                                    <div class="input-row">
+                                        <div class="input-group">
+                                            <label>Feet:</label>
+                                            <input type="number" id="h-feet" oninput="app.sizer.calcHeight()" min="0" max="8">
+                                        </div>
+                                        <div class="input-group">
+                                            <label>Inches:</label>
+                                            <input type="number" id="h-inches" oninput="app.sizer.calcHeight()" min="0" max="11">
+                                        </div>
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Or Centimeters:</label>
+                                        <input type="number" id="h-cm" oninput="app.sizer.calcHeightFromCm()" placeholder="e.g., 170">
+                                    </div>
+                                    <div class="result">
+                                        <div id="height-result" class="result-text">Centimeters: --</div>
+                                    </div>`;
                             break;
                     }
                     content.innerHTML = html;
+                    
+                    // Initialize drag functionality after DOM update
+                    setTimeout(() => this.initDragResize(), 100);
                 },
+                
+                initDragResize() {
+                    const ringResize = document.getElementById('ring-resize');
+                    const bangleResize = document.getElementById('bangle-resize');
+                    
+                    if (ringResize) {
+                        this.setupDragResize(ringResize, 'ring');
+                    }
+                    if (bangleResize) {
+                        this.setupDragResize(bangleResize, 'bangle');
+                    }
+                },
+                
+                setupDragResize(handle, type) {
+                    handle.addEventListener('mousedown', (e) => this.startDrag(e, type));
+                    handle.addEventListener('touchstart', (e) => this.startDrag(e.touches[0], type), {passive: false});
+                },
+                
+                startDrag(e, type) {
+                    e.preventDefault();
+                    this.isDragging = true;
+                    this.dragElement = type;
+                    this.dragStartX = e.clientX;
+                    this.dragStartY = e.clientY;
+                    
+                    const visual = document.getElementById(`${type}-visual`);
+                    this.dragStartSize = visual.offsetWidth;
+                    
+                    document.addEventListener('mousemove', this.drag);
+                    document.addEventListener('mouseup', this.stopDrag);
+                    document.addEventListener('touchmove', this.drag, {passive: false});
+                    document.addEventListener('touchend', this.stopDrag);
+                },
+                
+                drag(e) {
+                    if (!this.isDragging) return;
+                    e.preventDefault();
+                    
+                    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+                    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+                    
+                    const deltaX = clientX - this.dragStartX;
+                    const deltaY = clientY - this.dragStartY;
+                    const delta = Math.max(deltaX, deltaY);
+                    
+                    const newSize = Math.max(30, Math.min(300, this.dragStartSize + delta));
+                    const visual = document.getElementById(`${this.dragElement}-visual`);
+                    
+                    visual.style.width = newSize + 'px';
+                    visual.style.height = newSize + 'px';
+                    
+                    // Update measurements based on new size
+                    if (this.dragElement === 'ring') {
+                        const mm = (newSize / this.scale) / 4.6;
+                        this.updateRingVisual(newSize, mm);
+                        document.getElementById('ring-mm-input').value = (mm * Math.PI).toFixed(1);
+                        this.calcRing(mm * Math.PI);
+                    } else if (this.dragElement === 'bangle') {
+                        const mm = (newSize / this.scale) / 2.3;
+                        this.updateBangleVisual(newSize, mm);
+                        document.getElementById('bangle-mm-input').value = mm.toFixed(1);
+                        this.calcBangle(mm);
+                    }
+                },
+                
+                stopDrag() {
+                    this.isDragging = false;
+                    this.dragElement = null;
+                    
+                    document.removeEventListener('mousemove', this.drag);
+                    document.removeEventListener('mouseup', this.stopDrag);
+                    document.removeEventListener('touchmove', this.drag);
+                    document.removeEventListener('touchend', this.stopDrag);
+                },
+                
+                calibrateWithCoin() {
+                    const coinSize = prompt('Place a ₹1 coin on your screen and enter its visible size in pixels:', '50');
+                    if (coinSize) {
+                        this.scale = 25 / parseFloat(coinSize);
+                        alert(`Screen calibrated! Scale: ${this.scale.toFixed(3)}`);
+                    }
+                },
+                
+                calibrateWithCard() {
+                    const cardWidth = prompt('Place a credit card on your screen and enter its visible width in pixels:', '85');
+                    if (cardWidth) {
+                        this.scale = 85.6 / parseFloat(cardWidth);
+                        alert(`Screen calibrated! Scale: ${this.scale.toFixed(3)}`);
+                    }
+                },
+                
+                setRingSize(size) {
+                    const mm = (size * 1.65) + 40;
+                    // Fix scale factor for accurate real-world sizing
+                    const diameter = mm * this.scale * 3.2; // Reduced from 6.5 to 3.2 for accurate sizing
+                    this.updateRingVisual(diameter, mm);
+                    document.getElementById('ring-mm-input').value = mm.toFixed(1);
+                    this.calcRing(mm);
+                },
+                
+                updateRingVisual(diameter, mm) {
+                    const visual = document.getElementById('ring-visual');
+                    if (visual) {
+                        // Adjust size limits for realistic ring sizes
+                        const size = Math.max(40, Math.min(diameter, 200)); // Min 40px, Max 200px
+                        visual.style.width = size + 'px';
+                        visual.style.height = size + 'px';
+                        const ringSize = ((mm - 40) / 1.65).toFixed(1);
+                        visual.querySelector('.ring-measurements div').textContent = `Size ${ringSize}`;
+                        visual.querySelector('.ring-measurements div:last-child').textContent = `${mm.toFixed(1)}mm diameter`;
+                        visual.querySelector('.ring-diameter-label').textContent = `${mm.toFixed(1)}mm`;
+                    }
+                },
+                
+                setBangleSize(inches) {
+                    const mm = inches * 25.4;
+                    // Fix scale factor for accurate real-world sizing
+                    const diameter = mm * this.scale * 2.5; // Adjusted from 3.2 to 2.5
+                    this.updateBangleVisual(diameter, mm);
+                    document.getElementById('bangle-mm-input').value = mm.toFixed(1);
+                    this.calcBangle(mm);
+                },
+                
+                updateBangleVisual(diameter, mm) {
+                    const visual = document.getElementById('bangle-visual');
+                    if (visual) {
+                        // Adjust size limits for realistic bangle sizes
+                        const size = Math.max(60, Math.min(diameter, 280)); // Min 60px, Max 280px
+                        visual.style.width = size + 'px';
+                        visual.style.height = size + 'px';
+                        const inches = (mm / 25.4).toFixed(1);
+                        visual.querySelector('.bangle-measurements div').textContent = `${inches} inches`;
+                        visual.querySelector('.bangle-measurements div:last-child').textContent = `${mm.toFixed(0)}mm diameter`;
+                    }
+                },
+                
+                selectBandType(type, element) {
+                    this.selectedBandType = type;
+                    document.querySelectorAll('.band-type').forEach(el => el.classList.remove('selected'));
+                    element.classList.add('selected');
+                },
+                
                 calcRing(mm) {
-                    let size = (mm - 40) / 1.65;
-                    document.getElementById('ring-result').textContent = `US Size: ${size > 0 ? size.toFixed(1) : '--'}`;
+                    const usSize = (mm - 40) / 1.65;
+                    const diameter = mm / Math.PI;
+                    const ukSize = (usSize - 1.5).toFixed(1);
+                    const euSize = (usSize + 37.5).toFixed(1);
+                    
+                    const resultEl = document.getElementById('ring-result');
+                    if (resultEl) {
+                        resultEl.textContent = usSize > 0 ? 
+                            `US Size: ${usSize.toFixed(1)} | Diameter: ${diameter.toFixed(1)}mm | UK: ${ukSize} | EU: ${euSize}` : 
+                            'US Size: -- | Diameter: --mm | UK: -- | EU: --';
+                    }
                 },
+                
                 calcBangle(mm) {
-                     let size = (mm / 25.4 * Math.PI).toFixed(2);
-                     document.getElementById('bangle-result').textContent = `Standard Size: ${size > 0 ? size : '--'}`;
+                    const inches = (mm / 25.4).toFixed(2);
+                    const circumference = (mm * Math.PI).toFixed(1);
+                    
+                    const resultEl = document.getElementById('bangle-result');
+                    if (resultEl) {
+                        resultEl.textContent = mm > 0 ? 
+                            `Diameter: ${mm.toFixed(1)}mm | Circumference: ${circumference}mm | Size: ${inches}"` : 
+                            'Diameter: -- | Circumference: --mm | Size: --';
+                    }
                 },
+                
                 calcWatch(mm) {
                     let size = 'Standard';
-                    if (mm < 165) size = 'Small';
-                    if (mm > 190) size = 'Large';
-                    document.getElementById('watch-result').textContent = `Recommended Size: ${mm > 0 ? size : '--'}`;
+                    let recommendation = '';
+                    
+                    if (this.selectedBandType === 'leather') {
+                        if (mm < 165) { size = 'Small (16mm)'; recommendation = '16-18mm strap'; }
+                        else if (mm > 190) { size = 'Large (22mm)'; recommendation = '20-22mm strap'; }
+                        else { size = 'Medium (18mm)'; recommendation = '18-20mm strap'; }
+                    } else if (this.selectedBandType === 'metal') {
+                        if (mm < 165) { size = 'Small'; recommendation = 'Add 2-4 links'; }
+                        else if (mm > 190) { size = 'Large'; recommendation = 'Remove 2-4 links'; }
+                        else { size = 'Medium'; recommendation = 'Should fit well'; }
+                    } else if (this.selectedBandType === 'rubber') {
+                        if (mm < 165) { size = 'Small'; recommendation = 'S/M size'; }
+                        else if (mm > 190) { size = 'Large'; recommendation = 'L/XL size'; }
+                        else { size = 'Medium'; recommendation = 'M/L size'; }
+                    } else if (this.selectedBandType === 'nato') {
+                        if (mm < 165) { size = 'Short'; recommendation = '280mm length'; }
+                        else if (mm > 190) { size = 'Long'; recommendation = '300mm+ length'; }
+                        else { size = 'Regular'; recommendation = '280-300mm length'; }
+                    }
+                    
+                    const resultEl = document.getElementById('watch-result');
+                    if (resultEl) {
+                        resultEl.textContent = mm > 0 ? `${size} - ${recommendation}` : '--';
+                    }
                 },
+                
                 calcHeight() {
                     const feet = parseFloat(document.getElementById('h-feet').value) || 0;
                     const inches = parseFloat(document.getElementById('h-inches').value) || 0;
                     const cm = (feet * 30.48) + (inches * 2.54);
-                    document.getElementById('height-result').textContent = `Centimeters: ${cm > 0 ? cm.toFixed(1) : '--'}`;
+                    this.updateHeightDisplay(feet, inches, cm);
+                },
+                
+                calcHeightFromCm() {
+                    const cm = parseFloat(document.getElementById('h-cm').value) || 0;
+                    const totalInches = cm / 2.54;
+                    const feet = Math.floor(totalInches / 12);
+                    const inches = (totalInches % 12).toFixed(1);
+                    document.getElementById('h-feet').value = feet;
+                    document.getElementById('h-inches').value = inches;
+                    this.updateHeightDisplay(feet, inches, cm);
+                },
+                
+                updateHeightDisplay(feet, inches, cm) {
+                    const resultEl = document.getElementById('height-result');
+                    const visualEl = document.getElementById('height-visual');
+                    const barEl = document.getElementById('height-bar');
+                    
+                    if (resultEl) {
+                        resultEl.textContent = `Centimeters: ${cm > 0 ? cm.toFixed(1) : '--'} | Meters: ${cm > 0 ? (cm/100).toFixed(2) : '--'}m`;
+                    }
+                    
+                    if (visualEl && cm > 0) {
+                        visualEl.textContent = `${feet}'${inches}" (${cm.toFixed(0)} cm)`;
+                    }
+                    
+                    if (barEl && cm > 0) {
+                        const scale = Math.min(cm / 2, 250);
+                        barEl.style.height = scale + 'px';
+                    }
+                    
+                    if (document.getElementById('h-cm')) {
+                        document.getElementById('h-cm').value = cm.toFixed(1);
+                    }
                 }
             },
             
@@ -5072,7 +5977,15 @@ body.tool-view-open {
             }
         };
 
-        window.onload = () => app.init();
+        window.onload = () => {
+            console.log('App initializing...');
+            try {
+                app.init();
+                console.log('App initialized successfully!');
+            } catch (error) {
+                console.error('Error initializing app:', error);
+            }
+        };
     </script>
 </body>
 </html>
