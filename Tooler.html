@@ -944,6 +944,232 @@ body.tool-view-open {
             background: linear-gradient(135deg, #c82333, #a02622);
         }
 
+        /* Compass Styles */
+        .compass-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            background: var(--note-bg);
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .compass-outer-ring {
+            width: 250px;
+            height: 250px;
+            border-radius: 50%;
+            background: linear-gradient(145deg, #2c3e50, #34495e);
+            box-shadow: 
+                0 10px 30px rgba(0,0,0,0.3),
+                inset 0 2px 5px rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border: 3px solid #1a252f;
+        }
+
+        .compass-inner-ring {
+            width: 220px;
+            height: 220px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #ecf0f1, #bdc3c7);
+            box-shadow: 
+                inset 0 2px 10px rgba(0,0,0,0.2),
+                0 2px 5px rgba(255,255,255,0.5);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .compass-rose {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+
+        .compass-direction {
+            position: absolute;
+            font-weight: bold;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .compass-direction.north {
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #e74c3c;
+            font-size: 22px;
+        }
+
+        .compass-direction.south {
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #2c3e50;
+        }
+
+        .compass-direction.east {
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #2c3e50;
+        }
+
+        .compass-direction.west {
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #2c3e50;
+        }
+
+        .compass-direction.ne {
+            top: 30px;
+            right: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .compass-direction.se {
+            bottom: 30px;
+            right: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .compass-direction.sw {
+            bottom: 30px;
+            left: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .compass-direction.nw {
+            top: 30px;
+            left: 30px;
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .compass-needle {
+            position: absolute;
+            width: 4px;
+            height: 180px;
+            transform-origin: center;
+            transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
+            z-index: 10;
+        }
+
+        .needle-north {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 90px solid #e74c3c;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .needle-south {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 80px solid #34495e;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+        }
+
+        .compass-center {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #2c3e50, #1a252f);
+            box-shadow: 
+                0 2px 5px rgba(0,0,0,0.5),
+                inset 0 1px 2px rgba(255,255,255,0.2);
+            z-index: 11;
+        }
+
+        .compass-degree-display {
+            margin-top: 15px;
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--doodle-primary);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .compass-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--note-bg);
+            border-radius: 10px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 5px;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: var(--doodle-text);
+        }
+
+        .info-value {
+            font-weight: bold;
+            color: var(--doodle-primary);
+        }
+
+        .compass-controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .compass-instructions {
+            background: rgba(0, 123, 255, 0.1);
+            border: 1px solid #007bff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .compass-instructions h5 {
+            margin-bottom: 10px;
+            color: var(--doodle-primary);
+        }
+
+        .compass-instructions ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+
+        .compass-instructions li {
+            margin: 5px 0;
+            color: var(--doodle-text);
+        }
+
         .instructions-panel {
             background: rgba(0, 123, 255, 0.1);
             border: 1px solid #007bff;
@@ -1931,10 +2157,10 @@ body.tool-view-open {
                 <button class="btn-clear" onclick="app.closeTool()">Close</button>
             </div>
             <div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-                <button class="btn-accent" onclick="app.games.select('ttt')">Tic-Tac-Toe</button>
-                <button class="btn-accent" onclick="app.games.select('snake')">Snake</button>
-                <button class="btn-accent" onclick="app.games.select('ludo')">Ludo</button>
-                <button class="btn-accent" onclick="app.games.select('uno')">UNO</button>
+                <button class="btn-accent" onclick="app.games.select('snake')">🐍 Snake</button>
+                <button class="btn-accent" onclick="app.games.select('ludo')">🎲 Ludo</button>
+                <button class="btn-accent" onclick="app.games.select('uno')">🎴 UNO</button>
+                <button class="btn-accent" onclick="app.games.select('stack')">🥞 Stack</button>
                 <button class="btn-accent" onclick="app.games.select('stack')">Stack Cards</button>
              </div>
         <div id="game-area"></div> </div>
@@ -3121,30 +3347,82 @@ body.tool-view-open {
                                             <div class="comparison-ring" onclick="app.sizer.setRingSize(9)">9</div>
                                         </div>
                                         <div class="size-chart">
-                                            <h5>📊 Size Chart</h5>
-                                            <div class="size-chart-row">
-                                                <span>US 5:</span>
-                                                <span>14.8mm</span>
+                                            <h5>📊 Complete Ring Size Guide</h5>
+                                            <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                                                <div style="text-align: center; font-weight: bold; margin-bottom: 10px; color: #495057;">
+                                                    📏 How to Measure Your Ring Size:
+                                                </div>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+                                                    <div style="background: white; padding: 10px; border-radius: 5px; border-left: 4px solid #007bff;">
+                                                        <strong>Method 1:</strong> Use existing ring<br>
+                                                        Place your ring on the circle above<br>
+                                                        Match the inner diameter<br>
+                                                        <em>Most accurate method</em>
+                                                    </div>
+                                                    <div style="background: white; padding: 10px; border-radius: 5px; border-left: 4px solid #28a745;">
+                                                        <strong>Method 2:</strong> String measurement<br>
+                                                        Wrap string around finger<br>
+                                                        Mark where it meets<br>
+                                                        Measure with ruler (mm)
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="size-chart-row">
-                                                <span>US 6:</span>
-                                                <span>16.5mm</span>
+                                            
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px;">
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 3</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">14.0 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 3 | UK D | EU 44</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 4</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">14.8 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 4 | UK D½ | EU 46.5</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 5</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">15.6 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 5 | UK J | EU 49</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 6</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">16.5 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 6 | UK L | EU 51.5</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: #fff3cd; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #ffeaa7; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #856404;">Size 7</div>
+                                                    <div style="font-size: 11px; color: #856404;">17.3 mm</div>
+                                                    <div style="font-size: 10px; color: #856404;">US 7 | UK N | EU 54</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 8</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">18.1 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 8 | UK P | EU 56.5</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 9</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">18.9 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 9 | UK R | EU 59</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 10</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">19.8 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 10 | UK T | EU 61.5</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 11</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">20.6 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 11 | UK V | EU 64</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 18px; font-weight: bold; color: #007bff;">Size 12</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">21.6 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">US 12 | UK X | EU 67</div>
+                                                </div>
                                             </div>
-                                            <div class="size-chart-row">
-                                                <span>US 7:</span>
-                                                <span>17.3mm</span>
-                                            </div>
-                                            <div class="size-chart-row">
-                                                <span>US 8:</span>
-                                                <span>18.1mm</span>
-                                            </div>
-                                            <div class="size-chart-row">
-                                                <span>US 9:</span>
-                                                <span>18.9mm</span>
-                                            </div>
-                                            <div class="size-chart-row">
-                                                <span>US 10:</span>
-                                                <span>19.8mm</span>
+                                            
+                                            <div style="background: #d1ecf1; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 12px;">
+                                                <strong>💡 Pro Tip:</strong> Most common women's sizes are 6-7, most common men's sizes are 8-10.
                                             </div>
                                         </div>
                                         <div class="size-presets">
@@ -3217,30 +3495,67 @@ body.tool-view-open {
                                             <div class="comparison-ring" onclick="app.sizer.setBangleSize(2.8)" style="width: 70px; height: 70px;">2.8"</div>
                                         </div>
                                         <div class="size-chart">
-                                            <h5>📊 Bangle Size Chart</h5>
-                                            <div class="size-chart-row">
-                                                <span>2.0":</span>
-                                                <span>50.8mm</span>
+                                            <h5>📊 Complete Bangle Size Guide</h5>
+                                            <div style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); padding: 15px; border-radius: 10px; margin-bottom: 15px;">
+                                                <div style="text-align: center; font-weight: bold; margin-bottom: 10px; color: #495057;">
+                                                    📏 How to Measure Your Bangle Size:
+                                                </div>
+                                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+                                                    <div style="background: white; padding: 10px; border-radius: 5px; border-left: 4px solid #007bff;">
+                                                        <strong>Method 1:</strong> Use existing bangle<br>
+                                                        Place bangle on the circle above<br>
+                                                        Match the inner diameter<br>
+                                                        <em>Most accurate method</em>
+                                                    </div>
+                                                    <div style="background: white; padding: 10px; border-radius: 5px; border-left: 4px solid #28a745;">
+                                                        <strong>Method 2:</strong> Ruler measurement<br>
+                                                        Measure inner diameter with ruler<br>
+                                                        Or measure circumference ÷ π<br>
+                                                        <em>Use flexible tape measure</em>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div class="size-chart-row">
-                                                <span>2.2":</span>
-                                                <span>55.9mm</span>
+                                            
+                                            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 8px;">
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 16px; font-weight: bold; color: #007bff;">2.0"</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">50.8 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">Extra Small</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 16px; font-weight: bold; color: #007bff;">2.2"</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">55.9 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">Small</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: #fff3cd; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #ffeaa7; transition: all 0.3s ease;">
+                                                    <div style="font-size: 16px; font-weight: bold; color: #856404;">2.4"</div>
+                                                    <div style="font-size: 11px; color: #856404;">61.0 mm</div>
+                                                    <div style="font-size: 10px; color: #856404;">Medium</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 16px; font-weight: bold; color: #007bff;">2.6"</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">66.0 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">Medium-Large</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 16px; font-weight: bold; color: #007bff;">2.8"</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">71.1 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">Large</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 16px; font-weight: bold; color: #007bff;">3.0"</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">76.2 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">Extra Large</div>
+                                                </div>
+                                                <div class="size-chart-item" style="background: white; padding: 8px; border-radius: 8px; text-align: center; border: 2px solid #e9ecef; transition: all 0.3s ease;">
+                                                    <div style="font-size: 16px; font-weight: bold; color: #007bff;">3.2"</div>
+                                                    <div style="font-size: 11px; color: #6c757d;">81.3 mm</div>
+                                                    <div style="font-size: 10px; color: #868e96;">XX-Large</div>
+                                                </div>
                                             </div>
-                                            <div class="size-chart-row">
-                                                <span>2.4":</span>
-                                                <span>61.0mm</span>
-                                            </div>
-                                            <div class="size-chart-row">
-                                                <span>2.6":</span>
-                                                <span>66.0mm</span>
-                                            </div>
-                                            <div class="size-chart-row">
-                                                <span>2.8":</span>
-                                                <span>71.1mm</span>
-                                            </div>
-                                            <div class="size-chart-row">
-                                                <span>3.0":</span>
-                                                <span>76.2mm</span>
+                                            
+                                            <div style="background: #d1ecf1; padding: 10px; border-radius: 8px; margin-top: 10px; font-size: 12px;">
+                                                <strong>💡 Pro Tip:</strong> Average women's bangle size is 2.4-2.6", average men's size is 2.6-2.8".
                                             </div>
                                         </div>
                                     </div>
@@ -3271,33 +3586,155 @@ body.tool-view-open {
                                     </div>`;
                             break;
                          case 'watch':
-                             html = `<h4>Watch Strap Size</h4>
-                                     <p>Select your watch band type for more accurate sizing:</p>
+                             html = `<h4>⌚ Professional Watch Strap Sizer</h4>
+                                     <div class="instructions-panel">
+                                        <h5>📏 How to Measure Your Wrist:</h5>
+                                        <ol>
+                                            <li>Use a flexible measuring tape or string</li>
+                                            <li>Measure around your wrist bone (snug fit)</li>
+                                            <li>Add 1-2cm (0.4-0.8") for comfort</li>
+                                            <li>Match your measurement to the size chart below</li>
+                                        </ol>
+                                     </div>
+                                     
                                      <div class="watch-band-options">
                                          <div class="band-type" onclick="app.sizer.selectBandType('leather', this)">
                                              <div>🧥</div>
-                                             <div>Leather</div>
+                                             <div>Leather Strap</div>
+                                             <small>Classic & Comfortable</small>
                                          </div>
-                                         <div class="band-type selected" onclick="app.sizer.selectBandType('metal', this)">
+                                         <div class="band-type" onclick="app.sizer.selectBandType('metal', this)">
                                              <div>⚙️</div>
-                                             <div>Metal</div>
+                                             <div>Metal Bracelet</div>
+                                             <small>Premium & Durable</small>
                                          </div>
-                                         <div class="band-type" onclick="app.sizer.selectBandType('rubber', this)">
+                                         <div class="band-type selected" onclick="app.sizer.selectBandType('rubber', this)">
                                              <div>🏃</div>
                                              <div>Sport/Rubber</div>
+                                             <small>Active & Water-resistant</small>
                                          </div>
                                          <div class="band-type" onclick="app.sizer.selectBandType('nato', this)">
                                              <div>🎖️</div>
                                              <div>NATO Strap</div>
+                                             <small>Military & Stylish</small>
                                          </div>
                                      </div>
+                                     
                                      <div class="input-group">
-                                         <label>Wrist Circumference (mm):</label>
-                                         <input type="number" oninput="app.sizer.calcWatch(this.value)" placeholder="e.g., 180" id="watch-mm-input">
+                                         <label>📏 Wrist Circumference (mm):</label>
+                                         <input type="number" oninput="app.sizer.calcWatch(this.value)" placeholder="e.g., 170" id="watch-mm-input">
+                                         <small>Measure around wrist bone, then add 1-2cm for comfort</small>
                                      </div>
-                                     <div class="result">
-                                         <div id="watch-result" class="result-text">Recommended Size: --</div>
+                                     
+                                     <div class="watch-result-display" id="watch-result-display">
+                                         <!-- Results will be displayed here -->
+                                     </div>
+                                     
+                                     <div class="watch-size-chart">
+                                         <h5>📊 Complete Watch Strap Size Guide</h5>
+                                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                                             <div class="watch-size-item">
+                                                 <div style="font-weight: bold; color: #007bff;">Extra Small</div>
+                                                 <div>Wrist: 130-150mm</div>
+                                                 <div>Strap: 16-18mm</div>
+                                                 <div>Length: 140-160mm</div>
+                                             </div>
+                                             <div class="watch-size-item">
+                                                 <div style="font-weight: bold; color: #007bff;">Small</div>
+                                                 <div>Wrist: 150-170mm</div>
+                                                 <div>Strap: 18-20mm</div>
+                                                 <div>Length: 160-180mm</div>
+                                             </div>
+                                             <div class="watch-size-item" style="background: #fff3cd; border: 2px solid #ffeaa7;">
+                                                 <div style="font-weight: bold; color: #856404;">Medium</div>
+                                                 <div>Wrist: 170-190mm</div>
+                                                 <div>Strap: 20-22mm</div>
+                                                 <div>Length: 180-200mm</div>
+                                             </div>
+                                             <div class="watch-size-item">
+                                                 <div style="font-weight: bold; color: #007bff;">Large</div>
+                                                 <div>Wrist: 190-210mm</div>
+                                                 <div>Strap: 22-24mm</div>
+                                                 <div>Length: 200-220mm</div>
+                                             </div>
+                                             <div class="watch-size-item">
+                                                 <div style="font-weight: bold; color: #007bff;">Extra Large</div>
+                                                 <div>Wrist: 210-230mm</div>
+                                                 <div>Strap: 24-26mm</div>
+                                                 <div>Length: 220-240mm</div>
+                                             </div>
+                                         </div>
+                                     </div>
+                                     
+                                     <div class="band-specific-recommendations">
+                                         <h5>🎯 Band-Specific Recommendations:</h5>
+                                         <div id="band-recommendations">
+                                             <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                                                 <strong>📋 Select a band type above for personalized recommendations</strong>
+                                             </div>
+                                         </div>
                                      </div>`;
+                            break;
+                        case 'compass':
+                            html = `<h4>🧭 Digital Compass - Real-Time Navigation</h4>
+                                    <div class="compass-container">
+                                        <div class="compass-outer-ring">
+                                            <div class="compass-inner-ring">
+                                                <div class="compass-rose">
+                                                    <div class="compass-direction north">N</div>
+                                                    <div class="compass-direction east">E</div>
+                                                    <div class="compass-direction south">S</div>
+                                                    <div class="compass-direction west">W</div>
+                                                    <div class="compass-direction ne">NE</div>
+                                                    <div class="compass-direction se">SE</div>
+                                                    <div class="compass-direction sw">SW</div>
+                                                    <div class="compass-direction nw">NW</div>
+                                                </div>
+                                                <div class="compass-needle" id="compass-needle">
+                                                    <div class="needle-north"></div>
+                                                    <div class="needle-south"></div>
+                                                </div>
+                                                <div class="compass-center"></div>
+                                            </div>
+                                        </div>
+                                        <div class="compass-degree-display" id="compass-degree">0°</div>
+                                    </div>
+                                    
+                                    <div class="compass-info">
+                                        <div class="info-row">
+                                            <div class="info-label">Current Direction:</div>
+                                            <div class="info-value" id="compass-direction">North</div>
+                                        </div>
+                                        <div class="info-row">
+                                            <div class="info-label">Degrees:</div>
+                                            <div class="info-value" id="compass-degrees">0°</div>
+                                        </div>
+                                        <div class="info-row">
+                                            <div class="info-label">Accuracy:</div>
+                                            <div class="info-value" id="compass-accuracy">--</div>
+                                        </div>
+                                        <div class="info-row">
+                                            <div class="info-label">Status:</div>
+                                            <div class="info-value" id="compass-status">Initializing...</div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="compass-controls">
+                                        <button class="btn-calculate" onclick="app.compass.startCompass()">Start Compass</button>
+                                        <button class="btn-secondary" onclick="app.compass.calibrateCompass()">Calibrate</button>
+                                        <button class="btn-clear" onclick="app.compass.stopCompass()">Stop</button>
+                                    </div>
+                                    
+                                    <div class="compass-instructions">
+                                        <h5>📋 How to Use:</h5>
+                                        <ul>
+                                            <li>Click "Start Compass" to begin navigation</li>
+                                            <li>Hold your device flat and rotate slowly</li>
+                                            <li>The red needle always points to magnetic North</li>
+                                            <li>Calibrate if accuracy seems low</li>
+                                            <li>Works best outdoors away from metal objects</li>
+                                        </ul>
+                                    </div>`;
                             break;
                         case 'height':
                             html = `<h4>Height Conversion</h4>
@@ -3426,7 +3863,7 @@ body.tool-view-open {
                 setRingSize(size) {
                     const mm = (size * 1.65) + 40;
                     // Fix scale factor for accurate real-world sizing
-                    const diameter = mm * this.scale * 3.2; // Reduced from 6.5 to 3.2 for accurate sizing
+                    const diameter = mm * this.scale * 2.8; // Further reduced for accurate sizing
                     this.updateRingVisual(diameter, mm);
                     document.getElementById('ring-mm-input').value = mm.toFixed(1);
                     this.calcRing(mm);
@@ -3436,7 +3873,7 @@ body.tool-view-open {
                     const visual = document.getElementById('ring-visual');
                     if (visual) {
                         // Adjust size limits for realistic ring sizes
-                        const size = Math.max(40, Math.min(diameter, 200)); // Min 40px, Max 200px
+                        const size = Math.max(50, Math.min(diameter, 180)); // Min 50px, Max 180px
                         visual.style.width = size + 'px';
                         visual.style.height = size + 'px';
                         const ringSize = ((mm - 40) / 1.65).toFixed(1);
@@ -3501,30 +3938,128 @@ body.tool-view-open {
                 },
                 
                 calcWatch(mm) {
-                    let size = 'Standard';
-                    let recommendation = '';
-                    
-                    if (this.selectedBandType === 'leather') {
-                        if (mm < 165) { size = 'Small (16mm)'; recommendation = '16-18mm strap'; }
-                        else if (mm > 190) { size = 'Large (22mm)'; recommendation = '20-22mm strap'; }
-                        else { size = 'Medium (18mm)'; recommendation = '18-20mm strap'; }
-                    } else if (this.selectedBandType === 'metal') {
-                        if (mm < 165) { size = 'Small'; recommendation = 'Add 2-4 links'; }
-                        else if (mm > 190) { size = 'Large'; recommendation = 'Remove 2-4 links'; }
-                        else { size = 'Medium'; recommendation = 'Should fit well'; }
-                    } else if (this.selectedBandType === 'rubber') {
-                        if (mm < 165) { size = 'Small'; recommendation = 'S/M size'; }
-                        else if (mm > 190) { size = 'Large'; recommendation = 'L/XL size'; }
-                        else { size = 'Medium'; recommendation = 'M/L size'; }
-                    } else if (this.selectedBandType === 'nato') {
-                        if (mm < 165) { size = 'Short'; recommendation = '280mm length'; }
-                        else if (mm > 190) { size = 'Long'; recommendation = '300mm+ length'; }
-                        else { size = 'Regular'; recommendation = '280-300mm length'; }
+                    if (!mm || mm <= 0) {
+                        this.updateWatchResult(null);
+                        return;
                     }
                     
-                    const resultEl = document.getElementById('watch-result');
-                    if (resultEl) {
-                        resultEl.textContent = mm > 0 ? `${size} - ${recommendation}` : '--';
+                    let size = 'Medium';
+                    let recommendation = '';
+                    let strapWidth = '';
+                    let strapLength = '';
+                    let comfort = '';
+                    
+                    // Determine size category
+                    if (mm < 150) { 
+                        size = 'Extra Small'; 
+                        strapWidth = '16-18mm'; 
+                        strapLength = '140-160mm';
+                        comfort = 'Snug fit - consider adding extra links';
+                    }
+                    else if (mm < 170) { 
+                        size = 'Small'; 
+                        strapWidth = '18-20mm'; 
+                        strapLength = '160-180mm';
+                        comfort = 'Good fit - standard comfort';
+                    }
+                    else if (mm < 190) { 
+                        size = 'Medium'; 
+                        strapWidth = '20-22mm'; 
+                        strapLength = '180-200mm';
+                        comfort = 'Perfect fit - optimal comfort';
+                    }
+                    else if (mm < 210) { 
+                        size = 'Large'; 
+                        strapWidth = '22-24mm'; 
+                        strapLength = '200-220mm';
+                        comfort = 'Comfortable fit - good for active wear';
+                    }
+                    else { 
+                        size = 'Extra Large'; 
+                        strapWidth = '24-26mm'; 
+                        strapLength = '220-240mm';
+                        comfort = 'Loose fit - consider removing links';
+                    }
+                    
+                    // Band-specific recommendations
+                    let bandSpecific = '';
+                    if (this.selectedBandType === 'leather') {
+                        bandSpecific = `🧥 Leather: ${strapWidth} width, ${strapLength} length. Classic comfort and style.`;
+                    } else if (this.selectedBandType === 'metal') {
+                        bandSpecific = `⚙️ Metal: ${strapWidth} width. Professional look, may need link adjustment.`;
+                    } else if (this.selectedBandType === 'rubber') {
+                        bandSpecific = `🏃 Sport: ${strapWidth} width. Perfect for active lifestyle and water activities.`;
+                    } else if (this.selectedBandType === 'nato') {
+                        bandSpecific = `🎖️ NATO: One-size fits most. ${strapLength} length with adjustable holes.`;
+                    }
+                    
+                    this.updateWatchResult({
+                        size,
+                        strapWidth,
+                        strapLength,
+                        comfort,
+                        bandSpecific,
+                        wristSize: mm
+                    });
+                },
+                
+                updateWatchResult(data) {
+                    const resultDisplay = document.getElementById('watch-result-display');
+                    const bandRecommendations = document.getElementById('band-recommendations');
+                    
+                    if (!data) {
+                        if (resultDisplay) {
+                            resultDisplay.innerHTML = '<div style="text-align: center; color: #6c757d;">📏 Enter your wrist measurement to get personalized recommendations</div>';
+                        }
+                        if (bandRecommendations) {
+                            bandRecommendations.innerHTML = '<div style="background: #e3f2fd; padding: 15px; border-radius: 8px;"><strong>📋 Select a band type above for personalized recommendations</strong></div>';
+                        }
+                        return;
+                    }
+                    
+                    // Update main result display
+                    if (resultDisplay) {
+                        resultDisplay.innerHTML = `
+                            <div style="background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 15px;">
+                                <div style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">🎯 ${data.size}</div>
+                                <div style="font-size: 14px;">Your Perfect Size</div>
+                            </div>
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #007bff;">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                    <div>
+                                        <strong>📏 Your Wrist:</strong> ${data.wristSize}mm
+                                    </div>
+                                    <div>
+                                        <strong>📐 Strap Width:</strong> ${data.strapWidth}
+                                    </div>
+                                    <div>
+                                        <strong>📏 Strap Length:</strong> ${data.strapLength}
+                                    </div>
+                                    <div>
+                                        <strong>😊 Comfort:</strong> ${data.comfort}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                    
+                    // Update band-specific recommendations
+                    if (bandRecommendations) {
+                        bandRecommendations.innerHTML = `
+                            <div style="background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 10px;">
+                                <strong>💡 Your Recommendation:</strong>
+                                <div style="margin-top: 10px; font-size: 14px;">${data.bandSpecific}</div>
+                            </div>
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 8px;">
+                                <strong>🛒 Shopping Tips:</strong>
+                                <ul style="margin: 10px 0; padding-left: 20px;">
+                                    <li>Always check return policy before buying</li>
+                                    <li>Consider your lifestyle (active vs formal wear)</li>
+                                    <li>Read reviews for comfort and durability</li>
+                                    <li>Measure at different times of day (wrists swell)</li>
+                                </ul>
+                            </div>
+                        `;
                     }
                 },
                 
@@ -4080,61 +4615,25 @@ body.tool-view-open {
                     </div>`;
                     
                     switch (game) {
-                        case 'ttt':
+                        case 'snake':
                             html += `<div style="text-align: center; padding: 20px;">
-                                <h2 style="color: var(--doodle-primary); margin-bottom: 20px;"> Tic-Tac-Toe</h2>
+                                <h2 style="color: var(--doodle-primary); margin-bottom: 20px;"> Snake Game</h2>
                                 
-                                <!-- Game Mode Selection -->
-                                <div style="margin-bottom: 20px;">
-                                    <button class="btn-accent" onclick="app.games.setGameMode('pvp')" id="pvp-btn"> Player vs Player</button>
-                                    <button class="btn-secondary" onclick="app.games.setGameMode('pvc')" id="pvc-btn"> Player vs Computer</button>
+                                <canvas id="snake-canvas" width="400" height="400" style="border: 2px solid var(--doodle-border); border-radius: 10px; background: #111;"></canvas>
+                                
+                                <div style="margin-top: 20px;">
+                                    <button class="btn-calculate" onclick="app.games.snake.start()">Start Game</button>
+                                    <button class="btn-secondary" onclick="app.games.snake.pause()">Pause</button>
+                                    <button class="btn-clear" onclick="app.games.snake.reset()">Reset</button>
                                 </div>
                                 
-                                <!-- Board Size Selection -->
-                                <div style="margin-bottom: 20px;">
-                                    <label style="color: var(--doodle-text); margin-right: 10px;">Board Size:</label>
-                                    <button class="btn-calculate" onclick="app.games.ttt.changeBoardSize(3)">3x3</button>
-                                    <button class="btn-secondary" onclick="app.games.ttt.changeBoardSize(4)">4x4</button>
-                                    <button class="btn-secondary" onclick="app.games.ttt.changeBoardSize(5)">5x5</button>
-                                </div>
-                                
-                                <!-- Game Board -->
-                                <div style="display: flex; justify-content: space-around; align-items: flex-start; gap: 30px;">
-                                    <div>
-                                        <div id="tic-tac-toe-board" style="
-                                            display: grid; 
-                                            gap: 5px; 
-                                            margin: 20px auto; 
-                                            padding: 20px; 
-                                            background: var(--note-bg); 
-                                            border-radius: 15px;
-                                            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-                                        "></div>
-                                        <div style="text-align: center;">
-                                            <button class="btn-calculate" onclick="app.games.ttt.reset()"> New Game</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Computer Info -->
-                                    <div style="width: 250px;">
-                                        <div style="background: var(--doodle-bg); padding: 20px; border-radius: 10px; margin-bottom: 15px;">
-                                            <h4 style="color: var(--doodle-primary); margin-bottom: 15px;"> Computer</h4>
-                                            <div id="computer-thinking" style="color: var(--doodle-text); margin-bottom: 10px; font-weight: 500;">Waiting for game...</div>
-                                            <div id="computer-move" style="color: var(--doodle-secondary); font-size: 0.9em;">Computer is ready</div>
-                                        </div>
-                                        
-                                        <div style="background: var(--doodle-bg); padding: 15px; border-radius: 10px;">
-                                            <h4 style="color: var(--doodle-primary); margin-bottom: 10px;">Game Status</h4>
-                                            <p id="ttt-status" style="color: var(--doodle-text); margin: 0;">Click on the board to start!</p>
-                                        </div>
-                                    </div>
+                                <div style="margin-top: 15px; font-size: 18px; font-weight: bold;">
+                                    Score: <span id="snake-score">0</span> | High Score: <span id="snake-high-score">0</span>
                                 </div>
                             </div>`;
-                            area.innerHTML = html;
-                            this.setGameMode('pvp');
-                            this.ttt.init();
+                            this.snake.init();
                             break;
-                        case 'snake':
+                        case 'ludo':
                             html = `<div style="text-align: center;">
                                 <canvas id="snake-canvas" width="400" height="400" style="border: 2px solid var(--doodle-border); margin: 0 auto; display: block; background: #f0f0f0;"></canvas>
                                 <div id="snake-score" class="result" style="text-align:center; margin: 10px 0;">Score: 0 | High Score: <span id="snake-high-score">0</span></div>
