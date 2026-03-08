@@ -2038,30 +2038,121 @@ body.tool-view-open {
                 <h2>Timer</h2>
                 <button class="btn-clear" onclick="app.closeTool()">Close</button>
             </div>
-            <div class="input-row" id="timer-inputs">
-                <div class="input-group">
-                    <label>Minutes:</label>
-                    <input type="number" id="timer-min" min="0" max="999" value="5">
-                   </div>
-                <div class="input-group">
-                    <label>Seconds:</label>
-                    <input type="number" id="timer-sec" min="0" max="59" value="0">
-                </div> </div>
-            <div style="font-size: 3em; text-align: center; margin: 30px 0;" id="timer-display">05:00</div>
-            <div style="display: flex; justify-content: center; gap: 15px;">
-                <button id="timer-start-btn" class="btn-calculate" onclick="app.timer.toggle()" style="display: flex; align-items: center; gap: 8px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <line x1="10" x2="14" y1="2" y2="2"></line>
-  <line x1="12" x2="15" y1="14" y2="11"></line>
-  <circle cx="12" cy="14" r="8"></circle>
-</svg>
-                    Start
-                </button>
-                <button class="btn-clear" onclick="app.timer.reset()" style="display: flex; align-items: center; gap: 8px;">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                    Reset
-                </button>
-            </div> </div>
+            
+            <!-- Compact Timer Layout -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px 0;">
+                
+                <!-- Left Column: Timer Display & Controls -->
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    
+                    <!-- Timer Display with Progress Ring -->
+                    <div style="position: relative; display: inline-block; margin: 0 auto; width: 180px; height: 180px;">
+                        <svg width="180" height="180" style="position: absolute; top: 0; left: 0; transform: rotate(-90deg);">
+                            <circle cx="90" cy="90" r="80" stroke="#e0e0e0" stroke-width="6" fill="none"></circle>
+                            <circle id="timer-progress" cx="90" cy="90" r="80" stroke="#4CAF50" stroke-width="6" fill="none" 
+                                    stroke-dasharray="502.65" stroke-dashoffset="0" stroke-linecap="round"></circle>
+                        </svg>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 2em; font-weight: bold;" id="timer-display">05:00</div>
+                    </div>
+                    
+                    <!-- Control Buttons -->
+                    <div style="display: flex; justify-content: center; gap: 10px;">
+                        <button id="timer-start-btn" class="btn-calculate" onclick="app.timer.toggle()" style="display: flex; align-items: center; gap: 6px; padding: 10px 20px;">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            Start
+                        </button>
+                        <button class="btn-clear" onclick="app.timer.reset()" style="display: flex; align-items: center; gap: 6px; padding: 10px 20px;">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+                                <path d="M3 3v5h5"></path>
+                            </svg>
+                            Reset
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Right Column: Time Input & Presets -->
+                <div style="display: flex; flex-direction: column; gap: 15px;">
+                    
+                    <!-- Time Inputs -->
+                    <div id="timer-inputs" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+                        <div class="input-group" style="margin: 0;">
+                            <label style="font-size: 0.9em;">Hours</label>
+                            <input type="number" id="timer-hr" min="0" max="23" value="0" style="padding: 8px;">
+                        </div>
+                        <div class="input-group" style="margin: 0;">
+                            <label style="font-size: 0.9em;">Minutes</label>
+                            <input type="number" id="timer-min" min="0" max="59" value="5" style="padding: 8px;">
+                        </div>
+                        <div class="input-group" style="margin: 0;">
+                            <label style="font-size: 0.9em;">Seconds</label>
+                            <input type="number" id="timer-sec" min="0" max="59" value="0" style="padding: 8px;">
+                        </div>
+                    </div>
+                    
+                    <!-- Preset Buttons -->
+                    <div>
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 0.9em; color: #666;">Quick Set:</div>
+                        <div class="preset-buttons" style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                            <button class="btn-preset" onclick="app.timer.setPreset(0.5)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">30 sec</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(1)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">1 min</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(2)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">2 min</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(5)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">5 min</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(10)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">10 min</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(15)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">15 min</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(25)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">25 min</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(30)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">30 min</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(45)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">45 min</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(60)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">1 hour</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(90)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">1.5 hour</button>
+                            <button class="btn-preset" onclick="app.timer.setPreset(120)" style="padding: 6px; font-size: 0.8em; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.background='#e9ecef'" onmouseout="this.style.background='#f8f9fa'">2 hours</button>
+                        </div>
+                        
+                        <!-- Custom Quick Input -->
+                        <div style="margin-top: 12px; padding: 10px; background: #f8f9fa; border-radius: 6px;">
+                            <div style="font-size: 0.85em; color: #666; margin-bottom: 6px;">Custom Quick Set:</div>
+                            <div style="display: flex; gap: 6px; align-items: center;">
+                                <input type="number" id="custom-minutes" min="0" max="999" placeholder="Min" style="flex: 1; padding: 6px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.85em;">
+                                <input type="number" id="custom-seconds" min="0" max="59" placeholder="Sec" style="flex: 1; padding: 6px; border: 1px solid #dee2e6; border-radius: 4px; font-size: 0.85em;">
+                                <button onclick="app.timer.setCustomPreset()" style="padding: 6px 12px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: 500;">Set</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Timer Notification (Hidden by default) -->
+            <div id="timer-notification" style="
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%) scale(0);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                padding: 30px 40px;
+                border-radius: 15px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+                z-index: 10000;
+                text-align: center;
+                transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            ">
+                <div style="font-size: 2.5em; margin-bottom: 10px;">⏰</div>
+                <div style="font-size: 1.5em; font-weight: bold; margin-bottom: 10px;">Timer Finished!</div>
+                <div style="font-size: 1em; opacity: 0.9;">Your timer has completed</div>
+                <button onclick="app.timer.hideNotification()" style="
+                    margin-top: 20px;
+                    padding: 10px 20px;
+                    background: rgba(255,255,255,0.2);
+                    border: 2px solid white;
+                    color: white;
+                    border-radius: 25px;
+                    cursor: pointer;
+                    font-weight: bold;
+                ">Close</button>
+            </div>
+        </div>
 
         <div id="sizer" class="tool-container">
             <div class="tool-header">
@@ -3233,61 +3324,219 @@ body.tool-view-open {
             timer: {
                 interval: null,
                 totalSeconds: 0,
+                initialSeconds: 0,
                 isRunning: false,
-
+                
                 updateDisplay(seconds) {
-                    const min = Math.floor(seconds / 60).toString().padStart(2, '0');
+                    const hr = Math.floor(seconds / 3600).toString().padStart(2, '0');
+                    const min = Math.floor((seconds % 3600) / 60).toString().padStart(2, '0');
                     const sec = (seconds % 60).toString().padStart(2, '0');
-                    document.getElementById('timer-display').textContent = `${min}:${sec}`;
+                    
+                    if (hr > '00') {
+                        document.getElementById('timer-display').textContent = `${hr}:${min}:${sec}`;
+                    } else {
+                        document.getElementById('timer-display').textContent = `${min}:${sec}`;
+                    }
+                    
+                    this.updateProgress(seconds);
+                },
+                
+                updateProgress(currentSeconds) {
+                    if (this.initialSeconds > 0) {
+                        const progress = document.getElementById('timer-progress');
+                        const percentage = (this.initialSeconds - currentSeconds) / this.initialSeconds;
+                        const circumference = 2 * Math.PI * 80;
+                        const offset = circumference * (1 - percentage);
+                        progress.style.strokeDashoffset = offset;
+                        
+                        if (currentSeconds <= 10) {
+                            progress.style.stroke = '#ff4444';
+                        } else if (currentSeconds <= 30) {
+                            progress.style.stroke = '#ff9800';
+                        } else {
+                            progress.style.stroke = '#4CAF50';
+                        }
+                    }
+                },
+                
+                setPreset(minutes) {
+                    document.getElementById('timer-hr').value = Math.floor(minutes / 60);
+                    document.getElementById('timer-min').value = minutes % 60;
+                    document.getElementById('timer-sec').value = 0;
+                    this.reset();
+                },
+                
+                setCustomPreset() {
+                    const customMin = parseInt(document.getElementById('custom-minutes').value) || 0;
+                    const customSec = parseInt(document.getElementById('custom-seconds').value) || 0;
+                    
+                    if (customMin === 0 && customSec === 0) {
+                        this.showNotification('Please enter a valid time!');
+                        return;
+                    }
+                    
+                    document.getElementById('timer-hr').value = Math.floor(customMin / 60);
+                    document.getElementById('timer-min').value = customMin % 60;
+                    document.getElementById('timer-sec').value = customSec;
+                    
+                    // Clear custom inputs
+                    document.getElementById('custom-minutes').value = '';
+                    document.getElementById('custom-seconds').value = '';
+                    
+                    this.reset();
+                    
+                    // Visual feedback
+                    const setBtn = event.target;
+                    const originalText = setBtn.textContent;
+                    setBtn.textContent = '✓ Set';
+                    setBtn.style.background = '#28a745';
+                    setTimeout(() => {
+                        setBtn.textContent = originalText;
+                        setBtn.style.background = '#007bff';
+                    }, 1000);
+                },
+                
+                playSound() {
+                    // Create a more pleasant notification sound
+                    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.value = 800;
+                    oscillator.type = 'sine';
+                    
+                    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.5);
+                    
+                    // Play a second beep
+                    setTimeout(() => {
+                        const osc2 = audioContext.createOscillator();
+                        const gain2 = audioContext.createGain();
+                        osc2.connect(gain2);
+                        gain2.connect(audioContext.destination);
+                        osc2.frequency.value = 800;
+                        osc2.type = 'sine';
+                        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+                        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+                        osc2.start(audioContext.currentTime);
+                        osc2.stop(audioContext.currentTime + 0.5);
+                    }, 600);
+                },
+                
+                showNotification() {
+                    const notification = document.getElementById('timer-notification');
+                    notification.style.transform = 'translate(-50%, -50%) scale(1)';
+                    this.playSound();
+                    
+                    // Auto-hide after 10 seconds
+                    setTimeout(() => {
+                        this.hideNotification();
+                    }, 10000);
+                },
+                
+                hideNotification() {
+                    const notification = document.getElementById('timer-notification');
+                    notification.style.transform = 'translate(-50%, -50%) scale(0)';
                 },
                 
                 toggle() {
                     this.isRunning = !this.isRunning;
                     if (this.isRunning) {
+                        const hr = parseInt(document.getElementById('timer-hr').value) || 0;
                         const min = parseInt(document.getElementById('timer-min').value) || 0;
                         const sec = parseInt(document.getElementById('timer-sec').value) || 0;
                         
                         if (this.totalSeconds <= 0) {
-                            this.totalSeconds = (min * 60) + sec;
+                            this.totalSeconds = (hr * 3600) + (min * 60) + sec;
+                            this.initialSeconds = this.totalSeconds;
                         }
 
                         if (this.totalSeconds > 0) {
-                            document.getElementById('timer-inputs').style.display = 'none';
-                            document.getElementById('timer-start-btn').textContent = 'Pause';
+                            document.getElementById('timer-inputs').style.opacity = '0.5';
+                            document.getElementById('timer-inputs').style.pointerEvents = 'none';
+                            document.querySelector('.preset-buttons').style.opacity = '0.5';
+                            document.querySelector('.preset-buttons').style.pointerEvents = 'none';
+                            
+                            document.getElementById('timer-start-btn').innerHTML = `
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <rect x="6" y="4" width="4" height="16"></rect>
+                                    <rect x="14" y="4" width="4" height="16"></rect>
+                                </svg>
+                                Pause
+                            `;
                             this.interval = setInterval(() => {
                                 this.totalSeconds--;
                                 this.updateDisplay(this.totalSeconds);
+                                
                                 if (this.totalSeconds <= 0) {
                                     this.finish();
                                 }
                             }, 1000);
-                        } else {
-                            this.isRunning = false; // no time set
                         }
                     } else {
                         clearInterval(this.interval);
-                        document.getElementById('timer-start-btn').textContent = 'Resume';
+                        document.getElementById('timer-inputs').style.opacity = '1';
+                        document.getElementById('timer-inputs').style.pointerEvents = 'auto';
+                        document.querySelector('.preset-buttons').style.opacity = '1';
+                        document.querySelector('.preset-buttons').style.pointerEvents = 'auto';
+                        
+                        document.getElementById('timer-start-btn').innerHTML = `
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                            </svg>
+                            Resume
+                        `;
                     }
                 },
 
                 finish() {
                     clearInterval(this.interval);
                     this.isRunning = false;
-                    document.getElementById('timer-start-btn').textContent = 'Start';
-                    document.getElementById('timer-inputs').style.display = 'grid';
-                    app.notification.show("Timer Finished!", 10000);
-                    // Add sound alert here if desired
+                    document.getElementById('timer-start-btn').innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Start
+                    `;
+                    document.getElementById('timer-inputs').style.opacity = '1';
+                    document.getElementById('timer-inputs').style.pointerEvents = 'auto';
+                    document.querySelector('.preset-buttons').style.opacity = '1';
+                    document.querySelector('.preset-buttons').style.pointerEvents = 'auto';
+                    
+                    this.showNotification();
                 },
 
                 reset() {
                     clearInterval(this.interval);
                     this.isRunning = false;
-                    this.totalSeconds = 0;
-                    const min = document.getElementById('timer-min').value;
-                    const sec = document.getElementById('timer-sec').value;
-                    this.updateDisplay(parseInt(min) * 60 + parseInt(sec));
-                    document.getElementById('timer-start-btn').textContent = 'Start';
-                    document.getElementById('timer-inputs').style.display = 'grid';
+                    const hr = parseInt(document.getElementById('timer-hr').value) || 0;
+                    const min = parseInt(document.getElementById('timer-min').value) || 0;
+                    const sec = parseInt(document.getElementById('timer-sec').value) || 0;
+                    this.totalSeconds = (hr * 3600) + (min * 60) + sec;
+                    this.initialSeconds = this.totalSeconds;
+                    this.updateDisplay(this.totalSeconds);
+                    document.getElementById('timer-start-btn').innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                        Start
+                    `;
+                    document.getElementById('timer-inputs').style.opacity = '1';
+                    document.getElementById('timer-inputs').style.pointerEvents = 'auto';
+                    document.querySelector('.preset-buttons').style.opacity = '1';
+                    document.querySelector('.preset-buttons').style.pointerEvents = 'auto';
+                    
+                    const progress = document.getElementById('timer-progress');
+                    progress.style.strokeDashoffset = '0';
+                    progress.style.stroke = '#4CAF50';
+                    
+                    this.hideNotification();
                 }
             },
 
