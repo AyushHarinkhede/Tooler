@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="doodle">
+<html lang="en" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -2475,18 +2475,297 @@ body.tool-view-open {
 
  <div id="browser" class="tool-container">
             <div class="tool-header">
-                <h2>Browser</h2>
+                <h2>Web Browser</h2>
                 <button class="btn-clear" onclick="app.closeTool()">Close</button>
             </div>
-            <div class="input-group">
-                <label>Enter URL:</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="url" id="browser-url" placeholder="https://example.com" style="flex: 1;">
-                    <button class="btn-calculate" onclick="app.browser.go()">Go</button>
+            
+            <!-- Smart Search Bar -->
+            <div style="margin-bottom: 20px;">
+                <div style="position: relative; display: flex; align-items: center; gap: 10px;">
+                    <div style="position: relative; flex: 1;">
+                        <div style="position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #6c757d; pointer-events: none;">
+                            Search
+                        </div>
+                        <input type="text" 
+                               id="browser-url" 
+                               placeholder="Search Google or enter website address..." 
+                               style="
+                                   width: 100%;
+                                   padding: 15px 15px 15px 70px;
+                                   font-size: 1em;
+                                   border: 2px solid #e9ecef;
+                                   border-radius: 8px;
+                                   outline: none;
+                                   transition: all 0.3s ease;
+                                   background: #fff;
+                                   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                               "
+                               onkeypress="app.browser.handleKeyPress(event)"
+                               onfocus="this.style.borderColor='#007bff';"
+                               onblur="this.style.borderColor='#e9ecef';">
+                    </div>
+                    <button onclick="app.browser.go()" 
+                            style="
+                                padding: 15px 30px;
+                                background: #007bff;
+                                color: white;
+                                border: none;
+                                border-radius: 8px;
+                                cursor: pointer;
+                                font-weight: 600;
+                                font-size: 1em;
+                                transition: all 0.3s ease;
+                                box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+                            "
+                            onmouseover="this.style.background='#0056b3'"
+                            onmouseout="this.style.background='#007bff'">
+                        Go
+                    </button>
                 </div>
             </div>
-            <iframe id="browser-frame"></iframe>
-         </div>
+            
+            <!-- Quick Access Websites -->
+            <div style="margin-bottom: 20px;">
+                <div style="font-weight: 600; margin-bottom: 10px; color: #495057;">Quick Access:</div>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button onclick="app.browser.navigate('https://www.google.com')" 
+                            style="
+                                padding: 10px 20px;
+                                background: #4285f4;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 0.9em;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        Google
+                    </button>
+                    <button onclick="app.browser.navigate('https://www.youtube.com')" 
+                            style="
+                                padding: 10px 20px;
+                                background: #ff0000;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 0.9em;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        YouTube
+                    </button>
+                    <button onclick="app.browser.navigate('https://www.github.com')" 
+                            style="
+                                padding: 10px 20px;
+                                background: #333;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 0.9em;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        GitHub
+                    </button>
+                    <button onclick="app.browser.navigate('https://www.facebook.com')" 
+                            style="
+                                padding: 10px 20px;
+                                background: #1877f2;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 0.9em;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        Facebook
+                    </button>
+                    <button onclick="app.browser.navigate('https://www.twitter.com')" 
+                            style="
+                                padding: 10px 20px;
+                                background: #1da1f2;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 0.9em;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        Twitter
+                    </button>
+                    <button onclick="app.browser.navigate('https://www.wikipedia.org')" 
+                            style="
+                                padding: 10px 20px;
+                                background: #000;
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 0.9em;
+                                font-weight: 500;
+                                transition: all 0.2s;
+                            "
+                            onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 8px rgba(0,0,0,0.2)'"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'">
+                        Wikipedia
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Browser Controls -->
+            <div style="display: flex; gap: 8px; margin-bottom: 15px; align-items: center; padding: 10px; background: #f8f9fa; border-radius: 8px;">
+                <button onclick="app.browser.back()" 
+                        style="
+                            padding: 8px 16px;
+                            background: #6c757d;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.9em;
+                            transition: all 0.2s;
+                        "
+                        onmouseover="this.style.background='#5a6268'"
+                        onmouseout="this.style.background='#6c757d'">
+                    Back
+                </button>
+                <button onclick="app.browser.forward()" 
+                        style="
+                            padding: 8px 16px;
+                            background: #6c757d;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.9em;
+                            transition: all 0.2s;
+                        "
+                        onmouseover="this.style.background='#5a6268'"
+                        onmouseout="this.style.background='#6c757d'">
+                    Forward
+                </button>
+                <button onclick="app.browser.reload()" 
+                        style="
+                            padding: 8px 16px;
+                            background: #28a745;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.9em;
+                            transition: all 0.2s;
+                        "
+                        onmouseover="this.style.background='#218838'"
+                        onmouseout="this.style.background='#28a745'">
+                    Reload
+                </button>
+                <button onclick="app.browser.home()" 
+                        style="
+                            padding: 8px 16px;
+                            background: #17a2b8;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.9em;
+                            transition: all 0.2s;
+                        "
+                        onmouseover="this.style.background='#138496'"
+                        onmouseout="this.style.background='#17a2b8'">
+                    Home
+                </button>
+                
+                <div style="flex: 1;"></div>
+                
+                <div style="font-size: 0.9em; color: #6c757d; font-weight: 500;">
+                    Status: <span id="browser-status">Ready</span>
+                </div>
+            </div>
+            
+            <!-- Browser Frame -->
+            <div style="
+                border: 2px solid #e9ecef;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+                background: #fff;
+                min-height: 500px;
+            ">
+                <iframe id="browser-frame" 
+                        style="
+                            width: 100%;
+                            height: 500px;
+                            border: none;
+                            background: #fff;
+                        "
+                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                        onload="app.browser.onFrameLoad()"
+                        onerror="app.browser.onFrameError()"></iframe>
+            </div>
+            
+            <!-- Current URL Display -->
+            <div style="
+                margin-top: 15px;
+                padding: 12px 15px;
+                background: #f8f9fa;
+                border-radius: 8px;
+                font-size: 0.9em;
+                color: #495057;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-left: 4px solid #007bff;
+            ">
+                <span>Current URL: <strong id="current-url" style="color: #007bff;">None</strong></span>
+                <button onclick="app.browser.copyUrl()" 
+                        style="
+                            padding: 6px 12px;
+                            background: #007bff;
+                            color: white;
+                            border: none;
+                            border-radius: 6px;
+                            cursor: pointer;
+                            font-size: 0.85em;
+                            font-weight: 500;
+                        "
+                        onmouseover="this.style.background='#0056b3'"
+                        onmouseout="this.style.background='#007bff'">
+                    Copy URL
+                </button>
+            </div>
+            
+            <!-- Instructions -->
+            <div style="
+                margin-top: 15px;
+                padding: 12px 15px;
+                background: #e3f2fd;
+                border-radius: 8px;
+                font-size: 0.85em;
+                color: #1565c0;
+                border-left: 4px solid #2196f3;
+            ">
+                <strong>How to use:</strong><br>
+                • Type a search term like "cats" to search Google<br>
+                • Type a website name like "facebook" or full URL like "https://google.com"<br>
+                • Use the quick access buttons for popular sites<br>
+                • Use navigation buttons to go back, forward, reload, or home
+            </div>
+        </div>
 
         <div id="compass" class="tool-container">
             <div class="tool-header">
@@ -2699,11 +2978,10 @@ body.tool-view-open {
                 <div class="setting-item" style="display: flex; justify-content: space-between; align-items: center; padding: 15px; background: var(--note-bg); border-radius: 10px; margin-bottom: 15px;">
                     <label style="font-weight: 600; color: var(--doodle-text);">Theme:</label>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn-accent" onclick="app.settings.setTheme('doodle')"> Doodle</button>
                         <button class="btn-accent" onclick="app.settings.setTheme('dark')"> Dark</button>
                         <button class="btn-accent" onclick="app.settings.setTheme('light')"> Light</button>
                     </div>
-                    <span class="setting-display" data-setting="theme" style="font-weight: 700; color: var(--doodle-primary);"> Doodle</span>
+                    <span class="setting-display" data-setting="theme" style="font-weight: 700; color: var(--doodle-primary);"> Dark</span>
                 </div>
                 
                 <!-- Language -->
@@ -6315,12 +6593,145 @@ Petabytes: ${(bytes / (1024 * 1024 * 1024 * 1024 * 1024)).toFixed(2)} PB`;
             },
 
             browser: {
-                go() {
-                    let url = document.getElementById('browser-url').value;
-                    if (!url.startsWith('http')) {
-                        url = 'https://' + url;
+                history: [],
+                currentIndex: -1,
+                
+                handleKeyPress(event) {
+                    if (event.key === 'Enter') {
+                        this.go();
                     }
+                },
+                
+                go() {
+                    let url = document.getElementById('browser-url').value.trim();
+                    const status = document.getElementById('browser-status');
+                    const currentUrlDisplay = document.getElementById('current-url');
+                    
+                    if (!url) {
+                        status.textContent = 'Please enter a URL or search term';
+                        return;
+                    }
+                    
+                    // Check if it's a search term or URL
+                    if (!url.startsWith('http') && !url.startsWith('https') && !url.includes('.')) {
+                        // It's a search term
+                        url = `https://www.google.com/search?q=${encodeURIComponent(url)}`;
+                        status.textContent = 'Searching...';
+                    } else {
+                        // It's a URL
+                        if (!url.startsWith('http') && !url.startsWith('https')) {
+                            url = 'https://' + url;
+                        }
+                        status.textContent = 'Loading...';
+                    }
+                    
+                    // Update current URL display
+                    currentUrlDisplay.textContent = url;
+                    
+                    // Add to history
+                    this.addToHistory(url);
+                    
+                    // Load in iframe
                     document.getElementById('browser-frame').src = url;
+                },
+                
+                navigate(url) {
+                    document.getElementById('browser-url').value = url;
+                    this.go();
+                },
+                
+                back() {
+                    if (this.currentIndex > 0) {
+                        this.currentIndex--;
+                        const url = this.history[this.currentIndex];
+                        document.getElementById('browser-url').value = url;
+                        document.getElementById('browser-frame').src = url;
+                        document.getElementById('current-url').textContent = url;
+                    }
+                },
+                
+                forward() {
+                    if (this.currentIndex < this.history.length - 1) {
+                        this.currentIndex++;
+                        const url = this.history[this.currentIndex];
+                        document.getElementById('browser-url').value = url;
+                        document.getElementById('browser-frame').src = url;
+                        document.getElementById('current-url').textContent = url;
+                    }
+                },
+                
+                reload() {
+                    const frame = document.getElementById('browser-frame');
+                    frame.src = frame.src;
+                    document.getElementById('browser-status').textContent = 'Reloading...';
+                },
+                
+                home() {
+                    this.navigate('https://www.google.com');
+                },
+                
+                copyUrl() {
+                    const currentUrl = document.getElementById('current-url').textContent;
+                    if (currentUrl && currentUrl !== 'None') {
+                        navigator.clipboard.writeText(currentUrl).then(() => {
+                            // Show feedback
+                            const copyBtn = event.target;
+                            const originalText = copyBtn.textContent;
+                            copyBtn.textContent = '✅ Copied!';
+                            copyBtn.style.background = '#28a745';
+                            
+                            setTimeout(() => {
+                                copyBtn.textContent = originalText;
+                                copyBtn.style.background = '#007bff';
+                            }, 2000);
+                        }).catch(() => {
+                            // Fallback for older browsers
+                            const textArea = document.createElement('textarea');
+                            textArea.value = currentUrl;
+                            document.body.appendChild(textArea);
+                            textArea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textArea);
+                            
+                            const copyBtn = event.target;
+                            const originalText = copyBtn.textContent;
+                            copyBtn.textContent = '✅ Copied!';
+                            copyBtn.style.background = '#28a745';
+                            
+                            setTimeout(() => {
+                                copyBtn.textContent = originalText;
+                                copyBtn.style.background = '#007bff';
+                            }, 2000);
+                        });
+                    }
+                },
+                
+                addToHistory(url) {
+                    // Remove if already exists
+                    const existingIndex = this.history.indexOf(url);
+                    if (existingIndex !== -1) {
+                        this.history.splice(existingIndex, 1);
+                    }
+                    
+                    // Add to end
+                    this.history.push(url);
+                    this.currentIndex = this.history.length - 1;
+                    
+                    // Keep only last 50 URLs
+                    if (this.history.length > 50) {
+                        this.history.shift();
+                        this.currentIndex--;
+                    }
+                },
+                
+                onFrameLoad() {
+                    document.getElementById('browser-status').textContent = 'Loaded';
+                    const frame = document.getElementById('browser-frame');
+                    document.getElementById('current-url').textContent = frame.src || 'Unknown';
+                },
+                
+                onFrameError() {
+                    document.getElementById('browser-status').textContent = 'Error loading page';
                 }
             },
             
