@@ -8,6 +8,7 @@ import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
 import '../services/sensor_service.dart';
 import '../widgets_3d/stationery_3d_modal.dart';
+import '../widgets_3d/bouncy_tap.dart';
 
 enum CompassDisplayMode {
   compass,
@@ -103,71 +104,59 @@ class _CompassScreenState extends State<CompassScreen>
     Stationery3DModal.show(
       context: context,
       title: "Sensor Calibration",
-      subtitle: "Calibrate magnetometer & accelerometer",
+      subtitle: null,
       theme: widget.theme,
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: widget.theme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
+              color: widget.theme.primary.withValues(alpha: 0.10),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: widget.theme.primary.withValues(alpha: 0.4),
+                color: widget.theme.primary.withValues(alpha: 0.35),
                 width: 1.5,
               ),
             ),
             child: Column(
               children: [
-                Icon(
-                  Icons.screen_rotation_rounded,
-                  size: 44,
-                  color: widget.theme.primary,
-                ),
+                _AnimatedFigure8Phone(theme: widget.theme),
                 const SizedBox(height: 10),
                 Text(
-                  "Wave your phone in a Figure-8 motion in the air 3 to 4 times.",
+                  "Wave in Figure-8",
                   textAlign: TextAlign.center,
                   style: widget.theme.fontDisplay(
-                    fontSize: 14,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: widget.theme.text,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Text(
-                  "This recalibrates the geomagnetic sensor against local electrical interference and locks true heading and leveling.",
+                  "Move phone 3 to 4 times in the air",
                   textAlign: TextAlign.center,
                   style: widget.theme.fontDisplay(
                     fontSize: 12,
-                    color: widget.theme.textSecondary,
+                    fontWeight: FontWeight.w600,
+                    color: widget.theme.primary,
                   ),
                 ),
               ],
             ),
           ),
           const SizedBox(height: 14),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildMetricChip(
-                label: "Magnetic Field",
-                val: "${_reading.magneticStrength.toStringAsFixed(1)} µT",
-              ),
-              _buildMetricChip(
-                label: "Sensor Accuracy",
-                val: _reading.accuracy.name.toUpperCase(),
-                highlight: true,
-              ),
-            ],
+          _buildMetricChip(
+            label: "Magnetic Field Strength",
+            val: "${_reading.magneticStrength.toStringAsFixed(1)} µT",
+            highlight: true,
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: widget.theme.primary,
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
@@ -177,7 +166,7 @@ class _CompassScreenState extends State<CompassScreen>
               _recalibrateSensor();
             },
             icon: const Icon(Icons.check_circle_outline, size: 18),
-            label: const Text("Zero & Re-Calibrate Now"),
+            label: const Text("Recalibrate Now"),
           ),
         ],
       ),
@@ -244,47 +233,28 @@ class _CompassScreenState extends State<CompassScreen>
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Column(
                 children: [
-                  // 1. Unified Mode Selector Switch (Compass vs Leveler) with Calibration
+                  // 1. Mode Switch (Compass vs Leveler) & Auto Tilt Mode Button
                   Row(
                     children: [
                       Expanded(child: _buildUnifiedModeSwitch(isLeveler)),
                       const SizedBox(width: 8),
-                      IconButton(
-                        style: IconButton.styleFrom(
-                          backgroundColor: widget.theme.cardBg,
-                          side: BorderSide(color: widget.theme.border, width: 1.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        icon: Icon(Icons.tune_rounded, color: widget.theme.primary, size: 20),
-                        tooltip: "Calibrate Sensors",
-                        onPressed: _showCalibrationModal,
-                      ),
+                      _buildAutoModeButton(),
                     ],
                   ),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
-                  // 2. Cohesive Orientation & Status Pill
-                  _buildStatusPill(isLeveler),
-
-                  const SizedBox(height: 14),
-
-                  // 3. Primary Readout Card (Matches between both modes with theme color)
+                  // 2. Primary Readout Card (Matches between both modes with theme color)
                   _buildPrimaryReadoutCard(activeHeading, directionText, isLeveler),
 
                   const SizedBox(height: 18),
 
-                  // 4. MAIN CIRCLE INSTRUMENT (Precision Dual-Ring Bezel)
+                  // 3. MAIN CIRCLE INSTRUMENT (Precision Dual-Ring Bezel)
                   _buildMainInstrumentCircle(headingRad, isLeveler),
 
                   const SizedBox(height: 20),
 
-                  // 5. Directional Coordinate Bar / Incline Telemetry Bar
-                  _buildInstrumentCoordinatesBar(isLeveler),
-
-                  const SizedBox(height: 16),
-
-                  // 6. Sensor Fusion Telemetry Dashboard
+                  // 4. Sensor Fusion Telemetry Dashboard
                   _buildTelemetryDashboard(),
 
                   const SizedBox(height: 24),
@@ -391,75 +361,84 @@ class _CompassScreenState extends State<CompassScreen>
     );
   }
 
-  // --- 2. STATUS PILL ---
-  Widget _buildStatusPill(bool isLeveler) {
-    final bool isBalanced = (_reading.roll.abs() < 0.6 && _reading.pitch.abs() < 0.6);
-    final String statusText = isLeveler
-        ? (isBalanced ? "SURFACE BALANCED · 0.0°" : "INCLINE DETECTED · ${_reading.roll.abs().toStringAsFixed(1)}°")
-        : "MAGNETIC AZIMUTH · TILT COMPENSATED";
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-      decoration: BoxDecoration(
-        color: widget.theme.primary.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: widget.theme.primary.withValues(alpha: 0.35),
-          width: 1.2,
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: isLeveler
-                      ? (isBalanced ? widget.theme.primary : const Color(0xFFF59E0B))
-                      : widget.theme.primary,
-                  shape: BoxShape.circle,
+  // --- AUTO ORIENTATION TILT SWITCH BUTTON ---
+  Widget _buildAutoModeButton() {
+    final bool isActive = _autoDetectOrientation;
+    return BouncyTap(
+      onTap: () {
+        SoundService().playKey();
+        HapticFeedback.selectionClick();
+        setState(() {
+          _autoDetectOrientation = !_autoDetectOrientation;
+        });
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(
+                  _autoDetectOrientation ? Icons.check_circle_rounded : Icons.info_outline_rounded,
+                  color: Colors.white,
+                  size: 18,
                 ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                statusText,
-                style: widget.theme.fontMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: widget.theme.primary,
+                const SizedBox(width: 8),
+                Text(
+                  _autoDetectOrientation
+                      ? "Auto Tilt Detection ON: Device switches dynamically!"
+                      : "Auto Tilt Detection OFF: Manual mode locked.",
+                  style: widget.theme.fontDisplay(color: Colors.white, fontSize: 12),
                 ),
-              ),
-            ],
+              ],
+            ),
+            backgroundColor: widget.theme.primary,
+            duration: const Duration(seconds: 1),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
-          GestureDetector(
-            onTap: () {
-              HapticFeedback.selectionClick();
-              setState(() => _autoDetectOrientation = !_autoDetectOrientation);
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: _autoDetectOrientation
-                    ? widget.theme.primary.withValues(alpha: 0.2)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                _autoDetectOrientation ? "Auto: ON" : "Auto: OFF",
-                style: widget.theme.fontMono(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: _autoDetectOrientation
-                      ? widget.theme.primary
-                      : widget.theme.textSecondary,
-                ),
+        );
+      },
+      scaleFraction: 0.90,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 48,
+        height: 48,
+        decoration: BoxDecoration(
+          color: isActive ? widget.theme.primary : widget.theme.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isActive ? widget.theme.primary : widget.theme.border,
+            width: 1.8,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isActive
+                  ? widget.theme.primary.withValues(alpha: 0.35)
+                  : widget.theme.border.withValues(alpha: 0.25),
+              offset: const Offset(0, 3),
+              blurRadius: isActive ? 8 : 4,
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.screen_rotation_rounded,
+              size: 20,
+              color: isActive ? Colors.white : widget.theme.primary,
+            ),
+            const SizedBox(height: 1),
+            Text(
+              "AUTO",
+              style: widget.theme.fontMono(
+                fontSize: 8.5,
+                fontWeight: FontWeight.w900,
+                color: isActive ? Colors.white : widget.theme.primary,
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -703,95 +682,7 @@ class _CompassScreenState extends State<CompassScreen>
     );
   }
 
-  // --- 5. INSTRUMENT COORDINATES & STATUS BAR ---
-  Widget _buildInstrumentCoordinatesBar(bool isLeveler) {
-    if (isLeveler) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: widget.theme.cardBg,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: widget.theme.border, width: 1.5),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildAxisIndicator("Roll (X Tilt)", _reading.roll, "°"),
-            Container(width: 1.2, height: 28, color: widget.theme.border),
-            _buildAxisIndicator("Pitch (Y Tilt)", _reading.pitch, "°"),
-          ],
-        ),
-      );
-    }
-
-    // Compass 4 Cardinal Axis Badges
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: widget.theme.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: widget.theme.border, width: 1.5),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildDirBadge("▲ NORTH", "0° True Heading", widget.theme.primary),
-          _buildDirBadge("◀ WEST", "270° Azimuth", widget.theme.text),
-          _buildDirBadge("EAST ▶", "90° Azimuth", widget.theme.text),
-          _buildDirBadge("▼ SOUTH", "180° Reverse", widget.theme.textSecondary),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDirBadge(String label, String sub, Color color) {
-    return Column(
-      children: [
-        Text(
-          label,
-          style: widget.theme.fontMono(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: color,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          sub,
-          style: TextStyle(
-            fontSize: 8.5,
-            color: widget.theme.textSecondary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAxisIndicator(String label, double val, String unit) {
-    final bool nearZero = val.abs() < 0.6;
-    return Column(
-      children: [
-        Text(
-          label,
-          style: widget.theme.fontDisplay(
-            fontSize: 11,
-            color: widget.theme.textSecondary,
-          ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          "${val > 0 ? '+' : ''}${val.toStringAsFixed(1)}$unit",
-          style: widget.theme.fontMono(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: nearZero ? widget.theme.primary : widget.theme.text,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // --- 6. TELEMETRY DASHBOARD ---
+  // --- 4. TELEMETRY DASHBOARD (With Sensor Calibration Button) ---
   Widget _buildTelemetryDashboard() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -823,23 +714,36 @@ class _CompassScreenState extends State<CompassScreen>
                   ),
                 ],
               ),
-              InkWell(
-                onTap: _recalibrateSensor,
-                borderRadius: BorderRadius.circular(8),
+              BouncyTap(
+                onTap: _showCalibrationModal,
+                scaleFraction: 0.92,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: widget.theme.primary.withValues(alpha: 0.12),
+                    color: widget.theme.primary,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: widget.theme.primary, width: 1.2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: widget.theme.primary.withValues(alpha: 0.3),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    "Re-Zero 🔄",
-                    style: widget.theme.fontDisplay(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: widget.theme.primary,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.tune_rounded, size: 13, color: Colors.white),
+                      const SizedBox(width: 4),
+                      Text(
+                        "Sensor Calibration",
+                        style: widget.theme.fontDisplay(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -857,16 +761,263 @@ class _CompassScreenState extends State<CompassScreen>
                 label: "Gyro Z Velocity",
                 val: "${_reading.gyroZ.toStringAsFixed(1)} °/s",
               ),
-              _buildMetricChip(
-                label: "Accuracy",
-                val: _reading.accuracy.name.toUpperCase(),
-                highlight: true,
-              ),
             ],
           ),
         ],
       ),
     );
+  }
+}
+
+// =============================================================================
+// LIVE ANIMATED FIGURE-8 HAND & SMARTPHONE FOR SENSOR CALIBRATION
+// Authentic hand gripping phone traveling a vertical infinity loop in 3D perspective
+// =============================================================================
+class _AnimatedFigure8Phone extends StatefulWidget {
+  final StationeryTheme theme;
+  const _AnimatedFigure8Phone({required this.theme});
+
+  @override
+  State<_AnimatedFigure8Phone> createState() => _AnimatedFigure8PhoneState();
+}
+
+class _AnimatedFigure8PhoneState extends State<_AnimatedFigure8Phone>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3200),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (context, child) {
+        return CustomPaint(
+          size: const Size(220, 160),
+          painter: _Figure8HandPainter(
+            progress: _ctrl.value,
+            theme: widget.theme,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _Figure8HandPainter extends CustomPainter {
+  final double progress;
+  final StationeryTheme theme;
+
+  _Figure8HandPainter({
+    required this.progress,
+    required this.theme,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final double cx = size.width / 2;
+    final double cy = size.height / 2;
+    const double rx = 52.0;
+    const double ry = 46.0;
+
+    // 1. Draw dashed/dotted vertical Figure-8 path
+    final pathPaint = Paint()
+      ..color = theme.primary.withValues(alpha: 0.30)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+
+    final Path figure8Path = Path();
+    const int steps = 100;
+    for (int i = 0; i <= steps; i++) {
+      final double t = (i / steps) * 2 * math.pi;
+      final double px = cx + rx * math.sin(2 * t);
+      final double py = cy - ry * math.sin(t);
+      if (i == 0) {
+        figure8Path.moveTo(px, py);
+      } else {
+        figure8Path.lineTo(px, py);
+      }
+    }
+    canvas.drawPath(figure8Path, pathPaint);
+
+    // 2. Guide arrows along the Figure-8 path
+    final arrowPaint = Paint()
+      ..color = theme.primary.withValues(alpha: 0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+
+    final arrowAngles = [math.pi * 0.25, math.pi * 0.75, math.pi * 1.25, math.pi * 1.75];
+    for (final t in arrowAngles) {
+      final double px = cx + rx * math.sin(2 * t);
+      final double py = cy - ry * math.sin(t);
+      // Tangent velocity
+      final double dx = 2 * rx * math.cos(2 * t);
+      final double dy = -ry * math.cos(t);
+      final double angle = math.atan2(dy, dx);
+
+      canvas.save();
+      canvas.translate(px, py);
+      canvas.rotate(angle);
+      final arrowPath = Path()
+        ..moveTo(-4, -4)
+        ..lineTo(3, 0)
+        ..lineTo(-4, 4);
+      canvas.drawPath(arrowPath, arrowPaint);
+      canvas.restore();
+    }
+
+    // 3. Current position of hand & phone
+    final double currentT = progress * 2 * math.pi;
+    final double handX = cx + rx * math.sin(2 * currentT);
+    final double handY = cy - ry * math.sin(currentT);
+
+    // Bank / twist angle as phone navigates the 3D figure-8 curve
+    final double bankAngle = -0.38 * math.cos(2 * currentT);
+
+    canvas.save();
+    canvas.translate(handX, handY);
+    canvas.rotate(bankAngle);
+
+    // Phone dimensions
+    const double pw = 30.0;
+    const double ph = 52.0;
+
+    final phoneRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset.zero, width: pw, height: ph),
+      const Radius.circular(6.5),
+    );
+
+    // Drop shadow under phone
+    canvas.drawRRect(
+      phoneRect.shift(const Offset(2, 4)),
+      Paint()..color = Colors.black.withValues(alpha: 0.20),
+    );
+
+    // 4. Hand behind phone (Sleeve + Wrist + Palm)
+    final sleevePaint = Paint()..color = theme.primary;
+    final skinPaint = Paint()..color = const Color(0xFFFCD34D); // warm skin tone
+    final outlinePaint = Paint()
+      ..color = const Color(0xFF1E2235)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+
+    // Sleeve cuff below phone
+    final sleeveRRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: const Offset(3, 38), width: 20, height: 16),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(sleeveRRect, sleevePaint);
+    canvas.drawRRect(sleeveRRect, outlinePaint);
+
+    // Wrist connecting sleeve to hand
+    final wristRect = Rect.fromCenter(center: const Offset(3, 28), width: 14, height: 14);
+    canvas.drawRect(wristRect, skinPaint);
+    canvas.drawRect(wristRect, outlinePaint);
+
+    // Palm behind phone
+    final palmRect = Rect.fromCenter(center: const Offset(2, 12), width: 24, height: 24);
+    canvas.drawOval(palmRect, skinPaint);
+    canvas.drawOval(palmRect, outlinePaint);
+
+    // 5. Phone Body (Hardware Bezel)
+    final phoneBodyPaint = Paint()..color = const Color(0xFF1E2235);
+    canvas.drawRRect(phoneRect, phoneBodyPaint);
+
+    // Glass Screen with vibrant gradient
+    final screenRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset.zero, width: pw - 4, height: ph - 6),
+      const Radius.circular(4.5),
+    );
+    final screenPaint = Paint()
+      ..shader = LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          theme.primary.withValues(alpha: 0.85),
+          theme.primary,
+          const Color(0xFF1E2235),
+        ],
+      ).createShader(screenRect.outerRect);
+    canvas.drawRRect(screenRect, screenPaint);
+
+    // Speaker notch / Dynamic Island pill at top
+    canvas.drawLine(
+      const Offset(-4, -ph / 2 + 3),
+      const Offset(4, -ph / 2 + 3),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.6)
+        ..strokeWidth = 1.4
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Glowing Mini Compass Needle on screen
+    final needlePaintNorth = Paint()..color = Colors.white;
+    final needlePathNorth = Path()
+      ..moveTo(0, -9)
+      ..lineTo(3.2, 0)
+      ..lineTo(-3.2, 0)
+      ..close();
+    canvas.drawPath(needlePathNorth, needlePaintNorth);
+
+    final needlePaintSouth = Paint()..color = const Color(0xFFFF6B6B);
+    final needlePathSouth = Path()
+      ..moveTo(0, 9)
+      ..lineTo(3.2, 0)
+      ..lineTo(-3.2, 0)
+      ..close();
+    canvas.drawPath(needlePathSouth, needlePaintSouth);
+
+    // Center Needle Pivot
+    canvas.drawCircle(Offset.zero, 1.8, Paint()..color = const Color(0xFF1E2235));
+
+    // 6. Fingers holding phone (Wrapping onto front)
+    // Thumb on left edge
+    final thumbRRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: const Offset(-pw / 2 + 1, 5), width: 6.5, height: 13),
+      const Radius.circular(3.2),
+    );
+    canvas.drawRRect(thumbRRect, skinPaint);
+    canvas.drawRRect(thumbRRect, outlinePaint);
+
+    // 3 Fingers overlapping right edge
+    for (int i = 0; i < 3; i++) {
+      final fingerRRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: Offset(pw / 2 - 1, -6.0 + (i * 8.5)), width: 6.5, height: 7.2),
+        const Radius.circular(3.2),
+      );
+      canvas.drawRRect(fingerRRect, skinPaint);
+      canvas.drawRRect(fingerRRect, outlinePaint);
+    }
+
+    // Sparkle trail dot
+    canvas.drawCircle(
+      const Offset(0, -ph / 2 - 4),
+      2.5,
+      Paint()..color = Colors.white.withValues(alpha: 0.85),
+    );
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _Figure8HandPainter oldDelegate) {
+    return oldDelegate.progress != progress;
   }
 }
 

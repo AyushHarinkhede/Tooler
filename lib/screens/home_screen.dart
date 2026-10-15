@@ -177,14 +177,14 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       {
         'id': 'compass',
-        'title': 'Digital Compass',
+        'title': 'Compass',
         'subtitle': 'Real-time gyro, magnetic heading & spirit level',
         'category': 'Utilities',
         'tag': 'Live Sensor',
         'iconType': 'compass',
         'isFeatured': true,
         'features': [
-          {'name': 'Digital Magnetic Compass', 'desc': 'Real-time azimuth degrees, cardinal headings (N, NE, E, SE, S, SW, W, NW)'},
+          {'name': 'Magnetic Compass', 'desc': 'Real-time azimuth degrees, cardinal headings (N, NE, E, SE, S, SW, W, NW)'},
           {'name': 'Spirit Bubble Leveler', 'desc': 'Surface leveling with dual circular bubble gauge, pitch & roll tilt angles'},
           {'name': 'Inclinometer & Angle Gauge', 'desc': 'Precision tilt measurement in degrees for horizontal & vertical surfaces'},
           {'name': 'Live Sensor Calibration', 'desc': 'Real-time magnetometer and gyroscope hardware sensor integration'},
