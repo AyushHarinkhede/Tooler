@@ -102,17 +102,55 @@ class ToolerHoverSheet extends StatefulWidget {
     );
   }
 
+  static void toggleFullScreen(BuildContext context) {
+    ToolerHoverSheetScope.of(context)?.toggleFullScreen();
+  }
+
+  static bool isFullScreen(BuildContext context) {
+    return ToolerHoverSheetScope.of(context)?.isFullScreen ?? false;
+  }
+
   @override
   State<ToolerHoverSheet> createState() => _ToolerHoverSheetState();
 }
 
+class ToolerHoverSheetScope extends InheritedWidget {
+  final bool isFullScreen;
+  final VoidCallback toggleFullScreen;
+
+  const ToolerHoverSheetScope({
+    super.key,
+    required this.isFullScreen,
+    required this.toggleFullScreen,
+    required super.child,
+  });
+
+  static ToolerHoverSheetScope? of(BuildContext context) {
+    return context.dependOnInheritedWidgetOfExactType<ToolerHoverSheetScope>();
+  }
+
+  @override
+  bool updateShouldNotify(ToolerHoverSheetScope oldWidget) {
+    return isFullScreen != oldWidget.isFullScreen;
+  }
+}
+
 class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
   bool _isFavorite = false;
+  bool _isFullScreen = false;
 
   @override
   void initState() {
     super.initState();
     _loadFavoriteStatus();
+  }
+
+  void _toggleFullScreen() {
+    SoundService().playClick();
+    HapticFeedback.lightImpact();
+    setState(() {
+      _isFullScreen = !_isFullScreen;
+    });
   }
 
   Future<void> _loadFavoriteStatus() async {
@@ -156,221 +194,274 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
     final theme = widget.theme;
     final isDark = theme.isDark;
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          // 1. Full-screen Live Blur Backdrop (Frosted glass showing home screen, hardware accelerated)
-          Positioned.fill(
-            child: RepaintBoundary(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: Container(
-                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+    return ToolerHoverSheetScope(
+      isFullScreen: _isFullScreen,
+      toggleFullScreen: _toggleFullScreen,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: Stack(
+          children: [
+            // 1. Full-screen Live Blur Backdrop (Frosted glass showing home screen, hardware accelerated)
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: BackdropFilter(
+                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  child: Container(
+                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                  ),
                 ),
               ),
             ),
-          ),
 
-          // 2. Sliding Hover Sheet with top empty space
-          SafeArea(
-            bottom: false,
-            child: Column(
-              children: [
-                // Top Empty Space (~65-72px): Allows user to see live blurred home screen!
-                // Tapping it dismisses the sheet smoothly.
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: () {
-                    SoundService().playClick();
-                    Navigator.pop(context);
-                  },
-                  child: Container(
-                    height: 68,
+            // 2. Sliding Hover Sheet with top empty space
+            SafeArea(
+              bottom: false,
+              top: !_isFullScreen,
+              child: Column(
+                children: [
+                  // Top Empty Space (~65-72px): Allows user to see live blurred home screen!
+                  // Tapping it dismisses the sheet smoothly.
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    height: _isFullScreen ? 0 : 68,
                     width: double.infinity,
-                    color: Colors.transparent,
-                  ),
-                ),
-
-                // Main Themed Sheet Container
-                Expanded(
-                  child: Container(
-                    width: double.infinity,
-                    decoration: BoxDecoration(
-                      color: theme.bg,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(32),
-                      ),
-                      border: Border.all(
-                        color: theme.border,
-                        width: 1.2,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
-                          blurRadius: 28,
-                          offset: const Offset(0, -6),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(32),
-                      ),
-                      child: Column(
-                        children: [
-                          // 2.1 Drag Handle Pill
-                          Center(
-                            child: Container(
-                              margin: const EdgeInsets.only(top: 10, bottom: 6),
-                              width: 42,
-                              height: 4.5,
-                              decoration: BoxDecoration(
-                                color: theme.border,
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
+                    child: _isFullScreen
+                        ? const SizedBox.shrink()
+                        : GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              SoundService().playClick();
+                              Navigator.pop(context);
+                            },
+                            child: Container(color: Colors.transparent),
                           ),
+                  ),
 
-                          // 2.2 Unified Header Row: [Back Button] on Left, [Centered Title] in Center, [Favorite Button] on Right
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                            child: Row(
-                              children: [
-                                // Left Back Button (<) with Bouncy Tap
-                                BouncyTap(
-                                  onTap: () {
-                                    SoundService().playClick();
-                                    Navigator.pop(context);
-                                  },
-                                  scaleFraction: 0.90,
-                                  child: Container(
-                                    width: 42,
-                                    height: 42,
-                                    decoration: BoxDecoration(
-                                      color: theme.cardBg,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(color: theme.border, width: 1.2),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withValues(alpha: 0.04),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Icon(
-                                      Icons.arrow_back_ios_new_rounded,
-                                      size: 18,
-                                      color: theme.text,
-                                    ),
+                  // Main Themed Sheet Container
+                  Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 260),
+                      curve: Curves.easeOutCubic,
+                      width: double.infinity,
+                      decoration: BoxDecoration(
+                        color: theme.bg,
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(_isFullScreen ? 0 : 32),
+                        ),
+                        border: Border.all(
+                          color: _isFullScreen ? Colors.transparent : theme.border,
+                          width: _isFullScreen ? 0 : 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
+                            blurRadius: 28,
+                            offset: const Offset(0, -6),
+                          ),
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(_isFullScreen ? 0 : 32),
+                        ),
+                        child: Column(
+                          children: [
+                            // 2.1 Drag Handle Pill (Hidden when full-screen)
+                            if (!_isFullScreen)
+                              Center(
+                                child: Container(
+                                  margin: const EdgeInsets.only(top: 10, bottom: 6),
+                                  width: 42,
+                                  height: 4.5,
+                                  decoration: BoxDecoration(
+                                    color: theme.border,
+                                    borderRadius: BorderRadius.circular(3),
                                   ),
                                 ),
+                              ),
 
-                                // Center: Upper Tool Title
-                                Expanded(
-                                  child: Center(
-                                    child: Text(
-                                      widget.title,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
-                                        letterSpacing: -0.4,
+                            // 2.2 Unified Header Row: [Back Button] on Left, [Centered Title] in Center, [Fullscreen & Favorite Buttons] on Right
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                              child: Row(
+                                children: [
+                                  // Left Back Button (<) with Bouncy Tap
+                                  BouncyTap(
+                                    onTap: () {
+                                      SoundService().playClick();
+                                      Navigator.pop(context);
+                                    },
+                                    scaleFraction: 0.90,
+                                    child: Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: theme.cardBg,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: theme.border, width: 1.2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withValues(alpha: 0.04),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Icon(
+                                        Icons.arrow_back_ios_new_rounded,
+                                        size: 18,
                                         color: theme.text,
                                       ),
                                     ),
                                   ),
-                                ),
 
-                                // Right: Favorite Button (♥) with Bouncy Tap & Pulse
-                                BouncyTap(
-                                  onTap: _toggleFavorite,
-                                  scaleFraction: 0.88,
-                                  child: Container(
-                                    width: 42,
-                                    height: 42,
-                                    decoration: BoxDecoration(
-                                      color: theme.cardBg,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: _isFavorite
-                                            ? theme.primary.withValues(alpha: 0.5)
-                                            : theme.border,
-                                        width: 1.2,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: _isFavorite
-                                              ? theme.primary.withValues(alpha: 0.15)
-                                              : Colors.black.withValues(alpha: 0.04),
-                                          blurRadius: 6,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
+                                  // Center: Upper Tool Title
+                                  Expanded(
                                     child: Center(
-                                      child: AnimatedScale(
-                                        scale: _isFavorite ? 1.15 : 1.0,
-                                        duration: const Duration(milliseconds: 220),
-                                        curve: Curves.easeOutBack,
-                                        child: Icon(
-                                          _isFavorite
-                                              ? Icons.favorite_rounded
-                                              : Icons.favorite_outline_rounded,
-                                          size: 20,
-                                          color: _isFavorite
-                                              ? const Color(0xFFFF4757)
-                                              : theme.textSecondary,
+                                      child: Text(
+                                        widget.title,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w800,
+                                          letterSpacing: -0.4,
+                                          color: theme.text,
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ),
 
-                          // 2.3 Dedicated Botanical & Hanging Lamp Vector Artwork Banner (inside hover sheet)
-                          TweenAnimationBuilder<double>(
-                            tween: Tween<double>(begin: 0.0, end: 1.0),
-                            duration: const Duration(milliseconds: 400),
-                            curve: Curves.easeOutCubic,
-                            builder: (context, val, child) {
-                              return Opacity(
-                                opacity: val,
-                                child: Transform.translate(
-                                  offset: Offset(0, 10 * (1 - val)),
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-                              height: 76,
-                              width: double.infinity,
-                              decoration: BoxDecoration(
-                                color: theme.lavenderBubble,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: theme.border.withValues(alpha: 0.7),
-                                  width: 1.0,
-                                ),
+                                  // Fullscreen Toggle Button (Hover Sheet <-> Full Device Screen)
+                                  BouncyTap(
+                                    onTap: _toggleFullScreen,
+                                    scaleFraction: 0.88,
+                                    child: Container(
+                                      width: 42,
+                                      height: 42,
+                                      margin: const EdgeInsets.only(right: 8),
+                                      decoration: BoxDecoration(
+                                        color: theme.cardBg,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: _isFullScreen
+                                              ? theme.primary.withValues(alpha: 0.6)
+                                              : theme.border,
+                                          width: 1.2,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: _isFullScreen
+                                                ? theme.primary.withValues(alpha: 0.15)
+                                                : Colors.black.withValues(alpha: 0.04),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: Icon(
+                                          _isFullScreen
+                                              ? Icons.fullscreen_exit_rounded
+                                              : Icons.fullscreen_rounded,
+                                          size: 22,
+                                          color: _isFullScreen
+                                              ? theme.primary
+                                              : theme.text,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+
+                                  // Right: Favorite Button (♥) with Bouncy Tap & Pulse
+                                  BouncyTap(
+                                    onTap: _toggleFavorite,
+                                    scaleFraction: 0.88,
+                                    child: Container(
+                                      width: 42,
+                                      height: 42,
+                                      decoration: BoxDecoration(
+                                        color: theme.cardBg,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: _isFavorite
+                                              ? theme.primary.withValues(alpha: 0.5)
+                                              : theme.border,
+                                          width: 1.2,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: _isFavorite
+                                                ? theme.primary.withValues(alpha: 0.15)
+                                                : Colors.black.withValues(alpha: 0.04),
+                                            blurRadius: 6,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Center(
+                                        child: AnimatedScale(
+                                          scale: _isFavorite ? 1.15 : 1.0,
+                                          duration: const Duration(milliseconds: 220),
+                                          curve: Curves.easeOutBack,
+                                          child: Icon(
+                                            _isFavorite
+                                                ? Icons.favorite_rounded
+                                                : Icons.favorite_outline_rounded,
+                                            size: 20,
+                                            color: _isFavorite
+                                                ? const Color(0xFFFF4757)
+                                                : theme.textSecondary,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: CustomPaint(
-                                  painter: _EnhancedAestheticBannerPainter(
-                                    strokeColor: isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B),
-                                    accentColor: theme.primary,
-                                    isDark: isDark,
+                            ),
+
+                            // 2.3 Dedicated Botanical Artwork Banner (Collapsed in full screen mode for maximum content area)
+                            if (!_isFullScreen)
+                              TweenAnimationBuilder<double>(
+                                tween: Tween<double>(begin: 0.0, end: 1.0),
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeOutCubic,
+                                builder: (context, val, child) {
+                                  return Opacity(
+                                    opacity: val,
+                                    child: Transform.translate(
+                                      offset: Offset(0, 10 * (1 - val)),
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: Container(
+                                  margin: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+                                  height: 76,
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: theme.lavenderBubble,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: theme.border.withValues(alpha: 0.7),
+                                      width: 1.0,
+                                    ),
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: CustomPaint(
+                                      painter: _EnhancedAestheticBannerPainter(
+                                        strokeColor: isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B),
+                                        accentColor: theme.primary,
+                                        isDark: isDark,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
 
                           Divider(color: theme.border.withValues(alpha: 0.8), height: 1),
 
@@ -388,7 +479,7 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
           ),
         ],
       ),
-    );
+    ));
   }
 }
 
