@@ -201,18 +201,17 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'id': 'age',
         'title': 'Age Calculator',
-        'subtitle': 'Live precision clock, milestones & legal eligibility',
+        'subtitle': 'Compact 2-line age clock, eligibility & generation status',
         'category': 'Calculate',
         'tag': 'Date Math',
         'iconType': 'age',
         'isFeatured': false,
         'features': [
-          {'name': 'Live Precision Age Clock', 'desc': 'Real-time ticker showing exact Years, Months, Days, Hours, Minutes, and Seconds'},
+          {'name': 'Compact 2-Line Age Breakdown', 'desc': 'Real-time ticker showing exact Years, Months, Days and Hours, Minutes, Seconds'},
           {'name': 'Direct Age Selector', 'desc': 'Tap [-] and [+] or tap number to pick direct age (0-160+ years) with zero typing'},
-          {'name': 'Gender Identity Themes', 'desc': 'Distinct Male Blue (#2980B9), Female Pink (#E84393), and Other Red (#E74C3C) color highlights'},
-          {'name': 'Life Milestone & Era Badges', 'desc': '25yr Silver, 50yr Golden, 75yr Platinum, 100yr Full Century, 100+ Supercentenarian, 150+ IMMORTAL'},
-          {'name': 'Legal Eligibility Checklist', 'desc': 'Voting rights (18+), Driving License (18+), Marriage Age (21+), Employment (18+), Military Enlistment (17.5+), MLA/MP (25+), Rajya Sabha (30+), President/Governor (35+), Alcohol Age (21+), Senior Citizen (60+), Super Senior (80+)'},
-          {'name': 'Next Birthday Countdown', 'desc': 'Days, hours, minutes until your next birthday celebration'},
+          {'name': 'Generation & Citizen Status', 'desc': 'Instant identification of Gen Alpha, Gen Z, Millennial, Gen X, and Citizen classification'},
+          {'name': 'Eligibility Checklist', 'desc': 'Clean status for Legal Adulthood (18+), Voting Rights (18+), Driving License (18+), Marriage, and Employment'},
+          {'name': 'Next Birthday Countdown', 'desc': 'Days and day of week until your next birthday celebration'},
         ],
         'keywords': [
           'age calculator', 'age', 'birthday', 'birth date', 'dob', 'years', 'months', 'days',

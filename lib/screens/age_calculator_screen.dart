@@ -506,90 +506,82 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
 
                   const SizedBox(height: 16),
 
-                  // 3. Live Precision Age Breakdown (Years, Months, Days, Hours, Minutes, Seconds)
+                  // 3. Compact 2-Line Age Breakdown (Years, Months, Days & Hours, Minutes, Seconds)
                   if (_results != null) ...[
                     Container(
-                      padding: const EdgeInsets.all(18),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                       decoration: widget.theme.doodleCard(
                         color: widget.theme.accent.withValues(alpha: 0.15),
                         borderWidth: 2.5,
                       ),
                       child: Column(
                         children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF27AE60),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                "YOUR CURRENT AGE (LIVE PRECISION)",
-                                style: widget.theme.fontMono(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: widget.theme.text.withValues(alpha: 0.85),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Row 1: Years, Months, Days
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _buildStatBubble("${_results!['years']}", "YEARS"),
-                              _buildStatBubble("${_results!['months']}", "MONTHS"),
-                              _buildStatBubble("${_results!['days']}", "DAYS"),
-                            ],
+                          Text(
+                            "YOUR CURRENT AGE",
+                            style: widget.theme.fontDisplay(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: widget.theme.text.withValues(alpha: 0.85),
+                            ),
                           ),
                           const SizedBox(height: 12),
 
-                          // Row 2: Hours, Minutes, Seconds (Live Ticking)
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              _buildStatBubble("${_results!['hours']}".padLeft(2, '0'), "HOURS"),
-                              _buildStatBubble("${_results!['minutes']}".padLeft(2, '0'), "MINUTES"),
-                              _buildStatBubble("${_results!['seconds']}".padLeft(2, '0'), "SECONDS", isLive: true),
-                            ],
+                          // Line 1: Years, Months, Days
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: widget.theme.cardBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: widget.theme.border, width: 1.5),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildCompactStatItem("${_results!['years']}", "Years"),
+                                _buildDivider(),
+                                _buildCompactStatItem("${_results!['months']}", "Months"),
+                                _buildDivider(),
+                                _buildCompactStatItem("${_results!['days']}", "Days"),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 8),
 
-                          Wrap(
-                            alignment: WrapAlignment.center,
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              _buildPillChip("Born on ${_results!['bornDayOfWeek']}"),
-                              _buildPillChip("Gender: ${_gender.toUpperCase()}"),
-                            ],
+                          // Line 2: Hours, Minutes, Seconds (Live Ticking)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                            decoration: BoxDecoration(
+                              color: widget.theme.cardBg,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: widget.theme.border, width: 1.5),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                _buildCompactStatItem("${_results!['hours']}".padLeft(2, '0'), "Hours"),
+                                _buildDivider(),
+                                _buildCompactStatItem("${_results!['minutes']}".padLeft(2, '0'), "Minutes"),
+                                _buildDivider(),
+                                _buildCompactStatItem("${_results!['seconds']}".padLeft(2, '0'), "Seconds", isLive: true),
+                              ],
+                            ),
                           ),
-                          // Note: Redundant 18+ tag box removed from here per user request!
+                          const SizedBox(height: 10),
+
+                          _buildPillChip("Born on ${_results!['bornDayOfWeek']}"),
                         ],
                       ),
                     ),
 
                     const SizedBox(height: 16),
 
-                    // 4. Life Milestone & Century Era Status Card (25yr, 50yr, 75yr, 100yr, 100+, 150+)
-                    _buildMilestoneStatusBanner(years),
-
-                    const SizedBox(height: 18),
-
-                    // 5. Legal Eligibility Status Header
+                    // 4. Eligibility Status Header (Directly after Current Age, 'Legal' removed)
                     Row(
                       children: [
                         const Icon(Icons.verified_user_rounded, size: 22),
                         const SizedBox(width: 8),
                         Text(
-                          "Legal Eligibility Status",
+                          "Eligibility Status",
                           style: widget.theme.fontDisplay(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -599,126 +591,45 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                     ),
                     const SizedBox(height: 10),
 
-                    // Criteria 1: Legal Adulthood (Full Civic Rights)
+                    // Criteria 1: Legal Adulthood (18+)
                     _buildEligibilityItem(
-                      title: "18+ Legal Adulthood",
-                      subtitle: "Full civic rights, bank accounts & contracts",
+                      title: "Legal Adulthood",
                       icon: Icons.verified_rounded,
                       isEligible: years >= 18,
-                      minAge: 18,
-                      currentYears: years,
                     ),
 
-                    // Criteria 2: Voting Rights
+                    // Criteria 2: Voting Rights (18+)
                     _buildEligibilityItem(
-                      title: "Voting Rights (Elections)",
-                      subtitle: "Cast vote in parliamentary & local elections",
+                      title: "Voting Rights",
                       icon: Icons.how_to_vote_rounded,
                       isEligible: years >= 18,
-                      minAge: 18,
-                      currentYears: years,
                     ),
 
-                    // Criteria 3: Driving License
+                    // Criteria 3: Driving License (18+)
                     _buildEligibilityItem(
-                      title: "Driving License (Motor Vehicles)",
-                      subtitle: "Permanent motor vehicle driving license",
+                      title: "Driving License",
                       icon: Icons.directions_car_rounded,
                       isEligible: years >= 18,
-                      minAge: 18,
-                      currentYears: years,
                     ),
 
-                    // Criteria 4: Legal Marriage
+                    // Criteria 4: Marriage
                     _buildEligibilityItem(
-                      title: "Marriage (${_gender.toUpperCase()})",
-                      subtitle: "Legal marriage age for $_gender ($marriageMinAge+)",
+                      title: "Marriage",
                       icon: Icons.favorite_rounded,
                       isEligible: years >= marriageMinAge,
-                      minAge: marriageMinAge,
-                      currentYears: years,
                     ),
 
-                    // Criteria 5: Unrestricted Employment
+                    // Criteria 5: Employment (18+)
                     _buildEligibilityItem(
-                      title: "Full-Time Employment",
-                      subtitle: "Unrestricted contractual labor & legal employment",
+                      title: "Employment",
                       icon: Icons.work_rounded,
                       isEligible: years >= 18,
-                      minAge: 18,
-                      currentYears: years,
                     ),
 
-                    // Criteria 6: Armed Forces Enlistment (18 to 25 yrs)
-                    _buildEligibilityItem(
-                      title: "Armed Forces & Military Enlistment",
-                      subtitle: "Active service entry window (18 - 25 yrs)",
-                      icon: Icons.shield_rounded,
-                      isEligible: (years >= 18 && years <= 25),
-                      minAge: 18,
-                      maxAge: 25,
-                      currentYears: years,
-                    ),
+                    const SizedBox(height: 16),
 
-                    // Criteria 7: Contest MLA / MP (25+ yrs)
-                    _buildEligibilityItem(
-                      title: "Contest MLA / MP (Lok Sabha)",
-                      subtitle: "Right to contest Legislative Assembly & Parliament",
-                      icon: Icons.account_balance_rounded,
-                      isEligible: years >= 25,
-                      minAge: 25,
-                      currentYears: years,
-                    ),
-
-                    // Criteria 8: Contest Rajya Sabha (30+ yrs)
-                    _buildEligibilityItem(
-                      title: "Contest Rajya Sabha (Upper House)",
-                      subtitle: "Council of States & Legislative Council",
-                      icon: Icons.gavel_rounded,
-                      isEligible: years >= 30,
-                      minAge: 30,
-                      currentYears: years,
-                    ),
-
-                    // Criteria 9: President / Governor (35+ yrs)
-                    _buildEligibilityItem(
-                      title: "President / Governor Office",
-                      subtitle: "Supreme constitutional head of state office",
-                      icon: Icons.stars_rounded,
-                      isEligible: years >= 35,
-                      minAge: 35,
-                      currentYears: years,
-                    ),
-
-                    // Criteria 10: Alcohol Purchase & Consumption (21+ yrs)
-                    _buildEligibilityItem(
-                      title: "Alcohol Purchase & Consumption",
-                      subtitle: "Standard legal drinking age limit",
-                      icon: Icons.wine_bar_rounded,
-                      isEligible: years >= 21,
-                      minAge: 21,
-                      currentYears: years,
-                    ),
-
-                    // Criteria 11: Senior Citizen Benefits (60+ yrs)
-                    _buildEligibilityItem(
-                      title: "Senior Citizen Welfare & Pension",
-                      subtitle: "Tax rebates, transit concessions & elder care",
-                      icon: Icons.elderly_rounded,
-                      isEligible: years >= 60,
-                      minAge: 60,
-                      currentYears: years,
-                    ),
-
-                    // Criteria 12: Super Senior Citizen Status (80+ yrs)
-                    _buildEligibilityItem(
-                      title: "Super Senior Citizen Status (80+)",
-                      subtitle: "Highest tier medical care & tax exemptions",
-                      icon: Icons.health_and_safety_rounded,
-                      isEligible: years >= 80,
-                      minAge: 80,
-                      currentYears: years,
-                    ),
+                    // 5. Generation & Citizen Era Bar Container (Alpha, Gen Z, Millennial, Citizen Type)
+                    _buildGenerationCitizenBar(_selectedDate.year, years),
 
                     const SizedBox(height: 16),
 
@@ -870,91 +781,172 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
     );
   }
 
-  // --- Milestone Life Stage Banner (25yr, 50yr, 75yr, 100yr, 100+, 150+) ---
-  Widget _buildMilestoneStatusBanner(int years) {
-    String milestoneTitle;
-    String milestoneSubtitle;
-    Color milestoneColor;
-    IconData milestoneIcon;
+  // --- Generation & Citizen Type Bar Container (Alpha, Gen Z, Millennial, Gen X, Citizen Type) ---
+  Widget _buildGenerationCitizenBar(int birthYear, int years) {
+    String genName;
+    Color genColor;
+    IconData genIcon;
 
-    if (years >= 150) {
-      milestoneTitle = "IMMORTAL";
-      milestoneSubtitle = "👑 Beyond Human Lifespan • Eternal Mythic Being";
-      milestoneColor = const Color(0xFF8E44AD);
-      milestoneIcon = Icons.all_inclusive_rounded;
-    } else if (years > 100) {
-      milestoneTitle = "SUPERCENTENARIAN • LIVING LEGEND";
-      milestoneSubtitle = "Century Club Elite • 100+ Years Milestone";
-      milestoneColor = const Color(0xFFD4AF37);
-      milestoneIcon = Icons.workspace_premium_rounded;
-    } else if (years == 100) {
-      milestoneTitle = "FULL CENTURY COMPLETE!";
-      milestoneSubtitle = "Centenarian Milestone (100 Years) 💯";
-      milestoneColor = const Color(0xFFF39C12);
-      milestoneIcon = Icons.celebration_rounded;
-    } else if (years >= 75) {
-      milestoneTitle = "PLATINUM MILESTONE (3/4th Century)";
-      milestoneSubtitle = "Diamond / Platinum Era • 75+ Years Celebrated 💎";
-      milestoneColor = const Color(0xFF00CEC9);
-      milestoneIcon = Icons.diamond_rounded;
-    } else if (years >= 50) {
-      milestoneTitle = "HALF CENTURY (Golden Milestone)";
-      milestoneSubtitle = "Golden Jubilee • 50+ Glorious Years Completed ✨";
-      milestoneColor = const Color(0xFFE67E22);
-      milestoneIcon = Icons.emoji_events_rounded;
-    } else if (years >= 25) {
-      milestoneTitle = "QUARTER CENTURY (Silver Milestone)";
-      milestoneSubtitle = "Silver Jubilee • 25+ Years of Youth & Drive 🥈";
-      milestoneColor = const Color(0xFF3498DB);
-      milestoneIcon = Icons.shield_rounded;
-    } else if (years >= 18) {
-      milestoneTitle = "YOUNG ADULT (Prime Youth)";
-      milestoneSubtitle = "Legal Adulthood • World of Opportunities Ahead";
-      milestoneColor = const Color(0xFF27AE60);
-      milestoneIcon = Icons.verified_rounded;
+    if (birthYear >= 2013) {
+      genName = "Gen Alpha";
+      genColor = const Color(0xFF9B59B6);
+      genIcon = Icons.auto_awesome_rounded;
+    } else if (birthYear >= 1997) {
+      genName = "Gen Z";
+      genColor = const Color(0xFF3498DB);
+      genIcon = Icons.bolt_rounded;
+    } else if (birthYear >= 1981) {
+      genName = "Millennial (Gen Y)";
+      genColor = const Color(0xFF2ECC71);
+      genIcon = Icons.psychology_rounded;
+    } else if (birthYear >= 1965) {
+      genName = "Gen X";
+      genColor = const Color(0xFFE67E22);
+      genIcon = Icons.diamond_rounded;
+    } else if (birthYear >= 1946) {
+      genName = "Baby Boomer";
+      genColor = const Color(0xFFE74C3C);
+      genIcon = Icons.workspace_premium_rounded;
     } else {
-      milestoneTitle = "BUDDING YOUTH (Minor)";
-      milestoneSubtitle = "Schooling & Growth Years • Under 18";
-      milestoneColor = const Color(0xFFE17055);
-      milestoneIcon = Icons.child_care_rounded;
+      genName = "Silent Generation";
+      genColor = const Color(0xFF34495E);
+      genIcon = Icons.stars_rounded;
+    }
+
+    String citizenType;
+    Color citizenColor;
+    if (years < 18) {
+      citizenType = "Minor Citizen";
+      citizenColor = const Color(0xFFE67E22);
+    } else if (years < 60) {
+      citizenType = "Adult Citizen";
+      citizenColor = const Color(0xFF27AE60);
+    } else {
+      citizenType = "Senior Citizen";
+      citizenColor = const Color(0xFF8E44AD);
     }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: milestoneColor.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: milestoneColor, width: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: widget.theme.doodleCard(borderWidth: 2.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: genColor.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(genIcon, color: genColor, size: 18),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    genName,
+                    style: widget.theme.fontDisplay(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: widget.theme.text,
+                    ),
+                  ),
+                  Text(
+                    "Born in $birthYear",
+                    style: widget.theme.fontDisplay(
+                      fontSize: 11,
+                      color: widget.theme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: citizenColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: citizenColor, width: 1.4),
+            ),
+            child: Text(
+              citizenType,
+              style: widget.theme.fontDisplay(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: citizenColor,
+              ),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  // --- Clean Eligibility Item (No captions, No parentheses, Clean Status) ---
+  Widget _buildEligibilityItem({
+    required String title,
+    required IconData icon,
+    required bool isEligible,
+  }) {
+    final statusColor = isEligible ? const Color(0xFF27AE60) : const Color(0xFFE74C3C);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: widget.theme.doodleCard(borderWidth: 1.6),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: milestoneColor.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
+              color: isEligible
+                  ? const Color(0xFF27AE60).withValues(alpha: 0.12)
+                  : widget.theme.border.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(milestoneIcon, color: milestoneColor, size: 28),
+            child: Icon(
+              icon,
+              size: 20,
+              color: isEligible ? const Color(0xFF27AE60) : widget.theme.textSecondary,
+            ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Text(
+              title,
+              style: widget.theme.fontDisplay(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: statusColor, width: 1.4),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  milestoneTitle,
-                  style: widget.theme.fontDisplay(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: milestoneColor,
-                  ),
+                Icon(
+                  isEligible ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                  size: 14,
+                  color: statusColor,
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(width: 4),
                 Text(
-                  milestoneSubtitle,
-                  style: widget.theme.fontDoodle(
-                    fontSize: 12,
-                    color: widget.theme.text.withValues(alpha: 0.85),
+                  isEligible ? "Eligible" : "Not Eligible",
+                  style: widget.theme.fontDisplay(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: statusColor,
                   ),
                 ),
               ],
@@ -965,193 +957,39 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
     );
   }
 
-  // --- Clean Legal Eligibility Item (Green Tick if eligible, Red/Warning with Right Age if not eligible) ---
-  Widget _buildEligibilityItem({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool isEligible,
-    required int minAge,
-    int? maxAge,
-    required int currentYears,
-  }) {
-    final statusColor = isEligible ? const Color(0xFF27AE60) : const Color(0xFFE74C3C);
-
-    String rightAgeNote = "";
-    if (!isEligible) {
-      if (currentYears < minAge) {
-        final diff = minAge - currentYears;
-        rightAgeNote = "Right Age: $minAge+ Years ($diff year${diff > 1 ? 's' : ''} remaining)";
-      } else if (maxAge != null && currentYears > maxAge) {
-        rightAgeNote = "Exceeded Upper Limit (Max: $maxAge Years)";
-      }
-    }
-
-    final double progress = (currentYears / minAge).clamp(0.0, 1.0);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: widget.theme.doodleCard(borderWidth: 1.8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: isEligible
-                      ? const Color(0xFF27AE60).withValues(alpha: 0.12)
-                      : widget.theme.border.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(
-                  icon,
-                  size: 20,
-                  color: isEligible ? const Color(0xFF27AE60) : widget.theme.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: widget.theme.fontDisplay(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: widget.theme.fontMono(
-                        fontSize: 11,
-                        color: widget.theme.text.withValues(alpha: 0.7),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Status Capsule
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor, width: 1.4),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isEligible ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                      size: 14,
-                      color: statusColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      isEligible ? "Eligible" : "Not Eligible",
-                      style: widget.theme.fontMono(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: statusColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-
-          // If NOT eligible, show the exact right age clearly underneath
-          if (!isEligible && rightAgeNote.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0xFFE74C3C).withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.info_outline_rounded, size: 13, color: Color(0xFFE74C3C)),
-                  const SizedBox(width: 5),
-                  Text(
-                    rightAgeNote,
-                    style: widget.theme.fontMono(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFFD63031),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 4,
-              backgroundColor: widget.theme.border.withValues(alpha: 0.2),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                isEligible ? const Color(0xFF27AE60) : widget.theme.primary,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatBubble(String value, String label, {bool isLive = false}) {
-    return Column(
+  // --- Compact Stat Items for 2-Line Age Display ---
+  Widget _buildCompactStatItem(String value, String label, {bool isLive = false}) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
       children: [
-        Container(
-          width: 72,
-          height: 72,
-          decoration: BoxDecoration(
-            color: widget.theme.cardBg,
-            shape: BoxShape.circle,
-            border: Border.all(
-              color: isLive ? const Color(0xFF27AE60) : widget.theme.border,
-              width: 2.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: widget.theme.border.withValues(alpha: 0.3),
-                offset: const Offset(2, 3),
-                blurRadius: 0,
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: AnimatedTextPop(
-            text: value,
-            style: widget.theme.fontDisplay(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: isLive ? const Color(0xFF27AE60) : widget.theme.primary,
-            ),
+        AnimatedTextPop(
+          text: value,
+          style: widget.theme.fontDisplay(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: isLive ? const Color(0xFF27AE60) : widget.theme.primary,
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(width: 4),
         Text(
           label,
-          style: widget.theme.fontMono(
-            fontSize: 10,
-            fontWeight: FontWeight.bold,
-            color: widget.theme.text,
+          style: widget.theme.fontDisplay(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: widget.theme.textSecondary,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildDivider() {
+    return Container(
+      height: 16,
+      width: 1.2,
+      color: widget.theme.border,
     );
   }
 
