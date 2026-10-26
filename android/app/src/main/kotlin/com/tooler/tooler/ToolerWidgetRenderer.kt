@@ -357,22 +357,60 @@ object ToolerWidgetRenderer {
                 canvas.drawCircle(s * 0.50f, s * 0.65f, r, inkFill)
             }
             "weather" -> {
-                // Minimal sun behind cloud
-                canvas.drawLine(s * 0.64f, s * 0.15f, s * 0.64f, s * 0.21f, accentStroke)
-                canvas.drawLine(s * 0.77f, s * 0.20f, s * 0.73f, s * 0.25f, accentStroke)
-                canvas.drawLine(s * 0.82f, s * 0.35f, s * 0.76f, s * 0.35f, accentStroke)
-                canvas.drawCircle(s * 0.62f, s * 0.35f, s * 0.14f, accentFill)
-                canvas.drawCircle(s * 0.62f, s * 0.35f, s * 0.14f, stroke)
-                val cloud = Path().apply {
-                    moveTo(s * 0.26f, s * 0.68f)
-                    lineTo(s * 0.74f, s * 0.68f)
-                    arcTo(RectF(s * 0.62f, s * 0.44f, s * 0.82f, s * 0.68f), 0f, -90f, false)
-                    arcTo(RectF(s * 0.38f, s * 0.32f, s * 0.66f, s * 0.60f), 0f, -140f, false)
-                    arcTo(RectF(s * 0.18f, s * 0.46f, s * 0.38f, s * 0.68f), -180f, -90f, false)
-                    close()
+                // Minimal sun behind cloud with radiating rays, puffy cloud, cutout halo, and rain drops
+                val sunX = s * 0.62f
+                val sunY = s * 0.32f
+                val rSun = s * 0.16f
+
+                // Radiating sun rays (6 short clean lines with rounded caps in UI theme color)
+                val anglesDeg = floatArrayOf(155f, 125f, 90f, 55f, 25f, 0f)
+                val rayPaint = android.graphics.Paint(accentStroke).apply {
+                    strokeWidth = s * 0.045f
+                    strokeCap = android.graphics.Paint.Cap.ROUND
                 }
-                canvas.drawPath(cloud, stroke)
-                canvas.drawLine(s * 0.34f, s * 0.78f, s * 0.56f, s * 0.78f, accentStroke)
+                for (deg in anglesDeg) {
+                    val rad = Math.toRadians(deg.toDouble())
+                    val x1 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.05f)
+                    val y1 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.05f)
+                    val x2 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.13f)
+                    val y2 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.13f)
+                    canvas.drawLine(x1, y1, x2, y2, rayPaint)
+                }
+
+                // Sun disc
+                canvas.drawCircle(sunX, sunY, rSun, accentFill)
+
+                // Soft puffy cloud
+                val cloud = Path().apply {
+                    addRoundRect(RectF(s * 0.12f, s * 0.44f, s * 0.76f, s * 0.66f), s * 0.11f, s * 0.11f, Path.Direction.CW)
+                    addCircle(s * 0.28f, s * 0.46f, s * 0.14f, Path.Direction.CW)
+                    addCircle(s * 0.45f, s * 0.35f, s * 0.18f, Path.Direction.CW)
+                    addCircle(s * 0.62f, s * 0.46f, s * 0.13f, Path.Direction.CW)
+                }
+
+                // Cutout separation halo behind cloud (clears background gap against sun)
+                val cutoutPaint = android.graphics.Paint().apply {
+                    xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+                    style = android.graphics.Paint.Style.FILL_AND_STROKE
+                    strokeWidth = s * 0.06f
+                }
+                canvas.drawPath(cloud, cutoutPaint)
+
+                // Foreground cloud in UI accent color
+                canvas.drawPath(cloud, accentFill)
+
+                // Rain droplets below cloud
+                val rainPaint = android.graphics.Paint(accentStroke).apply {
+                    strokeWidth = s * 0.045f
+                    strokeCap = android.graphics.Paint.Cap.ROUND
+                }
+                val dx = -s * 0.035f
+                val dy = s * 0.11f
+                val dropXs = floatArrayOf(s * 0.28f, s * 0.44f, s * 0.60f)
+                val dropY = s * 0.74f
+                for (x in dropXs) {
+                    canvas.drawLine(x, dropY, x + dx, dropY + dy, rainPaint)
+                }
             }
             "games" -> {
                 // Modern rounded gamepad

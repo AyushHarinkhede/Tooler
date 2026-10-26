@@ -1244,30 +1244,98 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawWeather(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // 1. Pure Minimal Sun Peeking Behind Cloud (Upper Right)
-    final sunCenter = Offset(w * 0.63, h * 0.36);
-    final sunRadius = w * 0.16;
+    // 1. Sun Peeking Behind Cloud in Upper Right (Matching Reference Image)
+    final sunCenter = Offset(w * 0.62, h * 0.32);
+    final rSun = w * 0.16;
 
-    // Sun Disc Body (Accent Fill + Line Outline)
-    canvas.drawCircle(sunCenter, sunRadius, fill);
-    canvas.drawCircle(sunCenter, sunRadius, p);
+    // Radiating Sun Rays (6 short clean lines with rounded caps in UI theme color)
+    final rayPaint = Paint()
+      ..color = fill.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.045
+      ..strokeCap = StrokeCap.round;
 
-    // 2. Minimalist Vector Cloud with Soft Flowing Curves (Foreground)
+    final rayAngles = [
+      155 * math.pi / 180, // Upper-left
+      125 * math.pi / 180, // Upper-left
+      90 * math.pi / 180,  // Straight up (12 o'clock)
+      55 * math.pi / 180,  // Upper-right
+      25 * math.pi / 180,  // Right
+      0 * math.pi / 180,   // Horizontal right
+    ];
+
+    for (final angle in rayAngles) {
+      final p1 = Offset(
+        sunCenter.dx + math.cos(angle) * (rSun + w * 0.05),
+        sunCenter.dy - math.sin(angle) * (rSun + w * 0.05),
+      );
+      final p2 = Offset(
+        sunCenter.dx + math.cos(angle) * (rSun + w * 0.13),
+        sunCenter.dy - math.sin(angle) * (rSun + w * 0.13),
+      );
+      canvas.drawLine(p1, p2, rayPaint);
+    }
+
+    // Sun Disc Body (Filled in UI theme color)
+    canvas.drawCircle(sunCenter, rSun, fill);
+
+    // 2. Soft Puffy Cloud (Foreground Silhouette from Reference Image)
     final cloud = Path();
-    cloud.moveTo(w * 0.25, h * 0.68);
-    cloud.lineTo(w * 0.73, h * 0.68);
-    cloud.arcToPoint(Offset(w * 0.81, h * 0.56), radius: Radius.circular(w * 0.12));
-    cloud.arcToPoint(Offset(w * 0.64, h * 0.44), radius: Radius.circular(w * 0.14));
-    cloud.arcToPoint(Offset(w * 0.38, h * 0.46), radius: Radius.circular(w * 0.17));
-    cloud.arcToPoint(Offset(w * 0.19, h * 0.58), radius: Radius.circular(w * 0.13));
-    cloud.arcToPoint(Offset(w * 0.25, h * 0.68), radius: Radius.circular(w * 0.10));
-    cloud.close();
+    // Flat bottom capsule
+    cloud.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTRB(w * 0.12, h * 0.44, w * 0.76, h * 0.66),
+      Radius.circular(w * 0.11),
+    ));
+    // Left puff
+    cloud.addOval(Rect.fromCircle(
+      center: Offset(w * 0.28, h * 0.46),
+      radius: w * 0.14,
+    ));
+    // Center/tallest main dome
+    cloud.addOval(Rect.fromCircle(
+      center: Offset(w * 0.45, h * 0.35),
+      radius: w * 0.18,
+    ));
+    // Right puff
+    cloud.addOval(Rect.fromCircle(
+      center: Offset(w * 0.62, h * 0.46),
+      radius: w * 0.13,
+    ));
 
-    final bgFill = Paint()
+    // Cutout separation halo around cloud (creates clean gap against sun from reference image)
+    final cutoutPaint = Paint()
       ..color = isDark ? const Color(0xFF18181B) : Colors.white
       ..style = PaintingStyle.fill;
-    canvas.drawPath(cloud, bgFill);
-    canvas.drawPath(cloud, p);
+    final cutoutStroke = Paint()
+      ..color = isDark ? const Color(0xFF18181B) : Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.06
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawPath(cloud, cutoutStroke);
+    canvas.drawPath(cloud, cutoutPaint);
+
+    // Draw the Cloud in UI theme color
+    canvas.drawPath(cloud, fill);
+
+    // 3. Rain Droplets Below Cloud ("isme rain ko bhi cloud ke niche add karo")
+    final rainPaint = Paint()
+      ..color = fill.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.045
+      ..strokeCap = StrokeCap.round;
+
+    final dx = -w * 0.035;
+    final dy = h * 0.11;
+    final dropXs = [w * 0.28, w * 0.44, w * 0.60];
+    const dropY = 0.74;
+
+    for (final x in dropXs) {
+      final start = Offset(x, h * dropY);
+      final end = Offset(x + dx, h * dropY + dy);
+      canvas.drawLine(start, end, rainPaint);
+    }
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {
