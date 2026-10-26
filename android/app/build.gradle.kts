@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.tooler.tooler"
-    compileSdk = 36
+    compileSdk = flutter.compileSdkVersion
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
@@ -20,7 +20,7 @@ android {
     defaultConfig {
         applicationId = "com.tooler.tooler"
         minSdk = flutter.minSdkVersion
-        targetSdk = 35
+        targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -46,7 +46,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 
