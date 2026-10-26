@@ -169,6 +169,27 @@ class WidgetService {
     }
   }
 
+  Future<void> syncStepsToNative() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('refreshStepWidget');
+    } catch (_) {}
+  }
+
+  Future<void> syncTasksToNative() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('refreshTasksWidget');
+    } catch (_) {}
+  }
+
+  Future<void> syncCountersToNative() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      await _channel.invokeMethod('refreshCounterWidget');
+    } catch (_) {}
+  }
+
   Future<bool> pinWidgetToHomeScreen(String ratio, StationeryTheme theme) async {
     await syncToNative(theme);
     if (kIsWeb || !Platform.isAndroid) return false;

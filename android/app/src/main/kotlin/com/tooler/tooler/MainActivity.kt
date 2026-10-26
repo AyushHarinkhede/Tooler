@@ -881,7 +881,7 @@ open class MainActivity : FlutterActivity() {
                                 val provider = when (ratio) {
                                     "1x1" -> ComponentName(this, ToolerFavWidgetProvider::class.java)
                                     "2x2" -> ComponentName(this, ToolerCounterWidgetProvider::class.java)
-                                    "steps", "step" -> ComponentName(this, ToolerStepWidgetProvider::class.java)
+                                    "steps", "step", "3x2" -> ComponentName(this, ToolerStepWidgetProvider::class.java)
                                     "tasks", "task", "notes" -> ComponentName(this, ToolerTasksWidgetProvider::class.java)
                                     else -> ComponentName(this, ToolerQuickBarWidgetProvider::class.java)
                                 }
@@ -896,6 +896,18 @@ open class MainActivity : FlutterActivity() {
                     } else {
                         result.success(false)
                     }
+                }
+                "refreshStepWidget" -> {
+                    ToolerStepWidgetProvider.updateAllWidgets(applicationContext)
+                    result.success(true)
+                }
+                "refreshTasksWidget" -> {
+                    ToolerTasksWidgetProvider.updateAllWidgets(applicationContext)
+                    result.success(true)
+                }
+                "refreshCounterWidget" -> {
+                    ToolerCounterWidgetProvider.updateAllWidgets(applicationContext)
+                    result.success(true)
                 }
                 "getSystemWidgetColors" -> {
                     val pal = ToolerWidgetRenderer.getSystemPalette(this)

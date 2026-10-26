@@ -6,6 +6,7 @@ import '../models/calc_history_model.dart';
 import '../models/calendar_event_model.dart';
 import '../theme/stationery_theme.dart';
 import 'security_service.dart';
+import 'widget_service.dart';
 
 class StorageService {
   static final StorageService _instance = StorageService._internal();
@@ -98,6 +99,7 @@ class StorageService {
     final checksum = SecurityService().generateIntegrityChecksum(str);
     await prefs.setString(keyTasks, str);
     await prefs.setString(keyTasksChecksum, checksum);
+    WidgetService().syncTasksToNative();
   }
 
   Future<bool> loadCalendarIntlNotifications() async {
@@ -169,6 +171,7 @@ class StorageService {
     final checksum = SecurityService().generateIntegrityChecksum(str);
     await prefs.setString(keyCounters, str);
     await prefs.setString(keyCountersChecksum, checksum);
+    WidgetService().syncCountersToNative();
   }
 
   Future<List<CalcHistoryItem>> loadCalcHistory() async {

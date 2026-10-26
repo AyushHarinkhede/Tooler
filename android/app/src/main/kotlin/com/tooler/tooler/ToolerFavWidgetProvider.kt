@@ -45,26 +45,30 @@ class ToolerFavWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
-            val views = RemoteViews(context.packageName, R.layout.widget_tooler_1x1)
-            val palette = ToolerWidgetRenderer.resolvePalette(context)
-            val favToolId = ToolerWidgetRenderer.getFavoriteToolId(context)
+            try {
+                val views = RemoteViews(context.packageName, R.layout.widget_tooler_1x1)
+                val palette = ToolerWidgetRenderer.resolvePalette(context)
+                val favToolId = ToolerWidgetRenderer.getFavoriteToolId(context)
 
-            // Ultra-sharp 320x320 supersampled Icon-Only 1x1 Squircle (Zero Text Label)
-            val iconBmp = ToolerWidgetRenderer.renderToolButtonBitmap(
-                toolId = favToolId,
-                sizePx = 320,
-                palette = palette,
-                isStandalone1x1 = true
-            )
-            views.setImageViewBitmap(R.id.widget_1x1_icon, iconBmp)
+                // Crisp, lightweight 140x140 Icon-Only 1x1 Squircle (well below 100 KB parcel size)
+                val iconBmp = ToolerWidgetRenderer.renderToolButtonBitmap(
+                    toolId = favToolId,
+                    sizePx = 140,
+                    palette = palette,
+                    isStandalone1x1 = true
+                )
+                views.setImageViewBitmap(R.id.widget_1x1_icon, iconBmp)
 
-            // Direct Home Screen Floating Hover Overlay Launch
-            views.setOnClickPendingIntent(
-                R.id.widget_1x1_icon,
-                ToolerWidgetRenderer.buildLaunchPendingIntent(context, favToolId, 201)
-            )
+                // Direct Home Screen Floating Hover Overlay Launch
+                views.setOnClickPendingIntent(
+                    R.id.widget_1x1_icon,
+                    ToolerWidgetRenderer.buildLaunchPendingIntent(context, favToolId, 201)
+                )
 
-            appWidgetManager.updateAppWidget(appWidgetId, views)
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (e: Throwable) {
+                android.util.Log.e("ToolerFavWidget", "Error updating 1x1 widget $appWidgetId: ${e.message}", e)
+            }
         }
     }
 }

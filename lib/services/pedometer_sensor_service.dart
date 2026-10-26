@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
+import 'widget_service.dart';
 
 /// GPS / Trail Waypoint recorded along the walk or transit
 class StepTrailPoint {
@@ -398,6 +399,7 @@ class PedometerSensorService {
               if (changed && !_stepStreamController.isClosed) {
                 _stepStreamController.add(_todaySteps);
                 unawaited(_checkStepNotifications());
+                unawaited(WidgetService().syncStepsToNative());
               }
             }
           },

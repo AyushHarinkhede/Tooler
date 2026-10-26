@@ -143,11 +143,11 @@
                 android:resource="@xml/tooler_widget_2x2_info" />
         </receiver>
 
-        <!-- Home Screen 2x2 Step Counter & Fitness Widget -->
+        <!-- Home Screen 3x2 Step Counter & Fitness Widget -->
         <receiver
             android:name=".ToolerStepWidgetProvider"
             android:exported="true"
-            android:label="Tooler Step Counter (2×2)">
+            android:label="Tooler Step Counter (3×2)">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

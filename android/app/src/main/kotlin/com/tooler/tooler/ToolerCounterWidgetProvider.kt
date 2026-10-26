@@ -83,76 +83,76 @@ class ToolerCounterWidgetProvider : AppWidgetProvider() {
             appWidgetId: Int,
             options: Bundle? = null
         ) {
-            val views = RemoteViews(context.packageName, R.layout.widget_tooler_2x2)
-            val palette = ToolerWidgetRenderer.resolvePalette(context)
+            try {
+                val views = RemoteViews(context.packageName, R.layout.widget_tooler_2x2)
+                val palette = ToolerWidgetRenderer.resolvePalette(context)
 
-            val name = ToolerWidgetRenderer.getCounterName(context)
-            val value = ToolerWidgetRenderer.getCounterValue(context)
+                val name = ToolerWidgetRenderer.getCounterName(context)
+                val value = ToolerWidgetRenderer.getCounterValue(context)
 
-            val opts = options ?: appWidgetManager.getAppWidgetOptions(appWidgetId)
-            val minWdp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 140).coerceAtLeast(100)
-            val minHdp = opts.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 140).coerceAtLeast(100)
+                // Compact, high-efficiency dimensions (well below Android Binder 1MB transaction ceiling)
+                val bgW = 240
+                val bgH = 240
+                val radius = 32f
 
-            val density = 3.5f
-            val bgW = (minWdp * density).toInt().coerceIn(400, 900)
-            val bgH = (minHdp * density).toInt().coerceIn(400, 900)
-            val radius = (bgH * 0.16f).coerceAtMost(80f)
+                // Render supersampled background card
+                val bgBmp = ToolerWidgetRenderer.renderRoundedCardBackground(bgW, bgH, radius, palette)
+                views.setImageViewBitmap(R.id.widget_2x2_bg, bgBmp)
 
-            // Render supersampled background card
-            val bgBmp = ToolerWidgetRenderer.renderRoundedCardBackground(bgW, bgH, radius, palette)
-            views.setImageViewBitmap(R.id.widget_2x2_bg, bgBmp)
+                // Small counter icon in header
+                val iconBmp = ToolerWidgetRenderer.renderSmallCounterIconBitmap(40, palette)
+                views.setImageViewBitmap(R.id.widget_counter_icon, iconBmp)
 
-            // Small counter icon in header
-            val iconBmp = ToolerWidgetRenderer.renderSmallCounterIconBitmap(80, palette)
-            views.setImageViewBitmap(R.id.widget_counter_icon, iconBmp)
+                // Counter name & colors
+                views.setTextViewText(R.id.widget_counter_name, name)
+                views.setTextColor(R.id.widget_counter_name, palette.ink)
+                views.setTextColor(R.id.widget_counter_badge, palette.primary)
 
-            // Counter name & colors
-            views.setTextViewText(R.id.widget_counter_name, name)
-            views.setTextColor(R.id.widget_counter_name, palette.ink)
-            views.setTextColor(R.id.widget_counter_badge, palette.primary)
+                // Counter value & color
+                views.setTextViewText(R.id.widget_counter_value, value.toString())
+                views.setTextColor(R.id.widget_counter_value, palette.primary)
 
-            // Counter value & color
-            views.setTextViewText(R.id.widget_counter_value, value.toString())
-            views.setTextColor(R.id.widget_counter_value, palette.primary)
+                // Button bitmaps
+                val btnW = 90
+                val btnH = 44
+                val minusBmp = ToolerWidgetRenderer.renderCounterButtonBitmap(false, btnW, btnH, palette)
+                val plusBmp = ToolerWidgetRenderer.renderCounterButtonBitmap(true, btnW, btnH, palette)
+                views.setImageViewBitmap(R.id.widget_btn_minus, minusBmp)
+                views.setImageViewBitmap(R.id.widget_btn_plus, plusBmp)
 
-            // Button bitmaps
-            val btnW = 200
-            val btnH = 80
-            val minusBmp = ToolerWidgetRenderer.renderCounterButtonBitmap(false, btnW, btnH, palette)
-            val plusBmp = ToolerWidgetRenderer.renderCounterButtonBitmap(true, btnW, btnH, palette)
-            views.setImageViewBitmap(R.id.widget_btn_minus, minusBmp)
-            views.setImageViewBitmap(R.id.widget_btn_plus, plusBmp)
+                // Minus Broadcast intent
+                val decIntent = Intent(context, ToolerCounterWidgetProvider::class.java).apply {
+                    action = ACTION_COUNTER_DEC
+                }
+                val decPi = PendingIntent.getBroadcast(
+                    context,
+                    301,
+                    decIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.widget_btn_minus, decPi)
 
-            // Minus Broadcast intent
-            val decIntent = Intent(context, ToolerCounterWidgetProvider::class.java).apply {
-                action = ACTION_COUNTER_DEC
+                // Plus Broadcast intent
+                val incIntent = Intent(context, ToolerCounterWidgetProvider::class.java).apply {
+                    action = ACTION_COUNTER_INC
+                }
+                val incPi = PendingIntent.getBroadcast(
+                    context,
+                    302,
+                    incIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.widget_btn_plus, incPi)
+
+                // Open Tally Counter hover sheet on header / number tap
+                val launchPi = ToolerWidgetRenderer.buildLaunchPendingIntent(context, "counters", 300)
+                views.setOnClickPendingIntent(R.id.widget_counter_header, launchPi)
+                views.setOnClickPendingIntent(R.id.widget_counter_value, launchPi)
+
+                appWidgetManager.updateAppWidget(appWidgetId, views)
+            } catch (e: Throwable) {
+                android.util.Log.e("ToolerCounterWidget", "Error updating counter widget $appWidgetId: ${e.message}", e)
             }
-            val decPi = PendingIntent.getBroadcast(
-                context,
-                301,
-                decIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_btn_minus, decPi)
-
-            // Plus Broadcast intent
-            val incIntent = Intent(context, ToolerCounterWidgetProvider::class.java).apply {
-                action = ACTION_COUNTER_INC
-            }
-            val incPi = PendingIntent.getBroadcast(
-                context,
-                302,
-                incIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-            views.setOnClickPendingIntent(R.id.widget_btn_plus, incPi)
-
-            // Open Tally Counter hover sheet on header / number tap
-            val launchPi = ToolerWidgetRenderer.buildLaunchPendingIntent(context, "counters", 300)
-            views.setOnClickPendingIntent(R.id.widget_counter_header, launchPi)
-            views.setOnClickPendingIntent(R.id.widget_counter_value, launchPi)
-
-            appWidgetManager.updateAppWidget(appWidgetId, views)
         }
 
         private fun syncValueToFlutter(context: Context, counterId: Int, newVal: Int) {

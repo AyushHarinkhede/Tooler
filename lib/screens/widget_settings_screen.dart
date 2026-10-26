@@ -286,7 +286,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                     : (_selectedRatio == 'tasks'
                         ? 'Tap "Add" to place Resizable Tasks Widget on Home Screen!'
                         : (_selectedRatio == 'steps'
-                            ? 'Tap "Add" to place Tooler Step Counter on Home Screen!'
+                            ? 'Tap "Add" to place Tooler 3×2 Step Counter on Home Screen!'
                             : (_selectedRatio == '2x2'
                                 ? 'Tap "Add" to place Tooler 2×2 Tally Counter on Home Screen!'
                                 : 'Tap "Add" to place your 1×1 Icon Shortcut on Home Screen!'))))
@@ -397,7 +397,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                               : (_selectedRatio == 'tasks'
                                   ? 'Tasks & Notes'
                                   : (_selectedRatio == 'steps'
-                                      ? 'Steps 2×2'
+                                      ? 'Steps 3×2'
                                       : (_selectedRatio == '2x2' ? 'Tally 2×2' : '1 × 1 Icon'))),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10.5,
@@ -477,9 +477,9 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                     )
                   else if (_selectedRatio == 'steps')
                     Container(
-                      width: 176,
-                      height: 176,
-                      padding: const EdgeInsets.all(13),
+                      width: 250,
+                      height: 165,
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                       decoration: BoxDecoration(
                         color: previewCardBg,
                         borderRadius: BorderRadius.circular(26),
@@ -506,12 +506,12 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                                 ),
                                 child: Icon(Icons.directions_walk_rounded, size: 16, color: previewPrimary),
                               ),
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
                                   'STEPS',
                                   style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11.5,
+                                    fontSize: 12,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: 0.8,
                                     color: previewPrimary,
@@ -519,7 +519,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                                 decoration: BoxDecoration(
                                   color: previewPrimary.withValues(alpha: 0.12),
                                   borderRadius: BorderRadius.circular(6),
@@ -537,31 +537,21 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                           ),
 
                           // Main Prominent Step Count
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                _todaySteps > 0 ? '$_todaySteps' : '6,420',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 34,
-                                  fontWeight: FontWeight.w900,
-                                  color: previewPrimary,
-                                ),
+                          Center(
+                            child: Text(
+                              _todaySteps > 0 ? '$_todaySteps' : '6,420',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 36,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.5,
+                                color: previewPrimary,
                               ),
-                              Text(
-                                '● Hardware Pedometer Active',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: theme.textSecondary,
-                                ),
-                              ),
-                            ],
+                            ),
                           ),
 
                           // Trio metrics: Distance, Speed, Calories with icons
                           Container(
-                            padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                            padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 8),
                             decoration: BoxDecoration(
                               color: previewBubble.withValues(alpha: 0.6),
                               borderRadius: BorderRadius.circular(12),
@@ -570,54 +560,60 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 // Distance
-                                Column(
-                                  children: [
-                                    Icon(Icons.straighten_rounded, size: 13, color: previewPrimary),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _stepDistanceKm > 0 ? '${_stepDistanceKm.toStringAsFixed(1)} km' : '4.8 km',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: theme.text,
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.straighten_rounded, size: 13, color: previewPrimary),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _stepDistanceKm > 0 ? '${_stepDistanceKm.toStringAsFixed(1)} km' : '4.8 km',
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: theme.text,
+                                        ),
                                       ),
-                                    ),
-                                    Text('Distance', style: TextStyle(fontSize: 7.5, color: theme.textSecondary)),
-                                  ],
+                                      Text('Distance', style: TextStyle(fontSize: 7.5, color: theme.textSecondary)),
+                                    ],
+                                  ),
                                 ),
-                                Container(width: 1, height: 20, color: previewBorder),
+                                Container(width: 1, height: 22, color: previewBorder),
                                 // Speed
-                                Column(
-                                  children: [
-                                    Icon(Icons.speed_rounded, size: 13, color: previewPrimary),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _stepAvgSpeed > 0 ? '${_stepAvgSpeed.toStringAsFixed(1)} km/h' : '4.5 km/h',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: theme.text,
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.speed_rounded, size: 13, color: previewPrimary),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _stepAvgSpeed > 0 ? '${_stepAvgSpeed.toStringAsFixed(1)} km/h' : '4.5 km/h',
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: theme.text,
+                                        ),
                                       ),
-                                    ),
-                                    Text('Avg Speed', style: TextStyle(fontSize: 7.5, color: theme.textSecondary)),
-                                  ],
+                                      Text('Avg Speed', style: TextStyle(fontSize: 7.5, color: theme.textSecondary)),
+                                    ],
+                                  ),
                                 ),
-                                Container(width: 1, height: 20, color: previewBorder),
+                                Container(width: 1, height: 22, color: previewBorder),
                                 // Calories
-                                Column(
-                                  children: [
-                                    const Icon(Icons.local_fire_department_rounded, size: 13, color: Color(0xFFF97316)),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      _stepCalories > 0 ? '$_stepCalories kcal' : '270 kcal',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: theme.text,
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      const Icon(Icons.local_fire_department_rounded, size: 13, color: Color(0xFFF97316)),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        _stepCalories > 0 ? '$_stepCalories kcal' : '270 kcal',
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: theme.text,
+                                        ),
                                       ),
-                                    ),
-                                    Text('Calories', style: TextStyle(fontSize: 7.5, color: theme.textSecondary)),
-                                  ],
+                                      Text('Calories', style: TextStyle(fontSize: 7.5, color: theme.textSecondary)),
+                                    ],
+                                  ),
                                 ),
                               ],
                             ),
@@ -824,7 +820,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                     children: [
                       Expanded(
                         child: _buildChoiceTile(
-                          label: 'Steps 2×2',
+                          label: 'Steps 3×2',
                           subtitle: 'Fitness Pedometer',
                           icon: Icons.directions_walk_rounded,
                           isSelected: _selectedRatio == 'steps',
@@ -1091,7 +1087,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                       : (_selectedRatio == 'tasks'
                           ? 'Add Tasks Widget to Home Screen'
                           : (_selectedRatio == 'steps'
-                              ? 'Add Step Counter Widget to Home Screen'
+                              ? 'Add 3×2 Step Counter to Home Screen'
                               : (_selectedRatio == '2x2'
                                   ? 'Add 2×2 Counter Widget to Home Screen'
                                   : 'Add 1×1 Widget to Home Screen'))),

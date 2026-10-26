@@ -71,7 +71,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:gravity="center"
-                android:textSize="34sp"
+                android:textSize="36sp"
                 android:textStyle="bold"
                 android:singleLine="true"
                 android:text="0" />
@@ -80,16 +80,17 @@
                 android:id="@+id/widget_step_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textSize="9sp"
-                android:textStyle="bold"
-                android:text="● Hardware Sensor Active" />
+                android:visibility="gone"
+                android:text="" />
         </LinearLayout>
 
-        <!-- Bottom Trio Metrics: Distance · Avg Speed · Calories -->
+        <!-- Bottom Trio Metrics: Distance · Avg Speed · Calories (3x2 Wide Cell) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="2dp"
             android:gravity="center">
 
             <!-- Distance Metric -->
@@ -102,8 +103,8 @@
 
                 <ImageView
                     android:id="@+id/widget_step_dist_icon"
-                    android:layout_width="15dp"
-                    android:layout_height="15dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Distance" />
 
@@ -111,7 +112,7 @@
                     android:id="@+id/widget_step_dist_val"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="10.5sp"
+                    android:textSize="11.5sp"
                     android:textStyle="bold"
                     android:singleLine="true"
                     android:text="0.0 km" />
@@ -120,7 +121,7 @@
                     android:id="@+id/widget_step_dist_lbl"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="8sp"
+                    android:textSize="8.5sp"
                     android:text="Distance" />
             </LinearLayout>
 
@@ -139,8 +140,8 @@
 
                 <ImageView
                     android:id="@+id/widget_step_speed_icon"
-                    android:layout_width="15dp"
-                    android:layout_height="15dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Avg Speed" />
 
@@ -148,7 +149,7 @@
                     android:id="@+id/widget_step_speed_val"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="10.5sp"
+                    android:textSize="11.5sp"
                     android:textStyle="bold"
                     android:singleLine="true"
                     android:text="0.0 km/h" />
@@ -157,7 +158,7 @@
                     android:id="@+id/widget_step_speed_lbl"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="8sp"
+                    android:textSize="8.5sp"
                     android:text="Avg Speed" />
             </LinearLayout>
 
@@ -176,8 +177,8 @@
 
                 <ImageView
                     android:id="@+id/widget_step_cal_icon"
-                    android:layout_width="15dp"
-                    android:layout_height="15dp"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
                     android:scaleType="fitCenter"
                     android:contentDescription="Calories" />
 
@@ -185,7 +186,7 @@
                     android:id="@+id/widget_step_cal_val"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="10.5sp"
+                    android:textSize="11.5sp"
                     android:textStyle="bold"
                     android:singleLine="true"
                     android:text="0 kcal" />
@@ -194,7 +195,7 @@
                     android:id="@+id/widget_step_cal_lbl"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:textSize="8sp"
+                    android:textSize="8.5sp"
                     android:text="Calories" />
             </LinearLayout>
         </LinearLayout>

@@ -420,6 +420,7 @@ class ToolerStepService : Service(), SensorEventListener {
         if (liveTodaySteps % 5 == 0 || count > 1) {
             updateNotification()
             checkBackgroundStepMilestones()
+            ToolerStepWidgetProvider.updateAllWidgets(this)
         }
         pushLiveTelemetry()
     }
