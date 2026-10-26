@@ -1246,90 +1246,69 @@ class _IllustrationPainter extends CustomPainter {
   void _drawWeather(Canvas canvas, double w, double h, Paint p, Paint fill) {
     // 1. Sun Peeking Behind Cloud in Upper Right (Matching Reference Image)
     final sunCenter = Offset(w * 0.62, h * 0.32);
-    final rSun = w * 0.16;
+    final rSun = w * 0.15;
 
-    // Radiating Sun Rays (6 short clean lines with rounded caps in UI theme color)
-    final rayPaint = Paint()
-      ..color = fill.color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.045
-      ..strokeCap = StrokeCap.round;
-
+    // Radiating Sun Rays in Tooler line-art stroke (p)
     final rayAngles = [
       155 * math.pi / 180, // Upper-left
-      125 * math.pi / 180, // Upper-left
-      90 * math.pi / 180,  // Straight up (12 o'clock)
-      55 * math.pi / 180,  // Upper-right
-      25 * math.pi / 180,  // Right
-      0 * math.pi / 180,   // Horizontal right
+      120 * math.pi / 180, // Upper-left
+      85 * math.pi / 180,  // Straight up
+      50 * math.pi / 180,  // Upper-right
+      18 * math.pi / 180,  // Right
     ];
 
     for (final angle in rayAngles) {
       final p1 = Offset(
-        sunCenter.dx + math.cos(angle) * (rSun + w * 0.05),
-        sunCenter.dy - math.sin(angle) * (rSun + w * 0.05),
+        sunCenter.dx + math.cos(angle) * (rSun + w * 0.04),
+        sunCenter.dy - math.sin(angle) * (rSun + w * 0.04),
       );
       final p2 = Offset(
-        sunCenter.dx + math.cos(angle) * (rSun + w * 0.13),
-        sunCenter.dy - math.sin(angle) * (rSun + w * 0.13),
+        sunCenter.dx + math.cos(angle) * (rSun + w * 0.11),
+        sunCenter.dy - math.sin(angle) * (rSun + w * 0.11),
       );
-      canvas.drawLine(p1, p2, rayPaint);
+      canvas.drawLine(p1, p2, p);
     }
 
-    // Sun Disc Body (Filled in UI theme color)
+    // Sun Disc Body (Accent Theme Color Fill + Tooler Line-Art Outline)
     canvas.drawCircle(sunCenter, rSun, fill);
+    canvas.drawCircle(sunCenter, rSun, p);
 
-    // 2. Soft Puffy Cloud (Foreground Silhouette from Reference Image)
+    // 2. Soft Puffy Cloud (Matching Reference Image in Tooler Line-Art Style)
     final cloud = Path();
-    // Flat bottom capsule
-    cloud.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTRB(w * 0.12, h * 0.44, w * 0.76, h * 0.66),
-      Radius.circular(w * 0.11),
-    ));
-    // Left puff
-    cloud.addOval(Rect.fromCircle(
-      center: Offset(w * 0.28, h * 0.46),
-      radius: w * 0.14,
-    ));
-    // Center/tallest main dome
-    cloud.addOval(Rect.fromCircle(
-      center: Offset(w * 0.45, h * 0.35),
-      radius: w * 0.18,
-    ));
-    // Right puff
-    cloud.addOval(Rect.fromCircle(
-      center: Offset(w * 0.62, h * 0.46),
-      radius: w * 0.13,
-    ));
+    cloud.moveTo(w * 0.22, h * 0.62);
+    cloud.lineTo(w * 0.70, h * 0.62);
+    // Right rounded bottom cap
+    cloud.arcToPoint(Offset(w * 0.76, h * 0.54), radius: Radius.circular(w * 0.08));
+    // Right puff dome
+    cloud.arcToPoint(Offset(w * 0.61, h * 0.40), radius: Radius.circular(w * 0.12));
+    // Center/highest main dome
+    cloud.arcToPoint(Offset(w * 0.35, h * 0.42), radius: Radius.circular(w * 0.16));
+    // Left puff dome
+    cloud.arcToPoint(Offset(w * 0.16, h * 0.54), radius: Radius.circular(w * 0.12));
+    // Left rounded bottom cap
+    cloud.arcToPoint(Offset(w * 0.22, h * 0.62), radius: Radius.circular(w * 0.08));
+    cloud.close();
 
-    // Cutout separation halo around cloud (creates clean gap against sun from reference image)
-    final cutoutPaint = Paint()
+    // Card background fill (masks out the sun behind the cloud so they don't clash)
+    final bgFill = Paint()
       ..color = isDark ? const Color(0xFF18181B) : Colors.white
       ..style = PaintingStyle.fill;
-    final cutoutStroke = Paint()
-      ..color = isDark ? const Color(0xFF18181B) : Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.06
-      ..strokeJoin = StrokeJoin.round
-      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(cloud, bgFill);
 
-    canvas.drawPath(cloud, cutoutStroke);
-    canvas.drawPath(cloud, cutoutPaint);
+    // Tooler Line-Art Stroke for the cloud
+    canvas.drawPath(cloud, p);
 
-    // Draw the Cloud in UI theme color
-    canvas.drawPath(cloud, fill);
-
-    // 3. Rain Droplets Below Cloud ("isme rain ko bhi cloud ke niche add karo")
+    // 3. Rain Droplets Below Cloud (Slanted, Delicate Theme Accents)
     final rainPaint = Paint()
       ..color = fill.color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.045
+      ..strokeWidth = p.strokeWidth * 1.05
       ..strokeCap = StrokeCap.round;
 
     final dx = -w * 0.035;
-    final dy = h * 0.11;
-    final dropXs = [w * 0.28, w * 0.44, w * 0.60];
-    const dropY = 0.74;
+    final dy = h * 0.10;
+    final dropXs = [w * 0.30, w * 0.46, w * 0.62];
+    const dropY = 0.71;
 
     for (final x in dropXs) {
       final start = Offset(x, h * dropY);

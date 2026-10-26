@@ -357,59 +357,54 @@ object ToolerWidgetRenderer {
                 canvas.drawCircle(s * 0.50f, s * 0.65f, r, inkFill)
             }
             "weather" -> {
-                // Minimal sun behind cloud with radiating rays, puffy cloud, cutout halo, and rain drops
+                // Minimal sun behind cloud with radiating rays, puffy cloud, and rain drops in Tooler line-art
                 val sunX = s * 0.62f
                 val sunY = s * 0.32f
-                val rSun = s * 0.16f
+                val rSun = s * 0.15f
 
-                // Radiating sun rays (6 short clean lines with rounded caps in UI theme color)
-                val anglesDeg = floatArrayOf(155f, 125f, 90f, 55f, 25f, 0f)
-                val rayPaint = android.graphics.Paint(accentStroke).apply {
-                    strokeWidth = s * 0.045f
-                    strokeCap = android.graphics.Paint.Cap.ROUND
-                }
+                // Radiating sun rays in line-art stroke
+                val anglesDeg = floatArrayOf(155f, 120f, 85f, 50f, 18f)
                 for (deg in anglesDeg) {
                     val rad = Math.toRadians(deg.toDouble())
-                    val x1 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.05f)
-                    val y1 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.05f)
-                    val x2 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.13f)
-                    val y2 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.13f)
-                    canvas.drawLine(x1, y1, x2, y2, rayPaint)
+                    val x1 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.04f)
+                    val y1 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.04f)
+                    val x2 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.11f)
+                    val y2 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.11f)
+                    canvas.drawLine(x1, y1, x2, y2, stroke)
                 }
 
-                // Sun disc
+                // Sun disc (accent theme color fill + line-art outline)
                 canvas.drawCircle(sunX, sunY, rSun, accentFill)
+                canvas.drawCircle(sunX, sunY, rSun, stroke)
 
                 // Soft puffy cloud
                 val cloud = Path().apply {
-                    addRoundRect(RectF(s * 0.12f, s * 0.44f, s * 0.76f, s * 0.66f), s * 0.11f, s * 0.11f, Path.Direction.CW)
-                    addCircle(s * 0.28f, s * 0.46f, s * 0.14f, Path.Direction.CW)
-                    addCircle(s * 0.45f, s * 0.35f, s * 0.18f, Path.Direction.CW)
-                    addCircle(s * 0.62f, s * 0.46f, s * 0.13f, Path.Direction.CW)
+                    moveTo(s * 0.22f, s * 0.62f)
+                    lineTo(s * 0.70f, s * 0.62f)
+                    arcTo(RectF(s * 0.62f, s * 0.46f, s * 0.78f, s * 0.62f), 90f, -90f, false)
+                    arcTo(RectF(s * 0.49f, s * 0.28f, s * 0.73f, s * 0.52f), 0f, -120f, false)
+                    arcTo(RectF(s * 0.19f, s * 0.26f, s * 0.51f, s * 0.58f), 0f, -140f, false)
+                    arcTo(RectF(s * 0.10f, s * 0.46f, s * 0.26f, s * 0.62f), -180f, -90f, false)
+                    close()
                 }
 
-                // Cutout separation halo behind cloud (clears background gap against sun)
+                // Mask background so cloud blocks sun cleanly
                 val cutoutPaint = android.graphics.Paint().apply {
                     xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
-                    style = android.graphics.Paint.Style.FILL_AND_STROKE
-                    strokeWidth = s * 0.06f
+                    style = android.graphics.Paint.Style.FILL
                 }
                 canvas.drawPath(cloud, cutoutPaint)
 
-                // Foreground cloud in UI accent color
-                canvas.drawPath(cloud, accentFill)
+                // Cloud line-art stroke
+                canvas.drawPath(cloud, stroke)
 
-                // Rain droplets below cloud
-                val rainPaint = android.graphics.Paint(accentStroke).apply {
-                    strokeWidth = s * 0.045f
-                    strokeCap = android.graphics.Paint.Cap.ROUND
-                }
+                // Rain droplets in accent color
                 val dx = -s * 0.035f
-                val dy = s * 0.11f
-                val dropXs = floatArrayOf(s * 0.28f, s * 0.44f, s * 0.60f)
-                val dropY = s * 0.74f
+                val dy = s * 0.10f
+                val dropXs = floatArrayOf(s * 0.30f, s * 0.46f, s * 0.62f)
+                val dropY = s * 0.71f
                 for (x in dropXs) {
-                    canvas.drawLine(x, dropY, x + dx, dropY + dy, rainPaint)
+                    canvas.drawLine(x, dropY, x + dx, dropY + dy, accentStroke)
                 }
             }
             "games" -> {
