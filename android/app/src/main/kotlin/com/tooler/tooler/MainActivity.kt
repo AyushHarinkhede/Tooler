@@ -1303,6 +1303,11 @@ open class MainActivity : FlutterActivity() {
                     val success = refreshNetworkConnection()
                     result.success(success)
                 }
+                "setPreferredNetworkMode" -> {
+                    val mode = call.argument<String>("mode") ?: "AUTO"
+                    val success = setPreferredNetworkMode(mode)
+                    result.success(success)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -1539,18 +1544,25 @@ open class MainActivity : FlutterActivity() {
                 } catch (_: Exception) {}
 
                 val estimatedMeters: Int = if (timingAdvance in 1..128) {
-                    (timingAdvance * 78.12).roundToInt()
+                    if (is5G) (timingAdvance * 39.06).roundToInt().coerceIn(120, 5000)
+                    else (timingAdvance * 78.12).roundToInt().coerceIn(120, 8500)
                 } else {
                     val clampedRsrp = rsrp.coerceIn(-120, -55)
-                    val dist = Math.pow(10.0, ((-50.0 - clampedRsrp) / (10.0 * 2.8))) * 80.0
-                    dist.roundToInt().coerceIn(140, 4200)
+                    val dist = Math.pow(10.0, ((-44.0 - clampedRsrp) / (10.0 * 2.8))) * 50.0
+                    dist.roundToInt().coerceIn(150, 4200)
                 }
 
                 val proximityStr = when {
-                    estimatedMeters < 350 -> "Direct Rooftop Tower (~${estimatedMeters}m)"
+                    estimatedMeters < 300 -> "Direct Rooftop Tower (~${estimatedMeters}m)"
                     estimatedMeters < 750 -> "Line-of-Sight Tower (~${estimatedMeters}m)"
                     estimatedMeters < 1500 -> "Mid-Range Cell (~${String.format(java.util.Locale.US, "%.1f", estimatedMeters / 1000.0)}km)"
                     else -> "Fringe Sector (~${String.format(java.util.Locale.US, "%.1f", estimatedMeters / 1000.0)}km)"
+                }
+
+                val sectorName = when (pci % 3) {
+                    0 -> "Sector Alpha (60° NE)"
+                    1 -> "Sector Beta (180° S)"
+                    else -> "Sector Gamma (300° NW)"
                 }
 
                 cellData["networkType"] = netTypeStr
@@ -1567,6 +1579,7 @@ open class MainActivity : FlutterActivity() {
                 cellData["timingAdvance"] = timingAdvance
                 cellData["estimatedTowerDistanceMeters"] = estimatedMeters
                 cellData["towerProximity"] = proximityStr
+                cellData["sector"] = sectorName
             }
             result["cellular"] = cellData
 
@@ -1600,19 +1613,37 @@ open class MainActivity : FlutterActivity() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 cm?.reportNetworkConnectivity(null, false)
             }
-            val intent = Intent(Settings.ACTION_AIRPLANE_MODE_SETTINGS)
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            startActivity(intent)
+            val tm = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                tm?.requestCellInfoUpdate(mainExecutor, object : TelephonyManager.CellInfoCallback() {
+                    override fun onCellInfo(cellInfo: List<CellInfo>) {}
+                })
+            }
             return true
         } catch (_: Exception) {
-            try {
-                val intent = Intent(Settings.ACTION_WIRELESS_SETTINGS)
-                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-                return true
-            } catch (_: Exception) {}
+            return false
         }
-        return false
+    }
+
+    private fun setPreferredNetworkMode(mode: String): Boolean {
+        try {
+            val tm = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager ?: return false
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                val bitmask = when (mode) {
+                    "NR_ONLY" -> TelephonyManager.NETWORK_TYPE_BITMASK_NR
+                    "LTE_ONLY" -> TelephonyManager.NETWORK_TYPE_BITMASK_LTE
+                    "GSM_ONLY" -> TelephonyManager.NETWORK_TYPE_BITMASK_GSM
+                    else -> TelephonyManager.NETWORK_TYPE_BITMASK_NR or TelephonyManager.NETWORK_TYPE_BITMASK_LTE or TelephonyManager.NETWORK_TYPE_BITMASK_GSM
+                }
+                try {
+                    tm.setAllowedNetworkTypesForReason(TelephonyManager.ALLOWED_NETWORK_TYPES_REASON_USER, bitmask)
+                    return true
+                } catch (_: Exception) {}
+            }
+            return true
+        } catch (_: Exception) {
+            return false
+        }
     }
 
     private data class HardwareSpec(

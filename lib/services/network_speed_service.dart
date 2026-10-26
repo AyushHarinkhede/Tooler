@@ -131,6 +131,7 @@ class CellularTelemetry {
   final int timingAdvance;
   final int estimatedTowerDistanceMeters;
   final String towerProximity;
+  final String sector;
 
   const CellularTelemetry({
     this.carrier = 'Jio True5G',
@@ -150,6 +151,7 @@ class CellularTelemetry {
     this.timingAdvance = 4,
     this.estimatedTowerDistanceMeters = 312,
     this.towerProximity = 'Direct Rooftop Tower (~312m)',
+    this.sector = 'Sector Alpha (60° NE)',
   });
 
   factory CellularTelemetry.fromMap(Map<dynamic, dynamic>? map) {
@@ -172,6 +174,7 @@ class CellularTelemetry {
       timingAdvance: (map['timingAdvance'] as num?)?.toInt() ?? 4,
       estimatedTowerDistanceMeters: (map['estimatedTowerDistanceMeters'] as num?)?.toInt() ?? 312,
       towerProximity: map['towerProximity'] as String? ?? 'Direct Rooftop Tower (~312m)',
+      sector: map['sector'] as String? ?? 'Sector Alpha (60° NE)',
     );
   }
 }
@@ -235,10 +238,20 @@ class NetworkSpeedService {
     }
   }
 
-  /// Performs hardware network socket purge & opens Airplane mode to force tower re-registration
+  /// Performs hardware network socket purge & radio refresh
   Future<bool> refreshNetwork() async {
     try {
       final res = await _channel.invokeMethod<bool>('refreshNetwork');
+      return res ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Sets preferred cellular network mode (NR_ONLY, LTE_ONLY, GSM_ONLY, AUTO)
+  Future<bool> setPreferredNetworkMode(String mode) async {
+    try {
+      final res = await _channel.invokeMethod<bool>('setPreferredNetworkMode', {'mode': mode});
       return res ?? false;
     } catch (_) {
       return false;

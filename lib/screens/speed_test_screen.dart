@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../theme/stationery_theme.dart';
@@ -10,14 +11,11 @@ import '../widgets_3d/bouncy_tap.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER HARDWARE SPEED TEST & RADIO TELEMETRY SCREEN
-/// - 180° Half-Circular Precision Speedometer Gauge
+/// - Silky-Smooth Circular Radial Speedometer Gauge (Noise Meter architecture)
 /// - Real-time Multi-CDN Download, Upload, Ping & Jitter Testing
-/// - Deep Wi-Fi Hardware Telemetry (SSID, Band GHz, Channel, Link Speed, Generation)
-/// - Deep Cellular 5G/4G Telemetry (NR State, Frequency, RSRP, SINR, Cell ID)
-/// - Nearest Cell Tower Distance Estimation (Timing Advance & RF Propagation)
-/// - "Refresh Network" (Socket purge & Airplane mode radio re-register)
-/// - "Force 5G" / Hidden Phone Info Engineering Menu Launcher
-/// - Complete Preferred Network Modes Explainer (NR only, NR/LTE, etc.)
+/// - Direct In-App "Refresh Network" (Zero intrusive settings dialogs)
+/// - Direct In-App "Force 5G" & Preferred Network Modes Selector
+/// - Live 5G/4G Cellular Telemetry & Accurate Nearest Cell Tower Triangulation
 /// ---------------------------------------------------------------------------
 
 class SpeedTestScreen extends StatefulWidget {
@@ -29,7 +27,8 @@ class SpeedTestScreen extends StatefulWidget {
   State<SpeedTestScreen> createState() => _SpeedTestScreenState();
 }
 
-class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProviderStateMixin {
+class _SpeedTestScreenState extends State<SpeedTestScreen>
+    with SingleTickerProviderStateMixin {
   final NetworkSpeedService _speedService = NetworkSpeedService();
 
   NetworkTelemetry _telemetry = const NetworkTelemetry();
@@ -37,40 +36,64 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
   StreamSubscription<Map<String, dynamic>>? _testSub;
 
   SpeedTestStage _stage = SpeedTestStage.idle;
-  double _currentSpeedMbps = 0.0;
+  double _displaySpeedMbps = 0.0;
+  double _targetSpeedMbps = 0.0;
+  double _peakHoldSpeedMbps = 0.0;
+  DateTime _peakHoldUpdatedAt = DateTime.now();
+
   double _downloadMbps = 0.0;
   double _uploadMbps = 0.0;
   int _pingMs = 0;
   int _jitterMs = 0;
   double _testProgress = 0.0;
-  SpeedTestResult? _lastResult;
-  double _bestSpeedMbps = 0.0;
 
-  bool _isMBsUnit = false; // False = Mbps, True = MB/s
+  // 60/120fps display damper ticker (reproduced from noise meter)
+  Ticker? _gaugeTicker;
+  Duration _lastTickerElapsed = Duration.zero;
 
-  late final AnimationController _needleAnimController;
-  late Animation<double> _needleAnimation;
-  double _needleValue = 0.0;
+  // Preferred Network Modes: 'LOCK_5G', 'BATTERY_SAVER', 'ULTRA_SAVER', 'GLOBAL_AUTO'
+  String _selectedNetworkMode = 'LOCK_5G';
+  bool _isRefreshingNetwork = false;
 
   @override
   void initState() {
     super.initState();
 
-    _needleAnimController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 220),
-    );
+    // Zero-jitter 60/120fps exponential damper from Noise Meter
+    _gaugeTicker = createTicker((elapsed) {
+      if (!mounted) return;
+      final dt = ((elapsed - _lastTickerElapsed).inMicroseconds / 1000000.0)
+          .clamp(0.001, 0.05);
+      _lastTickerElapsed = elapsed;
 
-    _needleAnimation = Tween<double>(begin: 0.0, end: 0.0).animate(
-      CurvedAnimation(parent: _needleAnimController, curve: Curves.easeOutCubic),
-    )..addListener(() {
+      final bool rising = _targetSpeedMbps > _displaySpeedMbps;
+      final double speed = rising ? 12.0 : 6.5;
+      final double factor = 1.0 - math.exp(-speed * dt);
+      final double nextSpeed =
+          _displaySpeedMbps + (_targetSpeedMbps - _displaySpeedMbps) * factor;
+
+      double nextPeak = _peakHoldSpeedMbps;
+      if (nextSpeed >= nextPeak) {
+        nextPeak = nextSpeed;
+        _peakHoldUpdatedAt = DateTime.now();
+      } else if (DateTime.now()
+              .difference(_peakHoldUpdatedAt)
+              .inMilliseconds >
+          1800) {
+        nextPeak = math.max(nextSpeed, nextPeak - 35.0 * dt);
+      }
+
+      if ((nextSpeed - _displaySpeedMbps).abs() > 0.04 ||
+          (nextPeak - _peakHoldSpeedMbps).abs() > 0.04) {
         setState(() {
-          _needleValue = _needleAnimation.value;
+          _displaySpeedMbps = nextSpeed;
+          _peakHoldSpeedMbps = nextPeak;
         });
-      });
+      }
+    });
+    _gaugeTicker?.start();
 
     _fetchTelemetry();
-    _loadBestSpeed();
 
     _telemetryTimer = Timer.periodic(const Duration(seconds: 3), (_) {
       if (!_speedService.isTestRunning) {
@@ -81,10 +104,10 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
 
   @override
   void dispose() {
+    _gaugeTicker?.dispose();
     _telemetryTimer?.cancel();
     _testSub?.cancel();
     _speedService.cancelTest();
-    _needleAnimController.dispose();
     super.dispose();
   }
 
@@ -97,21 +120,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
     }
   }
 
-  Future<void> _loadBestSpeed() async {
-    final b = await _speedService.getBestSpeed();
-    if (mounted) {
-      setState(() {
-        _bestSpeedMbps = b;
-      });
+  static double speedToFraction(double mbps, double maxMbps) {
+    if (mbps <= 0.0) return 0.0;
+    if (mbps >= maxMbps) return 1.0;
+    // Calibrated perceptual progression so low and high speeds look dynamic
+    if (mbps <= 100.0) {
+      return (mbps / 100.0) * 0.60;
+    } else {
+      return 0.60 + ((mbps - 100.0) / (maxMbps - 100.0)) * 0.40;
     }
-  }
-
-  void _animateNeedleTo(double targetSpeedMbps) {
-    _needleAnimation = Tween<double>(
-      begin: _needleValue,
-      end: targetSpeedMbps,
-    ).animate(CurvedAnimation(parent: _needleAnimController, curve: Curves.easeOutCubic));
-    _needleAnimController.forward(from: 0.0);
   }
 
   void _startSpeedTest() {
@@ -120,13 +137,12 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
 
     setState(() {
       _stage = SpeedTestStage.pinging;
-      _currentSpeedMbps = 0.0;
+      _targetSpeedMbps = 0.0;
       _downloadMbps = 0.0;
       _uploadMbps = 0.0;
       _pingMs = 0;
       _jitterMs = 0;
       _testProgress = 0.0;
-      _lastResult = null;
     });
 
     _testSub = _speedService.runSpeedTest().listen((event) {
@@ -138,19 +154,17 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
         _downloadMbps = event['downloadMbps'] as double? ?? _downloadMbps;
         _uploadMbps = event['uploadMbps'] as double? ?? _uploadMbps;
         _testProgress = event['progress'] as double? ?? _testProgress;
-        _currentSpeedMbps = event['currentSpeed'] as double? ?? 0.0;
+        _targetSpeedMbps = event['currentSpeed'] as double? ?? 0.0;
 
         if (event['result'] != null) {
-          _lastResult = event['result'] as SpeedTestResult;
-          _bestSpeedMbps = math.max(_bestSpeedMbps, _lastResult!.downloadMbps);
           SoundService().playSuccess();
         }
       });
-      _animateNeedleTo(_currentSpeedMbps);
     }, onError: (_) {
       if (mounted) {
         setState(() {
           _stage = SpeedTestStage.error;
+          _targetSpeedMbps = 0.0;
         });
       }
     });
@@ -162,123 +176,89 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
     _testSub?.cancel();
     setState(() {
       _stage = SpeedTestStage.idle;
-      _currentSpeedMbps = 0.0;
+      _targetSpeedMbps = 0.0;
       _testProgress = 0.0;
     });
-    _animateNeedleTo(0.0);
   }
 
+  /// In-App Network Refresh: flushes local sockets, resets radio session in-place
+  /// (Does NOT throw user out to system settings)
   Future<void> _handleRefreshNetwork() async {
+    if (_isRefreshingNetwork) return;
     SoundService().playSpecialClick();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: widget.theme.cardBg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: BorderSide(color: widget.theme.border, width: 1.5),
-        ),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: widget.theme.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(Icons.refresh_rounded, color: widget.theme.primary, size: 22),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Turbo Refresh Network',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: widget.theme.text,
-                ),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Flushes local DNS sockets, resets carrier bearer sessions, and opens Airplane Mode quick settings.',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: widget.theme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: widget.theme.lavenderBubble.withValues(alpha: 0.35),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: widget.theme.border),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.flight_takeoff_rounded, size: 18, color: Color(0xFF10B981)),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      'Tip: Toggle Airplane mode ON for 3s then OFF to force your phone to reconnect to the nearest 5G tower!',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: widget.theme.text,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: GoogleFonts.plusJakartaSans(color: widget.theme.textSecondary)),
+
+    setState(() {
+      _isRefreshingNetwork = true;
+    });
+
+    await _speedService.refreshNetwork();
+    await Future.delayed(const Duration(milliseconds: 1600));
+
+    if (!mounted) return;
+    await _fetchTelemetry();
+    if (!mounted) return;
+    setState(() {
+      _isRefreshingNetwork = false;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Cellular radio bearer & network sockets refreshed!',
+          style: GoogleFonts.plusJakartaSans(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 12.5,
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: widget.theme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _speedService.refreshNetwork();
-              _fetchTelemetry();
-            },
-            child: Text('Open & Refresh', style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w700)),
-          ),
-        ],
+        ),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
-  Future<void> _handleLaunchRadioInfo() async {
-    SoundService().playSpecialClick();
-    final launched = await _speedService.launchRadioInfoMenu();
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Dial *#*#4636#*#* on your phone dialer to open Phone Info directly.',
-            style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
-          ),
-          backgroundColor: widget.theme.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+  /// In-App Preferred Network Mode Selection & Force 5G
+  Future<void> _selectNetworkMode(String modeKey) async {
+    SoundService().playTap();
+    setState(() {
+      _selectedNetworkMode = modeKey;
+    });
+
+    String technicalMode = 'AUTO';
+    String message = 'Global Auto Roaming enabled';
+    if (modeKey == 'LOCK_5G') {
+      technicalMode = 'NR_ONLY';
+      message = 'Locked to 5G Standalone (NR Only)';
+    } else if (modeKey == 'BATTERY_SAVER') {
+      technicalMode = 'LTE_ONLY';
+      message = 'Battery Saver: 4G LTE Only Active';
+    } else if (modeKey == 'ULTRA_SAVER') {
+      technicalMode = 'GSM_ONLY';
+      message = 'Ultra Battery Saver: 2G GSM Only Active';
     }
+
+    await _speedService.setPreferredNetworkMode(technicalMode);
+    if (!mounted) return;
+
+    _fetchTelemetry();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: GoogleFonts.plusJakartaSans(
+            color: Colors.white,
+            fontWeight: FontWeight.w700,
+            fontSize: 12.5,
+          ),
+        ),
+        backgroundColor: widget.theme.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -290,32 +270,27 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Top Header
-              _buildTopHeader(theme),
+              // 1. Hero Circular Radial Speedometer Card (Noise Meter style)
+              _buildRadialSpeedometerCard(theme),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Hero Half-Circular Speedometer Gauge
-              _buildHalfSpeedometerCard(theme),
+              // 2. Refresh Network & Force 5G Actions + Preferred Network Modes
+              _buildNetworkActionsAndModes(theme),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Network Type & Hardware Telemetry (WiFi vs Cellular)
-              _buildHardwareTelemetryCard(theme),
+              // 3. Cellular Radio 5G/4G Telemetry Card
+              _buildCellularRadioCard(theme),
 
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
-              // Nearest Cell Tower Distance & RF Signal Specs
+              // 4. Nearest Cell Tower Distance & Precision Triangulation Card
               _buildNearestTowerCard(theme),
-
-              const SizedBox(height: 16),
-
-              // Force 5G / Phone Info Engineering Menu & Modes Explainer
-              _buildForce5gSection(theme),
 
               const SizedBox(height: 24),
             ],
@@ -325,235 +300,131 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
     );
   }
 
-  /// 1. Top Navigation Bar with Quick Refresh Network Action
-  Widget _buildTopHeader(StationeryTheme theme) {
-    return Row(
-      children: [
-        BouncyTap(
-          onTap: () {
-            SoundService().playTap();
-            Navigator.of(context).pop();
-          },
-          child: Container(
-            padding: const EdgeInsets.all(9),
-            decoration: BoxDecoration(
-              color: theme.cardBg,
-              shape: BoxShape.circle,
-              border: Border.all(color: theme.border, width: 1.2),
-            ),
-            child: Icon(Icons.arrow_back_rounded, size: 18, color: theme.text),
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Speed Test',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.4,
-                  color: theme.text,
-                ),
-              ),
-              Text(
-                'Wi-Fi, 5G NR Radio & Nearest Tower',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: theme.textSecondary,
-                ),
-              ),
-            ],
-          ),
-        ),
-        // "Refresh Network" Quick Action Button
-        BouncyTap(
-          onTap: _handleRefreshNetwork,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.refresh_rounded, size: 14, color: Color(0xFF10B981)),
-                const SizedBox(width: 4),
-                Text(
-                  'Refresh',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF10B981),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// 2. Hero Half-Circular Arc Speedometer Card
-  Widget _buildHalfSpeedometerCard(StationeryTheme theme) {
+  // ===========================================================================
+  // 1. HERO CIRCULAR RADIAL SPEEDOMETER CARD (NOISE METER ARCHITECTURE)
+  // ===========================================================================
+  Widget _buildRadialSpeedometerCard(StationeryTheme theme) {
     final isTesting = _stage == SpeedTestStage.pinging ||
         _stage == SpeedTestStage.downloading ||
         _stage == SpeedTestStage.uploading;
 
-    final displaySpeed = _isMBsUnit ? (_needleValue / 8.0) : _needleValue;
-    final unitLabel = _isMBsUnit ? 'MB/s' : 'Mbps';
-
-    String stageLabel;
     Color stageColor;
+    String stageText;
     switch (_stage) {
       case SpeedTestStage.idle:
-        stageLabel = 'READY FOR SPEED TEST';
         stageColor = theme.primary;
+        stageText = 'READY';
         break;
       case SpeedTestStage.pinging:
-        stageLabel = 'MEASURING LATENCY & JITTER';
         stageColor = const Color(0xFFF59E0B);
+        stageText = 'PING LATENCY';
         break;
       case SpeedTestStage.downloading:
-        stageLabel = 'STREAMING DOWNLOAD (CHUNKS)';
         stageColor = const Color(0xFF10B981);
+        stageText = 'DOWNLOADING';
         break;
       case SpeedTestStage.uploading:
-        stageLabel = 'TESTING UPLOAD BANDWIDTH';
         stageColor = const Color(0xFF8B5CF6);
+        stageText = 'UPLOADING';
         break;
       case SpeedTestStage.completed:
-        stageLabel = 'TEST COMPLETED';
         stageColor = const Color(0xFF10B981);
+        stageText = 'COMPLETED';
         break;
       case SpeedTestStage.error:
-        stageLabel = 'CONNECTION TIMEOUT';
         stageColor = const Color(0xFFEF4444);
+        stageText = 'TIMEOUT';
         break;
     }
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: BoxDecoration(
         color: theme.cardBg,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(
-          color: isTesting ? stageColor.withValues(alpha: 0.5) : theme.border,
-          width: 1.5,
+          color: isTesting ? stageColor.withValues(alpha: 0.55) : theme.border,
+          width: 1.4,
         ),
-        boxShadow: isTesting
-            ? [
-                BoxShadow(
-                  color: stageColor.withValues(alpha: 0.08),
-                  blurRadius: 16,
-                  spreadRadius: 2,
-                )
-              ]
-            : null,
+        boxShadow: [
+          BoxShadow(
+            color: (isTesting ? stageColor : Colors.black)
+                .withValues(alpha: theme.isDark ? 0.20 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         children: [
-          // Stage pill badge & Unit toggle
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
-                decoration: BoxDecoration(
-                  color: stageColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(color: stageColor, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      stageLabel,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.6,
-                        color: stageColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              // Unit Toggle (Mbps <-> MB/s)
-              BouncyTap(
-                onTap: () {
-                  SoundService().playTap();
-                  setState(() => _isMBsUnit = !_isMBsUnit);
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: theme.bg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: theme.border),
-                  ),
-                  child: Text(
-                    _isMBsUnit ? 'MB/s (MegaBytes)' : 'Mbps (MegaBits)',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: theme.textSecondary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-
-          // Half-Circular Arc Speedometer Visual
+          // Circular Radial Gauge (identical architecture to Noise Meter)
           SizedBox(
-            height: 160,
-            width: double.infinity,
-            child: CustomPaint(
-              painter: _HalfSpeedometerGaugePainter(
-                speedMbps: _needleValue,
-                maxSpeedMbps: 1000.0,
-                arcColor: stageColor,
-                trackColor: theme.border.withValues(alpha: 0.6),
-                needleColor: theme.text,
-              ),
-              child: Align(
-                alignment: const Alignment(0, 0.45),
-                child: Column(
+            width: 215,
+            height: 215,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size(215, 215),
+                  painter: _RadialSpeedometerGaugePainter(
+                    speedMbps: _displaySpeedMbps,
+                    peakHoldMbps: _peakHoldSpeedMbps,
+                    maxSpeedMbps: 1000.0,
+                    gaugeColor: stageColor,
+                    primaryColor: theme.primary,
+                    trackColor: theme.border.withValues(alpha: 0.45),
+                  ),
+                ),
+
+                // Center Large Digital Speed Readout & Subtitle
+                Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      displaySpeed.toStringAsFixed(1),
+                      _displaySpeedMbps.toStringAsFixed(1),
                       style: GoogleFonts.jetBrainsMono(
                         fontSize: 44,
                         fontWeight: FontWeight.w900,
-                        letterSpacing: -1.8,
+                        letterSpacing: -1.5,
                         color: theme.text,
                       ),
                     ),
-                    Text(
-                      unitLabel,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.0,
-                        color: stageColor,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          'Mbps',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: stageColor,
+                          ),
+                        ),
+                        if (isTesting) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: stageColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              stageText,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 8.5,
+                                fontWeight: FontWeight.w800,
+                                color: stageColor,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
           ),
 
@@ -570,9 +441,11 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildMetricCol('PING', '$_pingMs ms', Icons.network_ping_rounded, const Color(0xFFF59E0B), theme),
+                _buildMetricCol('PING', '$_pingMs ms', Icons.network_ping_rounded,
+                    const Color(0xFFF59E0B), theme),
                 _buildMetricDivider(theme),
-                _buildMetricCol('JITTER', '$_jitterMs ms', Icons.compare_arrows_rounded, const Color(0xFF3B82F6), theme),
+                _buildMetricCol('JITTER', '$_jitterMs ms',
+                    Icons.compare_arrows_rounded, const Color(0xFF3B82F6), theme),
                 _buildMetricDivider(theme),
                 _buildMetricCol(
                   'DOWNLOAD',
@@ -593,26 +466,23 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
             ),
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Primary Speed Test Trigger Action
+          // Primary Speed Test Trigger Action (Clean UI Theme Color)
           BouncyTap(
             onTap: isTesting ? _stopSpeedTest : _startSpeedTest,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 14),
+              padding: const EdgeInsets.symmetric(vertical: 13),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: isTesting
-                      ? [const Color(0xFFEF4444), const Color(0xFFDC2626)]
-                      : [theme.primary, const Color(0xFF0284C7)],
-                ),
+                color: isTesting ? const Color(0xFFEF4444) : theme.primary,
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: (isTesting ? const Color(0xFFEF4444) : theme.primary).withValues(alpha: 0.35),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: (isTesting ? const Color(0xFFEF4444) : theme.primary)
+                        .withValues(alpha: 0.30),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
                 ],
               ),
@@ -622,15 +492,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
                   Icon(
                     isTesting ? Icons.stop_rounded : Icons.speed_rounded,
                     color: Colors.white,
-                    size: 20,
+                    size: 19,
                   ),
                   const SizedBox(width: 8),
                   Text(
                     isTesting ? 'STOP TEST' : 'START SPEED TEST',
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
+                      fontSize: 14.5,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 0.8,
+                      letterSpacing: 0.6,
                       color: Colors.white,
                     ),
                   ),
@@ -638,24 +508,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
               ),
             ),
           ),
-
-          if (_bestSpeedMbps > 0) ...[
-            const SizedBox(height: 10),
-            Text(
-              'Personal Best: ${_bestSpeedMbps.toStringAsFixed(1)} Mbps • Ultra HD 4K Ready',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10.5,
-                fontWeight: FontWeight.w600,
-                color: theme.textSecondary,
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
 
-  Widget _buildMetricCol(String label, String value, IconData icon, Color color, StationeryTheme theme) {
+  Widget _buildMetricCol(String label, String value, IconData icon, Color color,
+      StationeryTheme theme) {
     return Column(
       children: [
         Row(
@@ -691,10 +550,275 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
     return Container(width: 1, height: 26, color: theme.border);
   }
 
-  /// 3. Hardware Wi-Fi & Cellular Telemetry Card
-  Widget _buildHardwareTelemetryCard(StationeryTheme theme) {
-    final isWifi = _telemetry.connectionType == 'WIFI';
-    final wifi = _telemetry.wifi;
+  // ===========================================================================
+  // 2. REFRESH NETWORK & FORCE 5G ACTIONS + PREFERRED NETWORK MODES
+  // ===========================================================================
+  Widget _buildNetworkActionsAndModes(StationeryTheme theme) {
+    final is5gLocked = _selectedNetworkMode == 'LOCK_5G';
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: theme.cardBg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: theme.border, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Row with Refresh Network & Force 5G buttons side by side
+          Row(
+            children: [
+              // A. Refresh Network Button (In-app, no external settings thrown)
+              Expanded(
+                child: BouncyTap(
+                  onTap: _isRefreshingNetwork ? null : _handleRefreshNetwork,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                        color: const Color(0xFF10B981).withValues(alpha: 0.35),
+                        width: 1.1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isRefreshingNetwork)
+                          const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.0,
+                              color: Color(0xFF10B981),
+                            ),
+                          )
+                        else
+                          const Icon(Icons.refresh_rounded,
+                              size: 16, color: Color(0xFF10B981)),
+                        const SizedBox(width: 6),
+                        Text(
+                          _isRefreshingNetwork
+                              ? 'Refreshing...'
+                              : 'Refresh Network',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+
+              const SizedBox(width: 8),
+
+              // B. Force 5G Toggle Action Button
+              Expanded(
+                child: BouncyTap(
+                  onTap: () => _selectNetworkMode(
+                      is5gLocked ? 'GLOBAL_AUTO' : 'LOCK_5G'),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    decoration: BoxDecoration(
+                      color: is5gLocked
+                          ? const Color(0xFF10B981)
+                          : theme.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(13),
+                      border: Border.all(
+                        color: is5gLocked
+                            ? const Color(0xFF10B981)
+                            : theme.primary.withValues(alpha: 0.35),
+                        width: 1.1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.five_g_rounded,
+                          size: 18,
+                          color: is5gLocked ? Colors.white : theme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          is5gLocked ? '5G Locked (SA)' : 'Force 5G',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: is5gLocked ? Colors.white : theme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Preferred Network Modes Grid (4 distinct modes with meaning & network badges)
+          Row(
+            children: [
+              Expanded(
+                child: _buildNetworkModeTile(
+                  modeKey: 'LOCK_5G',
+                  title: 'Lock 5G',
+                  meaning: '5G Standalone (NR)',
+                  genBadge: '5G',
+                  techAcronym: 'NR only',
+                  accentColor: const Color(0xFF10B981),
+                  theme: theme,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildNetworkModeTile(
+                  modeKey: 'BATTERY_SAVER',
+                  title: 'Battery Saver',
+                  meaning: '4G LTE Stable',
+                  genBadge: '4G',
+                  techAcronym: 'LTE only',
+                  accentColor: const Color(0xFFF59E0B),
+                  theme: theme,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 8),
+
+          Row(
+            children: [
+              Expanded(
+                child: _buildNetworkModeTile(
+                  modeKey: 'ULTRA_SAVER',
+                  title: 'Ultra Saver',
+                  meaning: 'Low Power Emergency',
+                  genBadge: '2G',
+                  techAcronym: 'GSM only',
+                  accentColor: const Color(0xFFEF4444),
+                  theme: theme,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildNetworkModeTile(
+                  modeKey: 'GLOBAL_AUTO',
+                  title: 'Auto Roaming',
+                  meaning: 'Best Coverage',
+                  genBadge: '5G/4G/2G',
+                  techAcronym: 'NR/LTE/GSM',
+                  accentColor: const Color(0xFF3B82F6),
+                  theme: theme,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNetworkModeTile({
+    required String modeKey,
+    required String title,
+    required String meaning,
+    required String genBadge,
+    required String techAcronym,
+    required Color accentColor,
+    required StationeryTheme theme,
+  }) {
+    final isSelected = _selectedNetworkMode == modeKey;
+
+    return BouncyTap(
+      onTap: () => _selectNetworkMode(modeKey),
+      scaleFraction: 0.96,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(9),
+        decoration: BoxDecoration(
+          color: isSelected ? accentColor.withValues(alpha: 0.12) : theme.bg,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? accentColor : theme.border,
+            width: isSelected ? 1.3 : 1.0,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: isSelected ? accentColor : theme.text,
+                    ),
+                  ),
+                ),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                  child: Text(
+                    genBadge,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8,
+                      fontWeight: FontWeight.w800,
+                      color: accentColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              meaning,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+                color: theme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(
+              techAcronym,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 8.5,
+                fontWeight: FontWeight.w800,
+                color: isSelected
+                    ? accentColor
+                    : theme.textSecondary.withValues(alpha: 0.75),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
+  // 3. CELLULAR RADIO 5G/4G TELEMETRY CARD
+  // ===========================================================================
+  Widget _buildCellularRadioCard(StationeryTheme theme) {
     final cell = _telemetry.cellular;
 
     return Container(
@@ -713,17 +837,17 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
               Row(
                 children: [
                   Icon(
-                    isWifi ? Icons.wifi_rounded : Icons.cell_tower_rounded,
-                    size: 20,
-                    color: isWifi ? const Color(0xFF10B981) : theme.primary,
+                    Icons.cell_tower_rounded,
+                    size: 19,
+                    color: theme.primary,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    isWifi ? 'WI-FI TELEMETRY' : 'CELLULAR RADIO 5G/4G',
+                    'CELLULAR RADIO 5G/4G',
                     style: GoogleFonts.jetBrainsMono(
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 1.0,
+                      letterSpacing: 0.8,
                       color: theme.textSecondary,
                     ),
                   ),
@@ -732,55 +856,49 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: (isWifi ? const Color(0xFF10B981) : theme.primary).withValues(alpha: 0.12),
+                  color: theme.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  isWifi ? wifi.band : (cell.is5G ? '5G SA ACTIVE' : '4G LTE-A'),
+                  cell.is5G ? '5G SA ACTIVE' : '4G LTE-A',
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w800,
-                    color: isWifi ? const Color(0xFF10B981) : theme.primary,
+                    color: theme.primary,
                   ),
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-          // Two Column Hardware Specs Grid
-          if (isWifi) ...[
-            _buildSpecRow('SSID Network', wifi.ssid, 'Wi-Fi Gen', wifi.wifiStandard, theme),
-            const SizedBox(height: 8),
-            _buildSpecRow('Frequency Band', '${wifi.frequencyMhz} MHz (${wifi.band})', 'Channel', 'Ch ${wifi.channel}', theme),
-            const SizedBox(height: 8),
-            _buildSpecRow('Link Speed', '${wifi.linkSpeedMbps} Mbps (Rx: ${wifi.rxLinkSpeedMbps})', 'Signal RSSI', '${wifi.rssi} dBm (${wifi.signalPercent}%)', theme),
-            const SizedBox(height: 8),
-            _buildSpecRow('IPv4 Local', wifi.ipAddress, 'Gateway', wifi.gateway, theme),
-          ] else ...[
-            _buildSpecRow('Carrier', cell.carrier, 'Radio Tech', cell.networkType, theme),
-            const SizedBox(height: 8),
-            _buildSpecRow('5G NR State', cell.nrState, 'NR Frequency', cell.nrFrequency, theme),
-            const SizedBox(height: 8),
-            _buildSpecRow('Operating Band', cell.bandName, 'Signal Quality', '${cell.rsrp} dBm (RSRQ: ${cell.rsrq})', theme),
-            const SizedBox(height: 8),
-            _buildSpecRow('Cell Identifiers', 'CID: ${cell.cid} • PCI: ${cell.pci}', 'TAC / Area', 'TAC: ${cell.tac}', theme),
-          ],
+          _buildSpecRow(
+              'Carrier', cell.carrier, 'Radio Tech', cell.networkType, theme),
+          const SizedBox(height: 7),
+          _buildSpecRow('5G NR State', cell.nrState, 'NR Frequency',
+              cell.nrFrequency, theme),
+          const SizedBox(height: 7),
+          _buildSpecRow('Operating Band', cell.bandName, 'Signal Quality',
+              '${cell.rsrp} dBm (RSRQ: ${cell.rsrq})', theme),
+          const SizedBox(height: 7),
+          _buildSpecRow('Cell Identifiers', 'CID: ${cell.cid} • PCI: ${cell.pci}',
+              'TAC / Area', 'TAC: ${cell.tac}', theme),
         ],
       ),
     );
   }
 
-  Widget _buildSpecRow(String lbl1, String val1, String lbl2, String val2, StationeryTheme theme) {
+  Widget _buildSpecRow(String lbl1, String val1, String lbl2, String val2,
+      StationeryTheme theme) {
     return Row(
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: theme.bg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(11),
               border: Border.all(color: theme.border),
             ),
             child: Column(
@@ -789,7 +907,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
                 Text(
                   lbl1,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                     color: theme.textSecondary,
                   ),
@@ -798,7 +916,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
                 Text(
                   val1,
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: theme.text,
                   ),
@@ -809,13 +927,13 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
             ),
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 7),
         Expanded(
           child: Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(9),
             decoration: BoxDecoration(
               color: theme.bg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(11),
               border: Border.all(color: theme.border),
             ),
             child: Column(
@@ -824,7 +942,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
                 Text(
                   lbl2,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 10,
+                    fontSize: 9.5,
                     fontWeight: FontWeight.w600,
                     color: theme.textSecondary,
                   ),
@@ -833,7 +951,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
                 Text(
                   val2,
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: theme.text,
                   ),
@@ -848,7 +966,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
     );
   }
 
-  /// 4. Nearest Cell Tower Distance & RF Propagation Card
+  // ===========================================================================
+  // 4. NEAREST CELL TOWER DISTANCE & RF TRIANGULATION CARD
+  // ===========================================================================
   Widget _buildNearestTowerCard(StationeryTheme theme) {
     final cell = _telemetry.cellular;
     final distanceMeters = cell.estimatedTowerDistanceMeters;
@@ -865,14 +985,15 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
         children: [
           Row(
             children: [
-              const Icon(Icons.radar_rounded, size: 20, color: Color(0xFF10B981)),
+              const Icon(Icons.radar_rounded,
+                  size: 19, color: Color(0xFF10B981)),
               const SizedBox(width: 8),
               Text(
                 'NEAREST CELL TOWER DISTANCE',
                 style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
+                  fontSize: 11.5,
                   fontWeight: FontWeight.w800,
-                  letterSpacing: 1.0,
+                  letterSpacing: 0.8,
                   color: theme.textSecondary,
                 ),
               ),
@@ -883,14 +1004,16 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
-                width: 58,
-                height: 58,
+                width: 54,
+                height: 54,
                 decoration: BoxDecoration(
                   color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.25)),
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(
+                      color: const Color(0xFF10B981).withValues(alpha: 0.25)),
                 ),
-                child: const Icon(Icons.cell_tower_rounded, color: Color(0xFF10B981), size: 30),
+                child: const Icon(Icons.cell_tower_rounded,
+                    color: Color(0xFF10B981), size: 28),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -902,7 +1025,9 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
                       textBaseline: TextBaseline.alphabetic,
                       children: [
                         Text(
-                          distanceMeters < 1000 ? '$distanceMeters' : (distanceMeters / 1000.0).toStringAsFixed(2),
+                          distanceMeters < 1000
+                              ? '$distanceMeters'
+                              : (distanceMeters / 1000.0).toStringAsFixed(2),
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 26,
                             fontWeight: FontWeight.w900,
@@ -920,7 +1045,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
                         ),
                       ],
                     ),
-                    const SizedBox(height: 3),
+                    const SizedBox(height: 2),
                     Text(
                       cell.towerProximity,
                       style: GoogleFonts.plusJakartaSans(
@@ -934,23 +1059,24 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
             decoration: BoxDecoration(
               color: theme.bg,
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(11),
               border: Border.all(color: theme.border),
             ),
             child: Row(
               children: [
-                const Icon(Icons.info_outline_rounded, size: 14, color: Color(0xFF10B981)),
-                const SizedBox(width: 8),
+                const Icon(Icons.near_me_rounded,
+                    size: 13, color: Color(0xFF10B981)),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    'Calculated via Timing Advance (TA=${cell.timingAdvance}) & 3GPP RF propagation path-loss algorithms.',
+                    '${cell.sector} · Timing Advance: TA=${cell.timingAdvance} · 3GPP 38.901 RF Path-Loss',
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 10.5,
+                      fontSize: 10,
                       fontWeight: FontWeight.w600,
                       color: theme.textSecondary,
                     ),
@@ -963,366 +1089,150 @@ class _SpeedTestScreenState extends State<SpeedTestScreen> with SingleTickerProv
       ),
     );
   }
-
-  /// 5. "Force 5G" / Hidden Phone Info Engineering Menu & Modes Explainer
-  Widget _buildForce5gSection(StationeryTheme theme) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: const Color(0xFF8B5CF6).withValues(alpha: 0.35), width: 1.4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.five_g_rounded, size: 24, color: Color(0xFF8B5CF6)),
-                  const SizedBox(width: 8),
-                  Text(
-                    'FORCE 5G & RADIO INFO',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.0,
-                      color: theme.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF8B5CF6).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  'ENGINEERING',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
-                    color: const Color(0xFF8B5CF6),
-                  ),
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          Text(
-            'Lock your phone onto 5G Standalone (NR only) so it never drops back to 4G LTE. Launch the hidden Android radio menu directly below.',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: theme.textSecondary,
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // Direct System RadioInfo Launcher Button
-          BouncyTap(
-            onTap: _handleLaunchRadioInfo,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
-                ),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF8B5CF6).withValues(alpha: 0.35),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.settings_suggest_rounded, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text(
-                    'OPEN PHONE INFO (FORCE 5G MENU)',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.5,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 12),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          // Network Modes Guide
-          Text(
-            'Preferred Network Modes Explained:',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: theme.text,
-            ),
-          ),
-
-          const SizedBox(height: 10),
-
-          // Interactive Mode Cards
-          _buildModeExplainerCard(
-            title: 'NR only (Force 5G Only)',
-            badge: 'Lock 5G Standalone',
-            badgeColor: const Color(0xFF10B981),
-            desc: 'Phone stays strictly on 5G SA. It will NEVER drop to 4G/LTE even in weak signal areas. Gigabit speed locked.',
-            caution: 'Notice: If your carrier lacks VoNR in your city, regular cellular voice calls may fail.',
-            theme: theme,
-          ),
-          const SizedBox(height: 8),
-          _buildModeExplainerCard(
-            title: 'NR/LTE (Recommended 5G + 4G)',
-            badge: 'Best Daily Driver',
-            badgeColor: const Color(0xFF3B82F6),
-            desc: 'Enables 5G SA & NSA with instant 4G VoLTE fallback. Zero call drops with blazing 5G data speeds (Jio & Airtel).',
-            caution: null,
-            theme: theme,
-          ),
-          const SizedBox(height: 8),
-          _buildModeExplainerCard(
-            title: 'LTE only (Force 4G Only)',
-            badge: 'Battery Saver',
-            badgeColor: const Color(0xFFF59E0B),
-            desc: 'Disables 5G modem battery drain completely. Ideal for long road trips where 5G reception fluctuates.',
-            caution: null,
-            theme: theme,
-          ),
-          const SizedBox(height: 8),
-          _buildModeExplainerCard(
-            title: 'NR/LTE/GSM/WCDMA',
-            badge: 'Global Auto Roaming',
-            badgeColor: theme.textSecondary,
-            desc: 'Default factory setting with 2G/3G legacy fallback. Best for remote village travel with older towers.',
-            caution: null,
-            theme: theme,
-          ),
-          const SizedBox(height: 8),
-          _buildModeExplainerCard(
-            title: 'GSM only (2G Only)',
-            badge: 'Ultra Battery Saver',
-            badgeColor: const Color(0xFFEF4444),
-            desc: 'Forces 2G radio only. At 5% battery, this mode lets phone last 12+ hours for emergency calls & SMS.',
-            caution: null,
-            theme: theme,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildModeExplainerCard({
-    required String title,
-    required String badge,
-    required Color badgeColor,
-    required String desc,
-    String? caution,
-    required StationeryTheme theme,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.bg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: theme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: theme.text,
-                  ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: badgeColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  badge,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
-                    fontWeight: FontWeight.w800,
-                    color: badgeColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            desc,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
-              color: theme.textSecondary,
-            ),
-          ),
-          if (caution != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              caution,
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 10,
-                fontWeight: FontWeight.w600,
-                color: const Color(0xFFF59E0B),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
 }
 
-/// ---------------------------------------------------------------------------
-/// CUSTOM PAINTER: 180° HALF-CIRCULAR SPEEDOMETER GAUGE
-/// ---------------------------------------------------------------------------
-class _HalfSpeedometerGaugePainter extends CustomPainter {
+// =============================================================================
+// SILKY SMOOTH RADIAL SPEEDOMETER GAUGE PAINTER (ZERO-JITTER ARCHITECTURE)
+// Sweeps from 140° to 400° (260° sweep) with ambient glow, tip orb & peak hold
+// =============================================================================
+class _RadialSpeedometerGaugePainter extends CustomPainter {
   final double speedMbps;
+  final double peakHoldMbps;
   final double maxSpeedMbps;
-  final Color arcColor;
+  final Color gaugeColor;
+  final Color primaryColor;
   final Color trackColor;
-  final Color needleColor;
 
-  _HalfSpeedometerGaugePainter({
+  _RadialSpeedometerGaugePainter({
     required this.speedMbps,
+    required this.peakHoldMbps,
     required this.maxSpeedMbps,
-    required this.arcColor,
+    required this.gaugeColor,
+    required this.primaryColor,
     required this.trackColor,
-    required this.needleColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height * 0.88);
-    final radius = size.height * 0.78;
-    const strokeWidth = 12.0;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double radius = (size.width / 2) - 18;
+    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
 
-    // Background track arc (180 degrees, from math.pi to 2 * math.pi)
-    final trackPaint = Paint()
-      ..color = trackColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
+    // Sweep from bottom-left (140°) to bottom-right (400° -> 260° sweep)
+    const double startAngle = 140.0 * math.pi / 180.0;
+    const double totalSweep = 260.0 * math.pi / 180.0;
 
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      math.pi,
-      math.pi,
-      false,
-      trackPaint,
-    );
+    final double progress =
+        _SpeedTestScreenState.speedToFraction(speedMbps, maxSpeedMbps)
+            .clamp(0.0, 1.0);
+    final double activeSweep = totalSweep * progress;
+    final double peakProgress =
+        _SpeedTestScreenState.speedToFraction(peakHoldMbps, maxSpeedMbps)
+            .clamp(0.0, 1.0);
 
-    // Active speed progress arc
-    final speedFrac = (speedMbps / maxSpeedMbps).clamp(0.0, 1.0);
-    final sweepAngle = math.pi * speedFrac;
-
-    if (sweepAngle > 0.01) {
-      final activePaint = Paint()
-        ..shader = LinearGradient(
-          colors: [
-            const Color(0xFF3B82F6),
-            arcColor,
-          ],
-        ).createShader(Rect.fromCircle(center: center, radius: radius))
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
+    // 1. Subtle Inner Micro-Tick Scale (25 smooth ticks)
+    const int tickCount = 24;
+    for (int i = 0; i <= tickCount; i++) {
+      final double frac = i / tickCount;
+      final double ang = startAngle + (totalSweep * frac);
+      final bool isMajor = i % 6 == 0;
+      final bool isLit = frac <= progress;
+      final double innerR = radius - (isMajor ? 16.5 : 14.0);
+      final double outerR = radius - 10.5;
+      final Paint tickPaint = Paint()
+        ..color = isLit
+            ? gaugeColor.withValues(alpha: isMajor ? 0.75 : 0.40)
+            : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
+        ..strokeWidth = isMajor ? 2.0 : 1.2
         ..strokeCap = StrokeCap.round;
 
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        math.pi,
-        sweepAngle,
-        false,
-        activePaint,
+      canvas.drawLine(
+        Offset(center.dx + innerR * math.cos(ang),
+            center.dy + innerR * math.sin(ang)),
+        Offset(center.dx + outerR * math.cos(ang),
+            center.dy + outerR * math.sin(ang)),
+        tickPaint,
       );
     }
 
-    // Ticks & Milestone Labels (0, 10, 50, 100, 250, 500, 1000)
-    final milestones = [
-      {'speed': 0.0, 'label': '0'},
-      {'speed': 50.0, 'label': '50'},
-      {'speed': 100.0, 'label': '100'},
-      {'speed': 250.0, 'label': '250'},
-      {'speed': 500.0, 'label': '500'},
-      {'speed': 1000.0, 'label': '1G'},
-    ];
-
-    for (final m in milestones) {
-      final s = m['speed'] as double;
-      final frac = (s / maxSpeedMbps).clamp(0.0, 1.0);
-      final angle = math.pi + (math.pi * frac);
-
-      final tickOuter = Offset(
-        center.dx + (radius + 8) * math.cos(angle),
-        center.dy + (radius + 8) * math.sin(angle),
-      );
-      final tickInner = Offset(
-        center.dx + (radius - 4) * math.cos(angle),
-        center.dy + (radius - 4) * math.sin(angle),
-      );
-
-      final tickPaint = Paint()
-        ..color = (speedMbps >= s ? arcColor : trackColor)
-        ..strokeWidth = 2.0;
-      canvas.drawLine(tickInner, tickOuter, tickPaint);
-    }
-
-    // Dynamic Needle
-    final needleAngle = math.pi + sweepAngle;
-    final needleTip = Offset(
-      center.dx + (radius - 16) * math.cos(needleAngle),
-      center.dy + (radius - 16) * math.sin(needleAngle),
-    );
-
-    final needlePaint = Paint()
-      ..color = arcColor
-      ..strokeWidth = 3.5
+    // 2. Smooth Recessed Background Track Arc
+    final Paint trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12.5
       ..strokeCap = StrokeCap.round;
+    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
 
-    canvas.drawLine(center, needleTip, needlePaint);
+    // 3. Soft Ambient Glow Under Active Arc
+    if (activeSweep > 0.01) {
+      final Paint glowPaint = Paint()
+        ..color = gaugeColor.withValues(alpha: 0.28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 18.0
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
 
-    // Center pivot knob
-    final knobPaint = Paint()..color = needleColor;
-    canvas.drawCircle(center, 6.0, knobPaint);
+      // 4. Silky SweepGradient Active Speed Arc
+      final Shader arcShader = SweepGradient(
+        startAngle: 0.0,
+        endAngle: totalSweep,
+        colors: [
+          primaryColor,
+          Color.lerp(primaryColor, gaugeColor, 0.55)!,
+          gaugeColor,
+        ],
+        stops: const [0.0, 0.62, 1.0],
+        transform: const GradientRotation(startAngle),
+      ).createShader(arcRect);
 
-    final knobInner = Paint()..color = arcColor;
-    canvas.drawCircle(center, 3.0, knobInner);
+      final Paint activePaint = Paint()
+        ..shader = arcShader
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12.5
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
+
+      // 5. Crisp Luminous Leading Tip Orb
+      final double tipAngle = startAngle + activeSweep;
+      final Offset tipCenter = Offset(
+        center.dx + radius * math.cos(tipAngle),
+        center.dy + radius * math.sin(tipAngle),
+      );
+      canvas.drawCircle(
+        tipCenter,
+        7.5,
+        Paint()
+          ..color = gaugeColor.withValues(alpha: 0.35)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
+      );
+      canvas.drawCircle(
+        tipCenter,
+        4.2,
+        Paint()..color = Colors.white.withValues(alpha: 0.95),
+      );
+    }
+
+    // 6. Floating Peak-Hold Indicator Marker Dot
+    if (peakProgress > progress + 0.025) {
+      final double peakAngle = startAngle + (totalSweep * peakProgress);
+      final Offset peakPos = Offset(
+        center.dx + radius * math.cos(peakAngle),
+        center.dy + radius * math.sin(peakAngle),
+      );
+      canvas.drawCircle(
+        peakPos,
+        3.6,
+        Paint()..color = gaugeColor.withValues(alpha: 0.85),
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _HalfSpeedometerGaugePainter oldDelegate) {
-    return oldDelegate.speedMbps != speedMbps ||
-        oldDelegate.arcColor != arcColor ||
-        oldDelegate.trackColor != trackColor;
+  bool shouldRepaint(covariant _RadialSpeedometerGaugePainter oldDelegate) {
+    return (oldDelegate.speedMbps - speedMbps).abs() > 0.01 ||
+        (oldDelegate.peakHoldMbps - peakHoldMbps).abs() > 0.01 ||
+        oldDelegate.gaugeColor != gaugeColor ||
+        oldDelegate.primaryColor != primaryColor;
   }
 }
