@@ -125,7 +125,7 @@
                     android:text="Distance" />
             </LinearLayout>
 
-            <View
+            <FrameLayout
                 android:layout_width="1dp"
                 android:layout_height="24dp"
                 android:background="#1A888888" />
@@ -162,7 +162,7 @@
                     android:text="Avg Speed" />
             </LinearLayout>
 
-            <View
+            <FrameLayout
                 android:layout_width="1dp"
                 android:layout_height="24dp"
                 android:background="#1A888888" />

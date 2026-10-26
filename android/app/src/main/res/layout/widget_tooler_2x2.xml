@@ -92,15 +92,12 @@
                 android:focusable="true"
                 android:contentDescription="Minus" />
 
-            <View
-                android:layout_width="10dp"
-                android:layout_height="match_parent" />
-
             <ImageView
                 android:id="@+id/widget_btn_plus"
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
                 android:layout_weight="1"
+                android:layout_marginStart="10dp"
                 android:scaleType="fitCenter"
                 android:padding="4dp"
                 android:background="@drawable/widget_tile_ripple"

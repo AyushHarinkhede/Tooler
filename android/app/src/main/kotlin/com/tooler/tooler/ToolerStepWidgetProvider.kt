@@ -33,6 +33,22 @@ class ToolerStepWidgetProvider : AppWidgetProvider() {
     }
 
     companion object {
+        private fun getSafePrefInt(prefs: SharedPreferences, key: String, defVal: Int = 0): Int {
+            return try {
+                prefs.getInt(key, defVal)
+            } catch (_: Exception) {
+                try {
+                    prefs.getLong(key, defVal.toLong()).toInt()
+                } catch (_: Exception) {
+                    try {
+                        prefs.getString(key, null)?.toIntOrNull() ?: defVal
+                    } catch (_: Exception) {
+                        defVal
+                    }
+                }
+            }
+        }
+
         fun updateAllWidgets(context: Context) {
             val mgr = AppWidgetManager.getInstance(context)
             val ids = mgr.getAppWidgetIds(
@@ -58,13 +74,13 @@ class ToolerStepWidgetProvider : AppWidgetProvider() {
                 val steps = if (ToolerStepService.liveTodaySteps > 0) {
                     ToolerStepService.liveTodaySteps
                 } else {
-                    prefs.getInt("flutter.tooler_steps_today_count_v2", 0)
+                    getSafePrefInt(prefs, "flutter.tooler_steps_today_count_v2", 0)
                 }
 
                 val activeSec = if (ToolerStepService.liveActiveSeconds > 0) {
                     ToolerStepService.liveActiveSeconds
                 } else {
-                    prefs.getInt("flutter.tooler_steps_active_seconds_v2", 0)
+                    getSafePrefInt(prefs, "flutter.tooler_steps_active_seconds_v2", 0)
                 }
 
                 val distKm = if (ToolerStepService.liveDistanceKm > 0) {

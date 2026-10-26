@@ -268,6 +268,7 @@ class ToolerTasksWidgetProvider : AppWidgetProvider() {
 
                             // Row text click -> open hover sheet
                             views.setOnClickPendingIntent(titleIds[i], listPi)
+                            views.setOnClickPendingIntent(subIds[i], listPi)
 
                             // Checkbox click -> mark completed & remove from widget pending
                             val checkIntent = Intent(context, ToolerTasksWidgetProvider::class.java).apply {
