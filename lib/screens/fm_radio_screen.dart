@@ -287,20 +287,6 @@ class _FmRadioScreenState extends State<FmRadioScreen>
     ),
   ];
 
-  // Quick Genre Filters
-  static const List<String> _genreFilters = [
-    'All',
-    'Bollywood',
-    'Pop',
-    'Rock',
-    'News',
-    'Retro',
-    'Chill',
-    'EDM',
-    'Classical',
-    'Jazz',
-  ];
-
   // Audio Playback
   final AudioPlayer _radioPlayer = AudioPlayer();
   final AudioPlayer _clipPlayer = AudioPlayer();
@@ -318,7 +304,6 @@ class _FmRadioScreenState extends State<FmRadioScreen>
   double _tunedFreqMhz = 98.3;
   RadioStationItem? _activeStation;
   int _activeTab = 0; // 0 = Local FM, 1 = 3D Globe, 2 = Favorites, 3 = Recorded
-  String _selectedGenre = 'All';
 
   // Area & Global Collections
   String _detectedAreaCountryCode = 'IN';
@@ -336,17 +321,6 @@ class _FmRadioScreenState extends State<FmRadioScreen>
   final TextEditingController _searchCtrl = TextEditingController();
   String _searchQuery = '';
   Timer? _searchDebounce;
-
-  // Real Hardware FM Receiver & Audio Output State
-  bool _hwChecked = false;
-  bool _hasFmReceiver = false;
-  String _fmReceiverDetail = 'Checking hardware receiver...';
-  String _oemFmPackage = '';
-  bool _hasWiredAntenna = false;
-  bool _hasBluetoothAudio = false;
-  String _activeOutputName = 'Phone Speaker';
-  String _outputRoute = 'speaker'; // 'headset' or 'speaker'
-  Timer? _hwPollTimer;
 
   // Live Radio Stream Recording State
   bool _isRecordingRadio = false;
@@ -401,11 +375,6 @@ class _FmRadioScreenState extends State<FmRadioScreen>
 
     _initPlayers();
     _loadPersistedData();
-    _pollHardwareStatus();
-    _hwPollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      _pollHardwareStatus();
-    });
-
     _bootstrapAreaRadio();
   }
 
@@ -413,7 +382,6 @@ class _FmRadioScreenState extends State<FmRadioScreen>
   void dispose() {
     _searchDebounce?.cancel();
     _bufferWatchdog?.cancel();
-    _hwPollTimer?.cancel();
     _recTimer?.cancel();
     _stopRadioRecording(save: false);
     if (!kIsWeb && Platform.isAndroid) {
@@ -600,49 +568,6 @@ class _FmRadioScreenState extends State<FmRadioScreen>
         jsonEncode(_areaStations.take(50).map((e) => e.toJson()).toList()),
       );
     } catch (_) {}
-  }
-
-  Future<void> _pollHardwareStatus() async {
-    if (kIsWeb || !Platform.isAndroid) {
-      if (!_hwChecked && mounted) {
-        setState(() {
-          _hwChecked = true;
-          _hasFmReceiver = false;
-          _fmReceiverDetail = 'Online Web/IP Streaming Mode Active';
-        });
-      }
-      return;
-    }
-    try {
-      final dynamic raw =
-          await _radioChannel.invokeMethod('getRadioHardwareStatus');
-      if (raw is Map && mounted) {
-        setState(() {
-          _hwChecked = true;
-          _hasFmReceiver =
-              raw['hasFmReceiver'] == true || raw['hasFmChip'] == true;
-          _fmReceiverDetail = raw['fmReceiverDetail'] as String? ??
-              'Online Live Streaming Mode Active';
-          _oemFmPackage = raw['oemFmPackage'] as String? ?? '';
-          _hasWiredAntenna = raw['hasWiredAntenna'] == true;
-          _hasBluetoothAudio = raw['hasBluetoothAudio'] == true;
-          _activeOutputName =
-              raw['activeOutputName'] as String? ?? 'Phone Speaker';
-          _outputRoute = raw['outputRoute'] as String? ?? 'speaker';
-        });
-      }
-    } catch (_) {}
-  }
-
-  Future<void> _setOutputRoute(String route) async {
-    SoundService().playTap();
-    HapticFeedback.selectionClick();
-    if (!kIsWeb && Platform.isAndroid) {
-      try {
-        await _radioChannel.invokeMethod('setAudioOutputRoute', {'route': route});
-      } catch (_) {}
-    }
-    await _pollHardwareStatus();
   }
 
   // ===========================================================================
@@ -988,14 +913,9 @@ class _FmRadioScreenState extends State<FmRadioScreen>
       base = _areaStations;
     }
 
+    if (_searchQuery.trim().isEmpty) return base;
+    final q = _searchQuery.toLowerCase().trim();
     return base.where((s) {
-      final matchGenre = _selectedGenre == 'All' ||
-          s.genre.toLowerCase().contains(_selectedGenre.toLowerCase()) ||
-          s.name.toLowerCase().contains(_selectedGenre.toLowerCase());
-      if (!matchGenre) return false;
-
-      if (_searchQuery.trim().isEmpty) return true;
-      final q = _searchQuery.toLowerCase().trim();
       return s.name.toLowerCase().contains(q) ||
           s.country.toLowerCase().contains(q) ||
           s.genre.toLowerCase().contains(q) ||
@@ -1297,407 +1217,7 @@ class _FmRadioScreenState extends State<FmRadioScreen>
   }
 
   // ===========================================================================
-  // MODALS & BOTTOM SHEETS (DECLUTTERED FROM MAIN UI)
-  // ===========================================================================
-  void _showHardwareInfoSheet() {
-    SoundService().playClick();
-    final theme = widget.theme;
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 26),
-        decoration: BoxDecoration(
-          color: theme.cardBg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-          border: Border.all(color: theme.border, width: 1.2),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4.5,
-                decoration: BoxDecoration(
-                  color: theme.border,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: (_hasFmReceiver
-                            ? const Color(0xFF10B981)
-                            : const Color(0xFFF59E0B))
-                        .withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    _hasFmReceiver
-                        ? Icons.settings_input_antenna_rounded
-                        : Icons.info_outline_rounded,
-                    color: _hasFmReceiver
-                        ? const Color(0xFF10B981)
-                        : const Color(0xFFF59E0B),
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _hasFmReceiver
-                            ? 'Hardware FM Receiver Found'
-                            : 'Online Live Radio Streaming',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: theme.text,
-                        ),
-                      ),
-                      Text(
-                        _hasFmReceiver
-                            ? (_hasWiredAntenna
-                                ? 'Wired Antenna Connected · Ready'
-                                : 'Plug 3.5mm wired earphones as antenna')
-                            : 'Modern smartphones stream high-res FM over Internet',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11.5,
-                          color: theme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Text(
-              _hasFmReceiver
-                  ? 'Hardware detail: $_fmReceiverDetail\n\nIs device me built-in hardware FM tuner chip mojood hai. 3.5mm wired earphones connect karke aap offline radio play kar sakte ho.'
-                  : 'Hardware detail: $_fmReceiverDetail\n\nIs device me physical offline FM tuner hardware chip disabled/absent hai. Tooler automatically Live Internet FM & 3D Global Radio mode use karta hai jisse bina kisi antenna ke 100% crystal-clear FM stream aur live record ho sake!',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 12,
-                height: 1.45,
-                color: theme.textSecondary,
-              ),
-            ),
-            const SizedBox(height: 16),
-            if (_hasFmReceiver && _oemFmPackage.isNotEmpty) ...[
-              SizedBox(
-                width: double.infinity,
-                height: 42,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF10B981),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
-                  ),
-                  icon: const Icon(Icons.launch_rounded, size: 16),
-                  label: const Text('Open System Hardware FM App'),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _radioChannel.invokeMethod('launchHardwareFm', {
-                      'packageName': _oemFmPackage,
-                    }).catchError((_) {});
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Got It'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAudioRouteSheet() {
-    SoundService().playClick();
-    final theme = widget.theme;
-    final bool hasExternal = _hasWiredAntenna || _hasBluetoothAudio;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 26),
-        decoration: BoxDecoration(
-          color: theme.cardBg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(26)),
-          border: Border.all(color: theme.border, width: 1.2),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 38,
-                height: 4.5,
-                decoration: BoxDecoration(
-                  color: theme.border,
-                  borderRadius: BorderRadius.circular(99),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Select Audio Output Route',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: theme.text,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Active: $_activeOutputName',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
-                color: theme.primary,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 16),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(
-                  color: _outputRoute == 'speaker'
-                      ? theme.primary
-                      : theme.border,
-                ),
-              ),
-              tileColor: _outputRoute == 'speaker'
-                  ? theme.primary.withValues(alpha: 0.1)
-                  : theme.bg,
-              leading: Icon(Icons.volume_up_rounded,
-                  color: _outputRoute == 'speaker'
-                      ? theme.primary
-                      : theme.textSecondary),
-              title: Text('Phone Loudspeaker',
-                  style: GoogleFonts.plusJakartaSans(
-                      fontWeight: FontWeight.w700, color: theme.text)),
-              subtitle: Text('Play directly through phone speakers',
-                  style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11, color: theme.textSecondary)),
-              trailing: _outputRoute == 'speaker'
-                  ? Icon(Icons.check_circle_rounded, color: theme.primary)
-                  : null,
-              onTap: () {
-                Navigator.pop(ctx);
-                _setOutputRoute('speaker');
-              },
-            ),
-            const SizedBox(height: 10),
-            ListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-                side: BorderSide(
-                  color: _outputRoute == 'headset'
-                      ? theme.primary
-                      : theme.border,
-                ),
-              ),
-              tileColor: _outputRoute == 'headset'
-                  ? theme.primary.withValues(alpha: 0.1)
-                  : theme.bg,
-              leading: Icon(
-                _hasBluetoothAudio
-                    ? Icons.bluetooth_connected_rounded
-                    : Icons.headphones_rounded,
-                color: _outputRoute == 'headset'
-                    ? theme.primary
-                    : theme.textSecondary,
-              ),
-              title: Text(
-                _hasBluetoothAudio
-                    ? 'Bluetooth Device'
-                    : (_hasWiredAntenna
-                        ? 'Wired Headphones'
-                        : 'Wired / Bluetooth (Not Connected)'),
-                style: GoogleFonts.plusJakartaSans(
-                  fontWeight: FontWeight.w700,
-                  color: theme.text,
-                ),
-              ),
-              subtitle: Text(
-                hasExternal
-                    ? 'Stream routed to external earphones/speaker'
-                    : 'Plug earphones or connect Bluetooth to route audio',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  color: theme.textSecondary,
-                ),
-              ),
-              trailing: _outputRoute == 'headset'
-                  ? Icon(Icons.check_circle_rounded, color: theme.primary)
-                  : null,
-              onTap: () {
-                Navigator.pop(ctx);
-                if (hasExternal) {
-                  _setOutputRoute('headset');
-                } else {
-                  _showToast(
-                    'Connect wired earphones or Bluetooth to route audio',
-                    color: Colors.blueGrey.shade700,
-                  );
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showManualAddStationDialog() {
-    SoundService().playClick();
-    final nameCtrl = TextEditingController();
-    final freqCtrl =
-        TextEditingController(text: _tunedFreqMhz.toStringAsFixed(1));
-    final urlCtrl = TextEditingController();
-    final theme = widget.theme;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: theme.cardBg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(22),
-          side: BorderSide(color: theme.border, width: 1.2),
-        ),
-        title: Text(
-          'Add Custom Station',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: theme.text,
-          ),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              style: TextStyle(color: theme.text, fontSize: 13.5),
-              decoration: InputDecoration(
-                labelText: 'Station Name (e.g. Mirchi 98.3)',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: freqCtrl,
-              style: TextStyle(color: theme.text, fontSize: 13.5),
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                labelText: 'Frequency MHz (87.5 – 108.0)',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: urlCtrl,
-              style: TextStyle(color: theme.text, fontSize: 13.5),
-              decoration: InputDecoration(
-                labelText: 'Stream HTTPS URL (optional)',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: TextStyle(color: theme.textSecondary)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: theme.primary,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(11)),
-            ),
-            onPressed: () async {
-              final name = nameCtrl.text.trim();
-              final freq = (double.tryParse(freqCtrl.text.trim()) ??
-                      _tunedFreqMhz)
-                  .clamp(87.5, 108.0);
-              String streamUrl = urlCtrl.text.trim();
-              if (name.isEmpty) return;
-
-              Navigator.pop(ctx);
-
-              if (streamUrl.isEmpty) {
-                _showToast('Finding live stream for "$name"...',
-                    color: theme.primary);
-                final found = await _queryRadioApi(
-                  '/json/stations/search?name=${Uri.encodeQueryComponent(name)}&hidebroken=true&lastcheckok=1&limit=8',
-                );
-                if (found.isNotEmpty) {
-                  streamUrl = found.first.streamUrl;
-                } else {
-                  streamUrl = _fallbackStations.first.streamUrl;
-                }
-              }
-
-              final custom = RadioStationItem(
-                id: 'custom_${DateTime.now().millisecondsSinceEpoch}',
-                name: name,
-                frequencyMhz: double.parse(freq.toStringAsFixed(1)),
-                streamUrl: streamUrl,
-                country: _detectedAreaLabel,
-                countryCode: _detectedAreaCountryCode,
-                genre: 'Custom FM',
-                isCustom: true,
-              );
-
-              if (mounted) {
-                setState(() {
-                  _customStations.insert(0, custom);
-                  _areaStations.insert(0, custom);
-                });
-                await _persistStations();
-                _tuneAndPlayStation(custom);
-              }
-            },
-            child: const Text('Save & Tune'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ===========================================================================
-  // MAIN BUILD — CLEAN, COMPACT, HIGH-END STUDIO LAYOUT
+  // MAIN BUILD — CLEAN, MINIMAL, HIGH-END RADIO STUDIO
   // ===========================================================================
   @override
   Widget build(BuildContext context) {
@@ -1709,39 +1229,34 @@ class _FmRadioScreenState extends State<FmRadioScreen>
       body: SafeArea(
         child: Column(
           children: [
-            // 1. TOP HEADER WITH STATUS PILLS (Zero cluttered banners!)
-            _buildTopBar(theme),
+            // 1. TOP SEARCH BAR + SCAN BUTTON (Directly below sheet header)
+            _buildTopSearchBar(theme),
 
-            // Scrollable Studio Deck + Station Explorer
+            // Scrollable Minimal Radio Console + Station Explorer
             Expanded(
               child: SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(14, 4, 14, 24),
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 2. ULTRA-REALISTIC RETRO-MODERN RADIO DECK
+                    // 2. MINIMAL THEMED RADIO DECK (No speaker, no volume knob, no antenna)
                     _buildRealisticRadioConsole(theme),
 
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 14),
 
-                    // 3. UNIFIED SEARCH & QUICK GENRE FILTER STRIP
-                    _buildSearchAndFilters(theme),
-
-                    const SizedBox(height: 12),
-
-                    // 4. SEGMENTED TABS (Local FM · 3D Globe · Favorites · Recorded)
+                    // 3. SEGMENTED TABS (Local FM · 3D Globe · Favorites · Recorded)
                     _buildNavigationPills(theme),
 
                     const SizedBox(height: 12),
 
-                    // 5. ACTIVE TAB VIEW
+                    // 4. ACTIVE TAB VIEW
                     if (_activeTab == 0)
                       _buildStationsList(
                         filteredStations,
                         theme,
                         emptyHint: _searchQuery.isNotEmpty
-                            ? 'No station matches "$_searchQuery"'
+                            ? 'No station matches ""'
                             : 'Tap SCAN to discover local live FM stations',
                       ),
                     if (_activeTab == 1) _buildGlobal3DTab(theme),
@@ -1750,7 +1265,7 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                         filteredStations,
                         theme,
                         emptyHint: _searchQuery.isNotEmpty
-                            ? 'No favorite matches "$_searchQuery"'
+                            ? 'No favorite matches ""'
                             : 'Tap ♥ on any radio station to keep it in Favorites',
                       ),
                     if (_activeTab == 3) _buildRecordingsTab(theme),
@@ -1765,137 +1280,113 @@ class _FmRadioScreenState extends State<FmRadioScreen>
   }
 
   // ===========================================================================
-  // 1. TOP HEADER & COMPACT STATUS BADGES
+  // 1. TOP SEARCH BAR + SCAN ACTION (Replacing previous cluttered top bar)
   // ===========================================================================
-  Widget _buildTopBar(StationeryTheme theme) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
+  Widget _buildTopSearchBar(StationeryTheme theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 10),
       child: Row(
         children: [
-          // Studio Title + Live Indicator
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedBuilder(
-                animation: _livePulseController,
-                builder: (_, __) {
-                  final glow = _isPlaying
-                      ? const Color(0xFF10B981)
-                      : (_isBuffering
-                          ? const Color(0xFFF59E0B)
-                          : theme.textSecondary.withValues(alpha: 0.4));
-                  return Container(
-                    width: 9,
-                    height: 9,
-                    decoration: BoxDecoration(
-                      color: glow,
-                      shape: BoxShape.circle,
-                      boxShadow: _isPlaying
-                          ? [
-                              BoxShadow(
-                                color: glow.withValues(alpha: 0.6),
-                                blurRadius: 6,
-                                spreadRadius: 1.5,
-                              )
-                            ]
-                          : null,
-                    ),
-                  );
-                },
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'FM RADIO STUDIO',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.8,
-                  color: theme.text,
-                ),
-              ),
-            ],
-          ),
-          const Spacer(),
-
-          // Compact Audio Route Pill
-          BouncyTap(
-            onTap: _showAudioRouteSheet,
+          Expanded(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
               decoration: BoxDecoration(
                 color: theme.cardBg,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(13),
                 border: Border.all(color: theme.border, width: 1.1),
               ),
               child: Row(
-                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    _outputRoute == 'speaker'
-                        ? Icons.volume_up_rounded
-                        : (_hasBluetoothAudio
-                            ? Icons.bluetooth_connected_rounded
-                            : Icons.headphones_rounded),
-                    size: 13.5,
-                    color: theme.primary,
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    _outputRoute == 'speaker' ? 'Speaker' : 'Headset',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9.5,
-                      fontWeight: FontWeight.w800,
-                      color: theme.text,
+                  Icon(Icons.search_rounded,
+                      size: 17, color: theme.textSecondary),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: TextField(
+                      controller: _searchCtrl,
+                      style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12.5, color: theme.text),
+                      decoration: InputDecoration(
+                        hintText: 'Search station, frequency, city, genre...',
+                        hintStyle: GoogleFonts.plusJakartaSans(
+                          fontSize: 11.5,
+                          color: theme.textSecondary.withValues(alpha: 0.6),
+                        ),
+                        border: InputBorder.none,
+                        isDense: true,
+                      ),
+                      onChanged: (val) {
+                        _searchDebounce?.cancel();
+                        _searchDebounce =
+                            Timer(const Duration(milliseconds: 260), () {
+                          if (mounted) {
+                            setState(() => _searchQuery = val);
+                            if (_activeTab == 1 && val.trim().length > 2) {
+                              _fetchGlobalStations(query: val);
+                            }
+                          }
+                        });
+                      },
                     ),
                   ),
+                  if (_searchCtrl.text.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        _searchCtrl.clear();
+                        setState(() => _searchQuery = '');
+                      },
+                      child: Icon(Icons.close_rounded,
+                          size: 16, color: theme.textSecondary),
+                    ),
                 ],
               ),
             ),
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: 8),
 
-          // Compact Hardware Receiver Info Pill
+          // Scan Button
           BouncyTap(
-            onTap: _showHardwareInfoSheet,
+            onTap: _isScanningArea ? null : () => _scanAreaStations(),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-              decoration: BoxDecoration(
-                color: (_hasFmReceiver
-                        ? const Color(0xFF10B981)
-                        : theme.cardBg)
-                    .withValues(alpha: _hasFmReceiver ? 0.15 : 1.0),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _hasFmReceiver
-                      ? const Color(0xFF10B981)
-                      : theme.border,
-                  width: 1.1,
-                ),
-              ),
-              child: Icon(
-                _hasFmReceiver
-                    ? Icons.settings_input_antenna_rounded
-                    : Icons.wifi_tethering_rounded,
-                size: 14,
-                color: _hasFmReceiver
-                    ? const Color(0xFF10B981)
-                    : theme.textSecondary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Add Station Icon Button
-          BouncyTap(
-            onTap: _showManualAddStationDialog,
-            child: Container(
-              width: 30,
-              height: 30,
+              height: 42,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
                 color: theme.primary,
-                borderRadius: BorderRadius.circular(9),
+                borderRadius: BorderRadius.circular(13),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.primary.withValues(alpha: 0.28),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (_isScanningArea)
+                    const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.0,
+                        color: Colors.white,
+                      ),
+                    )
+                  else
+                    const Icon(Icons.radar_rounded,
+                        color: Colors.white, size: 16),
+                  const SizedBox(width: 5),
+                  Text(
+                    _isScanningArea ? 'SCAN...' : 'SCAN',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w800,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1904,7 +1395,7 @@ class _FmRadioScreenState extends State<FmRadioScreen>
   }
 
   // ===========================================================================
-  // 2. ULTRA-REALISTIC TACTILE RADIO CONSOLE DECK
+  // 2. MINIMAL THEMED RADIO CONSOLE DECK
   // ===========================================================================
   Widget _buildRealisticRadioConsole(StationeryTheme theme) {
     final station = _activeStation;
@@ -1915,262 +1406,375 @@ class _FmRadioScreenState extends State<FmRadioScreen>
     return Container(
       decoration: BoxDecoration(
         color: theme.cardBg,
-        borderRadius: BorderRadius.circular(24),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: _isPlaying
               ? theme.primary.withValues(alpha: 0.55)
               : theme.border,
-          width: 1.4,
+          width: 1.3,
         ),
         boxShadow: [
           BoxShadow(
             color: (_isPlaying ? theme.primary : Colors.black)
-                .withValues(alpha: theme.isDark ? 0.22 : 0.08),
-            blurRadius: 18,
-            offset: const Offset(0, 6),
+                .withValues(alpha: theme.isDark ? 0.20 : 0.06),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // A. Realistic Vector Radio Graphic (Speaker + Display + Scale + Knobs)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
-            child: SizedBox(
-              height: 214,
-              width: double.infinity,
-              child: AnimatedBuilder(
-                animation: _eqController,
+          // A. Minimal Radio Top Status & RSSI Signal Header
+          Row(
+            children: [
+              AnimatedBuilder(
+                animation: _livePulseController,
                 builder: (_, __) {
-                  return CustomPaint(
-                    painter: _RetroRadio2DPainter(
-                      frequencyMhz: _tunedFreqMhz,
-                      stationName: station?.name ?? 'FM Tuner',
-                      statusLabel: _statusBannerText,
-                      codecBadge: station != null
-                          ? '${station.codec} ${station.bitrate > 0 ? "${station.bitrate}k" : "HD"}'
-                          : 'FM STEREO',
-                      isPlaying: _isPlaying,
-                      isBuffering: _isBuffering || _isScanningArea,
-                      isRecording: _isRecordingRadio,
-                      stationFrequencies: stationFreqs,
-                      animT: _eqController.value,
-                      theme: theme,
+                  final glow = _isPlaying
+                      ? const Color(0xFF10B981)
+                      : (_isBuffering
+                          ? const Color(0xFFF59E0B)
+                          : theme.textSecondary.withValues(alpha: 0.4));
+                  return Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: glow,
+                      shape: BoxShape.circle,
+                      boxShadow: _isPlaying
+                          ? [
+                              BoxShadow(
+                                color: glow.withValues(alpha: 0.6),
+                                blurRadius: 5,
+                                spreadRadius: 1.5,
+                              )
+                            ]
+                          : null,
                     ),
                   );
                 },
               ),
-            ),
-          ),
-
-          // B. Frequency Tuning Slider & Step Nudge Buttons
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Row(
-              children: [
-                _miniNudgeBtn('-0.1', () => _nudgeFrequency(-0.1), theme),
-                Expanded(
-                  child: SliderTheme(
-                    data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3.8,
-                      activeTrackColor: const Color(0xFFF59E0B),
-                      inactiveTrackColor: theme.isDark
-                          ? const Color(0xFF1E2538)
-                          : const Color(0xFFE2E8F0),
-                      thumbColor: const Color(0xFFF59E0B),
-                      thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 7.0),
-                      overlayShape:
-                          const RoundSliderOverlayShape(overlayRadius: 13),
-                    ),
-                    child: Slider(
-                      value: _tunedFreqMhz.clamp(87.5, 108.0),
-                      min: 87.5,
-                      max: 108.0,
-                      onChanged: (v) {
-                        setState(() =>
-                            _tunedFreqMhz = double.parse(v.toStringAsFixed(1)));
-                      },
-                      onChangeEnd: (v) {
-                        final rounded = double.parse(v.toStringAsFixed(1));
-                        final nearest = _areaStations
-                            .where(
-                                (s) => (s.frequencyMhz - rounded).abs() <= 0.6)
-                            .firstOrNull;
-                        if (nearest != null) {
-                          _tuneAndPlayStation(nearest);
-                        }
-                      },
-                    ),
-                  ),
+              const SizedBox(width: 7),
+              Text(
+                _isPlaying
+                    ? 'ON AIR · LIVE BROADCAST'
+                    : (_isBuffering ? 'TUNING LIVE FEED...' : _statusBannerText),
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.6,
+                  color: _isPlaying
+                      ? const Color(0xFF10B981)
+                      : (_isBuffering ? const Color(0xFFF59E0B) : theme.textSecondary),
                 ),
-                _miniNudgeBtn('+0.1', () => _nudgeFrequency(0.1), theme),
-              ],
-            ),
-          ),
-
-          // C. Tactile 6-Channel Quick Preset Ribbon (CH1..CH6)
-          if (presetPool.isNotEmpty) ...[
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Row(
-                children: List.generate(presetPool.length, (idx) {
-                  final st = presetPool[idx];
-                  final selected = _activeStation?.id == st.id;
-                  return Expanded(
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                          right: idx < presetPool.length - 1 ? 4 : 0),
-                      child: BouncyTap(
-                        onTap: () => _tuneAndPlayStation(st),
-                        scaleFraction: 0.94,
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 160),
-                          padding: const EdgeInsets.symmetric(vertical: 5.5),
-                          decoration: BoxDecoration(
-                            color: selected
-                                ? (theme.isDark
-                                    ? const Color(0xFF222B3F)
-                                    : const Color(0xFFFEF3C7))
-                                : theme.cardBg,
-                            borderRadius: BorderRadius.circular(9),
-                            border: Border.all(
-                              color: selected
-                                  ? const Color(0xFFF59E0B)
-                                  : theme.border,
-                              width: selected ? 1.3 : 1,
-                            ),
-                            boxShadow: selected
-                                ? [
-                                    BoxShadow(
-                                      color: const Color(0xFFF59E0B)
-                                          .withValues(alpha: 0.22),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    )
-                                  ]
-                                : null,
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (selected)
-                                    Container(
-                                      width: 4.5,
-                                      height: 4.5,
-                                      margin: const EdgeInsets.only(right: 3),
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFFF59E0B),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  Text(
-                                    'CH${idx + 1}',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 7.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: selected
-                                          ? const Color(0xFFF59E0B)
-                                          : theme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Text(
-                                st.frequencyMhz.toStringAsFixed(1),
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
-                                  color: selected
-                                      ? (theme.isDark
-                                          ? Colors.white
-                                          : const Color(0xFF92400E))
-                                      : theme.text,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
+              ),
+              const Spacer(),
+              // Minimal 5-bar RSSI signal meter
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: List.generate(5, (i) {
+                  final active = _isPlaying ? (i < 4) : (_isBuffering ? (i < 2) : false);
+                  final h = 4.0 + (i * 2.2);
+                  return Container(
+                    width: 2.5,
+                    height: h,
+                    margin: const EdgeInsets.only(left: 2.5),
+                    decoration: BoxDecoration(
+                      color: active
+                          ? (_isPlaying ? const Color(0xFF10B981) : const Color(0xFFF59E0B))
+                          : theme.border,
+                      borderRadius: BorderRadius.circular(1),
                     ),
                   );
                 }),
               ),
-            ),
-            const SizedBox(height: 10),
-          ],
+            ],
+          ),
 
-          // D. Primary Tactile Console Deck Controls: [♥ Fav] [⏮ Prev] [PLAY/STOP] [⏭ Next] [● REC]
-          Padding(
-            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+          const SizedBox(height: 12),
+
+          // B. Frequency Readout & Station Title Recessed Screen
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: theme.bg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: theme.border, width: 1),
+            ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _deckActionBtn(
-                  icon: isFav
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                  iconColor: isFav
-                      ? const Color(0xFFE11D48)
-                      : theme.textSecondary,
-                  bg: isFav
-                      ? const Color(0xFFE11D48).withValues(alpha: 0.12)
-                      : theme.bg,
-                  border: isFav
-                      ? const Color(0xFFE11D48).withValues(alpha: 0.4)
-                      : theme.border,
-                  onTap: station != null ? () => _toggleFavorite(station) : null,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        station?.name ?? 'FM Tuner',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: theme.text,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        ' · ',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                _deckActionBtn(
-                  icon: Icons.skip_previous_rounded,
-                  iconColor: theme.text,
-                  bg: theme.bg,
-                  border: theme.border,
-                  onTap: () => _stepStation(-1),
-                ),
-                // Center Big Play/Pause Knob with Real-Time Frequency Sync Radar Loading Animation
-                _RadioSyncPlayButton(
-                  isPlaying: _isPlaying,
-                  isBuffering: _isBuffering,
-                  onTap: _togglePlayStop,
-                  syncRotation: _syncController,
-                  pulse: _livePulseController,
-                  eq: _eqController,
-                  theme: theme,
-                ),
-                _deckActionBtn(
-                  icon: Icons.skip_next_rounded,
-                  iconColor: theme.text,
-                  bg: theme.bg,
-                  border: theme.border,
-                  onTap: () => _stepStation(1),
-                ),
-                _deckActionBtn(
-                  icon: _isRecordingRadio
-                      ? Icons.stop_circle_rounded
-                      : Icons.fiber_manual_record_rounded,
-                  iconColor: _isRecordingRadio
-                      ? Colors.white
-                      : const Color(0xFFDC2626),
-                  bg: _isRecordingRadio
-                      ? const Color(0xFFDC2626)
-                      : theme.bg,
-                  border: _isRecordingRadio
-                      ? const Color(0xFFDC2626)
-                      : theme.border,
-                  onTap: _toggleRadioRecording,
+                const SizedBox(width: 12),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Text(
+                      _tunedFreqMhz.toStringAsFixed(1),
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: theme.primary,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'MHz',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: theme.textSecondary,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           ),
 
+          const SizedBox(height: 12),
+
+          // C. Integrated Interactive Frequency Tuning Scale & Nudge
+          Row(
+            children: [
+              _miniNudgeBtn('-0.1', () => _nudgeFrequency(-0.1), theme),
+              Expanded(
+                child: SizedBox(
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Tuner Scale Painter (88 - 108 MHz graduation markings & needle)
+                      Positioned.fill(
+                        child: CustomPaint(
+                          painter: _MinimalTunerScalePainter(
+                            frequencyMhz: _tunedFreqMhz,
+                            stationFrequencies: stationFreqs,
+                            theme: theme,
+                          ),
+                        ),
+                      ),
+                      // Transparent Slider overlay for direct touch scrub
+                      Positioned.fill(
+                        child: SliderTheme(
+                          data: SliderTheme.of(context).copyWith(
+                            trackHeight: 0.0,
+                            activeTrackColor: Colors.transparent,
+                            inactiveTrackColor: Colors.transparent,
+                            thumbColor: Colors.transparent,
+                            thumbShape: const RoundSliderThumbShape(
+                              enabledThumbRadius: 14.0,
+                              elevation: 0,
+                              pressedElevation: 0,
+                            ),
+                            overlayColor: theme.primary.withValues(alpha: 0.12),
+                            overlayShape: const RoundSliderOverlayShape(overlayRadius: 20),
+                          ),
+                          child: Slider(
+                            value: _tunedFreqMhz.clamp(87.5, 108.0),
+                            min: 87.5,
+                            max: 108.0,
+                            onChanged: (v) {
+                              setState(() =>
+                                  _tunedFreqMhz = double.parse(v.toStringAsFixed(1)));
+                            },
+                            onChangeEnd: (v) {
+                              final rounded = double.parse(v.toStringAsFixed(1));
+                              final nearest = _areaStations
+                                  .where((s) => (s.frequencyMhz - rounded).abs() <= 0.6)
+                                  .firstOrNull;
+                              if (nearest != null) {
+                                _tuneAndPlayStation(nearest);
+                              }
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              _miniNudgeBtn('+0.1', () => _nudgeFrequency(0.1), theme),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // D. Quick 6-Channel Preset Ribbon (CH1..CH6)
+          if (presetPool.isNotEmpty) ...[
+            Row(
+              children: List.generate(presetPool.length, (idx) {
+                final st = presetPool[idx];
+                final selected = _activeStation?.id == st.id;
+                return Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                        right: idx < presetPool.length - 1 ? 4 : 0),
+                    child: BouncyTap(
+                      onTap: () => _tuneAndPlayStation(st),
+                      scaleFraction: 0.94,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 160),
+                        padding: const EdgeInsets.symmetric(vertical: 5.5),
+                        decoration: BoxDecoration(
+                          color: selected
+                              ? theme.primary.withValues(alpha: 0.15)
+                              : theme.bg,
+                          borderRadius: BorderRadius.circular(9),
+                          border: Border.all(
+                            color: selected
+                                ? theme.primary
+                                : theme.border,
+                            width: selected ? 1.3 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (selected)
+                                  Container(
+                                    width: 4.5,
+                                    height: 4.5,
+                                    margin: const EdgeInsets.only(right: 3),
+                                    decoration: BoxDecoration(
+                                      color: theme.primary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                Text(
+                                  'CH',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 7.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: selected
+                                        ? theme.primary
+                                        : theme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              st.frequencyMhz.toStringAsFixed(1),
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w900,
+                                color: selected
+                                    ? theme.primary
+                                    : theme.text,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ),
+            const SizedBox(height: 12),
+          ],
+
+          // E. Deck Controls: [♥ Fav] [⏮ Prev] [PLAY/STOP] [⏭ Next] [● REC]
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _deckActionBtn(
+                icon: isFav
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+                iconColor: isFav
+                    ? const Color(0xFFE11D48)
+                    : theme.textSecondary,
+                bg: isFav
+                    ? const Color(0xFFE11D48).withValues(alpha: 0.12)
+                    : theme.bg,
+                border: isFav
+                    ? const Color(0xFFE11D48).withValues(alpha: 0.4)
+                    : theme.border,
+                onTap: station != null ? () => _toggleFavorite(station) : null,
+              ),
+              _deckActionBtn(
+                icon: Icons.skip_previous_rounded,
+                iconColor: theme.text,
+                bg: theme.bg,
+                border: theme.border,
+                onTap: () => _stepStation(-1),
+              ),
+              _RadioSyncPlayButton(
+                isPlaying: _isPlaying,
+                isBuffering: _isBuffering,
+                onTap: _togglePlayStop,
+                syncRotation: _syncController,
+                pulse: _livePulseController,
+                eq: _eqController,
+                theme: theme,
+              ),
+              _deckActionBtn(
+                icon: Icons.skip_next_rounded,
+                iconColor: theme.text,
+                bg: theme.bg,
+                border: theme.border,
+                onTap: () => _stepStation(1),
+              ),
+              _deckActionBtn(
+                icon: _isRecordingRadio
+                    ? Icons.stop_circle_rounded
+                    : Icons.fiber_manual_record_rounded,
+                iconColor: _isRecordingRadio
+                    ? Colors.white
+                    : const Color(0xFFDC2626),
+                bg: _isRecordingRadio
+                    ? const Color(0xFFDC2626)
+                    : theme.bg,
+                border: _isRecordingRadio
+                    ? const Color(0xFFDC2626)
+                    : theme.border,
+                onTap: _toggleRadioRecording,
+              ),
+            ],
+          ),
+
           // Active Recording Status Ribbon
-          if (_isRecordingRadio)
+          if (_isRecordingRadio) ...[
+            const SizedBox(height: 10),
             Container(
-              margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
                 color: const Color(0xFFDC2626).withValues(alpha: 0.12),
@@ -2186,7 +1790,7 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                       color: Color(0xFFDC2626), size: 10),
                   const SizedBox(width: 6),
                   Text(
-                    'LIVE RECORDING · ${_formatSec(_recSeconds)} · ${_formatBytes(_recBytes)}',
+                    'LIVE RECORDING ·  · ',
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w800,
@@ -2196,6 +1800,7 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                 ],
               ),
             ),
+          ],
         ],
       ),
     );
@@ -2244,174 +1849,6 @@ class _FmRadioScreenState extends State<FmRadioScreen>
       ),
     );
   }
-
-  // ===========================================================================
-  // 3. UNIFIED SEARCH & QUICK GENRE FILTER STRIP
-  // ===========================================================================
-  Widget _buildSearchAndFilters(StationeryTheme theme) {
-    return Column(
-      children: [
-        // Instant Search Input + Auto-Scan Radar Action
-        Row(
-          children: [
-            Expanded(
-              child: Container(
-                height: 42,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: theme.cardBg,
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(color: theme.border, width: 1.1),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.search_rounded,
-                        size: 17, color: theme.textSecondary),
-                    const SizedBox(width: 7),
-                    Expanded(
-                      child: TextField(
-                        controller: _searchCtrl,
-                        style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12.5, color: theme.text),
-                        decoration: InputDecoration(
-                          hintText: 'Search station, frequency, city, genre...',
-                          hintStyle: GoogleFonts.plusJakartaSans(
-                            fontSize: 11.5,
-                            color: theme.textSecondary.withValues(alpha: 0.6),
-                          ),
-                          border: InputBorder.none,
-                          isDense: true,
-                        ),
-                        onChanged: (val) {
-                          _searchDebounce?.cancel();
-                          _searchDebounce =
-                              Timer(const Duration(milliseconds: 260), () {
-                            if (mounted) {
-                              setState(() => _searchQuery = val);
-                              if (_activeTab == 1 && val.trim().length > 2) {
-                                _fetchGlobalStations(query: val);
-                              }
-                            }
-                          });
-                        },
-                      ),
-                    ),
-                    if (_searchCtrl.text.isNotEmpty)
-                      GestureDetector(
-                        onTap: () {
-                          _searchCtrl.clear();
-                          setState(() => _searchQuery = '');
-                        },
-                        child: Icon(Icons.close_rounded,
-                            size: 16, color: theme.textSecondary),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-
-            // Scan Area Stations Button
-            BouncyTap(
-              onTap: _isScanningArea ? null : () => _scanAreaStations(),
-              child: Container(
-                height: 42,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: theme.primary,
-                  borderRadius: BorderRadius.circular(13),
-                  boxShadow: [
-                    BoxShadow(
-                      color: theme.primary.withValues(alpha: 0.28),
-                      blurRadius: 8,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (_isScanningArea)
-                      const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.0,
-                          color: Colors.white,
-                        ),
-                      )
-                    else
-                      const Icon(Icons.radar_rounded,
-                          color: Colors.white, size: 16),
-                    const SizedBox(width: 5),
-                    Text(
-                      _isScanningArea ? 'SCAN...' : 'SCAN',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w800,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 8),
-
-        // 1-Tap Genre Filtering Chips
-        SizedBox(
-          height: 30,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: _genreFilters.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 6),
-            itemBuilder: (_, idx) {
-              final g = _genreFilters[idx];
-              final isSel = _selectedGenre == g;
-              return GestureDetector(
-                onTap: () {
-                  SoundService().playTap();
-                  setState(() => _selectedGenre = g);
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: isSel ? theme.primary : theme.cardBg,
-                    borderRadius: BorderRadius.circular(9),
-                    border: Border.all(
-                      color: isSel ? theme.primary : theme.border,
-                      width: 1,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      g,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 10.5,
-                        fontWeight:
-                            isSel ? FontWeight.w800 : FontWeight.w600,
-                        color: isSel ? Colors.white : theme.textSecondary,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ===========================================================================
-  // 4. SEGMENTED NAVIGATION TABS (Local FM · 3D Globe · Favorites · Recorded)
-  // ===========================================================================
   Widget _buildNavigationPills(StationeryTheme theme) {
     final tabs = [
       ('Local FM', _areaStations.length, Icons.radio_rounded),
@@ -2873,28 +2310,17 @@ class _FmRadioScreenState extends State<FmRadioScreen>
 // + recessed frosted-glass tuning window + live 8-band audio visualizer
 // + 5-bar signal RSSI meter + illuminated 88–108 analog scale + neon needle!
 // =============================================================================
-class _RetroRadio2DPainter extends CustomPainter {
+// MINIMAL INTERACTIVE TUNER SCALE PAINTER
+// Clean, elegant analog graduation markings across 87.5 - 108.0 MHz
+// =============================================================================
+class _MinimalTunerScalePainter extends CustomPainter {
   final double frequencyMhz;
-  final String stationName;
-  final String statusLabel;
-  final String codecBadge;
-  final bool isPlaying;
-  final bool isBuffering;
-  final bool isRecording;
   final List<double> stationFrequencies;
-  final double animT;
   final StationeryTheme theme;
 
-  _RetroRadio2DPainter({
+  const _MinimalTunerScalePainter({
     required this.frequencyMhz,
-    required this.stationName,
-    required this.statusLabel,
-    required this.codecBadge,
-    required this.isPlaying,
-    required this.isBuffering,
-    required this.isRecording,
     required this.stationFrequencies,
-    required this.animT,
     required this.theme,
   });
 
@@ -2902,692 +2328,97 @@ class _RetroRadio2DPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
-    final isDark = theme.isDark;
-    final ink = theme.text;
+    final centerY = h * 0.42;
 
-    // -------------------------------------------------------------------------
-    // 1. TELESCOPIC STAINLESS-STEEL ANTENNA (Realistic Graduated Sections & Collars)
-    // -------------------------------------------------------------------------
-    final antBase = Offset(w * 0.08, h * 0.16);
-    final antTip = Offset(w * 0.42, h * 0.02);
+    const minF = 87.5;
+    const maxF = 108.0;
+    const range = maxF - minF;
 
-    // Antenna Ball Pivot Mount
-    canvas.drawCircle(
-      antBase,
-      4.0,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0xFFE2E8F0), Color(0xFF475569), Color(0xFF0F172A)],
-        ).createShader(Rect.fromCircle(center: antBase, radius: 4.0)),
+    double fToX(double f) => ((f - minF) / range).clamp(0.0, 1.0) * w;
+
+    // Horizontal baseline
+    final baseLinePaint = Paint()
+      ..color = theme.border
+      ..strokeWidth = 1.2
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(Offset(0, centerY), Offset(w, centerY), baseLinePaint);
+
+    // Ticks & Labels
+    final majorTickPaint = Paint()
+      ..color = theme.textSecondary.withValues(alpha: 0.6)
+      ..strokeWidth = 1.4;
+    final minorTickPaint = Paint()
+      ..color = theme.border
+      ..strokeWidth = 1.0;
+
+    final textStyle = TextStyle(
+      color: theme.textSecondary,
+      fontSize: 8.5,
+      fontWeight: FontWeight.w700,
+      fontFamily: 'JetBrainsMono',
     );
 
-    // Antenna Segmented Shaft (Graduated telescopic rods)
-    final antPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: isDark
-            ? [const Color(0xFFE2E8F0), const Color(0xFF94A3B8), const Color(0xFF334155)]
-            : [const Color(0xFFF8FAFC), const Color(0xFFCBD5E1), const Color(0xFF64748B)],
-      ).createShader(Rect.fromPoints(antBase, antTip))
-      ..strokeWidth = 2.4
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(antBase, antTip, antPaint);
-
-    // Knurled Brass Compression Rings at telescopic joints
-    final joint1 = Offset.lerp(antBase, antTip, 0.38)!;
-    final joint2 = Offset.lerp(antBase, antTip, 0.70)!;
-    for (final j in [joint1, joint2]) {
-      canvas.drawCircle(
-        j,
-        2.5,
-        Paint()
-          ..shader = const RadialGradient(
-            colors: [Color(0xFFFDE68A), Color(0xFFD97706), Color(0xFF78350F)],
-          ).createShader(Rect.fromCircle(center: j, radius: 2.5)),
-      );
-    }
-
-    // Polished Chrome Finial & Indicator Jewel
-    final antJewelColor = isRecording
-        ? const Color(0xFFDC2626)
-        : (isPlaying ? const Color(0xFF10B981) : const Color(0xFFF59E0B));
-
-    canvas.drawCircle(
-      antTip,
-      4.5,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [Colors.white, antJewelColor, const Color(0xFF0F172A)],
-        ).createShader(Rect.fromCircle(center: antTip, radius: 4.5)),
-    );
-    canvas.drawCircle(antTip, 1.8, Paint()..color = Colors.white);
-
-    // Soft Radiating RF Waves when active
-    if (isPlaying || isBuffering) {
-      for (int i = 0; i < 3; i++) {
-        final p = (animT + i / 3.0) % 1.0;
-        canvas.drawArc(
-          Rect.fromCircle(center: antTip, radius: 6.0 + p * 20.0),
-          -1.0,
-          1.6,
-          false,
-          Paint()
-            ..color = antJewelColor.withValues(alpha: (1.0 - p) * 0.6)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.2,
-        );
-      }
-    }
-
-    // -------------------------------------------------------------------------
-    // 2. BRUSHED METAL HI-FI CHASSIS (Aerospace Grade Enclosure with 3D Bevel)
-    // -------------------------------------------------------------------------
-    final bodyRect = Rect.fromLTWH(2, h * 0.14, w - 4, h * 0.85);
-    final bodyRRect = RRect.fromRectAndRadius(bodyRect, const Radius.circular(16));
-
-    // Outer Drop Shadow with Ambient Depth
-    canvas.drawRRect(
-      bodyRRect.shift(const Offset(0, 5)),
-      Paint()
-        ..color = Colors.black.withValues(alpha: isDark ? 0.55 : 0.12)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
-
-    // Chassis Multi-Stop Brushed Metal Gradient
-    final chassisShader = LinearGradient(
-      begin: Alignment.topCenter,
-      end: Alignment.bottomCenter,
-      colors: isDark
-          ? [
-              const Color(0xFF282D3D), // Top highlight
-              const Color(0xFF1C202C), // Upper face
-              const Color(0xFF131620), // Mid cabinet
-              const Color(0xFF0C0E14), // Lower chassis
-            ]
-          : [
-              const Color(0xFFFFFFFF),
-              const Color(0xFFF1F5F9),
-              const Color(0xFFE2E8F0),
-              const Color(0xFFCBD5E1),
-            ],
-      stops: const [0.0, 0.15, 0.65, 1.0],
-    ).createShader(bodyRect);
-    canvas.drawRRect(bodyRRect, Paint()..shader = chassisShader);
-
-    // Fine Brushed Horizontal Hairline Texture
-    final hairlinePaint = Paint()
-      ..color = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.025)
-      ..strokeWidth = 0.8;
-    for (double y = bodyRect.top + 8; y < bodyRect.bottom - 8; y += 4.5) {
-      canvas.drawLine(Offset(bodyRect.left + 8, y), Offset(bodyRect.right - 8, y), hairlinePaint);
-    }
-
-    // Top Polished Chamfer Light Bevel
-    final topHighlightPath = Path()
-      ..moveTo(bodyRect.left + 16, bodyRect.top + 1.2)
-      ..lineTo(bodyRect.right - 16, bodyRect.top + 1.2);
-    canvas.drawPath(
-      topHighlightPath,
-      Paint()
-        ..color = (isDark ? Colors.white : Colors.white).withValues(alpha: isDark ? 0.35 : 0.85)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.3,
-    );
-
-    // Chassis Perimeter Inset Rim
-    canvas.drawRRect(
-      bodyRRect,
-      Paint()
-        ..color = ink.withValues(alpha: isDark ? 0.28 : 0.15)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.3,
-    );
-
-    // 4 Machined Hex-Socket Corner Screws
-    final screwPoints = [
-      Offset(bodyRect.left + 12, bodyRect.top + 11),
-      Offset(bodyRect.right - 12, bodyRect.top + 11),
-      Offset(bodyRect.left + 12, bodyRect.bottom - 11),
-      Offset(bodyRect.right - 12, bodyRect.bottom - 11),
-    ];
-    for (final sp in screwPoints) {
-      // Outer beveled ring
-      canvas.drawCircle(
-        sp,
-        3.0,
-        Paint()
-          ..shader = const RadialGradient(
-            colors: [Color(0xFF94A3B8), Color(0xFF334155), Color(0xFF0F172A)],
-          ).createShader(Rect.fromCircle(center: sp, radius: 3.0)),
-      );
-      // Hex socket depression
-      canvas.drawCircle(sp, 1.2, Paint()..color = const Color(0xFF0F172A));
-      // Specular highlight dot
-      canvas.drawCircle(Offset(sp.dx - 0.7, sp.dy - 0.7), 0.6, Paint()..color = Colors.white70);
-    }
-
-    // Top Brand Plaque ("TOOLER HI-FI FM RECEIVER")
-    final plaqueX = bodyRect.left + (bodyRect.width * 0.48);
-    final plaqueY = bodyRect.top + 8;
-    final brandPainter = TextPainter(
-      text: TextSpan(
-        text: 'TOOLER · HI-FI SOLID STATE FM RECEIVER',
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 7.2,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 1.2,
-          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    brandPainter.paint(canvas, Offset(plaqueX - brandPainter.width / 2, plaqueY));
-
-    // -------------------------------------------------------------------------
-    // 3. LEFT STUDIO ACOUSTIC SPEAKER DRIVER (Woven Wire Mesh & Bass Reflex)
-    // -------------------------------------------------------------------------
-    final spkCenter = Offset(w * 0.165, h * 0.54);
-    final spkR = math.min(w * 0.125, h * 0.28);
-
-    // Audio-reactive bass deflection
-    final bassPulse = isPlaying
-        ? ((math.sin(animT * math.pi * 2 * 2.2) + 1) * 0.5)
-        : 0.0;
-
-    // Outer Cast-Aluminum Trim Ring with Radial Bevel
-    canvas.drawCircle(
-      spkCenter,
-      spkR + 3.5,
-      Paint()
-        ..shader = RadialGradient(
-          colors: isDark
-              ? [const Color(0xFF64748B), const Color(0xFF334155), const Color(0xFF0F172A)]
-              : [const Color(0xFFFFFFFF), const Color(0xFFCBD5E1), const Color(0xFF94A3B8)],
-        ).createShader(Rect.fromCircle(center: spkCenter, radius: spkR + 3.5)),
-    );
-    canvas.drawCircle(
-      spkCenter,
-      spkR + 3.5,
-      Paint()
-        ..color = ink.withValues(alpha: isDark ? 0.35 : 0.22)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
-
-    // Flexible Rubber Roll Surround (Concave bass flex)
-    canvas.drawCircle(
-      spkCenter,
-      spkR,
-      Paint()
-        ..shader = RadialGradient(
-          colors: isDark
-              ? [const Color(0xFF1E2433), const Color(0xFF0B0D14), const Color(0xFF181D2A)]
-              : [const Color(0xFF475569), const Color(0xFF1E293B), const Color(0xFF334155)],
-        ).createShader(Rect.fromCircle(center: spkCenter, radius: spkR)),
-    );
-
-    // Woven Diamond Acoustic Wire-Mesh Grille (Realistic interlaced micro-weave)
-    canvas.save();
-    final spkClipPath = Path()
-      ..addOval(Rect.fromCircle(center: spkCenter, radius: spkR - 1.5));
-    canvas.clipPath(spkClipPath);
-
-    final meshPaint = Paint()
-      ..color = (isDark ? const Color(0xFF94A3B8) : const Color(0xFF1E293B))
-          .withValues(alpha: isDark ? 0.28 : 0.40)
-      ..strokeWidth = 0.75;
-
-    const meshStep = 3.6;
-    for (double ox = -spkR * 2; ox <= spkR * 2; ox += meshStep) {
-      // 45 degree strand
-      canvas.drawLine(
-        Offset(spkCenter.dx + ox - spkR, spkCenter.dy - spkR),
-        Offset(spkCenter.dx + ox + spkR, spkCenter.dy + spkR),
-        meshPaint,
-      );
-      // -45 degree strand
-      canvas.drawLine(
-        Offset(spkCenter.dx + ox - spkR, spkCenter.dy + spkR),
-        Offset(spkCenter.dx + ox + spkR, spkCenter.dy - spkR),
-        meshPaint,
-      );
-    }
-
-    // Dynamic Acoustic Shockwave Aura when music plays
-    if (isPlaying) {
-      canvas.drawCircle(
-        spkCenter,
-        spkR * 0.70 + bassPulse * 3.5,
-        Paint()
-          ..color = const Color(0xFFF59E0B).withValues(alpha: 0.18 * (1 - bassPulse * 0.3))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.4,
-      );
-    }
-
-    // Spun-Aluminum Center Dust Dome with Radial Light Reflection
-    final capR = spkR * 0.34 + (bassPulse * 0.8);
-    canvas.drawCircle(
-      spkCenter,
-      capR,
-      Paint()
-        ..shader = RadialGradient(
-          colors: isDark
-              ? [const Color(0xFFE2E8F0), const Color(0xFF475569), const Color(0xFF1E293B)]
-              : [const Color(0xFFFFFFFF), const Color(0xFF94A3B8), const Color(0xFF475569)],
-        ).createShader(Rect.fromCircle(center: spkCenter, radius: capR)),
-    );
-    canvas.drawCircle(
-      spkCenter,
-      capR,
-      Paint()
-        ..color = const Color(0xFFF59E0B).withValues(alpha: 0.85)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
-    canvas.restore();
-
-    // Tactile Volume Rotary Knob below the Speaker
-    final volKnobCenter = Offset(spkCenter.dx, h * 0.88);
-    const volKnobR = 12.0;
-
-    // Knob Drop Shadow
-    canvas.drawCircle(
-      volKnobCenter.translate(0, 1.5),
-      volKnobR,
-      Paint()..color = Colors.black.withValues(alpha: isDark ? 0.40 : 0.15),
-    );
-    // Knurled Aluminum Grip Ring
-    canvas.drawCircle(
-      volKnobCenter,
-      volKnobR,
-      Paint()
-        ..shader = const RadialGradient(
-          colors: [Color(0xFFCBD5E1), Color(0xFF475569), Color(0xFF1E293B)],
-        ).createShader(Rect.fromCircle(center: volKnobCenter, radius: volKnobR)),
-    );
-    // Center Beveled Face
-    canvas.drawCircle(
-      volKnobCenter,
-      volKnobR * 0.75,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [const Color(0xFF334155), const Color(0xFF0F172A)]
-              : [const Color(0xFFF1F5F9), const Color(0xFF94A3B8)],
-        ).createShader(Rect.fromCircle(center: volKnobCenter, radius: volKnobR * 0.75)),
-    );
-    // Indicator Position Notch (Clockwise tuned)
-    canvas.drawLine(
-      volKnobCenter,
-      Offset(volKnobCenter.dx + math.cos(-0.6) * volKnobR * 0.8,
-             volKnobCenter.dy + math.sin(-0.6) * volKnobR * 0.8),
-      Paint()
-        ..color = const Color(0xFFF59E0B)
-        ..strokeWidth = 1.4
-        ..strokeCap = StrokeCap.round,
-    );
-    final volLbl = TextPainter(
-      text: TextSpan(
-        text: 'VOLUME',
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 6.2,
-          fontWeight: FontWeight.w800,
-          color: isDark ? const Color(0xFF64748B) : const Color(0xFF475569),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    volLbl.paint(canvas, Offset(volKnobCenter.dx - volLbl.width / 2, volKnobCenter.dy + volKnobR + 2));
-
-    // -------------------------------------------------------------------------
-    // 4. RECESSED ILLUMINATED ANALOG TUNING GLASS & VFD TELEMETRY CONSOLE (Right)
-    // -------------------------------------------------------------------------
-    final dialLeft = w * 0.32;
-    final dialWidth = w * 0.65;
-    final dialTop = h * 0.20;
-    final dialH = h * 0.75;
-    final dialRect = Rect.fromLTWH(dialLeft, dialTop, dialWidth, dialH);
-    final dialRRect = RRect.fromRectAndRadius(dialRect, const Radius.circular(12));
-
-    // Smoked Tempered OLED Glass Window Background
-    canvas.drawRRect(
-      dialRRect,
-      Paint()..color = const Color(0xFF07090F),
-    );
-
-    // Warm Vintage Tungsten / Amber Phosphor Backlight Glow
-    final glowShader = RadialGradient(
-      center: Alignment.center,
-      radius: 0.9,
-      colors: [
-        const Color(0xFFF59E0B).withValues(alpha: isPlaying ? 0.16 : 0.05),
-        const Color(0xFF07090F),
-      ],
-    ).createShader(dialRect);
-    canvas.drawRRect(dialRRect, Paint()..shader = glowShader);
-
-    // Diagonal Specular Glass Reflection Glare
-    final glassGlare = Path()
-      ..moveTo(dialLeft, dialTop + dialH * 0.45)
-      ..lineTo(dialLeft + dialWidth * 0.55, dialTop)
-      ..lineTo(dialLeft + dialWidth * 0.72, dialTop)
-      ..lineTo(dialLeft, dialTop + dialH * 0.85)
-      ..close();
-    canvas.drawPath(
-      glassGlare,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Colors.white.withValues(alpha: 0.06),
-            Colors.white.withValues(alpha: 0.01),
-          ],
-        ).createShader(dialRect),
-    );
-
-    // 3D Beveled Metallic Window Bezel Rim
-    canvas.drawRRect(
-      dialRRect,
-      Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            const Color(0xFFF59E0B).withValues(alpha: isPlaying ? 0.55 : 0.30),
-            const Color(0xFF334155),
-            const Color(0xFF0F172A),
-          ],
-        ).createShader(dialRect)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.3,
-    );
-
-    // --- Glass Header Bar: [● STEREO] [5-Bar RSSI] [CODEC] ---
-    final isStereoActive = isPlaying;
-    final stereoLedColor = isStereoActive ? const Color(0xFF10B981) : const Color(0xFF475569);
-
-    // Faceted Jewel Stereo Indicator LED
-    final ledCenter = Offset(dialLeft + 12, dialTop + 12);
-    canvas.drawCircle(
-      ledCenter,
-      3.5,
-      Paint()
-        ..shader = RadialGradient(
-          colors: [Colors.white, stereoLedColor, const Color(0xFF064E3B)],
-        ).createShader(Rect.fromCircle(center: ledCenter, radius: 3.5)),
-    );
-    if (isStereoActive) {
-      canvas.drawCircle(
-        ledCenter,
-        6.0,
-        Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.35),
-      );
-    }
-    final stLedPainter = TextPainter(
-      text: TextSpan(
-        text: 'STEREO FM',
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 8.0,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.5,
-          color: stereoLedColor,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    stLedPainter.paint(canvas, Offset(dialLeft + 20, dialTop + 7.5));
-
-    // 5-Segment Signal Strength Ladder (RSSI)
-    final rssiBaseX = dialLeft + dialWidth * 0.44;
-    for (int bar = 0; bar < 5; bar++) {
-      final bh = 3.5 + bar * 2.2;
-      final isLit = isPlaying ? (bar < 4) : (isBuffering ? bar < 2 : false);
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(rssiBaseX + bar * 4.4, dialTop + 14 - bh, 2.6, bh),
-          const Radius.circular(1.2),
-        ),
-        Paint()
-          ..color = isLit
-              ? const Color(0xFF10B981)
-              : Colors.white.withValues(alpha: 0.12),
-      );
-    }
-
-    // Codec & Quality Badge
-    final codecPainter = TextPainter(
-      text: TextSpan(
-        text: codecBadge,
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 8.0,
-          fontWeight: FontWeight.w700,
-          color: const Color(0xFF94A3B8),
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    codecPainter.paint(
-      canvas,
-      Offset(dialLeft + dialWidth - codecPainter.width - 10, dialTop + 7.5),
-    );
-
-    // --- Big Digital VFD / OLED Frequency Readout ("98.3 MHz") ---
-    final freqPainter = TextPainter(
-      text: TextSpan(
-        children: [
-          TextSpan(
-            text: frequencyMhz.toStringAsFixed(1),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
-              color: Colors.white,
-              letterSpacing: -0.8,
-            ),
-          ),
-          TextSpan(
-            text: ' MHz',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10.5,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFFF59E0B),
-            ),
-          ),
-        ],
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    freqPainter.paint(canvas, Offset(dialLeft + 10, dialTop + 24));
-
-    // Dual-Channel Moving Analog VU Meters (Left & Right Levels)
-    final vuStartX = dialLeft + dialWidth - 56;
-    final vuTopY = dialTop + 26;
-    for (int ch = 0; ch < 2; ch++) {
-      final chY = vuTopY + ch * 9.0;
-      final chLabel = ch == 0 ? 'L' : 'R';
-
-      final lblP = TextPainter(
-        text: TextSpan(
-          text: chLabel,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 7.0,
-            fontWeight: FontWeight.w900,
-            color: const Color(0xFF64748B),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      lblP.paint(canvas, Offset(vuStartX - 8, chY));
-
-      // 6 Segment VU Bar
-      for (int s = 0; s < 6; s++) {
-        final segX = vuStartX + s * 7.5;
-        final vuLevel = isPlaying
-            ? ((math.sin(animT * 8.0 + ch * 2.0 + s * 0.6) + 1) * 0.5)
-            : 0.1;
-        final isSegLit = (s / 6.0) <= vuLevel;
-
-        Color segColor = const Color(0xFF10B981); // Green (Safe)
-        if (s >= 4) segColor = const Color(0xFFF59E0B); // Amber
-        if (s == 5) segColor = const Color(0xFFDC2626); // Red (Peak)
-
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(
-            Rect.fromLTWH(segX, chY + 1.0, 5.5, 5.0),
-            const Radius.circular(1.0),
-          ),
-          Paint()
-            ..color = isSegLit ? segColor : segColor.withValues(alpha: 0.15),
-        );
-      }
-    }
-
-    // Station Name & Genre Subtitle
-    final namePainter = TextPainter(
-      text: TextSpan(
-        text: stationName,
-        style: GoogleFonts.plusJakartaSans(
-          fontSize: 11.5,
-          fontWeight: FontWeight.w800,
-          color: Colors.white.withValues(alpha: 0.92),
-        ),
-      ),
-      maxLines: 1,
-      ellipsis: '…',
-      textDirection: TextDirection.ltr,
-    )..layout(maxWidth: dialWidth - 20);
-    namePainter.paint(canvas, Offset(dialLeft + 10, dialTop + 55));
-
-    // -------------------------------------------------------------------------
-    // 5. AUTHENTIC DUAL-BAND ANALOG TUNING DIAL SCALE (88..108 FM & 530..1700 AM)
-    // -------------------------------------------------------------------------
-    final scaleY = dialTop + dialH - 28;
-    final scaleStart = dialLeft + 12;
-    final scaleEnd = dialLeft + dialWidth - 12;
-    final scaleSpan = scaleEnd - scaleStart;
-
-    // Dual-Track Guideline
-    canvas.drawLine(
-      Offset(scaleStart, scaleY - 10),
-      Offset(scaleEnd, scaleY - 10),
-      Paint()
-        ..color = const Color(0xFFF59E0B).withValues(alpha: 0.35)
-        ..strokeWidth = 1.0,
-    );
-    canvas.drawLine(
-      Offset(scaleStart, scaleY + 2),
-      Offset(scaleEnd, scaleY + 2),
-      Paint()
-        ..color = Colors.white.withValues(alpha: 0.20)
-        ..strokeWidth = 1.0,
-    );
-
-    // FM Frequency Calibrations (88 to 108 MHz)
-    const totalTicks = 20;
-    for (int i = 0; i <= totalTicks; i++) {
-      final tx = scaleStart + (i / totalTicks) * scaleSpan;
-      final isMajor = i % 4 == 0;
-      final isMid = i % 2 == 0;
-
-      final tickH = isMajor ? 7.0 : (isMid ? 4.5 : 2.5);
-      canvas.drawLine(
-        Offset(tx, scaleY - 10 - tickH),
-        Offset(tx, scaleY - 10),
-        Paint()
-          ..color = isMajor
-              ? const Color(0xFFF59E0B)
-              : Colors.white.withValues(alpha: isMid ? 0.65 : 0.25)
-          ..strokeWidth = isMajor ? 1.3 : 0.8,
-      );
+    for (double f = 88.0; f <= 108.0; f += 1.0) {
+      final x = fToX(f);
+      final isMajor = (f % 4 == 0); // 88, 92, 96, 100, 104, 108
 
       if (isMajor) {
-        final mhz = 88 + i;
-        final lp = TextPainter(
-          text: TextSpan(
-            text: '$mhz',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 7.2,
-              fontWeight: FontWeight.w800,
-              color: const Color(0xFFF59E0B),
-            ),
-          ),
+        canvas.drawLine(
+          Offset(x, centerY - 8),
+          Offset(x, centerY + 8),
+          majorTickPaint,
+        );
+
+        final tp = TextPainter(
+          text: TextSpan(text: f.toInt().toString(), style: textStyle),
           textDirection: TextDirection.ltr,
         )..layout();
-        lp.paint(canvas, Offset(tx - lp.width / 2, scaleY - 21));
+        tp.paint(canvas, Offset(x - tp.width / 2, centerY + 10));
+      } else {
+        canvas.drawLine(
+          Offset(x, centerY - 4),
+          Offset(x, centerY + 4),
+          minorTickPaint,
+        );
       }
     }
 
-    // Lower AM Scale Markings (kHz)
-    final amMarkings = ['54', '80', '100', '130', '160'];
-    for (int i = 0; i < amMarkings.length; i++) {
-      final tx = scaleStart + (i / (amMarkings.length - 1)) * scaleSpan;
-      final amp = TextPainter(
-        text: TextSpan(
-          text: amMarkings[i],
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 6.5,
-            fontWeight: FontWeight.w600,
-            color: const Color(0xFF64748B),
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      amp.paint(canvas, Offset(tx - amp.width / 2, scaleY + 5));
+    // Station frequency marker dots
+    final dotPaint = Paint()
+      ..color = theme.primary.withValues(alpha: 0.45)
+      ..style = PaintingStyle.fill;
+    for (final sf in stationFrequencies) {
+      if (sf >= minF && sf <= maxF) {
+        final x = fToX(sf);
+        canvas.drawCircle(Offset(x, centerY), 2.2, dotPaint);
+      }
     }
 
-    // Station Memory Lock Indicator Dots
-    for (final sf in stationFrequencies.take(16)) {
-      final sfFrac = ((sf - 87.5) / 20.5).clamp(0.0, 1.0);
-      final sx = scaleStart + sfFrac * scaleSpan;
-      canvas.drawCircle(
-        Offset(sx, scaleY - 10),
-        2.0,
-        Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.9),
-      );
-    }
+    // Indicator Needle
+    final needleX = fToX(frequencyMhz);
+    final needlePaint = Paint()
+      ..color = theme.primary
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
 
-    // Fluorescent Orange/Amber Analog Pointer Needle with Neon Halo
-    final freqFrac = ((frequencyMhz - 87.5) / 20.5).clamp(0.0, 1.0);
-    final needleX = scaleStart + freqFrac * scaleSpan;
-
-    // Diffuse Neon Halo Glow
+    // Needle vertical line
     canvas.drawLine(
-      Offset(needleX, scaleY - 22),
-      Offset(needleX, scaleY + 12),
-      Paint()
-        ..color = const Color(0xFFFF6D00).withValues(alpha: 0.45)
-        ..strokeWidth = 6.0
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
+      Offset(needleX, 2),
+      Offset(needleX, h - 6),
+      needlePaint,
     );
 
-    // Core Solid Pointer Needle
-    canvas.drawLine(
-      Offset(needleX, scaleY - 22),
-      Offset(needleX, scaleY + 12),
-      Paint()
-        ..color = const Color(0xFFFF6D00)
-        ..strokeWidth = 2.0
-        ..strokeCap = StrokeCap.round,
-    );
-
-    // Brass Slide Pivot at Needle Base
-    canvas.drawCircle(
-      Offset(needleX, scaleY + 12),
-      2.5,
-      Paint()..color = const Color(0xFFD97706),
-    );
+    // Needle center pip
+    final needlePipPaint = Paint()
+      ..color = theme.primary
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(Offset(needleX, centerY), 4.0, needlePipPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _RetroRadio2DPainter old) => true;
+  bool shouldRepaint(covariant _MinimalTunerScalePainter old) =>
+      old.frequencyMhz != frequencyMhz || old.theme != theme;
 }
-
-// =============================================================================
-// HIGH-TECH RADIO SYNC PLAY BUTTON WITH ROTATING RADAR FREQUENCY LOCK ANIMATION
 // =============================================================================
 class _RadioSyncPlayButton extends StatelessWidget {
   final bool isPlaying;
