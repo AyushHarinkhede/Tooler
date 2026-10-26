@@ -167,59 +167,61 @@ class _StepCounterScreenState extends State<StepCounterScreen>
             ),
             child: Column(
               children: [
-                // Top Row: Hardware Sync Status + Edit Goal
+                // Top Row: Walking Live (when active) + Edit Goal
                 Row(
                   children: [
-                    // Hardware Sync Pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
+                    if (isWalking) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
                           color:
-                              const Color(0xFF10B981).withValues(alpha: 0.35),
+                              const Color(0xFF10B981).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFF10B981)
+                                .withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedBuilder(
+                              animation: _pulseController,
+                              builder: (_, __) {
+                                return Container(
+                                  width: 7,
+                                  height: 7,
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF10B981),
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: const Color(0xFF10B981)
+                                            .withValues(
+                                                alpha: _pulseController.value *
+                                                    0.7),
+                                        blurRadius: 6,
+                                        spreadRadius: 1,
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                            const SizedBox(width: 5),
+                            Text(
+                              'WALKING LIVE',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                color: const Color(0xFF10B981),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AnimatedBuilder(
-                            animation: _pulseController,
-                            builder: (_, __) {
-                              return Container(
-                                width: 7,
-                                height: 7,
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981),
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFF10B981)
-                                          .withValues(
-                                              alpha: _pulseController.value *
-                                                  0.7),
-                                      blurRadius: 6,
-                                      spreadRadius: 1,
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            isWalking ? 'WALKING LIVE' : 'HARDWARE SYNCED',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              color: const Color(0xFF10B981),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    ],
                     const Spacer(),
 
                     // Edit Daily Goal Chip
