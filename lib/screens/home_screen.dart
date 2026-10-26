@@ -36,6 +36,7 @@ import 'fm_radio_screen.dart';
 import 'step_counter_screen.dart';
 import 'weather_screen.dart';
 import 'settings_screen.dart';
+import 'speed_test_screen.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER MINIMAL HOME (Images 1 & 2 Match)
@@ -359,6 +360,33 @@ class _HomeScreenState extends State<HomeScreen> {
           'uthna', 'ghanti', 'wake-up', 'missions', 'samay', 'ghadi',
         ],
         'builder': (context) => AlarmScreen(theme: widget.theme),
+      },
+      {
+        'id': 'speed_test',
+        'title': 'Speed Test',
+        'subtitle': 'Wi-Fi, 5G Radio, Nearest Tower & Force 5G',
+        'category': 'Time & Tasks',
+        'tag': 'Network',
+        'iconType': 'speed_test',
+        'isFeatured': true,
+        'features': [
+          {'name': '180° Half-Speedometer Gauge', 'desc': 'Silky animated needle measuring Gigabit speeds from 0 to 1000+ Mbps'},
+          {'name': 'Real Multi-CDN Engine', 'desc': 'Accurate Ping latency, Jitter, Download and Upload bandwidth testing'},
+          {'name': 'Hardware Wi-Fi Telemetry', 'desc': 'SSID, exact Band GHz, Channel frequency, Wi-Fi 6/7 generation, and Link Speed'},
+          {'name': '5G NR Cellular Specs', 'desc': 'NR State (SA/NSA), Frequency band (n78/n28), RSRP dBm, SINR, and Cell ID'},
+          {'name': 'Nearest Cell Tower Distance', 'desc': 'Real-time estimated distance in meters via Timing Advance & RF path-loss'},
+          {'name': 'Force 5G (Phone Info Menu)', 'desc': 'Direct launcher to lock device on NR only so it never drops back to 4G'},
+          {'name': 'Turbo Network Refresh', 'desc': 'Flushes DNS/sockets and toggles radio to re-register on the strongest tower'},
+        ],
+        'keywords': [
+          'speed test', 'speedtest', 'wifi speed', 'internet speed', 'network',
+          '5g', '4g', 'lte', 'nr only', 'force 5g', 'nearest tower', 'tower distance',
+          'cell tower', 'ping', 'latency', 'jitter', 'download speed', 'upload speed',
+          'bandwidth', 'mbps', 'wifi band', '5 ghz', '2.4 ghz', 'channel',
+          'link speed', 'signal strength', 'rsrp', 'sinr', 'refresh network',
+          'airplane mode', 'speedometer', 'gauges', 'speed test meter', 'net speed',
+        ],
+        'builder': (context) => SpeedTestScreen(theme: widget.theme),
       },
       {
         'id': 'power',

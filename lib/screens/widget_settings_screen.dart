@@ -52,6 +52,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
     {'id': 'recorder', 'title': 'Noise & Rec', 'iconType': 'recorder'},
     {'id': 'radio', 'title': 'FM Radio', 'iconType': 'radio'},
     {'id': 'power', 'title': 'Power', 'iconType': 'power'},
+    {'id': 'speed_test', 'title': 'Speed Test', 'iconType': 'speed_test'},
     {'id': 'compass', 'title': 'Compass', 'iconType': 'compass'},
     {'id': 'converters', 'title': 'Converters', 'iconType': 'converters'},
     {'id': 'currency', 'title': 'Currency', 'iconType': 'currency'},

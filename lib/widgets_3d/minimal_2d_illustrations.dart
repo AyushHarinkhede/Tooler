@@ -596,6 +596,12 @@ class _IllustrationPainter extends CustomPainter {
       case 'tools':
         _drawAllTools(canvas, w, h, p, fillAccent);
         break;
+      case 'speed_test':
+      case 'speedtest':
+      case 'network':
+      case 'wifi':
+        _drawSpeedTest(canvas, w, h, p, fillAccent);
+        break;
       case 'settings':
       default:
         _drawSettings(canvas, w, h, p, fillAccent);
@@ -1306,6 +1312,41 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.23, h * 0.55, s, s), r), p);
     // Bottom-right
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.55, h * 0.55, s, s), r), p);
+  }
+
+  void _drawSpeedTest(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    final center = Offset(w * 0.5, h * 0.62);
+    final radius = w * 0.32;
+    // Outer arc
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      math.pi * 0.85,
+      math.pi * 1.30,
+      false,
+      p..strokeWidth = 2.4,
+    );
+    // Needle
+    final needlePaint = Paint()
+      ..color = fill.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.6
+      ..strokeCap = StrokeCap.round;
+    final needleTip = Offset(
+      center.dx + (radius * 0.75) * math.cos(math.pi * 1.6),
+      center.dy + (radius * 0.75) * math.sin(math.pi * 1.6),
+    );
+    canvas.drawLine(center, needleTip, needlePaint);
+    // Center knob
+    canvas.drawCircle(center, 4.0, fill);
+    canvas.drawCircle(center, 4.0, p..strokeWidth = 1.6);
+    // Radiating WiFi / 5G signal arcs below
+    final wavePaint = Paint()
+      ..color = p.color.withValues(alpha: 0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.38, h * 0.80), Offset(w * 0.62, h * 0.80), wavePaint);
+    canvas.drawLine(Offset(w * 0.44, h * 0.87), Offset(w * 0.56, h * 0.87), wavePaint);
   }
 
   @override

@@ -26,6 +26,7 @@ import 'security_screen.dart';
 import 'fm_radio_screen.dart';
 import 'weather_screen.dart';
 import 'step_counter_screen.dart';
+import 'speed_test_screen.dart';
 
 /// Direct Transparent Home Screen Floating Hover Page launched by Android Widgets.
 /// Floats directly on top of the user's phone Home Screen / Wallpaper without
@@ -128,6 +129,13 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
           subtitle: 'Decibel Meter, Voice Recorder & Monitor',
           tag: 'Audio',
           child: SoundRecorderScreen(theme: t),
+        );
+      case 'speed_test':
+        return _PopupToolMeta(
+          title: 'Speed Test',
+          subtitle: 'Wi-Fi, 5G Radio & Nearest Tower',
+          tag: 'Network',
+          child: SpeedTestScreen(theme: t),
         );
       case 'power':
         return _PopupToolMeta(
