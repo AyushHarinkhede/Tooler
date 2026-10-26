@@ -124,7 +124,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
   };
 
   bool _isFetchingRates = false;
-  bool _isLiveRate = false;
+  DateTime? _lastSyncTime;
   String _lastUpdatedText = 'Default rates';
 
   @override
@@ -149,6 +149,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
       final prefs = await SharedPreferences.getInstance();
       final cachedStr = prefs.getString('tooler_cached_fx_rates');
       final cachedTime = prefs.getString('tooler_cached_fx_time');
+      final cachedIso = prefs.getString('tooler_cached_fx_iso');
 
       if (cachedStr != null && cachedStr.isNotEmpty) {
         final Map<String, dynamic> decoded = jsonDecode(cachedStr);
@@ -159,10 +160,16 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
         if (mounted) {
           setState(() {
             _rates.addAll(map);
+            if (cachedIso != null) {
+              _lastSyncTime = DateTime.tryParse(cachedIso);
+            } else if (cachedTime != null) {
+              try {
+                _lastSyncTime = DateFormat('dd MMM yyyy, hh:mm a').parse(cachedTime);
+              } catch (_) {}
+            }
             if (cachedTime != null) {
               _lastUpdatedText = cachedTime;
             }
-            _isLiveRate = true;
           });
         }
       }
@@ -200,12 +207,13 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('tooler_cached_fx_rates', jsonEncode(newRates));
           await prefs.setString('tooler_cached_fx_time', formattedTime);
+          await prefs.setString('tooler_cached_fx_iso', now.toIso8601String());
 
           if (mounted) {
             setState(() {
               _rates.addAll(newRates);
+              _lastSyncTime = now;
               _lastUpdatedText = formattedTime;
-              _isLiveRate = true;
               _isFetchingRates = false;
             });
             _calculate();
@@ -293,7 +301,22 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
     });
   }
 
-  String get lastUpdateLabel => _lastUpdatedText;
+  String get lastUpdateLabel {
+    if (_lastSyncTime == null) {
+      return _lastUpdatedText;
+    }
+    final now = DateTime.now();
+    final isToday = _lastSyncTime!.year == now.year &&
+        _lastSyncTime!.month == now.month &&
+        _lastSyncTime!.day == now.day;
+    if (isToday) {
+      // Sync happened today: show time only, not date
+      return DateFormat('hh:mm a').format(_lastSyncTime!);
+    } else {
+      // Sync was on a previous date: show date only, not time
+      return DateFormat('dd MMM yyyy').format(_lastSyncTime!);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -517,28 +540,10 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
                         Divider(color: theme.border.withValues(alpha: 0.6), height: 1),
                         const SizedBox(height: 10),
 
-                        // LAST UPDATE TIMESTAMP & REFRESH BUTTON (Small Font as requested)
+                        // LAST UPDATE TIMESTAMP & REFRESH BUTTON
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Live Status Indicator Dot
-                            Container(
-                              width: 7,
-                              height: 7,
-                              decoration: BoxDecoration(
-                                color: _isLiveRate ? const Color(0xFF2ED573) : const Color(0xFFFFA502),
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              _isLiveRate ? "Live FX · " : "Cached · ",
-                              style: theme.fontMono(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: _isLiveRate ? const Color(0xFF2ED573) : const Color(0xFFFFA502),
-                              ),
-                            ),
                             Text(
                               "Last updated: $lastUpdateLabel",
                               style: theme.fontMono(
