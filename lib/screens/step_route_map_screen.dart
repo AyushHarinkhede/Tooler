@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import '../theme/stationery_theme.dart';
@@ -12,14 +13,14 @@ import '../widgets_3d/bouncy_tap.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER STEP TRAIL & REAL MULTI-API GPS & TRAJECTORY MAP
-/// - Google Maps (OLED Dark Mode, Road Light & Hybrid Satellite) + Carto Night
+/// - Google Maps (OLED Dark Mode, Road Light & Hybrid Satellite)
 /// - Live GPS location centering with pulsing real-time beacon
 /// - Accurate Color-coded Polyline:
 ///     * 🟢 Emerald Green: Walking (With Steps)
 ///     * 🔵 Cyan Blue: Running / Jogging (With Steps)
 ///     * 🔴 Red/Orange Dashed: Vehicle / Transit (WITHOUT Steps)
 /// - Interactive Waypoint Dots along the route with instant speed & step diagnostics
-/// - Real-Time Replay Engine & "Recenter to My Location" FAB
+/// - Real-Time Replay Engine (Play/Pause) & "Recenter to My Location" FAB
 /// ---------------------------------------------------------------------------
 
 class StepRouteMapScreen extends StatefulWidget {
@@ -35,7 +36,8 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
   final PedometerSensorService _pedometer = PedometerSensorService();
 
   bool _isMapReady = false;
-  // Available map styles: 'google_dark', 'google_road', 'google_sat', 'carto_dark'
+  bool _isReplaying = false;
+  // Available map styles: 'google_dark', 'google_road', 'google_sat'
   String _mapStyle = 'google_dark';
 
   double _liveLat = 0.0;
@@ -45,36 +47,38 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
   StreamSubscription<int>? _stepSub;
   int _lastRecordedSteps = -1;
 
-  final List<Map<String, String>> _styleOptions = [
+  final List<Map<String, dynamic>> _styleOptions = [
     {
       'id': 'google_road',
       'name': 'Light Mode',
-      'icon': '🗺️',
-      'desc': 'High-clarity road & street map with landmarks',
+      'svg': '''<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M3 6L9 3L15 6L21 3V18L15 21L9 18L3 21V6Z" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9 3V18" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M15 6V21" stroke="#3B82F6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>''',
     },
     {
       'id': 'google_dark',
       'name': 'Dark Mode',
-      'icon': '🌙',
-      'desc': 'Deep black OLED contrast, battery efficient',
+      'svg': '''<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="#F59E0B" fill-opacity="0.2"/>
+</svg>''',
     },
     {
       'id': 'google_sat',
       'name': 'Satellite Mode',
-      'icon': '🛰️',
-      'desc': 'Photorealistic high-resolution satellite imagery',
-    },
-    {
-      'id': 'carto_dark',
-      'name': 'Carto Night',
-      'icon': '🌃',
-      'desc': 'Minimalist dark cartographic vector tiles',
+      'svg': '''<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<circle cx="12" cy="12" r="9" stroke="#10B981" stroke-width="2"/>
+<path d="M3.6 9H20.4M3.6 15H20.4" stroke="#10B981" stroke-width="1.8" stroke-linecap="round"/>
+<ellipse cx="12" cy="12" rx="4.5" ry="9" stroke="#10B981" stroke-width="1.8"/>
+</svg>''',
     },
   ];
 
   @override
   void initState() {
     super.initState();
+    _pedometer.cleanAndPersistTrail();
     _mapStyle = widget.theme.isDark ? 'google_dark' : 'google_road';
     _lastRecordedSteps = _pedometer.todaySteps;
     _initMapController();
@@ -126,9 +130,8 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
         final lon = (fresh['longitude'] as num?)?.toDouble() ?? 0.0;
         final acc = (fresh['accuracy'] as num?)?.toDouble() ?? 0.0;
         if (lat != 0.0 && lon != 0.0) {
-          final distFromPrev = _liveLat != 0.0
-              ? _calculateDistanceMeters(_liveLat, _liveLon, lat, lon)
-              : 999.0;
+          // Ignore highly inaccurate GPS readings (indoors / cell tower estimates)
+          if (acc > 35.0) return;
 
           final hadInitialFix = _liveLat != 0.0;
           _liveLat = lat;
@@ -137,18 +140,25 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
 
           _updateMapLiveLocation(lat, lon, acc, panTo: !hadInitialFix);
 
+          // Calculate displacement from the LAST real recorded waypoint
+          final lastPt = _pedometer.todayTrail.isNotEmpty ? _pedometer.todayTrail.last : null;
+          final distFromLast = lastPt != null
+              ? _calculateDistanceMeters(lastPt.lat, lastPt.lon, lat, lon)
+              : 999.0;
+
           // Anti-Jitter Precision Movement Gate:
-          // User must either Drive (speed > 18 km/h & moved > 30m) OR Walk/Run with actual steps taken!
+          // User must either Drive (speed > 18 km/h & moved > 25m) OR Walk/Run with real verified steps!
           final currentSteps = _pedometer.todaySteps;
           final stepDelta = (_lastRecordedSteps >= 0) ? (currentSteps - _lastRecordedSteps) : 0;
           final speed = (fresh['speed'] as num?)?.toDouble() ?? _pedometer.currentSpeedKmh;
           final isDrive = speed > 18.0;
 
-          final isDriveMove = isDrive && distFromPrev >= 30.0;
+          final isDriveMove = isDrive && distFromLast >= 25.0;
           final isWalkMove = !isDrive &&
-              (stepDelta >= 4 || _pedometer.isWalkingNow) &&
-              distFromPrev >= 12.0 &&
-              distFromPrev >= (acc * 0.65);
+              currentSteps >= 20 &&
+              stepDelta >= 6 &&
+              distFromLast >= 10.0 &&
+              distFromLast <= (stepDelta * 2.2 + 25.0);
 
           if (isDriveMove || isWalkMove) {
             _lastRecordedSteps = currentSteps;
@@ -231,6 +241,10 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
             if (data['event'] == 'pointClick') {
               HapticFeedback.selectionClick();
               SoundService().playTap();
+            } else if (data['event'] == 'replayState') {
+              setState(() => _isReplaying = data['isPlaying'] == true);
+            } else if (data['event'] == 'replayFinished') {
+              setState(() => _isReplaying = false);
             } else if (data['event'] == 'mapLoaded') {
               setState(() => _isMapReady = true);
               if (_liveLat != 0.0 && _liveLon != 0.0) {
@@ -245,23 +259,20 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
 
   String _getTileUrl() {
     switch (_mapStyle) {
-      case 'google_dark':
-        return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
       case 'google_road':
         return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
       case 'google_sat':
         return 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
-      case 'carto_dark':
+      case 'google_dark':
       default:
-        return 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png';
+        return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
     }
   }
 
   String _buildLeafletHtml() {
-    final trail = _pedometer.todayTrail;
+    final trail = PedometerSensorService.cleanJitterPoints(_pedometer.todayTrail);
     final isDark = widget.theme.isDark;
     final tileUrl = _getTileUrl();
-    final isCarto = _mapStyle == 'carto_dark';
 
     final pointsJson = jsonEncode(trail.map((p) {
       final isDrive = p.isVehicle || p.activity == 'Drive' || p.speedKmh > 16.0;
@@ -399,7 +410,6 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
 
     L.tileLayer('$tileUrl', {
       maxZoom: 20,
-      subdomains: '${isCarto ? "abcd" : ""}',
     }).addTo(map);
 
     let liveMarker = null;
@@ -604,41 +614,80 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
       map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40] });
     }
 
-    // Replay Function
-    window.startRouteReplay = function() {
+    // Replay Engine with Play / Pause / Resume
+    let isReplaying = false;
+
+    window.toggleRouteReplay = function() {
       if (!points || points.length === 0) return;
-      if (replayTimer) clearInterval(replayTimer);
-      replayIndex = 0;
 
-      if (!replayMarker) {
-        const replayIcon = L.divIcon({
-          className: '',
-          html: '<div class="runner-replay-marker"></div>',
-          iconSize: [22, 22],
-          iconAnchor: [11, 11]
-        });
-        replayMarker = L.marker([points[0].lat, points[0].lon], { icon: replayIcon }).addTo(map);
-      }
-
-      replayTimer = setInterval(() => {
-        if (replayIndex >= points.length) {
+      if (isReplaying) {
+        if (replayTimer) {
           clearInterval(replayTimer);
-          return;
+          replayTimer = null;
         }
-        const pt = points[replayIndex];
-        replayMarker.setLatLng([pt.lat, pt.lon]);
+        isReplaying = false;
         if (window.ToolerMapChannel) {
           window.ToolerMapChannel.postMessage(JSON.stringify({
-            event: 'pointClick',
-            index: replayIndex,
-            speed: pt.speed,
-            dist: pt.dist,
-            isVehicle: pt.isVehicle,
-            time: pt.time
+            event: 'replayState',
+            isPlaying: false
           }));
         }
-        replayIndex++;
-      }, 320);
+      } else {
+        if (replayIndex >= points.length) {
+          replayIndex = 0;
+        }
+
+        if (!replayMarker) {
+          const replayIcon = L.divIcon({
+            className: '',
+            html: '<div class="runner-replay-marker"></div>',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11]
+          });
+          replayMarker = L.marker([points[replayIndex].lat, points[replayIndex].lon], { icon: replayIcon, zIndexOffset: 1200 }).addTo(map);
+        }
+
+        isReplaying = true;
+        if (window.ToolerMapChannel) {
+          window.ToolerMapChannel.postMessage(JSON.stringify({
+            event: 'replayState',
+            isPlaying: true
+          }));
+        }
+
+        if (replayIndex === 0) {
+          map.panTo([points[0].lat, points[0].lon], { animate: true });
+        }
+
+        replayTimer = setInterval(() => {
+          if (replayIndex >= points.length) {
+            clearInterval(replayTimer);
+            replayTimer = null;
+            isReplaying = false;
+            replayIndex = 0;
+            if (window.ToolerMapChannel) {
+              window.ToolerMapChannel.postMessage(JSON.stringify({
+                event: 'replayFinished'
+              }));
+            }
+            return;
+          }
+          const pt = points[replayIndex];
+          replayMarker.setLatLng([pt.lat, pt.lon]);
+          map.panTo([pt.lat, pt.lon], { animate: true, duration: 0.25 });
+          if (window.ToolerMapChannel) {
+            window.ToolerMapChannel.postMessage(JSON.stringify({
+              event: 'pointClick',
+              index: replayIndex,
+              speed: pt.speed,
+              dist: pt.dist,
+              isVehicle: pt.isVehicle,
+              time: pt.time
+            }));
+          }
+          replayIndex++;
+        }, 360);
+      }
     };
 
     window.fitRouteBounds = function() {
@@ -660,10 +709,10 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
 ''';
   }
 
-  void _triggerReplay() {
+  void _toggleReplay() {
     SoundService().playClick();
     HapticFeedback.mediumImpact();
-    _mapController.runJavaScript('window.startRouteReplay();');
+    _mapController.runJavaScript('window.toggleRouteReplay();');
   }
 
   void _recenterRoute() async {
@@ -698,14 +747,11 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     switch (_mapStyle) {
       case 'google_road':
         return Icons.map_outlined;
-      case 'google_dark':
-        return Icons.dark_mode_outlined;
       case 'google_sat':
         return Icons.satellite_alt_rounded;
-      case 'carto_dark':
-        return Icons.nights_stay_outlined;
+      case 'google_dark':
       default:
-        return Icons.layers_rounded;
+        return Icons.dark_mode_outlined;
     }
   }
 
@@ -762,11 +808,11 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               ..._styleOptions.map((style) {
                 final isSelected = style['id'] == _mapStyle;
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
+                  padding: const EdgeInsets.only(bottom: 10.0),
                   child: BouncyTap(
                     onTap: () {
                       SoundService().playClick();
@@ -774,7 +820,7 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                       Navigator.pop(ctx);
                       if (_mapStyle != style['id']) {
                         setState(() {
-                          _mapStyle = style['id']!;
+                          _mapStyle = style['id'] as String;
                           _isMapReady = false;
                         });
                         _mapController.loadHtmlString(_buildLeafletHtml());
@@ -782,7 +828,7 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                     },
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
+                          horizontal: 14, vertical: 13),
                       decoration: BoxDecoration(
                         color: isSelected
                             ? theme.primary.withValues(alpha: 0.12)
@@ -795,36 +841,37 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                       ),
                       child: Row(
                         children: [
-                          Text(
-                            style['icon']!,
-                            style: const TextStyle(fontSize: 22),
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? theme.primary.withValues(alpha: 0.18)
+                                  : (isDark
+                                      ? Colors.white.withValues(alpha: 0.06)
+                                      : Colors.black.withValues(alpha: 0.04)),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: SvgPicture.string(
+                              style['svg'] as String,
+                              width: 20,
+                              height: 20,
+                            ),
                           ),
-                          const SizedBox(width: 12),
+                          const SizedBox(width: 14),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  style['name']!,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14,
-                                    fontWeight: isSelected
-                                        ? FontWeight.w800
-                                        : FontWeight.w600,
-                                    color: isSelected
-                                        ? theme.primary
-                                        : theme.text,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  style['desc']!,
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 10,
-                                    color: theme.textSecondary,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              style['name'] as String,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14.5,
+                                fontWeight: isSelected
+                                    ? FontWeight.w800
+                                    : FontWeight.w600,
+                                color: isSelected
+                                    ? theme.primary
+                                    : theme.text,
+                              ),
                             ),
                           ),
                           if (isSelected)
@@ -975,25 +1022,36 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    // Route Replay Button
+                    // Route Replay / Pause Button
                     BouncyTap(
-                      onTap: _triggerReplay,
-                      child: Container(
+                      onTap: _toggleReplay,
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: theme.primary,
+                          color: _isReplaying
+                              ? const Color(0xFFF59E0B)
+                              : theme.primary,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: theme.primary.withValues(alpha: 0.45),
+                              color: (_isReplaying
+                                      ? const Color(0xFFF59E0B)
+                                      : theme.primary)
+                                  .withValues(alpha: 0.45),
                               blurRadius: 10,
                               offset: const Offset(0, 3),
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.play_arrow_rounded,
-                            color: Colors.white, size: 24),
+                        child: Icon(
+                          _isReplaying
+                              ? Icons.pause_rounded
+                              : Icons.play_arrow_rounded,
+                          color: Colors.white,
+                          size: 24,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 10),

@@ -271,8 +271,18 @@ class PedometerSensorService {
   /// Filters out stationary GPS jitter/noise (spider web pattern while sitting or resting)
   static List<StepTrailPoint> cleanJitterPoints(List<StepTrailPoint> points) {
     if (points.length <= 1) return points;
+
+    // If total steps taken across all points is < 20 and not driving, there is no real street trail yet
+    final totalStepsSpan = (points.last.steps - points.first.steps).abs();
+    final hasVehicle = points.any((p) => p.isVehicle || p.activity == 'Drive' || p.speedKmh > 16.0);
+    if (!hasVehicle && (points.last.steps < 25 || totalStepsSpan < 20)) {
+      // User took < 25 steps today; return just the latest valid location point
+      return [points.last];
+    }
+
     final List<StepTrailPoint> cleaned = [];
     cleaned.add(points.first);
+
     for (int i = 1; i < points.length; i++) {
       final curr = points[i];
       final prev = cleaned.last;
@@ -280,37 +290,73 @@ class PedometerSensorService {
       final stepDelta = (curr.steps - prev.steps).abs();
       final isDrive = curr.isVehicle || curr.activity == 'Drive' || curr.speedKmh > 16.0;
 
-      // If user is not driving, took < 3 steps and distance is < 16m, it's stationary GPS noise!
-      if (!isDrive && stepDelta < 3 && distM < 16.0) {
-        continue;
+      if (isDrive) {
+        // Vehicle transit: Requires reasonable displacement (>= 20m)
+        if (distM < 18.0) continue;
+        cleaned.add(curr);
+      } else {
+        // Walking or running:
+        // 1. Must have taken real steps between waypoints (at least 4 steps)
+        if (stepDelta < 4) continue;
+        // 2. Minimum distance threshold to prevent clustering
+        if (distM < 8.0) continue;
+        // 3. Stride consistency: Max human stride running is ~2.2m per step + GPS error buffer
+        if (distM > (stepDelta * 2.2 + 25.0)) continue;
+        // 4. Maximum human walking/running speed cap (~28 km/h max sprint)
+        if (curr.speedKmh > 28.0) continue;
+
+        cleaned.add(curr);
       }
-      cleaned.add(curr);
     }
+
+    if (cleaned.length <= 1) {
+      return cleaned.isNotEmpty ? [cleaned.last] : [];
+    }
+
     return cleaned;
   }
 
   /// Appends real verified waypoint to today's walk trail with anti-jitter precision gate
   void addTrailPoint(StepTrailPoint pt) {
+    final isDrive = pt.isVehicle || pt.activity == 'Drive' || pt.speedKmh > 16.0;
+
+    // Discard stationary walk point if user has less than 20 total steps and not driving
+    if (!isDrive && pt.steps < 20) {
+      _lastLat = pt.lat;
+      _lastLon = pt.lon;
+      return;
+    }
+
     if (_todayTrail.isNotEmpty) {
       final last = _todayTrail.last;
       final distM = _calculateDist(last.lat, last.lon, pt.lat, pt.lon);
       final stepDelta = (pt.steps - last.steps).abs();
-      final isDrive = pt.isVehicle || pt.activity == 'Drive' || pt.speedKmh > 16.0;
 
-      // Stationary filter: Ignore if no steps taken and within GPS drift radius (< 16m)
-      if (!isDrive && stepDelta < 3 && distM < 16.0) {
-        return;
-      }
-      if (distM < 6.0) {
-        return;
+      if (isDrive) {
+        if (distM < 20.0 || pt.speedKmh < 15.0) return;
+      } else {
+        // Walking/running:
+        // Reject if no real steps taken (GPS drift indoors)
+        if (stepDelta < 5) return;
+        // Reject if displacement is too small
+        if (distM < 8.0) return;
+        // Reject if GPS jumped beyond human stride capability
+        if (distM > (stepDelta * 2.2 + 25.0)) return;
       }
     }
+
     _todayTrail.add(pt);
     _lastLat = pt.lat;
     _lastLon = pt.lon;
     if (_todayTrail.length > 500) {
       _todayTrail.removeAt(0);
     }
+    _persistState();
+  }
+
+  /// Sanitize current trail in memory and SharedPreferences
+  void cleanAndPersistTrail() {
+    _todayTrail = cleanJitterPoints(_todayTrail);
     _persistState();
   }
 
