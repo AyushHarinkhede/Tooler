@@ -439,8 +439,9 @@ class StationeryTheme {
     }
   }
 
-  /// Pastel background tint for character backdrops across all themes (both Light & Dark)
+  /// Background tint for character backdrops across all themes (Light pastel, Dark surface)
   Color get characterBg {
+    if (isDark) return const Color(0xFF1E1E24);
     switch (accentPalette) {
       case ToolerAccent.lilac:
         return const Color(0xFFF5F3FF);

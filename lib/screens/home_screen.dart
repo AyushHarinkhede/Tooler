@@ -1193,10 +1193,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               decoration: BoxDecoration(
                                 color: isDark ? const Color(0xFF1E1E22) : Colors.white.withValues(alpha: 0.85),
                                 borderRadius: BorderRadius.circular(10),
-                                border: Border.all(
-                                  color: isDark ? const Color(0xFF333338) : theme.lavenderBubble,
-                                  width: 0.9,
-                                ),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withValues(alpha: 0.03),
@@ -1243,39 +1239,19 @@ class _HomeScreenState extends State<HomeScreen> {
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
-                                  const SizedBox(width: 6),
-                                  // Real-time AQI Badge
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                    decoration: BoxDecoration(
-                                      color: weather.aqiColor.withValues(alpha: 0.14),
-                                      borderRadius: BorderRadius.circular(5),
-                                      border: Border.all(
-                                        color: weather.aqiColor.withValues(alpha: 0.4),
-                                        width: 0.7,
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Container(
-                                          width: 4.5,
-                                          height: 4.5,
-                                          decoration: BoxDecoration(
-                                            color: weather.aqiColor,
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 3.5),
-                                        Text(
-                                          'AQI ${weather.aqi}',
-                                          style: GoogleFonts.jetBrainsMono(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.w800,
-                                            color: weather.aqiColor,
-                                          ),
-                                        ),
-                                      ],
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '•',
+                                    style: TextStyle(fontSize: 10, color: theme.textSecondary),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  // Real-time Open AQI Data (open text, borderless)
+                                  Text(
+                                    'AQI ${weather.aqi}',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: weather.aqiColor,
                                     ),
                                   ),
                                   if (isRefreshing) ...[
@@ -1318,10 +1294,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           decoration: BoxDecoration(
                             color: isDark ? const Color(0xFF1E1E22) : Colors.white.withValues(alpha: 0.85),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isDark ? const Color(0xFF333338) : theme.lavenderBubble,
-                              width: 0.9,
-                            ),
                             boxShadow: [
                               BoxShadow(
                                 color: Colors.black.withValues(alpha: 0.03),
@@ -1370,37 +1342,26 @@ class _HomeScreenState extends State<HomeScreen> {
                                   color: theme.text,
                                 ),
                               ),
-                              const SizedBox(width: 5),
+                              const SizedBox(width: 4),
+                              Text(
+                                '•',
+                                style: TextStyle(fontSize: 10, color: theme.textSecondary),
+                              ),
+                              const SizedBox(width: 4),
 
-                              // Calories Pill Badge (Matching AQI Badge Aesthetic)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFF97316).withValues(alpha: 0.14),
-                                  borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(
-                                    color: const Color(0xFFF97316).withValues(alpha: 0.4),
-                                    width: 0.7,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.local_fire_department_rounded,
-                                      size: 10,
-                                      color: Color(0xFFF97316),
-                                    ),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      '${PedometerSensorService().caloriesKcal} kcal',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 9.5,
-                                        fontWeight: FontWeight.w800,
-                                        color: const Color(0xFFF97316),
-                                      ),
-                                    ),
-                                  ],
+                              // Open Calories Data (Matching open format, borderless)
+                              const Icon(
+                                Icons.local_fire_department_rounded,
+                                size: 11.5,
+                                color: Color(0xFFF97316),
+                              ),
+                              const SizedBox(width: 2.5),
+                              Text(
+                                '${PedometerSensorService().caloriesKcal} kcal',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: const Color(0xFFF97316),
                                 ),
                               ),
                             ],
@@ -1412,37 +1373,19 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Interactive Themed Vector Character (Tap to Cycle Poses!) with Pastel Backdrop
+              // Interactive Themed Vector Character (Tap to Cycle Poses!) - Seamless Hero Card Blend
               BouncyTap(
                 onTap: _cycleHeroPose,
                 scaleFraction: 0.94,
                 child: Container(
-                  padding: isDark
-                      ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
-                      : EdgeInsets.zero,
-                  decoration: BoxDecoration(
-                    color: isDark ? theme.characterBg : Colors.transparent,
-                    borderRadius: BorderRadius.circular(20),
-                    border: isDark
-                        ? Border.all(
-                            color: theme.primary.withValues(alpha: 0.35),
-                            width: 1.2,
-                          )
-                        : null,
-                    boxShadow: isDark
-                        ? [
-                            BoxShadow(
-                              color: theme.primary.withValues(alpha: 0.15),
-                              blurRadius: 12,
-                              offset: const Offset(0, 3),
-                            ),
-                          ]
-                        : null,
+                  padding: EdgeInsets.zero,
+                  decoration: const BoxDecoration(
+                    color: Colors.transparent,
                   ),
                   child: ToolerCharacter(
                     pose: _heroPose,
-                    width: isDark ? 124 : 140,
-                    height: isDark ? 100 : 115,
+                    width: 140,
+                    height: 115,
                     theme: theme,
                     animate: true,
                   ),
