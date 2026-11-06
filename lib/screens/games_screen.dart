@@ -1260,19 +1260,6 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: widget.theme.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Games Arcade',
-          style: TextStyle(
-            color: widget.theme.primary,
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        iconTheme: IconThemeData(color: widget.theme.text),
-      ),
       body: Column(
         children: [
           _buildGameTabBar(),

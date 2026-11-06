@@ -160,18 +160,6 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
 
     return Scaffold(
       backgroundColor: widget.theme.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: widget.theme.text),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Age Calculator & Eligibility",
-          style: widget.theme.fontDisplay(fontSize: 20),
-        ),
-      ),
       body: Stack(
         children: [
           CustomPaint(

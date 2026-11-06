@@ -607,52 +607,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: widget.theme.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, color: widget.theme.text, size: 20),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Calculator",
-          style: widget.theme.fontDisplay(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: widget.theme.text,
-          ),
-        ),
-        actions: [
-          // Standard / Scientific Toggle Pill
-          Container(
-            margin: const EdgeInsets.symmetric(vertical: 10),
-            padding: const EdgeInsets.all(2),
-            decoration: BoxDecoration(
-              color: widget.theme.border.withValues(alpha: 0.6),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildModeTab("Basic", !_isScientific, () {
-                  setState(() => _isScientific = false);
-                }),
-                _buildModeTab("Sci", _isScientific, () {
-                  setState(() => _isScientific = true);
-                }),
-              ],
-            ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            icon: Icon(Icons.history_rounded, color: widget.theme.text),
-            tooltip: "Tape History",
-            onPressed: _showHistoryModal,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Stack(
         children: [
           // Background Notebook Grid
@@ -664,8 +618,41 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             ),
           ),
           SafeArea(
+            top: false,
             child: Column(
               children: [
+                // Quick Controls Toolbar (Basic / Scientific Switch & History)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: widget.theme.border.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _buildModeTab("Basic", !_isScientific, () {
+                              setState(() => _isScientific = false);
+                            }),
+                            _buildModeTab("Sci", _isScientific, () {
+                              setState(() => _isScientific = true);
+                            }),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
+                        tooltip: "Tape History",
+                        onPressed: _showHistoryModal,
+                      ),
+                    ],
+                  ),
+                ),
                 // 1. Interactive Tape Display Card
                 _buildDisplayCard(),
 

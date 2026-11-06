@@ -18,6 +18,7 @@ class StorageService {
   static const String keyAccentColor = 'tooler_accent_color';
   static const String keySoundEnabled = 'tooler_sound_enabled';
   static const String keyHapticsEnabled = 'tooler_haptics_enabled';
+  static const String keyFavorites = 'tooler_favorites_list';
 
   Future<List<TaskItem>> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
@@ -113,6 +114,25 @@ class StorageService {
     final isDark = mode == StationeryThemeMode.blueprintChalkboard;
     final accent = mode == StationeryThemeMode.neonHighlighter ? ToolerAccent.rose : ToolerAccent.lilac;
     await saveTheme(isDark, accent);
+  }
+
+  Future<bool> isToolFavorite(String toolTitle) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(keyFavorites) ?? [];
+    return list.contains(toolTitle);
+  }
+
+  Future<bool> toggleToolFavorite(String toolTitle) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(keyFavorites) ?? [];
+    final bool isFav = list.contains(toolTitle);
+    if (isFav) {
+      list.remove(toolTitle);
+    } else {
+      list.add(toolTitle);
+    }
+    await prefs.setStringList(keyFavorites, list);
+    return !isFav;
   }
 
   Future<void> clearAllData() async {

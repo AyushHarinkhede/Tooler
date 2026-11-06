@@ -611,47 +611,6 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
     return Scaffold(
       backgroundColor: widget.theme.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: widget.theme.text,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Noise Meter & Recorder",
-              style: widget.theme.fontDisplay(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: widget.theme.text,
-              ),
-            ),
-            Text(
-              "Live Acoustic Decibels · Sound Safety Check",
-              style: widget.theme.fontMono(
-                fontSize: 11,
-                color: widget.theme.textSecondary,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh_rounded, color: widget.theme.primary),
-            tooltip: "Reset dB Stats",
-            onPressed: _resetDecibelStats,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
       body: Stack(
         children: [
           CustomPaint(
@@ -848,6 +807,11 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               ),
               Container(width: 1.2, height: 26, color: widget.theme.border),
               _buildDbStatBadge("PEAK", "${_maxDb.toStringAsFixed(0)} dB"),
+              IconButton(
+                icon: Icon(Icons.refresh_rounded, color: widget.theme.primary, size: 20),
+                tooltip: "Reset dB Stats",
+                onPressed: _resetDecibelStats,
+              ),
             ],
           ),
         ],

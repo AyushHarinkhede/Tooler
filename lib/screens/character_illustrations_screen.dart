@@ -366,18 +366,6 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: widget.theme.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: widget.theme.text),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Character Vector Studio",
-          style: widget.theme.fontDisplay(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-      ),
       body: Stack(
         children: [
           CustomPaint(

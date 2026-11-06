@@ -232,38 +232,6 @@ class _CompassScreenState extends State<CompassScreen>
 
     return Scaffold(
       backgroundColor: widget.theme.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        leading: IconButton(
-          icon: Icon(
-            Icons.arrow_back_ios_new_rounded,
-            color: widget.theme.text,
-            size: 20,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          isLeveler ? "Precision Spirit Level" : "Digital Precision Compass",
-          style: widget.theme.fontDisplay(
-            fontSize: 21,
-            fontWeight: FontWeight.bold,
-            color: widget.theme.text,
-          ),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              Icons.tune_rounded,
-              color: widget.theme.primary,
-            ),
-            tooltip: "Calibrate Sensors",
-            onPressed: _showCalibrationModal,
-          ),
-          const SizedBox(width: 6),
-        ],
-      ),
       body: Stack(
         children: [
           CustomPaint(
@@ -276,8 +244,23 @@ class _CompassScreenState extends State<CompassScreen>
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Column(
                 children: [
-                  // 1. Unified Mode Selector Switch (Compass vs Leveler)
-                  _buildUnifiedModeSwitch(isLeveler),
+                  // 1. Unified Mode Selector Switch (Compass vs Leveler) with Calibration
+                  Row(
+                    children: [
+                      Expanded(child: _buildUnifiedModeSwitch(isLeveler)),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        style: IconButton.styleFrom(
+                          backgroundColor: widget.theme.cardBg,
+                          side: BorderSide(color: widget.theme.border, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        icon: Icon(Icons.tune_rounded, color: widget.theme.primary, size: 20),
+                        tooltip: "Calibrate Sensors",
+                        onPressed: _showCalibrationModal,
+                      ),
+                    ],
+                  ),
 
                   const SizedBox(height: 12),
 

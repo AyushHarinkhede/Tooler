@@ -225,18 +225,6 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: widget.theme.bg,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: widget.theme.text),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          "Universal Converters",
-          style: widget.theme.fontDisplay(fontSize: 22),
-        ),
-      ),
       body: Stack(
         children: [
           CustomPaint(
