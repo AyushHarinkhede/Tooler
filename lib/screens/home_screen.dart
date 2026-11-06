@@ -635,13 +635,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: SingleChildScrollView(
                   controller: _scrollController,
                   keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-                  physics: const BouncingScrollPhysics(),
+                  physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
                   padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                   child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // A. Hero Banner Card with 2D Artwork (Lamp & Desk)
-                    _buildHeroBanner(isDark),
+                    RepaintBoundary(
+                      child: _buildHeroBanner(isDark),
+                    ),
 
                     const SizedBox(height: 20),
 
@@ -652,7 +654,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     // C. 2x2 Quick Grid (shown when category is 'All' and not searching)
                     if (_selectedCategory == 'All' && _searchQuery.isEmpty) ...[
-                      _buildQuick2x2Grid(isDark),
+                      RepaintBoundary(
+                        child: _buildQuick2x2Grid(isDark),
+                      ),
                       const SizedBox(height: 22),
                     ],
 
@@ -1211,7 +1215,7 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 280),
+      duration: const Duration(milliseconds: 240),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
       transitionBuilder: (child, animation) {
@@ -1219,7 +1223,7 @@ class _HomeScreenState extends State<HomeScreen> {
           opacity: animation,
           child: SlideTransition(
             position: Tween<Offset>(
-              begin: const Offset(0, 0.05),
+              begin: const Offset(0, 0.04),
               end: Offset.zero,
             ).animate(animation),
             child: child,
@@ -1227,14 +1231,14 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       },
       child: Column(
-        key: ValueKey<String>('${_selectedCategory}_$_searchQuery'),
+        key: ValueKey<String>(_selectedCategory),
         children: list.asMap().entries.map((entry) {
           final index = entry.key;
           final tool = entry.value;
           final highlight = tool['searchHighlight'] as String?;
 
           return StaggeredSlideItem(
-            index: index < 8 ? index : 8,
+            index: _searchQuery.isNotEmpty ? 0 : (index < 6 ? index : 6),
             child: Container(
               margin: const EdgeInsets.only(bottom: 12),
               decoration: BoxDecoration(

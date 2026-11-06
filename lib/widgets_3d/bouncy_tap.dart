@@ -1,12 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/sound_service.dart';
 
 /// ---------------------------------------------------------------------------
-/// BOUNCY TAP & SPRING ANIMATION SYSTEM
+/// BOUNCY TAP & SPRING ANIMATION SYSTEM (HIGH PERFORMANCE / JITTER-FREE)
 /// ---------------------------------------------------------------------------
-/// Gives every interactive card, button, and pill in Tooler a tactile,
-/// physical spring bounce effect with haptic feedback.
+/// Gives interactive elements a physical, fluid spring bounce on tap
+/// with hardware-accelerated GPU matrix scaling and zero layout repaints.
 /// ---------------------------------------------------------------------------
 
 class BouncyTap extends StatefulWidget {
@@ -25,9 +26,9 @@ class BouncyTap extends StatefulWidget {
     required this.child,
     this.onTap,
     this.onLongPress,
-    this.scaleFraction = 0.94,
-    this.duration = const Duration(milliseconds: 100),
-    this.reverseDuration = const Duration(milliseconds: 220),
+    this.scaleFraction = 0.95,
+    this.duration = const Duration(milliseconds: 90),
+    this.reverseDuration = const Duration(milliseconds: 180),
     this.enableHaptic = true,
     this.enableSound = false,
     this.behavior = HitTestBehavior.opaque,
@@ -56,8 +57,8 @@ class _BouncyTapState extends State<BouncyTap> with SingleTickerProviderStateMix
     ).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: Curves.easeInOutQuad,
-        reverseCurve: Curves.easeOutBack,
+        curve: Curves.easeOutQuad,
+        reverseCurve: Curves.easeOutCubic,
       ),
     );
   }
@@ -101,26 +102,25 @@ class _BouncyTapState extends State<BouncyTap> with SingleTickerProviderStateMix
       onTapUp: _onTapUp,
       onTapCancel: _onTapCancel,
       onLongPress: widget.onLongPress,
-      child: AnimatedBuilder(
-        animation: _scaleAnimation,
-        builder: (context, child) {
-          return Transform.scale(
-            scale: _scaleAnimation.value,
-            alignment: Alignment.center,
-            child: child,
-          );
-        },
-        child: widget.child,
+      child: RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _scaleAnimation,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              alignment: Alignment.center,
+              child: child,
+            );
+          },
+          child: widget.child,
+        ),
       ),
     );
   }
 }
 
 /// ---------------------------------------------------------------------------
-/// ANIMATED TEXT POP (Numbers & Words)
-/// ---------------------------------------------------------------------------
-/// Whenever a word is typed, or a number is set/updated, it transitions with a
-/// spring bounce scale and vertical slide.
+/// ANIMATED TEXT POP (Numbers & Words - Smooth Easing, Zero Jank)
 /// ---------------------------------------------------------------------------
 class AnimatedTextPop extends StatelessWidget {
   final String text;
@@ -136,7 +136,7 @@ class AnimatedTextPop extends StatelessWidget {
     required this.text,
     this.style,
     this.textAlign = TextAlign.start,
-    this.duration = const Duration(milliseconds: 240),
+    this.duration = const Duration(milliseconds: 180),
     this.direction = Axis.vertical,
     this.maxLines,
     this.overflow,
@@ -144,48 +144,47 @@ class AnimatedTextPop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: duration,
-      switchInCurve: Curves.easeOutBack,
-      switchOutCurve: Curves.easeInQuad,
-      transitionBuilder: (child, animation) {
-        final offsetTween = direction == Axis.vertical
-            ? Tween<Offset>(
-                begin: const Offset(0.0, 0.35),
-                end: Offset.zero,
-              )
-            : Tween<Offset>(
-                begin: const Offset(0.25, 0.0),
-                end: Offset.zero,
-              );
+    return RepaintBoundary(
+      child: AnimatedSwitcher(
+        duration: duration,
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final offsetTween = direction == Axis.vertical
+              ? Tween<Offset>(
+                  begin: const Offset(0.0, 0.22),
+                  end: Offset.zero,
+                )
+              : Tween<Offset>(
+                  begin: const Offset(0.18, 0.0),
+                  end: Offset.zero,
+                );
 
-        return SlideTransition(
-          position: offsetTween.animate(animation),
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.88, end: 1.0).animate(animation),
+          return SlideTransition(
+            position: offsetTween.animate(animation),
             child: FadeTransition(
               opacity: animation,
               child: child,
             ),
-          ),
-        );
-      },
-      child: Text(
-        text,
-        key: ValueKey<String>(text),
-        textAlign: textAlign,
-        maxLines: maxLines,
-        overflow: overflow,
-        style: style,
+          );
+        },
+        child: Text(
+          text,
+          key: ValueKey<String>(text),
+          textAlign: textAlign,
+          maxLines: maxLines,
+          overflow: overflow,
+          style: style,
+        ),
       ),
     );
   }
 }
 
 /// ---------------------------------------------------------------------------
-/// STAGGERED FADE & SLIDE TRANSITION CONTAINER
+/// STAGGERED FADE & SLIDE (Single-Pass, Zero Rebuild Jitter)
 /// ---------------------------------------------------------------------------
-class StaggeredSlideItem extends StatelessWidget {
+class StaggeredSlideItem extends StatefulWidget {
   final int index;
   final Widget child;
   final Duration delayBase;
@@ -196,32 +195,73 @@ class StaggeredSlideItem extends StatelessWidget {
     super.key,
     required this.index,
     required this.child,
-    this.delayBase = const Duration(milliseconds: 35),
-    this.duration = const Duration(milliseconds: 320),
-    this.offsetBegin = const Offset(0, 0.12),
+    this.delayBase = const Duration(milliseconds: 24),
+    this.duration = const Duration(milliseconds: 240),
+    this.offsetBegin = const Offset(0, 0.08),
   });
 
   @override
-  Widget build(BuildContext context) {
-    final delay = delayBase * index;
+  State<StaggeredSlideItem> createState() => _StaggeredSlideItemState();
+}
 
-    return FutureBuilder<bool>(
-      future: Future.delayed(delay, () => true),
-      initialData: false,
-      builder: (context, snapshot) {
-        final isReady = snapshot.data ?? false;
-        return AnimatedOpacity(
-          opacity: isReady ? 1.0 : 0.0,
-          duration: duration,
-          curve: Curves.easeOutCubic,
-          child: AnimatedSlide(
-            offset: isReady ? Offset.zero : offsetBegin,
-            duration: duration,
-            curve: Curves.easeOutBack,
-            child: child,
-          ),
-        );
-      },
+class _StaggeredSlideItemState extends State<StaggeredSlideItem> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
+  Timer? _delayTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+    );
+
+    _opacity = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOut,
+    );
+
+    _slide = Tween<Offset>(
+      begin: widget.offsetBegin,
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutCubic,
+      ),
+    );
+
+    final delay = widget.delayBase * (widget.index < 6 ? widget.index : 6);
+    if (delay == Duration.zero) {
+      _controller.forward();
+    } else {
+      _delayTimer = Timer(delay, () {
+        if (mounted) {
+          _controller.forward();
+        }
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _delayTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return RepaintBoundary(
+      child: FadeTransition(
+        opacity: _opacity,
+        child: SlideTransition(
+          position: _slide,
+          child: widget.child,
+        ),
+      ),
     );
   }
 }

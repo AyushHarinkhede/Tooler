@@ -57,9 +57,9 @@ class ToolerHoverSheet extends StatefulWidget {
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: true,
-        barrierColor: Colors.black.withValues(alpha: 0.38),
-        transitionDuration: const Duration(milliseconds: 380),
-        reverseTransitionDuration: const Duration(milliseconds: 260),
+        barrierColor: Colors.black.withValues(alpha: 0.35),
+        transitionDuration: const Duration(milliseconds: 300),
+        reverseTransitionDuration: const Duration(milliseconds: 220),
         pageBuilder: (context, animation, secondaryAnimation) {
           return ToolerHoverSheet(
             title: title,
@@ -71,9 +71,9 @@ class ToolerHoverSheet extends StatefulWidget {
           );
         },
         transitionsBuilder: (context, animation, secondaryAnimation, page) {
-          final springCurved = CurvedAnimation(
+          final smoothCurved = CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOutBack,
+            curve: Curves.easeOutCubic,
             reverseCurve: Curves.easeInCubic,
           );
           final fadeCurved = CurvedAnimation(
@@ -83,14 +83,14 @@ class ToolerHoverSheet extends StatefulWidget {
           );
           return SlideTransition(
             position: Tween<Offset>(
-              begin: const Offset(0, 0.18),
+              begin: const Offset(0, 0.12),
               end: Offset.zero,
-            ).animate(springCurved),
+            ).animate(smoothCurved),
             child: ScaleTransition(
               scale: Tween<double>(
-                begin: 0.92,
+                begin: 0.96,
                 end: 1.0,
-              ).animate(springCurved),
+              ).animate(smoothCurved),
               child: FadeTransition(
                 opacity: fadeCurved,
                 child: page,
@@ -160,12 +160,14 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
       backgroundColor: Colors.transparent,
       body: Stack(
         children: [
-          // 1. Full-screen Live Blur Backdrop (Frosted glass showing home screen)
+          // 1. Full-screen Live Blur Backdrop (Frosted glass showing home screen, hardware accelerated)
           Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-              child: Container(
-                color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+            child: RepaintBoundary(
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                child: Container(
+                  color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                ),
               ),
             ),
           ),
