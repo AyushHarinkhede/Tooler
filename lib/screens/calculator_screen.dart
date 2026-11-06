@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../models/calc_history_model.dart';
@@ -20,12 +22,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   String _expression = '0';
   String _previewResult = '';
   String _lastEquation = '';
+  String? _easterEggText;
   bool _isScientific = false;
   bool _isRad = false; // Angle mode: false = DEG, true = RAD
   bool _is2nd = false; // 2nd function toggle for inverse trig / alt powers
   double? _memoryValue;
   List<CalcHistoryItem> _history = [];
+
+  // Clock Mode on holding 'C' for 2-3 sec
+  bool _isClockMode = false;
+  String _clockTimeStr = '';
+  String _clockDateStr = '';
+  Timer? _clockTimer;
+
   final ScrollController _displayScrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -35,7 +46,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _displayScrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -58,8 +71,39 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
   }
 
+  // --- Real-Time Clock Mode on Holding 'C' ---
+  void _activateLiveClock() {
+    SoundService().playSuccess();
+    HapticFeedback.heavyImpact();
+    _clockTimer?.cancel();
+    setState(() {
+      _isClockMode = true;
+      _clockTimeStr = DateFormat('hh:mm:ss a').format(DateTime.now());
+      _clockDateStr = DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now());
+    });
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted && _isClockMode) {
+        setState(() {
+          _clockTimeStr = DateFormat('hh:mm:ss a').format(DateTime.now());
+          _clockDateStr = DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now());
+        });
+      }
+    });
+    _showToast("🕒 Real-Time Clock Mode (Tap any key to exit)");
+  }
+
+  void _deactivateLiveClock() {
+    if (_isClockMode) {
+      _clockTimer?.cancel();
+      setState(() {
+        _isClockMode = false;
+      });
+    }
+  }
+
   // Handle all button presses
   void _onKeyPress(String key) {
+    _deactivateLiveClock();
     SoundService().playKey();
     HapticFeedback.lightImpact();
 
@@ -68,6 +112,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _expression = '0';
         _previewResult = '';
         _lastEquation = '';
+        _easterEggText = null;
       } else if (key == '⌫') {
         _handleBackspace();
       } else if (key == '=') {
@@ -108,18 +153,50 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     _scrollToEnd();
   }
 
+  // --- Hardware / Physical Keyboard Shortcuts Handler ---
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent) {
+      final logical = event.logicalKey;
+      final char = event.character;
+
+      if (logical == LogicalKeyboardKey.enter ||
+          logical == LogicalKeyboardKey.numpadEnter ||
+          char == '=') {
+        _onKeyPress('=');
+        return KeyEventResult.handled;
+      } else if (logical == LogicalKeyboardKey.backspace) {
+        _onKeyPress('⌫');
+        return KeyEventResult.handled;
+      } else if (logical == LogicalKeyboardKey.escape || char == 'c' || char == 'C') {
+        _onKeyPress('C');
+        return KeyEventResult.handled;
+      } else if (char != null &&
+          ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '+', '-', '%', '(', ')', '^'].contains(char)) {
+        _onKeyPress(char);
+        return KeyEventResult.handled;
+      } else if (char == '*' || char == 'x' || char == 'X') {
+        _onKeyPress('×');
+        return KeyEventResult.handled;
+      } else if (char == '/') {
+        _onKeyPress('÷');
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
+
   bool _isErrorState() {
-    return _expression == 'Error' || _expression.startsWith('Cannot');
+    return _expression == 'Error' || _expression.startsWith('Cannot') || _expression.startsWith('Ask your');
   }
 
   void _handleBackspace() {
     if (_isErrorState() || _expression.length <= 1) {
       _expression = '0';
       _previewResult = '';
+      _easterEggText = null;
       return;
     }
 
-    // Check for multi-character functions to delete in one go (e.g. sin(, cos(, sqrt()
     final multiCharTokens = [
       'sin(', 'cos(', 'tan(', 'asin(', 'acos(', 'atan(',
       'sqrt(', 'ln(', 'log(', '10^', 'e^'
@@ -147,10 +224,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _toggleSign() {
     if (_isErrorState()) return;
-
     if (_expression == '0') return;
 
-    // Toggle sign of the trailing number
     final reg = RegExp(r'(-?\d+\.?\d*)$');
     final match = reg.firstMatch(_expression);
 
@@ -197,7 +272,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _expression = '0';
     }
 
-    // Handle operator replacement if user changes mind
     if (_isOperator(key)) {
       if (_expression.isNotEmpty && _isOperator(_expression[_expression.length - 1])) {
         _expression = _expression.substring(0, _expression.length - 1) + key;
@@ -206,7 +280,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       }
     }
 
-    // Prevent duplicate decimal point in current number segment
     if (key == '.') {
       final segments = _expression.split(RegExp(r'[+\-×÷^()]'));
       final lastSegment = segments.isNotEmpty ? segments.last : '';
@@ -235,24 +308,68 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   void _computePreview() {
     try {
+      final clean = _expression.trim();
+
+      // Check for 0/0 preview
+      if (clean == '0÷0' || clean == '0/0') {
+        _previewResult = '= Ask your ChatBot! 🤖';
+        _easterEggText = "0÷0 is mathematically indeterminate!";
+        return;
+      }
+
+      // Check for 1+ preview
+      if (clean == '1+') {
+        _previewResult = '= Never Settle 🔴';
+        _easterEggText = "OnePlus • Never Settle";
+        return;
+      }
+
       final res = _evaluateExpression(_expression);
       if (res != null && res != 'Error' && !res.startsWith('Cannot') && res != _expression) {
         _previewResult = '= $res';
+        _easterEggText = _detectEasterEgg(_expression, res);
       } else {
         _previewResult = '';
+        _easterEggText = _detectEasterEgg(_expression, _expression);
       }
     } catch (_) {
       _previewResult = '';
+      _easterEggText = null;
     }
   }
 
   void _evaluateFinal() {
+    final clean = _expression.trim();
+
+    // 1. Easter egg: 0 ÷ 0
+    if (clean == '0÷0' || clean == '0/0') {
+      _lastEquation = '0 ÷ 0 =';
+      _expression = 'Ask your ChatBot! 🤖';
+      _previewResult = '';
+      _easterEggText = "0÷0 is indeterminate. Ask your AI ChatBot!";
+      SoundService().playSuccess();
+      HapticFeedback.mediumImpact();
+      return;
+    }
+
+    // 2. Easter egg: 1+
+    if (clean == '1+' || clean == '1+ ' || clean == '1+0') {
+      _lastEquation = '1+ =';
+      _expression = 'Never Settle 🔴';
+      _previewResult = '';
+      _easterEggText = "OnePlus Flagship Spirit: Never Settle!";
+      SoundService().playSuccess();
+      HapticFeedback.mediumImpact();
+      return;
+    }
+
     try {
       final res = _evaluateExpression(_expression);
       if (res != null) {
         if (res == 'Error' || res.startsWith('Cannot')) {
           _expression = res;
           _previewResult = '';
+          _easterEggText = null;
           HapticFeedback.heavyImpact();
           return;
         }
@@ -266,16 +383,92 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _history.insert(0, item);
         StorageService().saveCalcHistory(_history);
 
+        _easterEggText = _detectEasterEgg(_expression, res);
         _expression = res;
         _previewResult = '';
         SoundService().playSuccess();
         HapticFeedback.mediumImpact();
       } else {
         _expression = 'Error';
+        _easterEggText = null;
       }
     } catch (_) {
       _expression = 'Error';
+      _easterEggText = null;
     }
+  }
+
+  // --- Dynamic Easter Egg Detection ---
+  String? _detectEasterEgg(String expr, String result) {
+    final cleanRes = result.replaceAll('=', '').trim();
+    final cleanExpr = expr.replaceAll(' ', '');
+
+    // 0 / 0
+    if (cleanExpr == '0÷0' || cleanExpr == '0/0') {
+      return "Ask your ChatBot! 🤖 (Indeterminate)";
+    }
+
+    // 1+
+    if (cleanExpr == '1+' || cleanExpr == '1+=' || cleanRes == 'Never Settle 🔴') {
+      return "Never Settle 🔴 (OnePlus)";
+    }
+
+    // 0 or Nothing
+    if (cleanRes == '0' || cleanRes == '0.0' || cleanExpr == '0') {
+      return "Nothing ⚪";
+    }
+
+    // Specific iconic / relatable numbers
+    if (cleanRes == '7') {
+      return "Thala for a reason! 🦁 #7";
+    }
+    if (cleanRes == '67') {
+      return "Six Seven 🤙 (Prime & Iconic)";
+    }
+    if (cleanRes == '911') {
+      return "Emergency Call 🚨 911";
+    }
+    if (cleanRes == '13') {
+      return "Triskaidekaphobia (Unlucky 13 in West) 🐈‍⬛";
+    }
+    if (cleanRes == '4') {
+      return "Tetraphobia (Unlucky 4 in East Asia) 🏮";
+    }
+    if (cleanRes == '42') {
+      return "Answer to Ultimate Question of Life 🌌";
+    }
+    if (cleanRes == '69') {
+      return "Nice! 😏";
+    }
+    if (cleanRes == '100') {
+      return "Century! 💯";
+    }
+    if (cleanRes == '360') {
+      return "Full Circle 🔄 (360°)";
+    }
+    if (cleanRes == '404') {
+      return "Error 404: Not Found 🔍";
+    }
+    if (cleanRes == '777') {
+      return "Lucky 777 Jackpot 🎰";
+    }
+    if (cleanRes == '3000') {
+      return "I love you 3000 💖";
+    }
+    if (cleanRes == '2026') {
+      return "Current Era 🚀 2026";
+    }
+    if (cleanRes == '3.14' || cleanRes == '3.14159' || cleanRes.startsWith('3.14159')) {
+      return "Pi Day 🥧 (3.14159...)";
+    }
+
+    // Any positive integer result up to 10 (1, 2, 3, 5, 6, 8, 9, 10): "It's easy!"
+    final parsed = double.tryParse(cleanRes);
+    if (parsed != null && parsed > 0 && parsed <= 10 && parsed == parsed.roundToDouble()) {
+      return "It's easy! 😉 (Quick Math)";
+    }
+
+    return null;
   }
 
   String _formatNumber(double val) {
@@ -298,7 +491,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         .replaceAll('π', math.pi.toString())
         .replaceAll('e', math.e.toString());
 
-    // Auto close open parentheses
     int openCount = 0;
     int closeCount = 0;
     for (int i = 0; i < clean.length; i++) {
@@ -309,7 +501,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       clean += ')' * (openCount - closeCount);
     }
 
-    // Insert implicit multiplication e.g. 2(3) -> 2*(3), )2 -> )*2, ) ( -> )*(
     clean = clean.replaceAllMapped(
       RegExp(r'(\d|\))\s*(\(|sin|cos|tan|asin|acos|atan|sqrt|ln|log)'),
       (m) => '${m.group(1)}*${m.group(2)}',
@@ -329,7 +520,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     }
   }
 
-  // Recursive descent math evaluator
   double _parseMath(String str) {
     int pos = -1, ch = -1;
 
@@ -357,17 +547,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       double x;
       int startPos = pos;
       if (eat(40)) {
-        // (
         x = parseExpression();
         eat(41); // )
       } else if ((ch >= 48 && ch <= 57) || ch == 46) {
-        // numbers
         while ((ch >= 48 && ch <= 57) || ch == 46) {
           nextChar();
         }
         x = double.parse(str.substring(startPos, pos));
       } else if (ch >= 97 && ch <= 122) {
-        // functions
         while (ch >= 97 && ch <= 122) {
           nextChar();
         }
@@ -405,12 +592,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         throw Exception("Unexpected char: $ch");
       }
 
-      // Handle power ^
       if (eat(94)) {
         x = math.pow(x, parseFactor()).toDouble();
       }
 
-      // Handle factorial !
       if (eat(33)) {
         int n = x.toInt();
         if (n < 0 || n > 170) throw Exception("Factorial out of range");
@@ -428,13 +613,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       double x = parseFactor();
       for (;;) {
         if (eat(42)) {
-          x *= parseFactor(); // *
+          x *= parseFactor();
         } else if (eat(47)) {
           double denom = parseFactor();
           if (denom == 0) throw Exception("Divide by zero");
-          x /= denom; // /
+          x /= denom;
         } else if (eat(37)) {
-          x = x / 100.0; // %
+          x = x / 100.0;
         } else {
           return x;
         }
@@ -445,9 +630,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       double x = parseTerm();
       for (;;) {
         if (eat(43)) {
-          x += parseTerm(); // +
+          x += parseTerm();
         } else if (eat(45)) {
-          x -= parseTerm(); // -
+          x -= parseTerm();
         } else {
           return x;
         }
@@ -605,79 +790,115 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: widget.theme.bg,
-      body: Stack(
-        children: [
-          // Background Notebook Grid
-          CustomPaint(
-            size: Size.infinite,
-            painter: NotebookBackgroundPainter(
-              mode: widget.theme.mode,
-              pattern: NotebookPattern.grid,
+    return Focus(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: _handleKeyEvent,
+      child: Scaffold(
+        backgroundColor: widget.theme.bg,
+        body: Stack(
+          children: [
+            // Background Notebook Grid
+            CustomPaint(
+              size: Size.infinite,
+              painter: NotebookBackgroundPainter(
+                mode: widget.theme.mode,
+                pattern: NotebookPattern.grid,
+              ),
             ),
-          ),
-          SafeArea(
-            top: false,
-            child: Column(
-              children: [
-                // Quick Controls Toolbar (Basic / Scientific Switch & History)
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: widget.theme.border.withValues(alpha: 0.6),
-                          borderRadius: BorderRadius.circular(20),
+            SafeArea(
+              top: false,
+              child: Column(
+                children: [
+                  // Quick Controls Toolbar (Basic / Scientific Switch, Keyboard Hint & History)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: widget.theme.border.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _buildModeTab("Basic", !_isScientific, () {
+                                setState(() => _isScientific = false);
+                              }),
+                              _buildModeTab("Sci", _isScientific, () {
+                                setState(() => _isScientific = true);
+                              }),
+                            ],
+                          ),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+                        Row(
                           children: [
-                            _buildModeTab("Basic", !_isScientific, () {
-                              setState(() => _isScientific = false);
-                            }),
-                            _buildModeTab("Sci", _isScientific, () {
-                              setState(() => _isScientific = true);
-                            }),
+                            Tooltip(
+                              message: "Physical Keyboard Supported: Numbers, + - * / Enter, ESC, Backspace",
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: widget.theme.border.withValues(alpha: 0.3),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.keyboard_outlined, size: 14, color: widget.theme.textSecondary),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      "KB Ready",
+                                      style: widget.theme.fontMono(fontSize: 10, color: widget.theme.textSecondary),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
+                              tooltip: "Tape History",
+                              onPressed: _showHistoryModal,
+                            ),
                           ],
                         ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
-                        tooltip: "Tape History",
-                        onPressed: _showHistoryModal,
-                      ),
-                    ],
-                  ),
-                ),
-                // 1. Interactive Tape Display Card
-                _buildDisplayCard(),
-
-                // 2. Scientific Toolbar (if activated)
-                if (_isScientific) _buildScientificPanel(),
-
-                // 3. Ergonomic Keypad Grid
-                Expanded(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    child: Column(
-                      children: [
-                        _buildKeyRow(['C', '±', '%', '÷']),
-                        _buildKeyRow(['7', '8', '9', '×']),
-                        _buildKeyRow(['4', '5', '6', '-']),
-                        _buildKeyRow(['1', '2', '3', '+']),
-                        _buildKeyRow(['0', '.', '⌫', '=']),
                       ],
                     ),
                   ),
-                ),
-              ],
+
+                  // 1. Interactive Animated Tape Display Card (Smooth Size Transition)
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    child: _buildDisplayCard(),
+                  ),
+
+                  // 2. Scientific Toolbar (if activated)
+                  if (_isScientific) _buildScientificPanel(),
+
+                  // 3. Ergonomic Keypad Grid with spring scale bounce animations
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      child: Column(
+                        children: [
+                          _buildKeyRow(['C', '±', '%', '÷']),
+                          _buildKeyRow(['7', '8', '9', '×']),
+                          _buildKeyRow(['4', '5', '6', '-']),
+                          _buildKeyRow(['1', '2', '3', '+']),
+                          _buildKeyRow(['0', '.', '⌫', '=']),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -706,6 +927,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
+  // --- Display Card with Smooth Animated Sizing, Expression Transitions & Clock Mode ---
   Widget _buildDisplayCard() {
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
@@ -713,10 +935,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       decoration: BoxDecoration(
         color: widget.theme.cardBg,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: widget.theme.border, width: 2.0),
+        border: Border.all(
+          color: _isClockMode ? const Color(0xFFF39C12) : widget.theme.border,
+          width: 2.0,
+        ),
         boxShadow: [
           BoxShadow(
-            color: widget.theme.border.withValues(alpha: 0.35),
+            color: (_isClockMode ? const Color(0xFFF39C12) : widget.theme.border).withValues(alpha: 0.25),
             offset: const Offset(0, 4),
             blurRadius: 10,
           ),
@@ -725,22 +950,109 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Top row: Memory badge & Deg/Rad indicator
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  if (_memoryValue != null)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          // If Live Clock Mode is active (triggered by holding 'C' for 2-3 sec)
+          if (_isClockMode) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.access_time_filled_rounded, size: 16, color: Color(0xFFF39C12)),
+                    const SizedBox(width: 5),
+                    Text(
+                      "LIVE REAL-TIME CLOCK",
+                      style: widget.theme.fontMono(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFF39C12),
+                      ),
+                    ),
+                  ],
+                ),
+                InkWell(
+                  onTap: _deactivateLiveClock,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: widget.theme.border.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      "Exit Clock",
+                      style: widget.theme.fontMono(fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Center(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: Text(
+                  _clockTimeStr,
+                  key: ValueKey<String>(_clockTimeStr),
+                  style: widget.theme.fontDisplay(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: widget.theme.primary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                _clockDateStr,
+                style: widget.theme.fontMono(
+                  fontSize: 12,
+                  color: widget.theme.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ] else ...[
+            // Normal Calculator Display Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    if (_memoryValue != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: widget.theme.primary.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: widget.theme.primary, width: 1),
+                        ),
+                        child: Text(
+                          "M",
+                          style: widget.theme.fontMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: widget.theme.primary,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                if (_isScientific)
+                  GestureDetector(
+                    onTap: () {
+                      HapticFeedback.selectionClick();
+                      setState(() => _isRad = !_isRad);
+                      _computePreview();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                       decoration: BoxDecoration(
-                        color: widget.theme.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: widget.theme.primary, width: 1),
+                        color: widget.theme.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: widget.theme.primary.withValues(alpha: 0.5)),
                       ),
                       child: Text(
-                        "M",
+                        _isRad ? "RAD" : "DEG",
                         style: widget.theme.fontMono(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -748,90 +1060,123 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         ),
                       ),
                     ),
-                ],
+                  ),
+              ],
+            ),
+
+            // Previous equation if available
+            if (_lastEquation.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 2),
+                child: Text(
+                  _lastEquation,
+                  textAlign: TextAlign.right,
+                  style: widget.theme.fontMono(
+                    fontSize: 13,
+                    color: widget.theme.textSecondary,
+                  ),
+                ),
               ),
-              if (_isScientific)
-                GestureDetector(
-                  onTap: () {
-                    HapticFeedback.selectionClick();
-                    setState(() => _isRad = !_isRad);
-                    _computePreview();
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: widget.theme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: widget.theme.primary.withValues(alpha: 0.5)),
-                    ),
-                    child: Text(
-                      _isRad ? "RAD" : "DEG",
-                      style: widget.theme.fontMono(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: widget.theme.primary,
+
+            // Primary Interactive Expression with smooth AnimatedSwitcher
+            GestureDetector(
+              onLongPress: () => _copyToClipboard(_expression),
+              child: SingleChildScrollView(
+                controller: _displayScrollController,
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 140),
+                  transitionBuilder: (child, anim) {
+                    return FadeTransition(
+                      opacity: anim,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0.04, 0),
+                          end: Offset.zero,
+                        ).animate(anim),
+                        child: child,
                       ),
+                    );
+                  },
+                  child: Text(
+                    _expression,
+                    key: ValueKey<String>(_expression),
+                    textAlign: TextAlign.right,
+                    style: widget.theme.fontMono(
+                      fontSize: _expression.length > 14
+                          ? 26
+                          : _expression.length > 9
+                              ? 32
+                              : 38,
+                      fontWeight: FontWeight.bold,
+                      color: _isErrorState() ? Colors.redAccent : widget.theme.text,
                     ),
                   ),
                 ),
-            ],
-          ),
-
-          // Previous equation if available
-          if (_lastEquation.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 2),
-              child: Text(
-                _lastEquation,
-                textAlign: TextAlign.right,
-                style: widget.theme.fontMono(
-                  fontSize: 13,
-                  color: widget.theme.textSecondary,
-                ),
               ),
             ),
 
-          // Primary Interactive Expression (Auto-scaling & Scrollable)
-          GestureDetector(
-            onLongPress: () => _copyToClipboard(_expression),
-            child: SingleChildScrollView(
-              controller: _displayScrollController,
-              scrollDirection: Axis.horizontal,
-              reverse: true,
-              child: Text(
-                _expression,
-                textAlign: TextAlign.right,
-                style: widget.theme.fontMono(
-                  fontSize: _expression.length > 14
-                      ? 26
-                      : _expression.length > 9
-                          ? 32
-                          : 38,
-                  fontWeight: FontWeight.bold,
-                  color: _isErrorState() ? Colors.redAccent : widget.theme.text,
-                ),
-              ),
-            ),
-          ),
-
-          // Live Result Preview (Subtle accent)
-          const SizedBox(height: 4),
-          SizedBox(
-            height: 24,
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: _previewResult.isNotEmpty
-                  ? Text(
-                      _previewResult,
-                      style: widget.theme.fontDisplay(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        color: widget.theme.primary,
+            // Live Result Preview with Pop-up Scale Transition
+            const SizedBox(height: 4),
+            SizedBox(
+              height: 26,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Easter Egg chip / badge (left/center)
+                  if (_easterEggText != null)
+                    Flexible(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: widget.theme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: widget.theme.primary.withValues(alpha: 0.4),
+                            width: 1,
+                          ),
+                        ),
+                        child: Text(
+                          _easterEggText!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: widget.theme.fontMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: widget.theme.primary,
+                          ),
+                        ),
                       ),
                     )
-                  : const SizedBox.shrink(),
+                  else
+                    const SizedBox.shrink(),
+
+                  // Preview Result pop-up
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    transitionBuilder: (child, anim) {
+                      return ScaleTransition(
+                        scale: CurvedAnimation(parent: anim, curve: Curves.easeOutBack),
+                        child: FadeTransition(opacity: anim, child: child),
+                      );
+                    },
+                    child: _previewResult.isNotEmpty
+                        ? Text(
+                            _previewResult,
+                            key: ValueKey<String>(_previewResult),
+                            style: widget.theme.fontDisplay(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: widget.theme.primary,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
             ),
-          ),
+          ],
         ],
       ),
     );
@@ -848,7 +1193,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ),
       child: Column(
         children: [
-          // Row 1: Memory & Trig functions
           Row(
             children: [
               _buildSciBtn("MC", isAccent: true),
@@ -859,7 +1203,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          // Row 2: Advanced Math
           Row(
             children: [
               _buildSciBtn(_is2nd ? "asin(" : "sin("),
@@ -870,7 +1213,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          // Row 3: Roots, logs, constants
           Row(
             children: [
               _buildSciBtn(_is2nd ? "10^" : "sqrt("),
@@ -881,7 +1223,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          // Row 4: Constants & Specials
           Row(
             children: [
               _buildSciBtn("π"),
@@ -987,41 +1328,103 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     return Expanded(
       child: Padding(
         padding: const EdgeInsets.all(5.0),
-        child: InkWell(
+        child: _AnimatedCalcButton(
+          label: key,
+          bg: btnBg,
+          text: btnText,
+          border: border,
+          isOp: isOp,
+          isEquals: isEquals,
+          theme: widget.theme,
           onTap: () => _onKeyPress(key),
-          onLongPress: key == '⌫'
-              ? () {
-                  HapticFeedback.heavyImpact();
-                  SoundService().playKey();
-                  setState(() {
-                    _expression = '0';
-                    _previewResult = '';
-                  });
-                  _showToast("All cleared");
-                }
-              : null,
-          borderRadius: BorderRadius.circular(16),
-          child: Container(
-            decoration: BoxDecoration(
-              color: btnBg,
-              borderRadius: BorderRadius.circular(16),
-              border: border,
-              boxShadow: [
-                BoxShadow(
-                  color: widget.theme.border.withValues(alpha: 0.3),
-                  offset: const Offset(0, 3),
-                  blurRadius: 0,
-                ),
-              ],
-            ),
-            alignment: Alignment.center,
-            child: Text(
-              key,
-              style: widget.theme.fontDisplay(
-                fontSize: 24,
-                fontWeight: isEquals || isOp ? FontWeight.w900 : FontWeight.bold,
-                color: btnText,
+          onLongPress: isClear
+              ? _activateLiveClock // Hold C for 2-3 sec to show live real time!
+              : key == '⌫'
+                  ? () {
+                      HapticFeedback.heavyImpact();
+                      SoundService().playKey();
+                      setState(() {
+                        _expression = '0';
+                        _previewResult = '';
+                        _easterEggText = null;
+                      });
+                      _showToast("All cleared");
+                    }
+                  : null,
+        ),
+      ),
+    );
+  }
+}
+
+// =========================================================================
+// INTERACTIVE ANIMATED BUTTON WIDGET (Spring Scale & Tactile Bounce)
+// =========================================================================
+
+class _AnimatedCalcButton extends StatefulWidget {
+  final String label;
+  final Color bg;
+  final Color text;
+  final Border border;
+  final bool isOp;
+  final bool isEquals;
+  final StationeryTheme theme;
+  final VoidCallback onTap;
+  final VoidCallback? onLongPress;
+
+  const _AnimatedCalcButton({
+    required this.label,
+    required this.bg,
+    required this.text,
+    required this.border,
+    required this.isOp,
+    required this.isEquals,
+    required this.theme,
+    required this.onTap,
+    this.onLongPress,
+  });
+
+  @override
+  State<_AnimatedCalcButton> createState() => _AnimatedCalcButtonState();
+}
+
+class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      onLongPress: widget.onLongPress,
+      child: AnimatedScale(
+        scale: _isPressed ? 0.91 : 1.0,
+        duration: const Duration(milliseconds: 90),
+        curve: Curves.easeOutBack,
+        child: Container(
+          decoration: BoxDecoration(
+            color: widget.bg,
+            borderRadius: BorderRadius.circular(16),
+            border: widget.border,
+            boxShadow: [
+              BoxShadow(
+                color: widget.theme.border.withValues(alpha: _isPressed ? 0.1 : 0.3),
+                offset: _isPressed ? const Offset(0, 1) : const Offset(0, 3),
+                blurRadius: _isPressed ? 1 : 0,
               ),
+            ],
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            widget.label,
+            style: widget.theme.fontDisplay(
+              fontSize: 24,
+              fontWeight: widget.isEquals || widget.isOp ? FontWeight.w900 : FontWeight.bold,
+              color: widget.text,
             ),
           ),
         ),
