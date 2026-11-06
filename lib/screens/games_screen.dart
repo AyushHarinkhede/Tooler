@@ -1,3 +1,4 @@
+// Complete & Polished Game Suite for Tooler (Tic-Tac-Toe, Snake Pro, Real Ludo, Snakes & Ladders, UNO Cards, Tetris)
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 
 enum GameType { tictactoe, snake, ludo, snakesAndLadders, uno, tetris }
+enum GameOutcome { win, lose, draw }
 
 class GamesScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -17,6 +19,7 @@ class GamesScreen extends StatefulWidget {
 
 class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin {
   GameType _activeGame = GameType.tictactoe;
+  bool _isOptionsExpanded = false;
 
   @override
   void initState() {
@@ -36,12 +39,13 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   // =========================================================================
-  // 1. TIC-TAC-TOE STATE & SUPER-STRONG MINIMAX ENGINE
+  // 1. TIC-TAC-TOE STATE & UNBEATABLE MINIMAX ENGINE
   // =========================================================================
   List<String> _tttBoard = List.filled(9, '');
   bool _isPlayerTurn = true;
   bool _vsComputer = true;
   String _playerSymbol = 'X'; // 'X' or 'O'
+  String _tttSymbolStyle = 'classic'; // 'classic' or 'stationery'
   String _aiDifficulty = 'unbeatable'; // 'easy', 'medium', 'unbeatable'
   String _tttWinner = ''; // 'X', 'O', 'Draw', ''
   List<int>? _tttWinningCombo;
@@ -155,7 +159,6 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   int _getBestMinimaxMove() {
-    // Center priority for unbreakable play
     if (_tttBoard[4].isEmpty && math.Random().nextDouble() < 0.85) {
       return 4;
     }
@@ -244,7 +247,43 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         _tttWinningCombo = combo;
         if (_tttWinner == 'X') _xScore++;
         if (_tttWinner == 'O') _oScore++;
-        SoundService().playSuccess();
+
+        Timer(const Duration(milliseconds: 320), () {
+          if (!mounted) return;
+          if (_vsComputer) {
+            if (_tttWinner == _playerSymbol) {
+              _showGameResultModal(
+                outcome: GameOutcome.win,
+                title: 'VICTORY!',
+                subtitle: 'Outstanding strategy! You defeated the AI!',
+                statTitle: 'Winning Symbol',
+                statValue: _playerSymbol,
+                secondaryStat: 'X: $_xScore | O: $_oScore',
+                onPlayAgain: _resetTtt,
+              );
+            } else {
+              _showGameResultModal(
+                outcome: GameOutcome.lose,
+                title: 'AI WON',
+                subtitle: 'The computer secured the 3-in-a-row!',
+                statTitle: 'Winning Symbol',
+                statValue: _aiSymbol,
+                secondaryStat: 'X: $_xScore | O: $_oScore',
+                onPlayAgain: _resetTtt,
+              );
+            }
+          } else {
+            _showGameResultModal(
+              outcome: GameOutcome.win,
+              title: 'PLAYER $_tttWinner WINS!',
+              subtitle: 'Superb 3-in-a-row match victory!',
+              statTitle: 'Winner',
+              statValue: 'Player $_tttWinner',
+              secondaryStat: 'X: $_xScore | O: $_oScore',
+              onPlayAgain: _resetTtt,
+            );
+          }
+        });
         return;
       }
     }
@@ -252,7 +291,18 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     if (!_tttBoard.contains('')) {
       _tttWinner = 'Draw';
       _drawScore++;
-      SoundService().playAlert();
+      Timer(const Duration(milliseconds: 320), () {
+        if (!mounted) return;
+        _showGameResultModal(
+          outcome: GameOutcome.draw,
+          title: "IT'S A DRAW!",
+          subtitle: 'Well played! Both sides defended with full focus.',
+          statTitle: 'Total Draws',
+          statValue: '$_drawScore',
+          secondaryStat: 'X: $_xScore | O: $_oScore',
+          onPlayAgain: _resetTtt,
+        );
+      });
     }
   }
 
@@ -273,9 +323,22 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   math.Point<int>? _snakeNextDirection;
   Timer? _snakeTimer;
   bool _isSnakeRunning = false;
-  final int _snakeSpeedMs = 140;
+  String _snakeSkin = 'theme'; // 'theme', 'green', 'cyan', 'gold', 'pink'
+  String _snakeDifficulty = 'normal'; // 'casual', 'normal', 'insane'
   int _snakeScore = 0;
   int _snakeHighScore = 0;
+
+  int get _snakeSpeedMs {
+    switch (_snakeDifficulty) {
+      case 'casual':
+        return 175;
+      case 'insane':
+        return 95;
+      case 'normal':
+      default:
+        return 130;
+    }
+  }
 
   Future<void> _initSnakeHigh() async {
     final prefs = await SharedPreferences.getInstance();
@@ -334,7 +397,6 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     } while (_snake.contains(p));
     _snakeFood = p;
 
-    // 25% chance of spawning bonus golden apple
     if (r.nextDouble() < 0.25 && _snakeGoldenApple == null) {
       math.Point<int> gp;
       do {
@@ -362,13 +424,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       final head = _snake.first;
       final newHead = math.Point(head.x + _snakeDirection.x, head.y + _snakeDirection.y);
 
-      // Wall collision check
       if (newHead.x < 0 || newHead.x >= _snakeCols || newHead.y < 0 || newHead.y >= _snakeRows) {
         _onSnakeGameOver();
         return;
       }
 
-      // Self collision check
       if (_snake.contains(newHead)) {
         _onSnakeGameOver();
         return;
@@ -376,7 +436,6 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
       _snake.insert(0, newHead);
 
-      // Food collision
       if (newHead == _snakeFood) {
         _snakeScore += 10;
         SoundService().playSuccess();
@@ -402,40 +461,27 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   void _onSnakeGameOver() {
     _pauseSnake();
-    SoundService().playAlert();
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: widget.theme.cardBg,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-          side: BorderSide(color: widget.theme.border, width: 2),
-        ),
-        title: Text('Game Over', style: TextStyle(fontWeight: FontWeight.bold, color: widget.theme.primary)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Your Score: $_snakeScore', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Best High Score: $_snakeHighScore', style: TextStyle(fontSize: 14, color: widget.theme.textSecondary)),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _resetSnake();
-            },
-            child: const Text('Play Again', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
+    final isNewHigh = _snakeScore > _snakeHighScore;
+    _saveSnakeHigh();
+
+    Timer(const Duration(milliseconds: 200), () {
+      if (!mounted) return;
+      _showGameResultModal(
+        outcome: isNewHigh ? GameOutcome.win : GameOutcome.lose,
+        title: isNewHigh ? 'NEW HIGH SCORE!' : 'GAME OVER',
+        subtitle: isNewHigh
+            ? 'Awesome reflexes! You set a brand-new high score record!'
+            : 'The snake hit a wall or ran into itself!',
+        statTitle: 'Your Score',
+        statValue: '$_snakeScore pts',
+        secondaryStat: 'Best: $_snakeHighScore pts',
+        onPlayAgain: _resetSnake,
+      );
+    });
   }
 
   // =========================================================================
-  // 3. REAL LUDO STATE & ENGINE
+  // 3. REAL LUDO STATE & MULTI-PLAYER / BOT ENGINE
   // =========================================================================
   static const List<int> _ludoSafeStars = [0, 8, 13, 21, 26, 34, 39, 47];
   static const List<Color> _ludoPlayerColors = [
@@ -444,7 +490,15 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     Color(0xFFF39C12), // Yellow
     Color(0xFF2980B9), // Blue
   ];
-  static const List<String> _ludoPlayerNames = ['Red (You)', 'Green (Bot)', 'Yellow (Bot)', 'Blue (Bot)'];
+  static const List<String> _ludoBaseNames = ['Red', 'Green', 'Yellow', 'Blue'];
+
+  int _ludoHumanPlayer = 0; // 0=Red, 1=Green, 2=Yellow, 3=Blue
+  int _ludoBotSpeedMs = 600;
+
+  List<String> get _ludoPlayerNames => List.generate(4, (i) {
+        final base = _ludoBaseNames[i];
+        return i == _ludoHumanPlayer ? '$base (You)' : '$base (Bot)';
+      });
 
   List<List<int>> _ludoTokens = [
     [-1, -1, -1, -1],
@@ -475,6 +529,12 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       _ludoIsRolling = false;
       _ludoWinner = null;
     });
+
+    if (_ludoCurrentTurn != _ludoHumanPlayer) {
+      _ludoBotTimer = Timer(Duration(milliseconds: _ludoBotSpeedMs), () {
+        if (mounted) _executeLudoRoll();
+      });
+    }
   }
 
   bool _canLudoTokenMove(int pIdx, int tIdx) {
@@ -487,7 +547,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   void _rollLudoDice() {
     if (_ludoHasRolled || _ludoIsRolling || _ludoWinner != null) return;
-    if (_ludoCurrentTurn != 0) return;
+    if (_ludoCurrentTurn != _ludoHumanPlayer) return;
     _executeLudoRoll();
   }
 
@@ -521,15 +581,15 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     }
 
     if (movable.isEmpty) {
-      Timer(const Duration(milliseconds: 700), () {
+      Timer(Duration(milliseconds: _ludoBotSpeedMs), () {
         if (mounted) _nextLudoTurn();
       });
-    } else if (movable.length == 1 && _ludoCurrentTurn == 0) {
-      Timer(const Duration(milliseconds: 300), () {
+    } else if (movable.length == 1 && _ludoCurrentTurn == _ludoHumanPlayer) {
+      Timer(const Duration(milliseconds: 250), () {
         if (mounted && _ludoHasRolled) _moveLudoToken(_ludoCurrentTurn, movable.first);
       });
-    } else if (_ludoCurrentTurn != 0) {
-      _ludoBotTimer = Timer(const Duration(milliseconds: 600), () {
+    } else if (_ludoCurrentTurn != _ludoHumanPlayer) {
+      _ludoBotTimer = Timer(Duration(milliseconds: _ludoBotSpeedMs), () {
         if (!mounted) return;
         final chosen = _pickBestLudoMove(movable);
         _moveLudoToken(_ludoCurrentTurn, chosen);
@@ -538,7 +598,6 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   int _pickBestLudoMove(List<int> movable) {
-    // 1. Capture enemy token
     for (final t in movable) {
       final step = _ludoTokens[_ludoCurrentTurn][t];
       final targetStep = step == -1 ? 0 : step + _ludoDiceVal;
@@ -549,18 +608,15 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         }
       }
     }
-    // 2. Bring out token on 6
     if (_ludoDiceVal == 6) {
       for (final t in movable) {
         if (_ludoTokens[_ludoCurrentTurn][t] == -1) return t;
       }
     }
-    // 3. Enter home
     for (final t in movable) {
       final step = _ludoTokens[_ludoCurrentTurn][t];
       if (step + _ludoDiceVal == 56) return t;
     }
-    // 4. Furthest advance
     movable.sort((a, b) => _ludoTokens[_ludoCurrentTurn][b].compareTo(_ludoTokens[_ludoCurrentTurn][a]));
     return movable.first;
   }
@@ -601,6 +657,20 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
           if (_ludoTokens[pIdx].every((s) => s == 56)) {
             _ludoWinner = _ludoPlayerNames[pIdx];
             SoundService().playSuccess();
+            final isHumanWin = (pIdx == _ludoHumanPlayer);
+            Timer(const Duration(milliseconds: 300), () {
+              if (!mounted) return;
+              _showGameResultModal(
+                outcome: isHumanWin ? GameOutcome.win : GameOutcome.lose,
+                title: isHumanWin ? 'LUDO VICTORY!' : 'LUDO OVER',
+                subtitle: isHumanWin
+                    ? 'Congratulations! You brought all 4 tokens Home to victory!'
+                    : '${_ludoPlayerNames[pIdx]} brought all tokens home first!',
+                statTitle: 'Winner',
+                statValue: _ludoPlayerNames[pIdx],
+                onPlayAgain: _resetLudo,
+              );
+            });
             return;
           }
         } else if (targetStep <= 50) {
@@ -613,7 +683,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                 if (es >= 0 && es <= 50) {
                   final enemyTrack = (_getStartIdx(enemy) + es) % 52;
                   if (enemyTrack == actualTrack) {
-                    _ludoTokens[enemy][et] = -1; // Send back to yard!
+                    _ludoTokens[enemy][et] = -1;
                     getsBonusRoll = true;
                     SoundService().playSuccess();
                   }
@@ -625,12 +695,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       }
 
       if (_ludoDiceVal == 6) getsBonusRoll = true;
-
       _ludoHasRolled = false;
 
       if (getsBonusRoll && _ludoWinner == null) {
-        if (_ludoCurrentTurn != 0) {
-          _ludoBotTimer = Timer(const Duration(milliseconds: 700), () {
+        if (_ludoCurrentTurn != _ludoHumanPlayer) {
+          _ludoBotTimer = Timer(Duration(milliseconds: _ludoBotSpeedMs), () {
             if (mounted) _executeLudoRoll();
           });
         }
@@ -646,8 +715,8 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       _ludoCurrentTurn = (_ludoCurrentTurn + 1) % 4;
     });
 
-    if (_ludoCurrentTurn != 0 && _ludoWinner == null) {
-      _ludoBotTimer = Timer(const Duration(milliseconds: 800), () {
+    if (_ludoCurrentTurn != _ludoHumanPlayer && _ludoWinner == null) {
+      _ludoBotTimer = Timer(Duration(milliseconds: _ludoBotSpeedMs), () {
         if (mounted) _executeLudoRoll();
       });
     }
@@ -662,9 +731,18 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   static const Map<int, int> _snlLadders = {
     4: 14, 9: 31, 20: 38, 28: 84, 40: 59, 51: 67, 63: 81, 71: 91
   };
+  static const List<Map<String, dynamic>> _snlPawns = [
+    {'name': 'Pencil', 'icon': '✏️', 'color': Color(0xFFE74C3C)},
+    {'name': 'Ruler', 'icon': '📏', 'color': Color(0xFF2980B9)},
+    {'name': 'Eraser', 'icon': '🧼', 'color': Color(0xFF27AE60)},
+    {'name': 'Compass', 'icon': '🧭', 'color': Color(0xFF8E44AD)},
+  ];
+
+  int _snlPlayerPawn = 0; // 0=Pencil, 1=Ruler, 2=Eraser, 3=Compass
+  int _snlFirstTurn = 1; // 1 = Human, 2 = Bot
   int _snlP1Pos = 1;
   int _snlP2Pos = 1;
-  int _snlTurn = 1; // 1 = Human, 2 = Bot
+  int _snlTurn = 1;
   int _snlDice = 1;
   bool _snlIsRolling = false;
   String _snlStatus = 'Your Turn! Tap Roll Dice.';
@@ -676,11 +754,17 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     setState(() {
       _snlP1Pos = 1;
       _snlP2Pos = 1;
-      _snlTurn = 1;
+      _snlTurn = _snlFirstTurn;
       _snlDice = 1;
       _snlIsRolling = false;
-      _snlStatus = 'New Game Started! Your Turn.';
+      _snlStatus = _snlTurn == 1 ? 'New Game Started! Your Turn.' : 'New Game Started! Bot Turn.';
     });
+
+    if (_snlTurn == 2) {
+      _snlBotTimer = Timer(const Duration(milliseconds: 900), () {
+        if (mounted) _executeSnlRoll();
+      });
+    }
   }
 
   void _rollSnlDice() {
@@ -739,6 +823,20 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     if (currentPos == 100) {
       _snlStatus = '${isP1 ? "You Won!" : "Bot Won!"} Reached Square 100!';
       SoundService().playSuccess();
+      Timer(const Duration(milliseconds: 300), () {
+        if (!mounted) return;
+        _showGameResultModal(
+          outcome: isP1 ? GameOutcome.win : GameOutcome.lose,
+          title: isP1 ? 'YOU WON!' : 'BOT WON!',
+          subtitle: isP1
+              ? 'Incredible climb! You scaled the board to Square 100!'
+              : 'The bot dodged all snakes and reached Square 100 first!',
+          statTitle: 'Status',
+          statValue: isP1 ? 'You reached Sq 100' : 'Bot reached Sq 100',
+          secondaryStat: isP1 ? 'Bot at Sq $_snlP2Pos' : 'You at Sq $_snlP1Pos',
+          onPlayAgain: _resetSnl,
+        );
+      });
       return;
     }
 
@@ -771,6 +869,8 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   bool _unoSaidUno = false;
   String _unoStatusMsg = 'Your Turn! Play a matching card or draw.';
   Timer? _unoBotTimer;
+  String _unoPlayerAvatar = '🎓 Scholar';
+  String _unoDifficulty = 'normal';
 
   void _initUno() {
     _unoBotTimer?.cancel();
@@ -888,6 +988,20 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       if (hand.isEmpty) {
         _unoStatusMsg = isPlayer ? 'Congratulations! You emptied your hand and Won UNO!' : 'Bot Won UNO!';
         SoundService().playSuccess();
+        Timer(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          _showGameResultModal(
+            outcome: isPlayer ? GameOutcome.win : GameOutcome.lose,
+            title: isPlayer ? 'UNO CHAMPION!' : 'BOT WON UNO',
+            subtitle: isPlayer
+                ? 'Superb! You emptied all cards from your hand!'
+                : 'The bot played its last card before you!',
+            statTitle: 'Hand Status',
+            statValue: isPlayer ? '0 Cards (Victory)' : '${_unoPlayerHand.length} cards remaining',
+            secondaryStat: 'Bot Cards: ${_unoBotHand.length}',
+            onPlayAgain: () => setState(() => _initUno()),
+          );
+        });
         return;
       }
 
@@ -1069,6 +1183,8 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   int _tetrisLines = 0;
   int _tetrisLevel = 1;
   int _tetrisHighScore = 0;
+  String _tetrisPalette = 'theme';
+  int _tetrisStartLevel = 1;
 
   Future<void> _initTetrisHigh() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1091,7 +1207,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       _tetrisGrid = List.generate(_tetrisRows, (_) => List.filled(_tetrisCols, null));
       _tetrisScore = 0;
       _tetrisLines = 0;
-      _tetrisLevel = 1;
+      _tetrisLevel = _tetrisStartLevel;
       _isTetrisRunning = false;
       _spawnTetrisPiece();
     });
@@ -1124,36 +1240,24 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
     if (_isPieceColliding(_currentPieceMatrix, _pieceX, _pieceY)) {
       _pauseTetris();
-      SoundService().playAlert();
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (ctx) => AlertDialog(
-          backgroundColor: widget.theme.cardBg,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(color: widget.theme.border, width: 2),
-          ),
-          title: Text('Tetris Game Over', style: TextStyle(fontWeight: FontWeight.bold, color: widget.theme.primary)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Score: $_tetrisScore', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              Text('Lines Cleared: $_tetrisLines', style: const TextStyle(fontSize: 14)),
-              Text('High Score: $_tetrisHighScore', style: TextStyle(fontSize: 14, color: widget.theme.textSecondary)),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(ctx);
-                _resetTetris();
-              },
-              child: const Text('Play Again', style: TextStyle(fontWeight: FontWeight.bold)),
-            ),
-          ],
-        ),
-      );
+      final isNewHigh = _tetrisScore > _tetrisHighScore;
+      _saveTetrisHigh();
+
+      Timer(const Duration(milliseconds: 200), () {
+        if (!mounted) return;
+        _showGameResultModal(
+          outcome: isNewHigh ? GameOutcome.win : GameOutcome.lose,
+          title: isNewHigh ? 'NEW HIGH SCORE!' : 'GAME OVER',
+          subtitle: isNewHigh
+              ? 'Sensational stacking! You set a new Tetris record!'
+              : 'The blocks reached the top of the grid!',
+          statTitle: 'Score / Lines',
+          statValue: '$_tetrisScore pts ($_tetrisLines lines)',
+          secondaryStat: 'Best: $_tetrisHighScore pts',
+          onPlayAgain: _resetTetris,
+        );
+      });
+      return;
     }
   }
 
@@ -1173,56 +1277,92 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   void _tetrisStep() {
     if (!_isTetrisRunning) return;
-    setState(() {
-      if (!_isPieceColliding(_currentPieceMatrix, _pieceX, _pieceY + 1)) {
+
+    if (!_isPieceColliding(_currentPieceMatrix, _pieceX, _pieceY + 1)) {
+      setState(() {
         _pieceY++;
-      } else {
-        _lockTetrisPiece();
-      }
-    });
+      });
+    } else {
+      _lockTetrisPiece();
+    }
   }
 
   void _lockTetrisPiece() {
-    SoundService().playKey();
-    for (int r = 0; r < _currentPieceMatrix.length; r++) {
-      for (int c = 0; c < _currentPieceMatrix[r].length; c++) {
-        if (_currentPieceMatrix[r][c] == 1) {
-          int gx = _pieceX + c;
-          int gy = _pieceY + r;
-          if (gy >= 0 && gy < _tetrisRows && gx >= 0 && gx < _tetrisCols) {
-            _tetrisGrid[gy][gx] = _tetrominoColors[_currentPieceType];
+    final pieceColor = _getTetrisColor(_currentPieceType);
+    setState(() {
+      for (int r = 0; r < _currentPieceMatrix.length; r++) {
+        for (int c = 0; c < _currentPieceMatrix[r].length; c++) {
+          if (_currentPieceMatrix[r][c] == 1) {
+            int gx = _pieceX + c;
+            int gy = _pieceY + r;
+            if (gy >= 0 && gy < _tetrisRows && gx >= 0 && gx < _tetrisCols) {
+              _tetrisGrid[gy][gx] = pieceColor;
+            }
           }
         }
       }
-    }
 
-    int linesCleared = 0;
-    for (int r = _tetrisRows - 1; r >= 0; r--) {
-      if (_tetrisGrid[r].every((cell) => cell != null)) {
-        _tetrisGrid.removeAt(r);
-        _tetrisGrid.insert(0, List.filled(_tetrisCols, null));
-        linesCleared++;
-        r++;
+      int linesCleared = 0;
+      for (int r = _tetrisRows - 1; r >= 0; r--) {
+        if (_tetrisGrid[r].every((cell) => cell != null)) {
+          _tetrisGrid.removeAt(r);
+          _tetrisGrid.insert(0, List.filled(_tetrisCols, null));
+          linesCleared++;
+          r++;
+        }
       }
-    }
 
-    if (linesCleared > 0) {
-      SoundService().playSuccess();
-      _tetrisLines += linesCleared;
-      final points = [0, 100, 300, 500, 800][math.min(linesCleared, 4)] * _tetrisLevel;
-      _tetrisScore += points;
-      _tetrisLevel = (_tetrisLines ~/ 10) + 1;
-      _saveTetrisHigh();
-    }
+      if (linesCleared > 0) {
+        SoundService().playSuccess();
+        _tetrisLines += linesCleared;
+        final basePoints = [0, 100, 300, 500, 800];
+        _tetrisScore += basePoints[linesCleared] * _tetrisLevel;
+        _tetrisLevel = (_tetrisLines ~/ 10) + 1;
+        _saveTetrisHigh();
+      } else {
+        SoundService().playKey();
+      }
 
-    _spawnTetrisPiece();
+      _spawnTetrisPiece();
+    });
+  }
+
+  Color _getTetrisColor(String type) {
+    if (_tetrisPalette == 'theme') {
+      final tints = [
+        widget.theme.primary,
+        widget.theme.primary.withValues(alpha: 0.85),
+        const Color(0xFFF39C12),
+        const Color(0xFF27AE60),
+        const Color(0xFF2980B9),
+        const Color(0xFF8E44AD),
+        const Color(0xFFE74C3C),
+      ];
+      final idx = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'].indexOf(type);
+      return tints[idx >= 0 ? idx : 0];
+    } else if (_tetrisPalette == 'neon') {
+      return _tetrominoColors[type] ?? Colors.white;
+    } else {
+      final pastel = {
+        'I': const Color(0xFF81ECEC),
+        'J': const Color(0xFF74B9FF),
+        'L': const Color(0xFFFFEAA7),
+        'O': const Color(0xFFFDCB6E),
+        'S': const Color(0xFF55EFC4),
+        'T': const Color(0xFFA29BFE),
+        'Z': const Color(0xFFFF7675),
+      };
+      return pastel[type] ?? Colors.white;
+    }
   }
 
   void _moveTetris(int dx) {
     if (!_isTetrisRunning) return;
     if (!_isPieceColliding(_currentPieceMatrix, _pieceX + dx, _pieceY)) {
-      setState(() => _pieceX += dx);
-      SoundService().playKey();
+      SoundService().playClick();
+      setState(() {
+        _pieceX += dx;
+      });
     }
   }
 
@@ -1232,20 +1372,29 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     final c = _currentPieceMatrix[0].length;
     final rotated = List.generate(c, (i) => List.generate(r, (j) => _currentPieceMatrix[r - 1 - j][i]));
 
-    for (final offset in [0, -1, 1, -2, 2]) {
-      if (!_isPieceColliding(rotated, _pieceX + offset, _pieceY)) {
-        setState(() {
-          _pieceX += offset;
-          _currentPieceMatrix = rotated;
-        });
-        SoundService().playKey();
-        return;
-      }
+    if (!_isPieceColliding(rotated, _pieceX, _pieceY)) {
+      SoundService().playKey();
+      setState(() {
+        _currentPieceMatrix = rotated;
+      });
+    } else if (!_isPieceColliding(rotated, _pieceX - 1, _pieceY)) {
+      SoundService().playKey();
+      setState(() {
+        _pieceX -= 1;
+        _currentPieceMatrix = rotated;
+      });
+    } else if (!_isPieceColliding(rotated, _pieceX + 1, _pieceY)) {
+      SoundService().playKey();
+      setState(() {
+        _pieceX += 1;
+        _currentPieceMatrix = rotated;
+      });
     }
   }
 
   void _hardDropTetris() {
     if (!_isTetrisRunning) return;
+    SoundService().playKey();
     while (!_isPieceColliding(_currentPieceMatrix, _pieceX, _pieceY + 1)) {
       _pieceY++;
       _tetrisScore += 2;
@@ -1254,7 +1403,206 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   // =========================================================================
-  // MAIN BUILD & TAB NAVIGATION
+  // RESULT MODAL & SVG THEME PAINTERS
+  // =========================================================================
+  void _showGameResultModal({
+    required GameOutcome outcome,
+    required String title,
+    required String subtitle,
+    required String statTitle,
+    required String statValue,
+    String? secondaryStat,
+    required VoidCallback onPlayAgain,
+  }) {
+    if (!mounted) return;
+    if (outcome == GameOutcome.win) {
+      SoundService().playSuccess();
+    } else {
+      SoundService().playAlert();
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) {
+        Color bannerColor;
+        CustomPainter painter;
+        switch (outcome) {
+          case GameOutcome.win:
+            bannerColor = const Color(0xFFF39C12);
+            painter = _WinResultPainter(primaryColor: widget.theme.primary);
+            break;
+          case GameOutcome.lose:
+            bannerColor = const Color(0xFFE74C3C);
+            painter = _LoseResultPainter(primaryColor: widget.theme.primary);
+            break;
+          case GameOutcome.draw:
+            bannerColor = widget.theme.primary;
+            painter = _DrawResultPainter(primaryColor: widget.theme.primary);
+            break;
+        }
+
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          child: Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxWidth: 340),
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: widget.theme.cardBg,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: widget.theme.border, width: 2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  offset: const Offset(4, 8),
+                  blurRadius: 18,
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox(
+                  width: 140,
+                  height: 100,
+                  child: CustomPaint(painter: painter),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: widget.theme.fontDisplay(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: bannerColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: widget.theme.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: widget.theme.bg,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: widget.theme.border.withValues(alpha: 0.6)),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            statTitle,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: widget.theme.textSecondary,
+                            ),
+                          ),
+                          Text(
+                            statValue,
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: widget.theme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (secondaryStat != null) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Scoreboard / Best:',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: widget.theme.textSecondary,
+                              ),
+                            ),
+                            Text(
+                              secondaryStat,
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFFF39C12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          side: BorderSide(color: widget.theme.border, width: 1.5),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: Text(
+                          'Close',
+                          style: TextStyle(
+                            color: widget.theme.text,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          onPlayAgain();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: widget.theme.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text(
+                          'Play Again',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // =========================================================================
+  // MAIN BUILD METHOD & TABS
   // =========================================================================
   @override
   Widget build(BuildContext context) {
@@ -1266,7 +1614,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
           Expanded(
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               child: _buildActiveGameView(),
             ),
           ),
@@ -1277,17 +1625,17 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   Widget _buildGameTabBar() {
     final games = [
-      {'type': GameType.tictactoe, 'label': 'Tic-Tac-Toe'},
-      {'type': GameType.snake, 'label': 'Snake Pro'},
-      {'type': GameType.ludo, 'label': 'Real Ludo'},
-      {'type': GameType.snakesAndLadders, 'label': 'Snake & Ladder'},
-      {'type': GameType.uno, 'label': 'UNO Cards'},
-      {'type': GameType.tetris, 'label': 'Tetris'},
+      {'type': GameType.tictactoe, 'label': 'Tic-Tac-Toe', 'icon': '❌⭕'},
+      {'type': GameType.snake, 'label': 'Snake Pro', 'icon': '🐍'},
+      {'type': GameType.ludo, 'label': 'Real Ludo', 'icon': '🎲'},
+      {'type': GameType.snakesAndLadders, 'label': 'Snake & Ladder', 'icon': '🪜'},
+      {'type': GameType.uno, 'label': 'UNO Cards', 'icon': '🎴'},
+      {'type': GameType.tetris, 'label': 'Tetris', 'icon': '🧱'},
     ];
 
     return Container(
       height: 48,
-      margin: const EdgeInsets.only(top: 4, bottom: 8),
+      margin: const EdgeInsets.only(top: 4, bottom: 6),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -1301,13 +1649,14 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               SoundService().playClick();
               setState(() {
                 _activeGame = g['type'] as GameType;
+                _isOptionsExpanded = false;
                 if (_activeGame == GameType.uno && _unoDeck.isEmpty) _initUno();
                 if (_activeGame == GameType.tetris && _tetrisGrid.isEmpty) _resetTetris();
               });
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: isSelected ? widget.theme.primary : widget.theme.cardBg,
                 borderRadius: BorderRadius.circular(20),
@@ -1325,15 +1674,20 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                       ]
                     : null,
               ),
-              child: Center(
-                child: Text(
-                  g['label'] as String,
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : widget.theme.text,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(g['icon'] as String, style: const TextStyle(fontSize: 14)),
+                  const SizedBox(width: 6),
+                  Text(
+                    g['label'] as String,
+                    style: TextStyle(
+                      color: isSelected ? Colors.white : widget.theme.text,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
                   ),
-                ),
+                ],
               ),
             ),
           );
@@ -1342,6 +1696,583 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     );
   }
 
+  /// Collapsible Options Header Bar for EVERY game
+  Widget _buildGameOptionsHeader() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: () {
+              SoundService().playClick();
+              setState(() {
+                _isOptionsExpanded = !_isOptionsExpanded;
+              });
+            },
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: widget.theme.cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: _isOptionsExpanded ? widget.theme.primary : widget.theme.border,
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    offset: const Offset(1, 2),
+                    blurRadius: 4,
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        _isOptionsExpanded ? Icons.tune : Icons.settings_outlined,
+                        size: 18,
+                        color: widget.theme.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        _isOptionsExpanded ? 'Hide Options & Settings' : 'Game Options & Player Settings',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                          color: widget.theme.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: widget.theme.primary.withValues(alpha: _isOptionsExpanded ? 0.15 : 0.08),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          _isOptionsExpanded ? 'Hide' : 'Options',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: widget.theme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        Icon(
+                          _isOptionsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          size: 16,
+                          color: widget.theme.primary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedCrossFade(
+            firstChild: const SizedBox(width: double.infinity, height: 0),
+            secondChild: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(top: 8),
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: widget.theme.cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: widget.theme.border, width: 1.5),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    offset: const Offset(2, 4),
+                    blurRadius: 6,
+                  ),
+                ],
+              ),
+              child: _buildCurrentGameOptionsContent(),
+            ),
+            crossFadeState: _isOptionsExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            duration: const Duration(milliseconds: 250),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCurrentGameOptionsContent() {
+    switch (_activeGame) {
+      case GameType.tictactoe:
+        return _buildTttOptions();
+      case GameType.snake:
+        return _buildSnakeOptions();
+      case GameType.ludo:
+        return _buildLudoOptions();
+      case GameType.snakesAndLadders:
+        return _buildSnlOptions();
+      case GameType.uno:
+        return _buildUnoOptions();
+      case GameType.tetris:
+        return _buildTetrisOptions();
+    }
+  }
+
+  // --- TIC TAC TOE OPTIONS ---
+  Widget _buildTttOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Game Mode & Opponent:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _buildChoiceChip('vs Computer', _vsComputer, () {
+              setState(() {
+                _vsComputer = true;
+                _resetTtt();
+              });
+            }),
+            const SizedBox(width: 8),
+            _buildChoiceChip('2 Players', !_vsComputer, () {
+              setState(() {
+                _vsComputer = false;
+                _resetTtt();
+              });
+            }),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const Text('Select Your Player Symbol:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _buildChoiceChip('Play as X (First)', _playerSymbol == 'X', () {
+              setState(() {
+                _playerSymbol = 'X';
+                _resetTtt();
+              });
+            }),
+            const SizedBox(width: 8),
+            _buildChoiceChip('Play as O (Second)', _playerSymbol == 'O', () {
+              setState(() {
+                _playerSymbol = 'O';
+                _resetTtt();
+              });
+            }),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const Text('Mark Style:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _buildChoiceChip('Classic (X / O)', _tttSymbolStyle == 'classic', () {
+              setState(() => _tttSymbolStyle = 'classic');
+            }),
+            const SizedBox(width: 8),
+            _buildChoiceChip('Stationery (✏️ / 🧼)', _tttSymbolStyle == 'stationery', () {
+              setState(() => _tttSymbolStyle = 'stationery');
+            }),
+          ],
+        ),
+        if (_vsComputer) ...[
+          const SizedBox(height: 10),
+          const Text('AI Difficulty Level:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              _buildChoiceChip('Easy', _aiDifficulty == 'easy', () => setState(() => _aiDifficulty = 'easy')),
+              const SizedBox(width: 6),
+              _buildChoiceChip('Medium', _aiDifficulty == 'medium', () => setState(() => _aiDifficulty = 'medium')),
+              const SizedBox(width: 6),
+              _buildChoiceChip('Unbeatable', _aiDifficulty == 'unbeatable', () => setState(() => _aiDifficulty = 'unbeatable')),
+            ],
+          ),
+        ],
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _resetTtt,
+                icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+                label: const Text('Restart Board', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.theme.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _resetTttScores,
+                icon: Icon(Icons.delete_outline, size: 16, color: widget.theme.text),
+                label: Text('Reset Scores', style: TextStyle(color: widget.theme.text, fontWeight: FontWeight.bold, fontSize: 12)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: widget.theme.border),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // --- SNAKE OPTIONS ---
+  Widget _buildSnakeOptions() {
+    final skins = [
+      {'id': 'theme', 'name': 'Theme Accent'},
+      {'id': 'green', 'name': 'Emerald Viper 🐍'},
+      {'id': 'cyan', 'name': 'Neon Cyan ⚡'},
+      {'id': 'gold', 'name': 'Golden Python 👑'},
+      {'id': 'pink', 'name': 'Coral Pink 🌸'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Choose Your Snake Skin:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: skins.map((s) {
+            return _buildChoiceChip(
+              s['name']!,
+              _snakeSkin == s['id'],
+              () => setState(() => _snakeSkin = s['id']!),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
+        const Text('Speed & Reflex Challenge:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _buildChoiceChip('Casual (Slow)', _snakeDifficulty == 'casual', () {
+              setState(() {
+                _snakeDifficulty = 'casual';
+                if (_isSnakeRunning) _startSnake();
+              });
+            }),
+            const SizedBox(width: 6),
+            _buildChoiceChip('Normal (Classic)', _snakeDifficulty == 'normal', () {
+              setState(() {
+                _snakeDifficulty = 'normal';
+                if (_isSnakeRunning) _startSnake();
+              });
+            }),
+            const SizedBox(width: 6),
+            _buildChoiceChip('Insane (Turbo)', _snakeDifficulty == 'insane', () {
+              setState(() {
+                _snakeDifficulty = 'insane';
+                if (_isSnakeRunning) _startSnake();
+              });
+            }),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Expanded(
+              child: ElevatedButton.icon(
+                onPressed: _resetSnake,
+                icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+                label: const Text('Reset Snake', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.theme.primary,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // --- LUDO OPTIONS ---
+  Widget _buildLudoOptions() {
+    final colors = [
+      {'idx': 0, 'label': '🔴 Red (You)', 'color': const Color(0xFFE74C3C)},
+      {'idx': 1, 'label': '🟢 Green (You)', 'color': const Color(0xFF27AE60)},
+      {'idx': 2, 'label': '🟡 Yellow (You)', 'color': const Color(0xFFF39C12)},
+      {'idx': 3, 'label': '🔵 Blue (You)', 'color': const Color(0xFF2980B9)},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Select Your Player Color (Other 3 become Bots):', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: colors.map((c) {
+            final isChosen = _ludoHumanPlayer == c['idx'];
+            return GestureDetector(
+              onTap: () {
+                SoundService().playClick();
+                setState(() {
+                  _ludoHumanPlayer = c['idx'] as int;
+                  _resetLudo();
+                });
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isChosen ? (c['color'] as Color).withValues(alpha: 0.15) : widget.theme.bg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isChosen ? (c['color'] as Color) : widget.theme.border,
+                    width: isChosen ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(radius: 5, backgroundColor: c['color'] as Color),
+                    const SizedBox(width: 6),
+                    Text(
+                      c['label'] as String,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isChosen ? (c['color'] as Color) : widget.theme.text,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
+        const Text('Bot Roll Pace:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _buildChoiceChip('Fast (400ms)', _ludoBotSpeedMs == 400, () => setState(() => _ludoBotSpeedMs = 400)),
+            const SizedBox(width: 6),
+            _buildChoiceChip('Normal (600ms)', _ludoBotSpeedMs == 600, () => setState(() => _ludoBotSpeedMs = 600)),
+            const SizedBox(width: 6),
+            _buildChoiceChip('Slow (900ms)', _ludoBotSpeedMs == 900, () => setState(() => _ludoBotSpeedMs = 900)),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: _resetLudo,
+          icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+          label: const Text('Start New Match', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.theme.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- SNAKES & LADDERS OPTIONS ---
+  Widget _buildSnlOptions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Select Your Pawn Mascot:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: List.generate(_snlPawns.length, (idx) {
+            final p = _snlPawns[idx];
+            final isSelected = _snlPlayerPawn == idx;
+            return GestureDetector(
+              onTap: () {
+                SoundService().playClick();
+                setState(() => _snlPlayerPawn = idx);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isSelected ? (p['color'] as Color).withValues(alpha: 0.15) : widget.theme.bg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isSelected ? (p['color'] as Color) : widget.theme.border,
+                    width: isSelected ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(p['icon'] as String, style: const TextStyle(fontSize: 14)),
+                    const SizedBox(width: 6),
+                    Text(
+                      p['name'] as String,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: isSelected ? (p['color'] as Color) : widget.theme.text,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        const Text('Opening Turn:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _buildChoiceChip('You Go First', _snlFirstTurn == 1, () {
+              setState(() {
+                _snlFirstTurn = 1;
+                _resetSnl();
+              });
+            }),
+            const SizedBox(width: 8),
+            _buildChoiceChip('Bot Goes First', _snlFirstTurn == 2, () {
+              setState(() {
+                _snlFirstTurn = 2;
+                _resetSnl();
+              });
+            }),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: _resetSnl,
+          icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+          label: const Text('Reset Game', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.theme.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- UNO OPTIONS ---
+  Widget _buildUnoOptions() {
+    final avatars = ['🎓 Scholar', '🎨 Artist', '⚡ Speedster', '🌟 Champion'];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Choose Your Player Persona:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: avatars.map((a) {
+            return _buildChoiceChip(
+              a,
+              _unoPlayerAvatar == a,
+              () => setState(() => _unoPlayerAvatar = a),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
+        const Text('Bot Playing Style:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _buildChoiceChip('Normal (Casual)', _unoDifficulty == 'normal', () => setState(() => _unoDifficulty = 'normal')),
+            const SizedBox(width: 8),
+            _buildChoiceChip('Challenger (Aggressive)', _unoDifficulty == 'challenger', () => setState(() => _unoDifficulty = 'challenger')),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: () => setState(() => _initUno()),
+          icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+          label: const Text('Deal New Hand', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.theme.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- TETRIS OPTIONS ---
+  Widget _buildTetrisOptions() {
+    final palettes = [
+      {'id': 'theme', 'name': 'Theme Accent'},
+      {'id': 'neon', 'name': 'Arcade Neon ⚡'},
+      {'id': 'pastel', 'name': 'Pastel Modern 🎨'},
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Choose Block Palette:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: palettes.map((p) {
+            return _buildChoiceChip(
+              p['name']!,
+              _tetrisPalette == p['id'],
+              () => setState(() => _tetrisPalette = p['id']!),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 10),
+        const Text('Starting Speed Level:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            _buildChoiceChip('Level 1', _tetrisStartLevel == 1, () {
+              setState(() {
+                _tetrisStartLevel = 1;
+                _resetTetris();
+              });
+            }),
+            const SizedBox(width: 6),
+            _buildChoiceChip('Level 3', _tetrisStartLevel == 3, () {
+              setState(() {
+                _tetrisStartLevel = 3;
+                _resetTetris();
+              });
+            }),
+            const SizedBox(width: 6),
+            _buildChoiceChip('Level 5', _tetrisStartLevel == 5, () {
+              setState(() {
+                _tetrisStartLevel = 5;
+                _resetTetris();
+              });
+            }),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ElevatedButton.icon(
+          onPressed: _resetTetris,
+          icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
+          label: const Text('Restart Tetris', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: widget.theme.primary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // =========================================================================
+  // ACTIVE GAME VIEWS (CLEAN & UNCLUTTERED)
+  // =========================================================================
   Widget _buildActiveGameView() {
     switch (_activeGame) {
       case GameType.tictactoe:
@@ -1359,65 +2290,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     }
   }
 
-  // =========================================================================
-  // UI 1: TIC-TAC-TOE VIEW
-  // =========================================================================
+  // --- UI 1: TIC-TAC-TOE VIEW ---
   Widget _buildTicTacToeView() {
     return Column(
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _buildChoiceChip('vs Computer', _vsComputer, () {
-              setState(() {
-                _vsComputer = true;
-                _resetTtt();
-              });
-            }),
-            const SizedBox(width: 10),
-            _buildChoiceChip('2 Players', !_vsComputer, () {
-              setState(() {
-                _vsComputer = false;
-                _resetTtt();
-              });
-            }),
-          ],
-        ),
-        if (_vsComputer) ...[
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('AI Level: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              _buildChoiceChip('Easy', _aiDifficulty == 'easy', () => setState(() => _aiDifficulty = 'easy')),
-              const SizedBox(width: 6),
-              _buildChoiceChip('Medium', _aiDifficulty == 'medium', () => setState(() => _aiDifficulty = 'medium')),
-              const SizedBox(width: 6),
-              _buildChoiceChip('Unbeatable', _aiDifficulty == 'unbeatable', () => setState(() => _aiDifficulty = 'unbeatable')),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text('Play As: ', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-              _buildChoiceChip('X (First)', _playerSymbol == 'X', () {
-                setState(() {
-                  _playerSymbol = 'X';
-                  _resetTtt();
-                });
-              }),
-              const SizedBox(width: 8),
-              _buildChoiceChip('O (Second)', _playerSymbol == 'O', () {
-                setState(() {
-                  _playerSymbol = 'O';
-                  _resetTtt();
-                });
-              }),
-            ],
-          ),
-        ],
-        const SizedBox(height: 12),
+        _buildGameOptionsHeader(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           decoration: BoxDecoration(
@@ -1466,7 +2343,12 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               mainAxisSpacing: 8,
             ),
             itemBuilder: (ctx, i) {
-              final val = _tttBoard[i];
+              final rawVal = _tttBoard[i];
+              String displayVal = rawVal;
+              if (_tttSymbolStyle == 'stationery') {
+                if (rawVal == 'X') displayVal = '✏️';
+                if (rawVal == 'O') displayVal = '🧼';
+              }
               final isWinCell = _tttWinningCombo != null && _tttWinningCombo!.contains(i);
               return GestureDetector(
                 onTap: () => _onTttCellTapped(i),
@@ -1481,11 +2363,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                   ),
                   child: Center(
                     child: Text(
-                      val,
+                      displayVal,
                       style: TextStyle(
-                        fontSize: 38,
+                        fontSize: _tttSymbolStyle == 'stationery' ? 32 : 38,
                         fontWeight: FontWeight.w900,
-                        color: val == 'X' ? const Color(0xFFE74C3C) : const Color(0xFF3498DB),
+                        color: rawVal == 'X' ? const Color(0xFFE74C3C) : const Color(0xFF3498DB),
                       ),
                     ),
                   ),
@@ -1498,22 +2380,15 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: _resetTtt,
+              icon: const Icon(Icons.refresh, size: 16, color: Colors.white),
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.theme.primary,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Restart Board', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            ),
-            const SizedBox(width: 12),
-            OutlinedButton(
-              onPressed: _resetTttScores,
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: widget.theme.border, width: 1.5),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child: Text('Reset Scores', style: TextStyle(color: widget.theme.text, fontWeight: FontWeight.bold)),
+              label: const Text('Restart Board', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -1521,12 +2396,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     );
   }
 
-  // =========================================================================
-  // UI 2: SNAKE PRO VIEW
-  // =========================================================================
+  // --- UI 2: SNAKE PRO VIEW ---
   Widget _buildSnakeView() {
     return Column(
       children: [
+        _buildGameOptionsHeader(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           decoration: BoxDecoration(
@@ -1538,7 +2412,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Score: $_snakeScore', style: TextStyle(fontWeight: FontWeight.bold, color: widget.theme.primary, fontSize: 15)),
-              Text('High: $_snakeHighScore', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF39C12), fontSize: 15)),
+              Text('Best: $_snakeHighScore', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF39C12), fontSize: 15)),
             ],
           ),
         ),
@@ -1572,6 +2446,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                 rows: _snakeRows,
                 cols: _snakeCols,
                 theme: widget.theme,
+                snakeSkin: _snakeSkin,
               ),
             ),
           ),
@@ -1629,12 +2504,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     );
   }
 
-  // =========================================================================
-  // UI 3: REAL LUDO VIEW
-  // =========================================================================
+  // --- UI 3: REAL LUDO VIEW ---
   Widget _buildLudoView() {
     return Column(
       children: [
+        _buildGameOptionsHeader(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
@@ -1645,13 +2519,19 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Turn: ${_ludoPlayerNames[_ludoCurrentTurn]}',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 14,
-                  color: _ludoPlayerColors[_ludoCurrentTurn],
-                ),
+              Row(
+                children: [
+                  CircleAvatar(radius: 6, backgroundColor: _ludoPlayerColors[_ludoCurrentTurn]),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Turn: ${_ludoPlayerNames[_ludoCurrentTurn]}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: _ludoPlayerColors[_ludoCurrentTurn],
+                    ),
+                  ),
+                ],
               ),
               OutlinedButton(
                 onPressed: _resetLudo,
@@ -1681,24 +2561,25 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               currentTurn: _ludoCurrentTurn,
               hasRolled: _ludoHasRolled,
               canMoveFunc: _canLudoTokenMove,
+              humanPlayer: _ludoHumanPlayer,
             ),
           ),
         ),
         const SizedBox(height: 10),
-        if (_ludoCurrentTurn == 0 && _ludoHasRolled) ...[
+        if (_ludoCurrentTurn == _ludoHumanPlayer && _ludoHasRolled) ...[
           const Text('Tap token below to advance:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
           const SizedBox(height: 6),
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: List.generate(4, (tIdx) {
-              final canMove = _canLudoTokenMove(0, tIdx);
-              final step = _ludoTokens[0][tIdx];
+              final canMove = _canLudoTokenMove(_ludoHumanPlayer, tIdx);
+              final step = _ludoTokens[_ludoHumanPlayer][tIdx];
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 4),
                 child: ElevatedButton(
-                  onPressed: canMove ? () => _moveLudoToken(0, tIdx) : null,
+                  onPressed: canMove ? () => _moveLudoToken(_ludoHumanPlayer, tIdx) : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: canMove ? const Color(0xFFE74C3C) : Colors.grey.shade400,
+                    backgroundColor: canMove ? _ludoPlayerColors[_ludoHumanPlayer] : Colors.grey.shade400,
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                   ),
                   child: Text(
@@ -1740,9 +2621,9 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
             ),
             const SizedBox(width: 14),
             ElevatedButton(
-              onPressed: (_ludoCurrentTurn == 0 && !_ludoHasRolled && !_ludoIsRolling) ? _rollLudoDice : null,
+              onPressed: (_ludoCurrentTurn == _ludoHumanPlayer && !_ludoHasRolled && !_ludoIsRolling) ? _rollLudoDice : null,
               style: ElevatedButton.styleFrom(
-                backgroundColor: widget.theme.primary,
+                backgroundColor: _ludoPlayerColors[_ludoHumanPlayer],
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
               ),
@@ -1757,12 +2638,12 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     );
   }
 
-  // =========================================================================
-  // UI 4: SNAKE & LADDER VIEW
-  // =========================================================================
+  // --- UI 4: SNAKE & LADDER VIEW ---
   Widget _buildSnakesAndLaddersView() {
+    final pawn = _snlPawns[_snlPlayerPawn];
     return Column(
       children: [
+        _buildGameOptionsHeader(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
@@ -1773,9 +2654,9 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('You: Sq $_snlP1Pos', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE74C3C), fontSize: 14)),
-              Text(_snlTurn == 1 ? 'Your Turn' : 'Bot Turn', style: TextStyle(fontWeight: FontWeight.bold, color: widget.theme.primary, fontSize: 14)),
-              Text('Bot: Sq $_snlP2Pos', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2980B9), fontSize: 14)),
+              Text('You (${pawn['icon']}): Sq $_snlP1Pos', style: TextStyle(fontWeight: FontWeight.bold, color: pawn['color'] as Color, fontSize: 13)),
+              Text(_snlTurn == 1 ? 'Your Turn' : 'Bot Turn', style: TextStyle(fontWeight: FontWeight.bold, color: widget.theme.primary, fontSize: 13)),
+              const Text('Bot: Sq ', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2980B9), fontSize: 13)),
             ],
           ),
         ),
@@ -1798,6 +2679,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               snakes: _snlSnakes,
               ladders: _snlLadders,
               theme: widget.theme,
+              p1Color: pawn['color'] as Color,
             ),
           ),
         ),
@@ -1848,12 +2730,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     );
   }
 
-  // =========================================================================
-  // UI 5: UNO VIEW
-  // =========================================================================
+  // --- UI 5: UNO VIEW ---
   Widget _buildUnoView() {
     return Column(
       children: [
+        _buildGameOptionsHeader(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
           decoration: BoxDecoration(
@@ -2008,12 +2889,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     }
   }
 
-  // =========================================================================
-  // UI 6: TETRIS VIEW
-  // =========================================================================
+  // --- UI 6: TETRIS VIEW ---
   Widget _buildTetrisView() {
     return Column(
       children: [
+        _buildGameOptionsHeader(),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
@@ -2051,7 +2931,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                   currentMatrix: _currentPieceMatrix,
                   pieceX: _pieceX,
                   pieceY: _pieceY,
-                  pieceColor: _tetrominoColors[_currentPieceType] ?? Colors.white,
+                  pieceColor: _getTetrisColor(_currentPieceType),
                   rows: _tetrisRows,
                   cols: _tetrisCols,
                 ),
@@ -2073,7 +2953,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                       'Next:\n$_nextPieceType',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                        color: _tetrominoColors[_nextPieceType] ?? Colors.white,
+                        color: _getTetrisColor(_nextPieceType),
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -2139,7 +3019,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         onTap();
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
           color: isSelected ? widget.theme.primary : widget.theme.cardBg,
           borderRadius: BorderRadius.circular(12),
@@ -2162,8 +3042,227 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 }
 
 // =========================================================================
-// CUSTOM PAINTERS FOR SNAKE, LUDO, SNAKES & LADDERS, AND TETRIS
+// CUSTOM PAINTERS: RESULT POPUPS (WIN, LOSE, DRAW) & BOARDS
 // =========================================================================
+
+class _WinResultPainter extends CustomPainter {
+  final Color primaryColor;
+  _WinResultPainter({required this.primaryColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final cx = w / 2;
+    final cy = h / 2 + 6;
+
+    final random = math.Random(42);
+    final confettiColors = [
+      primaryColor,
+      const Color(0xFFF1C40F),
+      const Color(0xFFE74C3C),
+      const Color(0xFF3498DB),
+      const Color(0xFF2ECC71),
+    ];
+    for (int i = 0; i < 24; i++) {
+      final angle = random.nextDouble() * 2 * math.pi;
+      final dist = 28.0 + random.nextDouble() * (w * 0.40);
+      final px = cx + math.cos(angle) * dist;
+      final py = cy + math.sin(angle) * dist * 0.7;
+      final color = confettiColors[i % confettiColors.length];
+      final pPaint = Paint()..color = color;
+      if (i % 3 == 0) {
+        canvas.drawCircle(Offset(px, py), 2.5, pPaint);
+      } else if (i % 3 == 1) {
+        canvas.drawRect(Rect.fromCenter(center: Offset(px, py), width: 4.5, height: 4.5), pPaint);
+      } else {
+        canvas.drawLine(Offset(px - 2.5, py - 2.5), Offset(px + 2.5, py + 2.5), Paint()..color = color..strokeWidth = 2);
+      }
+    }
+
+    final trophyPaint = Paint()..color = const Color(0xFFF39C12);
+    final trophyHighlight = Paint()..color = const Color(0xFFFFEAA7);
+    final trophyShadow = Paint()..color = const Color(0xFFD35400);
+
+    // Pedestal
+    final baseRect = RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, cy + 32), width: 44, height: 10), const Radius.circular(3));
+    canvas.drawRRect(baseRect, trophyShadow);
+    final standRect = Rect.fromCenter(center: Offset(cx, cy + 22), width: 14, height: 12);
+    canvas.drawRect(standRect, trophyPaint);
+
+    // Handles
+    final handlePaint = Paint()
+      ..color = const Color(0xFFF39C12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(Rect.fromCenter(center: Offset(cx - 24, cy - 2), width: 20, height: 24), math.pi * 0.5, math.pi, false, handlePaint);
+    canvas.drawArc(Rect.fromCenter(center: Offset(cx + 24, cy - 2), width: 20, height: 24), -math.pi * 0.5, math.pi, false, handlePaint);
+
+    // Cup body
+    final cupPath = Path();
+    cupPath.moveTo(cx - 22, cy - 18);
+    cupPath.lineTo(cx + 22, cy - 18);
+    cupPath.quadraticBezierTo(cx + 20, cy + 16, cx, cy + 18);
+    cupPath.quadraticBezierTo(cx - 20, cy + 16, cx - 22, cy - 18);
+    cupPath.close();
+    canvas.drawPath(cupPath, trophyPaint);
+
+    // Shine
+    final shinePath = Path();
+    shinePath.moveTo(cx - 16, cy - 14);
+    shinePath.lineTo(cx - 12, cy - 14);
+    shinePath.quadraticBezierTo(cx - 10, cy + 8, cx - 4, cy + 12);
+    shinePath.lineTo(cx - 8, cy + 12);
+    shinePath.close();
+    canvas.drawPath(shinePath, trophyHighlight);
+
+    // Star
+    _drawStar(canvas, Offset(cx, cy - 2), 6.5, 3.2, Paint()..color = Colors.white);
+
+    // Sparkles
+    _drawSparkle(canvas, Offset(cx - 34, cy - 22), 5, const Color(0xFFF1C40F));
+    _drawSparkle(canvas, Offset(cx + 32, cy - 20), 6, primaryColor);
+    _drawSparkle(canvas, Offset(cx, cy - 32), 4, const Color(0xFFF1C40F));
+  }
+
+  void _drawStar(Canvas canvas, Offset center, double outerRadius, double innerRadius, Paint paint) {
+    final path = Path();
+    for (int i = 0; i < 10; i++) {
+      final r = i.isEven ? outerRadius : innerRadius;
+      final angle = (i * math.pi / 5) - math.pi / 2;
+      final x = center.dx + r * math.cos(angle);
+      final y = center.dy + r * math.sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  void _drawSparkle(Canvas canvas, Offset center, double size, Color color) {
+    final p = Paint()..color = color..strokeWidth = 2..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(center.dx - size, center.dy), Offset(center.dx + size, center.dy), p);
+    canvas.drawLine(Offset(center.dx, center.dy - size), Offset(center.dx, center.dy + size), p);
+  }
+
+  @override
+  bool shouldRepaint(covariant _WinResultPainter old) => old.primaryColor != primaryColor;
+}
+
+class _LoseResultPainter extends CustomPainter {
+  final Color primaryColor;
+  _LoseResultPainter({required this.primaryColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final cx = w / 2;
+    final cy = h / 2 + 4;
+
+    // Sweat drops
+    final sweatPaint = Paint()..color = const Color(0xFF3498DB);
+    canvas.drawCircle(Offset(cx + 28, cy - 16), 3.5, sweatPaint);
+    canvas.drawCircle(Offset(cx - 28, cy - 12), 3.5, sweatPaint);
+
+    final pencilPaint = Paint()..color = const Color(0xFFE74C3C);
+    final woodPaint = Paint()..color = const Color(0xFFFFD1A4);
+    final graphitePaint = Paint()..color = const Color(0xFF2C3E50);
+    final eraserPaint = Paint()..color = const Color(0xFFFF7675);
+
+    canvas.save();
+    canvas.translate(cx, cy);
+    canvas.rotate(-0.12);
+
+    // Eraser
+    canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-11, -36, 22, 12), const Radius.circular(5)), eraserPaint);
+    // Ferrule
+    canvas.drawRect(const Rect.fromLTWH(-11, -24, 22, 5), Paint()..color = const Color(0xFFBDC3C7));
+    // Body
+    canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-11, -19, 22, 34), const Radius.circular(3)), pencilPaint);
+
+    // Bandage
+    final bandagePaint = Paint()..color = const Color(0xFFFFF3CD);
+    canvas.drawRRect(RRect.fromRectAndRadius(const Rect.fromLTWH(-13, -5, 26, 8), const Radius.circular(2)), bandagePaint);
+
+    // Wood tip
+    final woodPath = Path()
+      ..moveTo(-11, 15)
+      ..lineTo(11, 15)
+      ..lineTo(0, 32)
+      ..close();
+    canvas.drawPath(woodPath, woodPaint);
+
+    // Graphite lead tip
+    final leadPath = Path()
+      ..moveTo(-4, 25)
+      ..lineTo(4, 25)
+      ..lineTo(0, 32)
+      ..close();
+    canvas.drawPath(leadPath, graphitePaint);
+
+    // Droopy eyes
+    final eyePaint = Paint()..color = Colors.white..strokeWidth = 2.2..style = PaintingStyle.stroke..strokeCap = StrokeCap.round;
+    canvas.drawArc(const Rect.fromLTWH(-8, -14, 6, 6), math.pi, math.pi, false, eyePaint);
+    canvas.drawArc(const Rect.fromLTWH(2, -14, 6, 6), math.pi, math.pi, false, eyePaint);
+
+    // Sad mouth
+    canvas.drawArc(const Rect.fromLTWH(-4, 2, 8, 6), math.pi, math.pi, false, eyePaint);
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant _LoseResultPainter old) => old.primaryColor != primaryColor;
+}
+
+class _DrawResultPainter extends CustomPainter {
+  final Color primaryColor;
+  _DrawResultPainter({required this.primaryColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final cx = w / 2;
+    final cy = h / 2 + 4;
+
+    final standPaint = Paint()..color = primaryColor..strokeWidth = 3.5..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(cx, cy - 18), Offset(cx, cy + 26), standPaint);
+    canvas.drawLine(Offset(cx - 22, cy + 26), Offset(cx + 22, cy + 26), standPaint);
+    canvas.drawLine(Offset(cx - 32, cy - 18), Offset(cx + 32, cy - 18), standPaint);
+
+    final strPaint = Paint()..color = primaryColor.withValues(alpha: 0.6)..strokeWidth = 1.5;
+    canvas.drawLine(Offset(cx - 32, cy - 18), Offset(cx - 42, cy + 4), strPaint);
+    canvas.drawLine(Offset(cx - 32, cy - 18), Offset(cx - 22, cy + 4), strPaint);
+    canvas.drawLine(Offset(cx + 32, cy - 18), Offset(cx + 22, cy + 4), strPaint);
+    canvas.drawLine(Offset(cx + 32, cy - 18), Offset(cx + 42, cy + 4), strPaint);
+
+    final panPaint1 = Paint()..color = const Color(0xFFE74C3C);
+    canvas.drawCircle(Offset(cx - 32, cy + 8), 11, panPaint1);
+    final fPaint = Paint()..color = Colors.white;
+    canvas.drawCircle(Offset(cx - 35, cy + 6), 1.5, fPaint);
+    canvas.drawCircle(Offset(cx - 29, cy + 6), 1.5, fPaint);
+
+    final panPaint2 = Paint()..color = const Color(0xFF3498DB);
+    canvas.drawCircle(Offset(cx + 32, cy + 8), 11, panPaint2);
+    canvas.drawCircle(Offset(cx + 29, cy + 6), 1.5, fPaint);
+    canvas.drawCircle(Offset(cx + 35, cy + 6), 1.5, fPaint);
+
+    final eqBg = Paint()..color = const Color(0xFFF39C12);
+    canvas.drawCircle(Offset(cx, cy - 18), 7.5, eqBg);
+    final eqP = Paint()..color = Colors.white..strokeWidth = 1.8..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(cx - 3.5, cy - 20), Offset(cx + 3.5, cy - 20), eqP);
+    canvas.drawLine(Offset(cx - 3.5, cy - 16), Offset(cx + 3.5, cy - 16), eqP);
+  }
+
+  @override
+  bool shouldRepaint(covariant _DrawResultPainter old) => old.primaryColor != primaryColor;
+}
 
 class _SnakeBoardPainter extends CustomPainter {
   final List<math.Point<int>> snake;
@@ -2172,6 +3271,7 @@ class _SnakeBoardPainter extends CustomPainter {
   final int rows;
   final int cols;
   final StationeryTheme theme;
+  final String snakeSkin;
 
   _SnakeBoardPainter({
     required this.snake,
@@ -2180,7 +3280,24 @@ class _SnakeBoardPainter extends CustomPainter {
     required this.rows,
     required this.cols,
     required this.theme,
+    required this.snakeSkin,
   });
+
+  Color _getSnakeColor() {
+    switch (snakeSkin) {
+      case 'green':
+        return const Color(0xFF27AE60);
+      case 'cyan':
+        return const Color(0xFF00CEC9);
+      case 'gold':
+        return const Color(0xFFF1C40F);
+      case 'pink':
+        return const Color(0xFFFD79A8);
+      case 'theme':
+      default:
+        return theme.primary;
+    }
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2203,10 +3320,12 @@ class _SnakeBoardPainter extends CustomPainter {
       canvas.drawCircle(Offset((goldenApple!.x + 0.5) * cellW, (goldenApple!.y + 0.5) * cellH), cellW * 0.46, goldPaint);
     }
 
+    final snakeColor = _getSnakeColor();
+
     for (int i = 0; i < snake.length; i++) {
       final p = snake[i];
       final isHead = i == 0;
-      final bodyPaint = Paint()..color = isHead ? theme.primary : theme.primary.withValues(alpha: 0.75);
+      final bodyPaint = Paint()..color = isHead ? snakeColor : snakeColor.withValues(alpha: 0.75);
       final rrect = RRect.fromRectAndRadius(
         Rect.fromLTWH(p.x * cellW + 1, p.y * cellH + 1, cellW - 2, cellH - 2),
         Radius.circular(isHead ? 6 : 4),
@@ -2230,12 +3349,14 @@ class _LudoBoardPainter extends CustomPainter {
   final int currentTurn;
   final bool hasRolled;
   final bool Function(int, int) canMoveFunc;
+  final int humanPlayer;
 
   _LudoBoardPainter({
     required this.tokens,
     required this.currentTurn,
     required this.hasRolled,
     required this.canMoveFunc,
+    required this.humanPlayer,
   });
 
   @override
@@ -2328,7 +3449,7 @@ class _LudoBoardPainter extends CustomPainter {
         }
 
         canvas.drawCircle(pos, cell * 0.36, tPaint);
-        canvas.drawCircle(pos, cell * 0.16, Paint()..color = Colors.white);
+        canvas.drawCircle(pos, cell * 0.16, Paint()..color = p == humanPlayer ? const Color(0xFFF1C40F) : Colors.white);
       }
     }
   }
@@ -2361,6 +3482,7 @@ class _SnakesAndLaddersPainter extends CustomPainter {
   final Map<int, int> snakes;
   final Map<int, int> ladders;
   final StationeryTheme theme;
+  final Color p1Color;
 
   _SnakesAndLaddersPainter({
     required this.p1Pos,
@@ -2368,6 +3490,7 @@ class _SnakesAndLaddersPainter extends CustomPainter {
     required this.snakes,
     required this.ladders,
     required this.theme,
+    required this.p1Color,
   });
 
   @override
@@ -2415,7 +3538,7 @@ class _SnakesAndLaddersPainter extends CustomPainter {
       }
     }
 
-    _drawPawn(canvas, p1Pos, cell, const Color(0xFFE74C3C), -3);
+    _drawPawn(canvas, p1Pos, cell, p1Color, -3);
     _drawPawn(canvas, p2Pos, cell, const Color(0xFF2980B9), 3);
   }
 
@@ -2489,3 +3612,4 @@ class _TetrisBoardPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _TetrisBoardPainter old) => true;
 }
+

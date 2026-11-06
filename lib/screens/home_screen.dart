@@ -213,10 +213,10 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       {
         'id': 'games',
-        'title': 'Focus Mini Games',
-        'subtitle': 'Tic-Tac-Toe & reflex training',
+        'title': 'Game',
+        'subtitle': 'Tic-Tac-Toe, Ludo, Snake & arcade',
         'category': 'Utilities',
-        'tag': 'Offline Play',
+        'tag': 'Arcade & Board',
         'iconType': 'games',
         'isFeatured': false,
         'builder': (context) => GamesScreen(theme: widget.theme),
