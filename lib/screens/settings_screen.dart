@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
+import '../services/notification_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/bouncy_tap.dart';
 
 /// ---------------------------------------------------------------------------
 /// REDESIGNED MINIMAL SETTINGS SCREEN
-/// - Pure Tooler identity (Zero "Stationery" / "School Kit" mentions)
+/// - Pure Tooler identity
 /// - Modern Dark Mode switch
 /// - Compact Color Accent bars with round color preview dots
 /// - Tactile Sound & Haptic Vibration toggles
-/// - Clean dialogs with 1.2px borders
+/// - Notifications & Background persistence toggle
+/// - Terms and Conditions & Privacy Policy dialogs
+/// - About Developer (Ayush Harinkhede) with direct Send Feedback email launch
 /// ---------------------------------------------------------------------------
 
 class SettingsScreen extends StatefulWidget {
@@ -34,6 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late ToolerAccent _accent;
   late bool _soundOn;
   late bool _hapticsOn;
+  bool _notificationsOn = true;
 
   @override
   void initState() {
@@ -42,6 +47,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _accent = widget.theme.accentPalette;
     _soundOn = SoundService().soundEnabled;
     _hapticsOn = SoundService().hapticsEnabled;
+    _loadNotificationPref();
+  }
+
+  void _loadNotificationPref() async {
+    final enabled = await StorageService().loadNotificationsEnabled();
+    if (mounted) {
+      setState(() => _notificationsOn = enabled);
+    }
   }
 
   void _onToggleDarkMode(bool val) async {
@@ -68,8 +81,251 @@ class _SettingsScreenState extends State<SettingsScreen> {
     widget.onThemeChanged(nextMode);
   }
 
-  void _showAboutDialog() {
+  void _onToggleNotifications(bool val) async {
+    SoundService().playSpecialClick();
+    setState(() => _notificationsOn = val);
+    await StorageService().saveNotificationsEnabled(val);
+    if (val) {
+      await NotificationService().init();
+    }
+  }
+
+  void _launchSendFeedback() async {
+    SoundService().playSpecialClick();
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: 'ayushharinkhere2005@gmail.com',
+      queryParameters: {
+        'subject': 'Tooler App Feedback & Suggestions',
+        'body': 'Hi Ayush,\n\nI have the following feedback regarding Tooler:\n\n',
+      },
+    );
+    try {
+      await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open default email client.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _showTermsDialog() {
     SoundService().playClick();
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = widget.theme;
+        return AlertDialog(
+          backgroundColor: theme.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: theme.border, width: 1.2),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.gavel_rounded, color: theme.primary, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Terms & Conditions',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: theme.text,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Last Updated: November 2026',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildLegalSection(
+                    '1. Acceptance of Terms',
+                    'By downloading, accessing, or utilizing the Tooler multi-utility application, you acknowledge and agree to be bound by these Terms and Conditions.',
+                    theme,
+                  ),
+                  _buildLegalSection(
+                    '2. Offline Utility & Calculations',
+                    'Tooler is designed as a standalone offline utility providing mathematical calculations, geometric sizers, unit conversions, and productivity helpers. All results are computed directly on your device. Measurements and conversions are for general informational and reference purposes.',
+                    theme,
+                  ),
+                  _buildLegalSection(
+                    '3. Intellectual Property',
+                    'All original designs, algorithms, 3D stationery assets, visual branding, and codebases associated with Tooler are created and owned by Ayush Harinkhede. Unauthorized redistribution, reverse-engineering, or commercial resale is strictly prohibited.',
+                    theme,
+                  ),
+                  _buildLegalSection(
+                    '4. Disclaimer of Warranties',
+                    'The application is provided "as is" without warranty of any kind. While precision and accuracy are paramount in our mathematical algorithms, the developer assumes no liability for critical reliance on physical screen calibrations or hardware sensor tolerances.',
+                    theme,
+                  ),
+                  _buildLegalSection(
+                    '5. Modifications',
+                    'We reserve the right to modify these terms at any time through application updates. Continued use of Tooler signifies your acceptance of updated terms.',
+                    theme,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                SoundService().playClick();
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Understood',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  color: theme.primary,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showPrivacyPolicyDialog() {
+    SoundService().playClick();
+    showDialog(
+      context: context,
+      builder: (context) {
+        final theme = widget.theme;
+        return AlertDialog(
+          backgroundColor: theme.cardBg,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: theme.border, width: 1.2),
+          ),
+          title: Row(
+            children: [
+              Icon(Icons.privacy_tip_outlined, color: theme.primary, size: 22),
+              const SizedBox(width: 10),
+              Text(
+                'Privacy Policy',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: theme.text,
+                ),
+              ),
+            ],
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Effective Date: November 2026',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildLegalSection(
+                    '1. 100% On-Device & Zero Tracking',
+                    'Tooler is built on a privacy-by-design foundation. We do NOT track, collect, store, transmit, or monetize any personal identification data, location history, or usage analytics.',
+                    theme,
+                  ),
+                  _buildLegalSection(
+                    '2. Local Storage Persistence',
+                    'All your calculations, custom counters, task schedules, notes, and appearance settings are stored strictly in local device sandboxed storage (SharedPreferences). When you clear data or uninstall the app, all records are permanently erased from your device.',
+                    theme,
+                  ),
+                  _buildLegalSection(
+                    '3. System Permissions',
+                    '• Notifications: Used solely for alerting you when a Timer finishes, when a Stopwatch crosses a milestone, or when a Task is due.\n• Vibration / Haptics: Used only to provide tactile feedback during interactions.\nTooler does NOT require internet access or background telemetry servers.',
+                    theme,
+                  ),
+                  _buildLegalSection(
+                    '4. Third-Party Sharing',
+                    'We do not integrate third-party advertising SDKs or tracking pixels. Your data never leaves your smartphone.',
+                    theme,
+                  ),
+                  _buildLegalSection(
+                    '5. Contact & Inquiries',
+                    'For inquiries regarding privacy or your rights, you can reach out directly via the in-app Send Feedback option.',
+                    theme,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                SoundService().playClick();
+                Navigator.pop(context);
+              },
+              child: Text(
+                'Accept',
+                style: GoogleFonts.plusJakartaSans(
+                  fontWeight: FontWeight.w700,
+                  color: theme.primary,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildLegalSection(String title, String body, StationeryTheme theme) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: theme.text,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            body,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12,
+              height: 1.45,
+              color: theme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAboutDialog() {
+    SoundService().playSpecialClick();
     showDialog(
       context: context,
       builder: (context) {
@@ -91,7 +347,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 14),
               Text(
-                'A clean, aesthetic, minimal multi-utility application offering precision calculators, unit converters, live compass sensors, and productivity tools with zero clutter.',
+                'A clean, aesthetic, minimal multi-utility application offering precision calculators, unit converters, geometric sizers, live compass sensors, and productivity tools with zero clutter.',
                 textAlign: TextAlign.center,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 13,
@@ -101,18 +357,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               const SizedBox(height: 16),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
                   color: theme.lavenderCard,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: theme.border, width: 1),
                 ),
-                child: Text(
-                  'v1.0.0 • Ayush Harinkhede',
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: theme.text,
+                child: Column(
+                  children: [
+                    Text(
+                      'Created by',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: theme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Ayush Harinkhede',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: theme.text,
+                        letterSpacing: -0.2,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'v1.0.0 • Tooler Master Edition',
+                      style: GoogleFonts.robotoMono(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: theme.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              // Direct Send Feedback Button in About
+              BouncyTap(
+                onTap: () {
+                  Navigator.pop(context);
+                  _launchSendFeedback();
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: theme.primary,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: [
+                      BoxShadow(
+                        color: theme.primary.withValues(alpha: 0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.mail_outline_rounded, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Send Feedback',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -128,7 +445,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'Close',
                 style: GoogleFonts.plusJakartaSans(
                   fontWeight: FontWeight.w700,
-                  color: theme.primary,
+                  color: theme.textSecondary,
                 ),
               ),
             ),
@@ -159,7 +476,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           content: Text(
-            'This will reset calculation history, custom counters, and tasks.',
+            'This will reset calculation history, custom counters, active timer/stopwatch states, and tasks.',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 14,
               color: theme.textSecondary,
@@ -177,11 +494,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
               onPressed: () async {
                 SoundService().playClick();
+                final nav = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
                 await StorageService().clearAllData();
+                await StorageService().clearTimerState();
+                await StorageService().clearStopwatchState();
                 if (mounted) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('All local data cleared successfully')),
+                  nav.pop();
+                  messenger.showSnackBar(
+                    const SnackBar(
+                      content: Text('All local data cleared successfully'),
+                      behavior: SnackBarBehavior.floating,
+                    ),
                   );
                 }
               },
@@ -282,7 +606,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 18),
 
-            // 2. Color Accent Palette (Compact Bars with Color Dots)
+            // 2. Color Accent Palette
             _buildSectionCard(
               title: 'Color Palette',
               child: Column(
@@ -307,9 +631,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 18),
 
-            // 3. Audio & Haptics Feedback
+            // 3. Audio, Haptics & Notifications
             _buildSectionCard(
-              title: 'Feedback & Sound',
+              title: 'Feedback & Notifications',
               child: Column(
                 children: [
                   Row(
@@ -373,15 +697,56 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
+                  Divider(color: theme.border, height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(Icons.notifications_active_outlined, size: 20, color: theme.textSecondary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Background Notifications',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.text,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Timer ring, stopwatch & task alerts',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      color: theme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: _notificationsOn,
+                        activeTrackColor: theme.primary,
+                        onChanged: _onToggleNotifications,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
             const SizedBox(height: 18),
 
-            // 4. System & About Card
+            // 4. Developer & Feedback Card
             _buildSectionCard(
-              title: 'About',
+              title: 'Developer & Support',
               child: Column(
                 children: [
                   InkWell(
@@ -392,13 +757,125 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'About Tooler',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: theme.text,
-                            ),
+                          Row(
+                            children: [
+                              Icon(Icons.person_pin_rounded, size: 20, color: theme.primary),
+                              const SizedBox(width: 12),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'About Developer',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.text,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Ayush Harinkhede',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12,
+                                      color: theme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Icon(Icons.chevron_right_rounded, size: 20, color: theme.textSecondary),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Divider(color: theme.border, height: 16),
+                  InkWell(
+                    onTap: _launchSendFeedback,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.feedback_outlined, size: 20, color: theme.primary),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Send Feedback',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.text,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(Icons.open_in_new_rounded, size: 18, color: theme.textSecondary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // 5. Legal & Policies Card
+            _buildSectionCard(
+              title: 'Legal & Privacy',
+              child: Column(
+                children: [
+                  InkWell(
+                    onTap: _showTermsDialog,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.gavel_outlined, size: 20, color: theme.textSecondary),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Terms & Conditions',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.text,
+                                ),
+                              ),
+                            ],
+                          ),
+                          Icon(Icons.chevron_right_rounded, size: 20, color: theme.textSecondary),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Divider(color: theme.border, height: 16),
+                  InkWell(
+                    onTap: _showPrivacyPolicyDialog,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(Icons.privacy_tip_outlined, size: 20, color: theme.textSecondary),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Privacy Policy',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.text,
+                                ),
+                              ),
+                            ],
                           ),
                           Icon(Icons.chevron_right_rounded, size: 20, color: theme.textSecondary),
                         ],
@@ -414,15 +891,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            'Clear Local Saved Data',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.red,
-                            ),
+                          Row(
+                            children: [
+                              const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Clear Local Saved Data',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            ],
                           ),
-                          const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                          const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.red),
                         ],
                       ),
                     ),

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
+import '../services/storage_service.dart';
 
 class StopwatchScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -25,41 +26,137 @@ class _LapRecord {
   });
 }
 
-class _StopwatchScreenState extends State<StopwatchScreen> with SingleTickerProviderStateMixin {
-  final Stopwatch _stopwatch = Stopwatch();
-  Timer? _timer;
+class _StopwatchScreenState extends State<StopwatchScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+  bool _isRunning = false;
+  int _startEpochMs = 0;
+  int _savedElapsedMs = 0;
+  Timer? _ticker;
   final List<_LapRecord> _laps = [];
   int _lastLapTotalMs = 0;
 
-  void _startTimer() {
-    SoundService().playClick();
-    _stopwatch.start();
-    _timer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
-      if (mounted) setState(() {});
+  int get _elapsedMs {
+    if (_isRunning && _startEpochMs > 0) {
+      return DateTime.now().millisecondsSinceEpoch - _startEpochMs;
+    }
+    return _savedElapsedMs;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _restoreStopwatchState();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _persistStopwatchState();
+    } else if (state == AppLifecycleState.resumed) {
+      _restoreStopwatchState();
+    }
+  }
+
+  void _persistStopwatchState() {
+    if (_isRunning) {
+      StorageService().saveStopwatchState(
+        isRunning: true,
+        startEpochMs: _startEpochMs,
+        elapsedMs: _elapsedMs,
+      );
+    } else if (_savedElapsedMs > 0) {
+      StorageService().saveStopwatchState(
+        isRunning: false,
+        startEpochMs: 0,
+        elapsedMs: _savedElapsedMs,
+      );
+    }
+  }
+
+  void _restoreStopwatchState() async {
+    final state = await StorageService().loadStopwatchState();
+    if (!mounted) return;
+
+    final isRunning = state['isRunning'] as bool? ?? false;
+    final startEpoch = state['startEpochMs'] as int? ?? 0;
+    final elapsed = state['elapsedMs'] as int? ?? 0;
+
+    if (isRunning && startEpoch > 0) {
+      setState(() {
+        _isRunning = true;
+        _startEpochMs = startEpoch;
+      });
+      _startTicker();
+    } else if (elapsed > 0) {
+      setState(() {
+        _isRunning = false;
+        _savedElapsedMs = elapsed;
+      });
+    }
+  }
+
+  void _startTicker() {
+    _ticker?.cancel();
+    _ticker = Timer.periodic(const Duration(milliseconds: 30), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      setState(() {});
     });
+  }
+
+  void _startTimer() {
+    SoundService().playSpecialClick();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    setState(() {
+      _isRunning = true;
+      _startEpochMs = now - _savedElapsedMs;
+    });
+
+    StorageService().saveStopwatchState(
+      isRunning: true,
+      startEpochMs: _startEpochMs,
+      elapsedMs: _elapsedMs,
+    );
+
+    _startTicker();
   }
 
   void _pauseTimer() {
     SoundService().playClick();
-    _stopwatch.stop();
-    _timer?.cancel();
-    if (mounted) setState(() {});
+    final current = _elapsedMs;
+    _ticker?.cancel();
+    setState(() {
+      _isRunning = false;
+      _savedElapsedMs = current;
+    });
+
+    StorageService().saveStopwatchState(
+      isRunning: false,
+      startEpochMs: 0,
+      elapsedMs: _savedElapsedMs,
+    );
   }
 
   void _resetTimer() {
     SoundService().playClick();
-    _stopwatch.reset();
-    _timer?.cancel();
+    _ticker?.cancel();
+    StorageService().clearStopwatchState();
     setState(() {
+      _isRunning = false;
+      _startEpochMs = 0;
+      _savedElapsedMs = 0;
       _laps.clear();
       _lastLapTotalMs = 0;
     });
   }
 
   void _lapTimer() {
-    if (!_stopwatch.isRunning) return;
+    if (!_isRunning) return;
     SoundService().playKey();
-    final int currentMs = _stopwatch.elapsedMilliseconds;
+    final int currentMs = _elapsedMs;
     final int lapDuration = currentMs - _lastLapTotalMs;
     _lastLapTotalMs = currentMs;
 
@@ -89,13 +186,14 @@ class _StopwatchScreenState extends State<StopwatchScreen> with SingleTickerProv
 
   @override
   void dispose() {
-    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _ticker?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final int elapsedMs = _stopwatch.elapsedMilliseconds;
+    final int elapsedMs = _elapsedMs;
     final double secondsFraction = (elapsedMs % 60000) / 1000.0;
     final double needleAngle = (secondsFraction / 60.0) * 2 * math.pi;
 
@@ -212,17 +310,17 @@ class _StopwatchScreenState extends State<StopwatchScreen> with SingleTickerProv
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _stopwatch.isRunning
+                          color: _isRunning
                               ? const Color(0xFF2ED573).withValues(alpha: 0.2)
                               : widget.theme.border.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          _stopwatch.isRunning ? "RUNNING" : (elapsedMs > 0 ? "PAUSED" : "STOPPED"),
+                          _isRunning ? "RUNNING" : (elapsedMs > 0 ? "PAUSED" : "STOPPED"),
                           style: widget.theme.fontMono(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: _stopwatch.isRunning ? const Color(0xFF2ED573) : widget.theme.textSecondary,
+                            color: _isRunning ? const Color(0xFF2ED573) : widget.theme.textSecondary,
                           ),
                         ),
                       ),
@@ -256,13 +354,13 @@ class _StopwatchScreenState extends State<StopwatchScreen> with SingleTickerProv
                       ),
                       // Start / Pause
                       _buildRoundBtn(
-                        label: _stopwatch.isRunning ? "Pause" : "Start",
-                        icon: _stopwatch.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                        color: _stopwatch.isRunning
+                        label: _isRunning ? "Pause" : "Start",
+                        icon: _isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        color: _isRunning
                             ? const Color(0xFFFFB300)
                             : widget.theme.primary,
                         isLarge: true,
-                        onTap: _stopwatch.isRunning ? _pauseTimer : _startTimer,
+                        onTap: _isRunning ? _pauseTimer : _startTimer,
                       ),
                       // Lap
                       _buildRoundBtn(

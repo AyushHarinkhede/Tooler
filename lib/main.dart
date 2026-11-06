@@ -2,10 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'theme/stationery_theme.dart';
 import 'services/storage_service.dart';
+import 'services/notification_service.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize notifications service for background timer, stopwatch & tasks
+  await NotificationService().init();
 
   // Set system navigation and status bar style
   SystemChrome.setSystemUIOverlayStyle(

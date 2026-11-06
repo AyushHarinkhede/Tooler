@@ -19,6 +19,18 @@ class StorageService {
   static const String keySoundEnabled = 'tooler_sound_enabled';
   static const String keyHapticsEnabled = 'tooler_haptics_enabled';
   static const String keyFavorites = 'tooler_favorites_list';
+  static const String keyNotificationsEnabled = 'tooler_notifications_enabled';
+
+  // Background Timer State
+  static const String keyTimerRunning = 'tooler_timer_running';
+  static const String keyTimerTargetEpoch = 'tooler_timer_target_epoch';
+  static const String keyTimerInitialSecs = 'tooler_timer_initial_secs';
+
+  // Background Stopwatch State
+  static const String keyStopwatchRunning = 'tooler_stopwatch_running';
+  static const String keyStopwatchStartEpoch = 'tooler_stopwatch_start_epoch';
+  static const String keyStopwatchElapsedMs = 'tooler_stopwatch_elapsed_ms';
+  static const String keyStopwatchLaps = 'tooler_stopwatch_laps';
 
   Future<List<TaskItem>> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
@@ -135,10 +147,85 @@ class StorageService {
     return !isFav;
   }
 
+  Future<bool> loadNotificationsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keyNotificationsEnabled) ?? true;
+  }
+
+  Future<void> saveNotificationsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyNotificationsEnabled, enabled);
+  }
+
+  // --- Background Timer Persistence ---
+  Future<void> saveTimerState({
+    required bool isRunning,
+    required int targetEpochMs,
+    required int initialSeconds,
+    int remainingSeconds = 0,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyTimerRunning, isRunning);
+    await prefs.setInt(keyTimerTargetEpoch, targetEpochMs);
+    await prefs.setInt(keyTimerInitialSecs, initialSeconds);
+    await prefs.setInt('timer_remaining_secs', remainingSeconds);
+  }
+
+  Future<Map<String, dynamic>> loadTimerState() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'isRunning': prefs.getBool(keyTimerRunning) ?? false,
+      'targetEpochMs': prefs.getInt(keyTimerTargetEpoch) ?? 0,
+      'initialSeconds': prefs.getInt(keyTimerInitialSecs) ?? 300,
+      'remainingSeconds': prefs.getInt('timer_remaining_secs') ?? 0,
+    };
+  }
+
+  Future<void> clearTimerState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(keyTimerRunning);
+    await prefs.remove(keyTimerTargetEpoch);
+    await prefs.remove('timer_remaining_secs');
+  }
+
+  // --- Background Stopwatch Persistence ---
+  Future<void> saveStopwatchState({
+    required bool isRunning,
+    required int startEpochMs,
+    required int elapsedMs,
+    List<String> laps = const [],
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyStopwatchRunning, isRunning);
+    await prefs.setInt(keyStopwatchStartEpoch, startEpochMs);
+    await prefs.setInt(keyStopwatchElapsedMs, elapsedMs);
+    await prefs.setStringList(keyStopwatchLaps, laps);
+  }
+
+  Future<Map<String, dynamic>> loadStopwatchState() async {
+    final prefs = await SharedPreferences.getInstance();
+    return {
+      'isRunning': prefs.getBool(keyStopwatchRunning) ?? false,
+      'startEpochMs': prefs.getInt(keyStopwatchStartEpoch) ?? 0,
+      'elapsedMs': prefs.getInt(keyStopwatchElapsedMs) ?? 0,
+      'laps': prefs.getStringList(keyStopwatchLaps) ?? <String>[],
+    };
+  }
+
+  Future<void> clearStopwatchState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(keyStopwatchRunning);
+    await prefs.remove(keyStopwatchStartEpoch);
+    await prefs.remove(keyStopwatchElapsedMs);
+    await prefs.remove(keyStopwatchLaps);
+  }
+
   Future<void> clearAllData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(keyTasks);
     await prefs.remove(keyCounters);
     await prefs.remove(keyCalcHistory);
+    await clearTimerState();
+    await clearStopwatchState();
   }
 }

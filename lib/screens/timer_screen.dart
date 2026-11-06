@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
+import '../services/storage_service.dart';
+import '../services/notification_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 
 class TimerScreen extends StatefulWidget {
@@ -14,7 +16,8 @@ class TimerScreen extends StatefulWidget {
   State<TimerScreen> createState() => _TimerScreenState();
 }
 
-class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStateMixin {
+class _TimerScreenState extends State<TimerScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   int _initialSeconds = 300; // 5 min default
   int _currentSeconds = 300;
   Timer? _timer;
@@ -30,10 +33,98 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
+    _restoreTimerState();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _persistCurrentTimer();
+    } else if (state == AppLifecycleState.resumed) {
+      _restoreTimerState();
+    }
+  }
+
+  void _persistCurrentTimer() {
+    if (_isRunning && _currentSeconds > 0) {
+      final targetEpoch = DateTime.now().millisecondsSinceEpoch + (_currentSeconds * 1000);
+      StorageService().saveTimerState(
+        isRunning: true,
+        initialSeconds: _initialSeconds,
+        remainingSeconds: _currentSeconds,
+        targetEpochMs: targetEpoch,
+      );
+    } else if (!_isRunning && _currentSeconds < _initialSeconds && _currentSeconds > 0) {
+      StorageService().saveTimerState(
+        isRunning: false,
+        initialSeconds: _initialSeconds,
+        remainingSeconds: _currentSeconds,
+        targetEpochMs: 0,
+      );
+    }
+  }
+
+  void _restoreTimerState() async {
+    final state = await StorageService().loadTimerState();
+    if (!mounted) return;
+
+    final isRunning = state['isRunning'] as bool? ?? false;
+    final initialSec = state['initialSeconds'] as int? ?? 300;
+    final remainingSec = state['remainingSeconds'] as int? ?? 300;
+    final targetEpoch = state['targetEpochMs'] as int? ?? 0;
+
+    if (isRunning && targetEpoch > 0) {
+      final now = DateTime.now().millisecondsSinceEpoch;
+      final diffMs = targetEpoch - now;
+
+      if (diffMs <= 0) {
+        // Timer completed while app was away or closed in RAM!
+        setState(() {
+          _initialSeconds = initialSec;
+          _currentSeconds = 0;
+          _isRunning = false;
+        });
+        await StorageService().clearTimerState();
+        _onTimerFinished(wasBackground: true);
+      } else {
+        // Still running!
+        final remaining = (diffMs / 1000).ceil();
+        setState(() {
+          _initialSeconds = initialSec;
+          _currentSeconds = remaining;
+        });
+        _resumeActiveTicker();
+      }
+    } else if (remainingSec > 0 && remainingSec != initialSec && !_isRunning) {
+      setState(() {
+        _initialSeconds = initialSec;
+        _currentSeconds = remainingSec;
+        _isRunning = false;
+      });
+    }
+  }
+
+  void _resumeActiveTicker() {
+    _timer?.cancel();
+    setState(() => _isRunning = true);
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+      if (_currentSeconds > 1) {
+        setState(() => _currentSeconds--);
+        _persistCurrentTimer();
+      } else if (_currentSeconds == 1) {
+        setState(() => _currentSeconds = 0);
+        _onTimerFinished();
+      }
+    });
   }
 
   void _startTimer() {
@@ -44,11 +135,22 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
         return;
       }
     }
-    SoundService().playClick();
+    SoundService().playSpecialClick();
     setState(() => _isRunning = true);
+
+    final targetEpoch = DateTime.now().millisecondsSinceEpoch + (_currentSeconds * 1000);
+    StorageService().saveTimerState(
+      isRunning: true,
+      initialSeconds: _initialSeconds,
+      remainingSeconds: _currentSeconds,
+      targetEpochMs: targetEpoch,
+    );
+
+    _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_currentSeconds > 1) {
         setState(() => _currentSeconds--);
+        _persistCurrentTimer();
       } else if (_currentSeconds == 1) {
         setState(() => _currentSeconds = 0);
         _onTimerFinished();
@@ -60,11 +162,19 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     SoundService().playClick();
     _timer?.cancel();
     setState(() => _isRunning = false);
+    StorageService().saveTimerState(
+      isRunning: false,
+      initialSeconds: _initialSeconds,
+      remainingSeconds: _currentSeconds,
+      targetEpochMs: 0,
+    );
   }
 
   void _resetTimer() {
     SoundService().playClick();
     _timer?.cancel();
+    StorageService().clearTimerState();
+    SoundService().stopTimerAlarm();
     setState(() {
       _isRunning = false;
       _currentSeconds = _initialSeconds;
@@ -74,6 +184,8 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
   void _setPreset(int totalSec) {
     SoundService().playClick();
     _timer?.cancel();
+    StorageService().clearTimerState();
+    SoundService().stopTimerAlarm();
     setState(() {
       _isRunning = false;
       _initialSeconds = totalSec;
@@ -91,13 +203,18 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
       _currentSeconds += secondsToAdd;
       _initialSeconds = math.max(_initialSeconds, _currentSeconds);
     });
+    if (_isRunning) {
+      _persistCurrentTimer();
+    }
   }
 
   void _applyCustomTime() {
     final int total = (_customHours * 3600) + (_customMinutes * 60) + _customSeconds;
     if (total <= 0) return;
-    SoundService().playClick();
+    SoundService().playSpecialClick();
     _timer?.cancel();
+    StorageService().clearTimerState();
+    SoundService().stopTimerAlarm();
     setState(() {
       _isRunning = false;
       _initialSeconds = total;
@@ -106,17 +223,19 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     });
   }
 
-  /// Alarm chime sound sequence when countdown completes
-  void _onTimerFinished() {
+  /// Alarm chime sound sequence & background notification when countdown completes
+  void _onTimerFinished({bool wasBackground = false}) {
     _timer?.cancel();
     setState(() => _isRunning = false);
+    StorageService().clearTimerState();
 
-    // Play initial alert sound
-    SoundService().playAlert();
+    // Ring continuous timer alarm audio
+    SoundService().playTimerAlarm();
 
-    // Repeating audio chimes sequence
-    Timer(const Duration(milliseconds: 350), () => SoundService().playAlert());
-    Timer(const Duration(milliseconds: 700), () => SoundService().playAlert());
+    // Trigger high-priority notification with sound
+    NotificationService().showTimerCompleteNotification(
+      label: _formatTimerDisplay(_initialSeconds),
+    );
 
     _showFinishedDialog();
   }
@@ -129,21 +248,21 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
         return AlertDialog(
           backgroundColor: widget.theme.cardBg,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: widget.theme.border, width: 2.5),
+            borderRadius: BorderRadius.circular(24),
+            side: BorderSide(color: widget.theme.border, width: 2.0),
           ),
           title: Row(
             children: [
               Container(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF2ED573).withValues(alpha: 0.15),
+                  color: const Color(0xFF2ED573).withValues(alpha: 0.18),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.notifications_active_rounded,
+                  Icons.alarm_on_rounded,
                   color: Color(0xFF2ED573),
-                  size: 24,
+                  size: 26,
                 ),
               ),
               const SizedBox(width: 12),
@@ -156,25 +275,48 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
               ),
             ],
           ),
-          content: Text(
-            "Your countdown timer has completed successfully.",
-            style: widget.theme.fontDoodle(fontSize: 15),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Your countdown timer (${_formatTimerDisplay(_initialSeconds)}) has completed.",
+                style: widget.theme.fontDoodle(fontSize: 15),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  const Icon(Icons.music_note_rounded, size: 16, color: Color(0xFF2ED573)),
+                  const SizedBox(width: 6),
+                  Text(
+                    "Alarm ringing...",
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: widget.theme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
           actions: [
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: widget.theme.primary,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                elevation: 4,
               ),
               onPressed: () {
+                SoundService().stopTimerAlarm();
                 Navigator.pop(context);
                 _resetTimer();
               },
-              child: const Text("Done"),
+              child: const Text("Stop Alarm & Done", style: TextStyle(fontWeight: FontWeight.w700)),
             ),
           ],
         );
@@ -195,8 +337,10 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _pulseController.dispose();
+    SoundService().stopTimerAlarm();
     super.dispose();
   }
 
