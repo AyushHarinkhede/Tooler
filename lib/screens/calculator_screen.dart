@@ -10,6 +10,10 @@ import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../widgets_3d/stationery_3d_modal.dart';
 
+enum CalcMode { basic, scientific, programmer }
+enum ProgBase { hex, dec, oct, bin }
+enum ProgWordSize { qword64, dword32, word16, byte8 }
+
 class CalculatorScreen extends StatefulWidget {
   final StationeryTheme theme;
   const CalculatorScreen({super.key, required this.theme});
@@ -19,17 +23,24 @@ class CalculatorScreen extends StatefulWidget {
 }
 
 class _CalculatorScreenState extends State<CalculatorScreen> {
+  CalcMode _calcMode = CalcMode.basic;
+
+  // General State
   String _expression = '0';
   String _previewResult = '';
   String _lastEquation = '';
   String? _easterEggText;
-  bool _isScientific = false;
   bool _isRad = false; // Angle mode: false = DEG, true = RAD
   bool _is2nd = false; // 2nd function toggle for inverse trig / alt powers
   double? _memoryValue;
   List<CalcHistoryItem> _history = [];
 
-  // Clock Mode on holding 'C' for 2-3 sec
+  // Programmer State
+  ProgBase _progBase = ProgBase.dec;
+  ProgWordSize _progWordSize = ProgWordSize.qword64;
+  BigInt _progValue = BigInt.zero;
+
+  // Clock Mode on holding 'C' / 'AC' for 2-3 sec
   bool _isClockMode = false;
   String _clockTimeStr = '';
   String _clockDateStr = '';
@@ -113,10 +124,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _previewResult = '';
         _lastEquation = '';
         _easterEggText = null;
+        _progValue = BigInt.zero;
       } else if (key == '⌫') {
         _handleBackspace();
       } else if (key == '=') {
-        _evaluateFinal();
+        if (_calcMode == CalcMode.programmer) {
+          _evaluateFinalProgrammer();
+        } else {
+          _evaluateFinal();
+        }
       } else if (key == '±') {
         _toggleSign();
       } else if (key == '%') {
@@ -146,7 +162,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       } else if (key == 'M-') {
         _handleMemoryAdd(false);
       } else {
-        _appendKey(key);
+        if (_calcMode == CalcMode.programmer) {
+          _appendProgKey(key);
+        } else {
+          _appendKey(key);
+        }
       }
     });
 
@@ -167,26 +187,51 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       } else if (logical == LogicalKeyboardKey.backspace) {
         _onKeyPress('⌫');
         return KeyEventResult.handled;
-      } else if (logical == LogicalKeyboardKey.escape || char == 'c' || char == 'C') {
-        _onKeyPress('C');
+      } else if (logical == LogicalKeyboardKey.escape) {
+        _onKeyPress('AC');
         return KeyEventResult.handled;
-      } else if (char != null &&
-          ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '+', '-', '%', '(', ')', '^'].contains(char)) {
-        _onKeyPress(char);
-        return KeyEventResult.handled;
-      } else if (char == '*' || char == 'x' || char == 'X') {
-        _onKeyPress('×');
-        return KeyEventResult.handled;
-      } else if (char == '/') {
-        _onKeyPress('÷');
-        return KeyEventResult.handled;
+      } else if (char != null) {
+        final upper = char.toUpperCase();
+        if (_calcMode == CalcMode.programmer && ['A', 'B', 'C', 'D', 'E', 'F'].contains(upper)) {
+          if (_isProgKeyAllowed(upper)) {
+            _onKeyPress(upper);
+            return KeyEventResult.handled;
+          }
+        } else if (upper == 'C') {
+          _onKeyPress('C');
+          return KeyEventResult.handled;
+        } else if (['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', '+', '-', '%', '(', ')', '^'].contains(char)) {
+          if (_calcMode == CalcMode.programmer && !_isProgKeyAllowed(char)) {
+            return KeyEventResult.ignored;
+          }
+          _onKeyPress(char);
+          return KeyEventResult.handled;
+        } else if (char == '*' || char == 'x' || char == 'X') {
+          _onKeyPress('×');
+          return KeyEventResult.handled;
+        } else if (char == '/') {
+          _onKeyPress('÷');
+          return KeyEventResult.handled;
+        } else if (char == '&') {
+          _onKeyPress('AND');
+          return KeyEventResult.handled;
+        } else if (char == '|') {
+          _onKeyPress('OR');
+          return KeyEventResult.handled;
+        } else if (char == '~') {
+          _onKeyPress('NOT');
+          return KeyEventResult.handled;
+        }
       }
     }
     return KeyEventResult.ignored;
   }
 
   bool _isErrorState() {
-    return _expression == 'Error' || _expression.startsWith('Cannot') || _expression.startsWith('Ask your');
+    return _expression == 'Error' ||
+        _expression.startsWith('Cannot') ||
+        _expression.startsWith('Ask your') ||
+        _expression.contains('Error');
   }
 
   void _handleBackspace() {
@@ -194,18 +239,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _expression = '0';
       _previewResult = '';
       _easterEggText = null;
+      _updateProgValue();
       return;
     }
 
     final multiCharTokens = [
       'sin(', 'cos(', 'tan(', 'asin(', 'acos(', 'atan(',
-      'sqrt(', 'ln(', 'log(', '10^', 'e^'
+      'sqrt(', 'ln(', 'log(', '10^', 'e^',
+      'AND', 'OR', 'XOR', 'NOT', 'LSH', 'RSH', 'MOD'
     ];
 
     bool tokenRemoved = false;
     for (final token in multiCharTokens) {
       if (_expression.endsWith(token)) {
-        _expression = _expression.substring(0, _expression.length - token.length);
+        _expression = _expression.substring(0, _expression.length - token.length).trimRight();
         tokenRemoved = true;
         break;
       }
@@ -219,7 +266,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _expression = '0';
     }
 
-    _computePreview();
+    if (_calcMode == CalcMode.programmer) {
+      _updateProgValue();
+    } else {
+      _computePreview();
+    }
   }
 
   void _toggleSign() {
@@ -264,7 +315,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   bool _isOperator(String ch) {
-    return ch == '+' || ch == '-' || ch == '×' || ch == '÷' || ch == '^';
+    return ch == '+' || ch == '-' || ch == '×' || ch == '÷' || ch == '^' ||
+        ch == '&' || ch == '|';
   }
 
   void _appendKey(String key) {
@@ -306,18 +358,206 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     _computePreview();
   }
 
+  // --- PROGRAMMER MODE LOGIC ---
+  bool _isProgKeyAllowed(String key) {
+    final hexChars = ['A', 'B', 'C', 'D', 'E', 'F'];
+    final decDigits = ['8', '9'];
+    final octDigits = ['2', '3', '4', '5', '6', '7'];
+    final binDigits = ['0', '1'];
+
+    switch (_progBase) {
+      case ProgBase.bin:
+        return binDigits.contains(key);
+      case ProgBase.oct:
+        return binDigits.contains(key) || octDigits.contains(key);
+      case ProgBase.dec:
+        return binDigits.contains(key) || octDigits.contains(key) || decDigits.contains(key);
+      case ProgBase.hex:
+        return binDigits.contains(key) || octDigits.contains(key) || decDigits.contains(key) || hexChars.contains(key);
+    }
+  }
+
+  void _appendProgKey(String key) {
+    if (_isErrorState()) {
+      _expression = '0';
+    }
+
+    final isProgOp = ['+', '-', '×', '÷', 'AND', 'OR', 'XOR', 'LSH', 'RSH', 'MOD'].contains(key);
+
+    if (isProgOp) {
+      _expression += ' $key ';
+      return;
+    }
+
+    if (key == 'NOT') {
+      _expression = 'NOT($_expression)';
+      _evaluateFinalProgrammer();
+      return;
+    }
+
+    if (_expression == '0') {
+      _expression = key;
+    } else {
+      _expression += key;
+    }
+
+    _updateProgValue();
+  }
+
+  int _getWordBits() {
+    switch (_progWordSize) {
+      case ProgWordSize.qword64:
+        return 64;
+      case ProgWordSize.dword32:
+        return 32;
+      case ProgWordSize.word16:
+        return 16;
+      case ProgWordSize.byte8:
+        return 8;
+    }
+  }
+
+  BigInt _getWordMask() {
+    final bits = _getWordBits();
+    if (bits == 64) {
+      return (BigInt.one << 64) - BigInt.one;
+    }
+    return (BigInt.one << bits) - BigInt.one;
+  }
+
+  void _updateProgValue() {
+    try {
+      final segments = _expression.split(RegExp(r'\s+'));
+      final lastToken = segments.isNotEmpty ? segments.last : '0';
+      final radix = _progBase == ProgBase.hex ? 16 : _progBase == ProgBase.oct ? 8 : _progBase == ProgBase.bin ? 2 : 10;
+      final parsed = BigInt.tryParse(lastToken, radix: radix);
+      if (parsed != null) {
+        _progValue = parsed & _getWordMask();
+        _easterEggText = _detectProgEasterEgg(_progValue);
+      }
+    } catch (_) {}
+  }
+
+  void _switchProgBase(ProgBase newBase) {
+    SoundService().playClick();
+    HapticFeedback.selectionClick();
+    setState(() {
+      _progBase = newBase;
+      final radix = newBase == ProgBase.hex ? 16 : newBase == ProgBase.oct ? 8 : newBase == ProgBase.bin ? 2 : 10;
+      _expression = _progValue.toRadixString(radix).toUpperCase();
+      _easterEggText = _detectProgEasterEgg(_progValue);
+    });
+  }
+
+  void _cycleWordSize() {
+    SoundService().playClick();
+    HapticFeedback.selectionClick();
+    setState(() {
+      switch (_progWordSize) {
+        case ProgWordSize.qword64:
+          _progWordSize = ProgWordSize.dword32;
+          break;
+        case ProgWordSize.dword32:
+          _progWordSize = ProgWordSize.word16;
+          break;
+        case ProgWordSize.word16:
+          _progWordSize = ProgWordSize.byte8;
+          break;
+        case ProgWordSize.byte8:
+          _progWordSize = ProgWordSize.qword64;
+          break;
+      }
+      _progValue = _progValue & _getWordMask();
+      final radix = _progBase == ProgBase.hex ? 16 : _progBase == ProgBase.oct ? 8 : _progBase == ProgBase.bin ? 2 : 10;
+      _expression = _progValue.toRadixString(radix).toUpperCase();
+    });
+  }
+
+  void _evaluateFinalProgrammer() {
+    try {
+      final radix = _progBase == ProgBase.hex ? 16 : _progBase == ProgBase.oct ? 8 : _progBase == ProgBase.bin ? 2 : 10;
+      final tokens = _expression.trim().split(RegExp(r'\s+'));
+
+      if (tokens.length == 3) {
+        final a = BigInt.parse(tokens[0], radix: radix);
+        final op = tokens[1];
+        final b = BigInt.parse(tokens[2], radix: radix);
+
+        BigInt res = BigInt.zero;
+        if (op == '+') {
+          res = a + b;
+        } else if (op == '-') {
+          res = a - b;
+        } else if (op == '×') {
+          res = a * b;
+        } else if (op == '÷') {
+          if (b == BigInt.zero) throw Exception("Divide by zero");
+          res = a ~/ b;
+        } else if (op == 'AND') {
+          res = a & b;
+        } else if (op == 'OR') {
+          res = a | b;
+        } else if (op == 'XOR') {
+          res = a ^ b;
+        } else if (op == 'LSH') {
+          res = a << b.toInt();
+        } else if (op == 'RSH') {
+          res = a >> b.toInt();
+        } else if (op == 'MOD') {
+          if (b == BigInt.zero) throw Exception("Divide by zero");
+          res = a % b;
+        }
+
+        res = res & _getWordMask();
+        _lastEquation = '$_expression =';
+        _progValue = res;
+        _expression = res.toRadixString(radix).toUpperCase();
+        _previewResult = '';
+        _easterEggText = _detectProgEasterEgg(res);
+        SoundService().playSuccess();
+        HapticFeedback.mediumImpact();
+      } else if (tokens.length == 1) {
+        _progValue = BigInt.parse(tokens[0], radix: radix) & _getWordMask();
+        _expression = _progValue.toRadixString(radix).toUpperCase();
+        _easterEggText = _detectProgEasterEgg(_progValue);
+      }
+    } catch (e) {
+      _expression = 'Error';
+      _easterEggText = "Ask your ChatBot! 🤖 (Division / Syntax Error)";
+      HapticFeedback.heavyImpact();
+    }
+  }
+
+  String? _detectProgEasterEgg(BigInt val) {
+    final hex = val.toRadixString(16).toUpperCase();
+    final bin = val.toRadixString(2);
+    final intVal = val.toInt();
+
+    if (hex == 'DEADBEEF') return "Dead Beef 🥩 (Classic Memory Marker)";
+    if (hex == 'CAFEBABE') return "Cafe Babe ☕ (Java Class Magic Header)";
+    if (hex == 'BADA55') return "Badass Hex 🕶️ (Dev Culture)";
+    if (hex == 'C001') return "Cool Hex 😎 (Leet System)";
+    if (hex == '1337') return "Elite 👾 (Leet Code 1337)";
+    if (intVal == 42 || hex == '2A' || bin == '101010') return "42 • Answer to Life, Universe & Everything 🌌";
+    if (intVal == 127 || hex == '7F') return "Max Signed 8-bit Int (0x7F) 🔢";
+    if (intVal == 255 || hex == 'FF') return "Full Byte 255 (0xFF) 💾";
+    if (intVal == 65535 || hex == 'FFFF') return "Max 16-bit Int (65535) 🌐";
+    if (intVal == 404 || hex == '194') return "HTTP 404 Not Found 🔍";
+    if (intVal == 0) return "Null / Zero Pointer ⚪";
+
+    return null;
+  }
+
   void _computePreview() {
     try {
       final clean = _expression.trim();
 
-      // Check for 0/0 preview
       if (clean == '0÷0' || clean == '0/0') {
         _previewResult = '= Ask your ChatBot! 🤖';
         _easterEggText = "0÷0 is mathematically indeterminate!";
         return;
       }
 
-      // Check for 1+ preview
       if (clean == '1+') {
         _previewResult = '= Never Settle 🔴';
         _easterEggText = "OnePlus • Never Settle";
@@ -341,7 +581,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void _evaluateFinal() {
     final clean = _expression.trim();
 
-    // 1. Easter egg: 0 ÷ 0
     if (clean == '0÷0' || clean == '0/0') {
       _lastEquation = '0 ÷ 0 =';
       _expression = 'Ask your ChatBot! 🤖';
@@ -352,7 +591,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return;
     }
 
-    // 2. Easter egg: 1+
     if (clean == '1+' || clean == '1+ ' || clean == '1+0') {
       _lastEquation = '1+ =';
       _expression = 'Never Settle 🔴';
@@ -369,7 +607,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         if (res == 'Error' || res.startsWith('Cannot')) {
           _expression = res;
           _previewResult = '';
-          _easterEggText = null;
+          _easterEggText = "Ask your ChatBot! 🤖";
           HapticFeedback.heavyImpact();
           return;
         }
@@ -390,35 +628,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         HapticFeedback.mediumImpact();
       } else {
         _expression = 'Error';
-        _easterEggText = null;
+        _easterEggText = "Ask your ChatBot! 🤖";
       }
     } catch (_) {
       _expression = 'Error';
-      _easterEggText = null;
+      _easterEggText = "Ask your ChatBot! 🤖";
     }
   }
 
-  // --- Dynamic Easter Egg Detection ---
   String? _detectEasterEgg(String expr, String result) {
+    if (_isErrorState()) {
+      return "Ask your ChatBot! 🤖";
+    }
+
     final cleanRes = result.replaceAll('=', '').trim();
     final cleanExpr = expr.replaceAll(' ', '');
 
-    // 0 / 0
     if (cleanExpr == '0÷0' || cleanExpr == '0/0') {
       return "Ask your ChatBot! 🤖 (Indeterminate)";
     }
 
-    // 1+
     if (cleanExpr == '1+' || cleanExpr == '1+=' || cleanRes == 'Never Settle 🔴') {
       return "Never Settle 🔴 (OnePlus)";
     }
 
-    // 0 or Nothing
     if (cleanRes == '0' || cleanRes == '0.0' || cleanExpr == '0') {
       return "Nothing ⚪";
     }
 
-    // Specific iconic / relatable numbers
     if (cleanRes == '7') {
       return "Thala for a reason! 🦁 #7";
     }
@@ -462,7 +699,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return "Pi Day 🥧 (3.14159...)";
     }
 
-    // Any positive integer result up to 10 (1, 2, 3, 5, 6, 8, 9, 10): "It's easy!"
     final parsed = double.tryParse(cleanRes);
     if (parsed != null && parsed > 0 && parsed <= 10 && parsed == parsed.roundToDouble()) {
       return "It's easy! 😉 (Quick Math)";
@@ -810,7 +1046,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               top: false,
               child: Column(
                 children: [
-                  // Quick Controls Toolbar (Basic / Scientific Switch, Keyboard Hint & History)
+                  // Quick Controls Toolbar (Basic / Scientific / Programmer Switch & History)
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     child: Row(
@@ -825,11 +1061,27 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildModeTab("Basic", !_isScientific, () {
-                                setState(() => _isScientific = false);
+                              _buildModeTab("Basic", _calcMode == CalcMode.basic, () {
+                                setState(() {
+                                  _calcMode = CalcMode.basic;
+                                  _expression = '0';
+                                  _previewResult = '';
+                                });
                               }),
-                              _buildModeTab("Sci", _isScientific, () {
-                                setState(() => _isScientific = true);
+                              _buildModeTab("Sci", _calcMode == CalcMode.scientific, () {
+                                setState(() {
+                                  _calcMode = CalcMode.scientific;
+                                  _expression = '0';
+                                  _previewResult = '';
+                                });
+                              }),
+                              _buildModeTab("Prog", _calcMode == CalcMode.programmer, () {
+                                setState(() {
+                                  _calcMode = CalcMode.programmer;
+                                  _expression = '0';
+                                  _previewResult = '';
+                                  _updateProgValue();
+                                });
                               }),
                             ],
                           ),
@@ -869,29 +1121,32 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                     ),
                   ),
 
-                  // 1. Interactive Animated Tape Display Card (Smooth Size Transition)
+                  // 1. Interactive Animated Tape Display Card
                   AnimatedSize(
                     duration: const Duration(milliseconds: 250),
                     curve: Curves.easeOutCubic,
                     child: _buildDisplayCard(),
                   ),
 
-                  // 2. Scientific Toolbar (if activated)
-                  if (_isScientific) _buildScientificPanel(),
+                  // 2. Mode-Specific Panels
+                  if (_calcMode == CalcMode.scientific) _buildScientificPanel(),
+                  if (_calcMode == CalcMode.programmer) _buildProgrammerBitwiseBar(),
 
-                  // 3. Ergonomic Keypad Grid with spring scale bounce animations
+                  // 3. Ergonomic Keypad Grid
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      child: Column(
-                        children: [
-                          _buildKeyRow(['C', '±', '%', '÷']),
-                          _buildKeyRow(['7', '8', '9', '×']),
-                          _buildKeyRow(['4', '5', '6', '-']),
-                          _buildKeyRow(['1', '2', '3', '+']),
-                          _buildKeyRow(['0', '.', '⌫', '=']),
-                        ],
-                      ),
+                      child: _calcMode == CalcMode.programmer
+                          ? _buildProgrammerKeypad()
+                          : Column(
+                              children: [
+                                _buildKeyRow(['C', '±', '%', '÷']),
+                                _buildKeyRow(['7', '8', '9', '×']),
+                                _buildKeyRow(['4', '5', '6', '-']),
+                                _buildKeyRow(['1', '2', '3', '+']),
+                                _buildKeyRow(['0', '.', '⌫', '=']),
+                              ],
+                            ),
                     ),
                   ),
                 ],
@@ -927,8 +1182,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
-  // --- Display Card with Smooth Animated Sizing, Expression Transitions & Clock Mode ---
+  // --- Display Card with Smooth Animated Sizing, Expression Transitions, Clock Mode & Programmer Multi-Base ---
   Widget _buildDisplayCard() {
+    final bool isError = _isErrorState();
+
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
@@ -1011,8 +1268,81 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 ),
               ),
             ),
+          ] else if (_calcMode == CalcMode.programmer) ...[
+            // PROGRAMMER MULTI-BASE DISPLAY (HEX, DEC, OCT, BIN)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "BASE CONVERSIONS",
+                  style: widget.theme.fontMono(fontSize: 10, fontWeight: FontWeight.bold, color: widget.theme.textSecondary),
+                ),
+                InkWell(
+                  onTap: _cycleWordSize,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: widget.theme.primary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: widget.theme.primary.withValues(alpha: 0.5)),
+                    ),
+                    child: Text(
+                      "${_getWordBits()}-BIT (${_progWordSize.name.substring(0, 5).toUpperCase()})",
+                      style: widget.theme.fontMono(fontSize: 10, fontWeight: FontWeight.bold, color: widget.theme.primary),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            _buildBaseRow(ProgBase.hex, "HEX", _progValue.toRadixString(16).toUpperCase()),
+            _buildBaseRow(ProgBase.dec, "DEC", _progValue.toRadixString(10)),
+            _buildBaseRow(ProgBase.oct, "OCT", _progValue.toRadixString(8)),
+            _buildBaseRow(ProgBase.bin, "BIN", _formatBinNibbles(_progValue.toRadixString(2))),
+
+            const Divider(height: 12),
+
+            // Active Programmer Expression
+            GestureDetector(
+              onLongPress: () => _copyToClipboard(_expression),
+              child: SingleChildScrollView(
+                controller: _displayScrollController,
+                scrollDirection: Axis.horizontal,
+                reverse: true,
+                child: Text(
+                  _expression,
+                  textAlign: TextAlign.right,
+                  style: widget.theme.fontMono(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: isError ? Colors.redAccent : widget.theme.primary,
+                  ),
+                ),
+              ),
+            ),
+
+            // Easter Egg Row for Programmer Mode
+            if (_easterEggText != null) ...[
+              const SizedBox(height: 6),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: widget.theme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: widget.theme.primary.withValues(alpha: 0.4)),
+                  ),
+                  child: Text(
+                    _easterEggText!,
+                    style: widget.theme.fontMono(fontSize: 11, fontWeight: FontWeight.bold, color: widget.theme.primary),
+                  ),
+                ),
+              ),
+            ],
           ] else ...[
-            // Normal Calculator Display Row
+            // Normal Basic & Scientific Calculator Display Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -1037,7 +1367,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                       ),
                   ],
                 ),
-                if (_isScientific)
+                if (_calcMode == CalcMode.scientific)
                   GestureDetector(
                     onTap: () {
                       HapticFeedback.selectionClick();
@@ -1085,39 +1415,64 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 controller: _displayScrollController,
                 scrollDirection: Axis.horizontal,
                 reverse: true,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 140),
-                  transitionBuilder: (child, anim) {
-                    return FadeTransition(
-                      opacity: anim,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0.04, 0),
-                          end: Offset.zero,
-                        ).animate(anim),
-                        child: child,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 140),
+                      transitionBuilder: (child, anim) {
+                        return FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0.04, 0),
+                              end: Offset.zero,
+                            ).animate(anim),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: Text(
+                        _expression,
+                        key: ValueKey<String>(_expression),
+                        textAlign: TextAlign.right,
+                        style: widget.theme.fontMono(
+                          fontSize: _expression.length > 14
+                              ? 26
+                              : _expression.length > 9
+                                  ? 32
+                                  : 38,
+                          fontWeight: FontWeight.bold,
+                          color: isError ? Colors.redAccent : widget.theme.text,
+                        ),
                       ),
-                    );
-                  },
-                  child: Text(
-                    _expression,
-                    key: ValueKey<String>(_expression),
-                    textAlign: TextAlign.right,
-                    style: widget.theme.fontMono(
-                      fontSize: _expression.length > 14
-                          ? 26
-                          : _expression.length > 9
-                              ? 32
-                              : 38,
-                      fontWeight: FontWeight.bold,
-                      color: _isErrorState() ? Colors.redAccent : widget.theme.text,
                     ),
-                  ),
+                    // If error state: show "Ask your ChatBot! 🤖" right next to it!
+                    if (isError) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFEF4444), width: 1.2),
+                        ),
+                        child: Text(
+                          "Ask your ChatBot! 🤖",
+                          style: widget.theme.fontMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFFDC2626),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
               ),
             ),
 
-            // Live Result Preview with Pop-up Scale Transition
+            // Live Result Preview with Pop-up Scale Transition & Easter Egg Chip
             const SizedBox(height: 4),
             SizedBox(
               height: 26,
@@ -1178,6 +1533,188 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  // Programmer Mode: Base Row (HEX, DEC, OCT, BIN)
+  Widget _buildBaseRow(ProgBase base, String label, String val) {
+    final isSelected = (_progBase == base);
+    return InkWell(
+      onTap: () => _switchProgBase(base),
+      borderRadius: BorderRadius.circular(6),
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 2),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: isSelected ? widget.theme.primary.withValues(alpha: 0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: isSelected ? Border.all(color: widget.theme.primary, width: 1.2) : null,
+        ),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 36,
+              child: Text(
+                label,
+                style: widget.theme.fontMono(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? widget.theme.primary : widget.theme.textSecondary,
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                val.isEmpty ? '0' : val,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: widget.theme.fontMono(
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                  color: isSelected ? widget.theme.primary : widget.theme.text,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatBinNibbles(String binStr) {
+    if (binStr.isEmpty) return '0000';
+    // Pad to multiple of 4
+    final remainder = binStr.length % 4;
+    final padded = remainder == 0 ? binStr : ('0' * (4 - remainder)) + binStr;
+    final parts = <String>[];
+    for (int i = 0; i < padded.length; i += 4) {
+      parts.add(padded.substring(i, i + 4));
+    }
+    return parts.join(' ');
+  }
+
+  // Programmer Mode: Bitwise Operations Toolbar
+  Widget _buildProgrammerBitwiseBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      decoration: BoxDecoration(
+        color: widget.theme.cardBg.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: widget.theme.border, width: 1.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: ['AND', 'OR', 'XOR', 'NOT', 'LSH', 'RSH', 'MOD'].map((op) {
+          return InkWell(
+            onTap: () => _onKeyPress(op),
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              child: Text(
+                op,
+                style: widget.theme.fontMono(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: widget.theme.primary,
+                ),
+              ),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // Programmer Mode: Keypad Grid (5x5)
+  Widget _buildProgrammerKeypad() {
+    final rows = [
+      ['A', 'B', 'C', 'AC', '⌫'],
+      ['D', 'E', 'F', '(', '÷'],
+      ['7', '8', '9', ')', '×'],
+      ['4', '5', '6', '+', '-'],
+      ['0', '1', '2', '3', '='],
+    ];
+
+    return Column(
+      children: rows.map((r) {
+        return Expanded(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: r.map((k) {
+              final isAllowed = _isProgKeyAllowed(k) ||
+                  ['AC', 'C', '⌫', '=', '(', ')', '+', '-', '×', '÷'].contains(k);
+              return _buildProgKeyBtn(k, isAllowed);
+            }).toList(),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildProgKeyBtn(String key, bool isAllowed) {
+    final bool isOp = ['+', '-', '×', '÷'].contains(key);
+    final bool isEquals = key == '=';
+    final bool isClear = key == 'AC' || key == 'C';
+    final bool isHexLetter = ['A', 'B', 'C', 'D', 'E', 'F'].contains(key);
+
+    Color btnBg = widget.theme.cardBg;
+    Color btnText = widget.theme.text;
+    Border border = Border.all(color: widget.theme.border, width: 1.5);
+
+    if (!isAllowed) {
+      btnBg = widget.theme.bg.withValues(alpha: 0.3);
+      btnText = widget.theme.textSecondary.withValues(alpha: 0.25);
+      border = Border.all(color: widget.theme.border.withValues(alpha: 0.2), width: 1.0);
+    } else if (isEquals) {
+      btnBg = widget.theme.primary;
+      btnText = Colors.white;
+      border = Border.all(color: widget.theme.primary, width: 2.0);
+    } else if (isClear) {
+      btnBg = const Color(0xFFEF4444);
+      btnText = Colors.white;
+      border = Border.all(color: const Color(0xFFDC2626), width: 2.0);
+    } else if (isOp) {
+      btnBg = widget.theme.primary.withValues(alpha: 0.16);
+      btnText = widget.theme.primary;
+      border = Border.all(color: widget.theme.primary.withValues(alpha: 0.4), width: 1.5);
+    } else if (isHexLetter) {
+      btnBg = widget.theme.border.withValues(alpha: 0.35);
+      btnText = widget.theme.primary;
+    }
+
+    return Expanded(
+      child: Padding(
+        padding: const EdgeInsets.all(3.5),
+        child: _AnimatedCalcButton(
+          label: key,
+          bg: btnBg,
+          text: btnText,
+          border: border,
+          isOp: isOp,
+          isEquals: isEquals,
+          theme: widget.theme,
+          isEnabled: isAllowed,
+          onTap: isAllowed ? () => _onKeyPress(key) : () {},
+          onLongPress: isClear
+              ? _activateLiveClock
+              : key == '⌫'
+                  ? () {
+                      HapticFeedback.heavyImpact();
+                      SoundService().playKey();
+                      setState(() {
+                        _expression = '0';
+                        _previewResult = '';
+                        _progValue = BigInt.zero;
+                        _easterEggText = null;
+                      });
+                      _showToast("All cleared");
+                    }
+                  : null,
+        ),
       ),
     );
   }
@@ -1338,7 +1875,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           theme: widget.theme,
           onTap: () => _onKeyPress(key),
           onLongPress: isClear
-              ? _activateLiveClock // Hold C for 2-3 sec to show live real time!
+              ? _activateLiveClock
               : key == '⌫'
                   ? () {
                       HapticFeedback.heavyImpact();
@@ -1369,6 +1906,7 @@ class _AnimatedCalcButton extends StatefulWidget {
   final bool isOp;
   final bool isEquals;
   final StationeryTheme theme;
+  final bool isEnabled;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
 
@@ -1380,6 +1918,7 @@ class _AnimatedCalcButton extends StatefulWidget {
     required this.isOp,
     required this.isEquals,
     required this.theme,
+    this.isEnabled = true,
     required this.onTap,
     this.onLongPress,
   });
@@ -1393,6 +1932,25 @@ class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> {
 
   @override
   Widget build(BuildContext context) {
+    if (!widget.isEnabled) {
+      return Container(
+        decoration: BoxDecoration(
+          color: widget.bg,
+          borderRadius: BorderRadius.circular(16),
+          border: widget.border,
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          widget.label,
+          style: widget.theme.fontDisplay(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: widget.text,
+          ),
+        ),
+      );
+    }
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) {
@@ -1422,7 +1980,7 @@ class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> {
           child: Text(
             widget.label,
             style: widget.theme.fontDisplay(
-              fontSize: 24,
+              fontSize: 22,
               fontWeight: widget.isEquals || widget.isOp ? FontWeight.w900 : FontWeight.bold,
               color: widget.text,
             ),
