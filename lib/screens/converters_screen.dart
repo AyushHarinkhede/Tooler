@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
+import '../widgets_3d/bouncy_tap.dart';
 
 enum ConverterType { length, weight, temperature, height, area, volume, speed, data }
 
@@ -251,10 +252,12 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
 
                         return Padding(
                           padding: const EdgeInsets.only(right: 8.0),
-                          child: InkWell(
+                          child: BouncyTap(
                             onTap: () => _onTypeChanged(type),
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
+                            scaleFraction: 0.92,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 220),
+                              curve: Curves.easeOutBack,
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                               decoration: BoxDecoration(
                                 color: isSelected ? widget.theme.primary : widget.theme.cardBg,
@@ -263,7 +266,7 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
                                 boxShadow: isSelected
                                     ? [
                                         BoxShadow(
-                                          color: widget.theme.border.withOpacity(0.3),
+                                          color: widget.theme.border.withValues(alpha: 0.3),
                                           offset: const Offset(2, 3),
                                           blurRadius: 0,
                                         ),
@@ -306,7 +309,7 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
                           style: widget.theme.fontMono(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
-                            color: widget.theme.text.withOpacity(0.7),
+                            color: widget.theme.text.withValues(alpha: 0.7),
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -365,14 +368,25 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
                               ),
                             ),
 
-                            // Swap Button
+                            // Swap Button with Bouncy Tap
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 12.0),
-                              child: IconButton(
-                                icon: const Icon(Icons.swap_horiz, size: 28),
-                                color: widget.theme.primary,
-                                tooltip: "Swap Units",
-                                onPressed: _swapUnits,
+                              child: BouncyTap(
+                                onTap: _swapUnits,
+                                scaleFraction: 0.82,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: widget.theme.primary.withValues(alpha: 0.12),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(color: widget.theme.primary, width: 1.5),
+                                  ),
+                                  child: Icon(
+                                    Icons.swap_horiz_rounded,
+                                    size: 24,
+                                    color: widget.theme.primary,
+                                  ),
+                                ),
                               ),
                             ),
 
@@ -409,7 +423,7 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
                   Container(
                     padding: const EdgeInsets.all(22),
                     decoration: widget.theme.doodleCard(
-                      color: widget.theme.secondary.withOpacity(0.25),
+                      color: widget.theme.secondary.withValues(alpha: 0.25),
                       borderWidth: 3.0,
                     ),
                     child: Column(
@@ -419,12 +433,13 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
                           style: widget.theme.fontMono(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            color: widget.theme.text.withOpacity(0.7),
+                            color: widget.theme.text.withValues(alpha: 0.7),
                           ),
                         ),
                         const SizedBox(height: 10),
-                        SelectableText(
-                          _convertedResult,
+                        AnimatedTextPop(
+                          text: _convertedResult,
+                          textAlign: TextAlign.center,
                           style: widget.theme.fontMono(
                             fontSize: 34,
                             fontWeight: FontWeight.bold,

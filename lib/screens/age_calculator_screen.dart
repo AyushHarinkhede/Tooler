@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
+import '../widgets_3d/bouncy_tap.dart';
 
 class AgeCalculatorScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -394,19 +395,19 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  // Minus button
-                                  IconButton(
-                                    icon: const Icon(Icons.remove, size: 18),
-                                    onPressed: _decrementAge,
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    constraints: const BoxConstraints(),
-                                    splashRadius: 18,
-                                    tooltip: "Decrease Age",
+                                  // Minus button with Bouncy Tap
+                                  BouncyTap(
+                                    onTap: _decrementAge,
+                                    scaleFraction: 0.85,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Icon(Icons.remove, size: 18),
+                                    ),
                                   ),
-                                  // Clickable Number Badge (Opens Number Selector Sheet)
-                                  InkWell(
+                                  // Clickable Number Badge with AnimatedTextPop & BouncyTap
+                                  BouncyTap(
                                     onTap: () => _showAgePickerSheet(context),
-                                    borderRadius: BorderRadius.circular(8),
+                                    scaleFraction: 0.90,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                       decoration: BoxDecoration(
@@ -416,8 +417,8 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text(
-                                            "$years",
+                                          AnimatedTextPop(
+                                            text: "$years",
                                             style: widget.theme.fontDisplay(
                                               fontSize: 17,
                                               fontWeight: FontWeight.bold,
@@ -434,14 +435,14 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                                       ),
                                     ),
                                   ),
-                                  // Plus button
-                                  IconButton(
-                                    icon: const Icon(Icons.add, size: 18),
-                                    onPressed: _incrementAge,
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                                    constraints: const BoxConstraints(),
-                                    splashRadius: 18,
-                                    tooltip: "Increase Age",
+                                  // Plus button with Bouncy Tap
+                                  BouncyTap(
+                                    onTap: _incrementAge,
+                                    scaleFraction: 0.85,
+                                    child: const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                      child: Icon(Icons.add, size: 18),
+                                    ),
                                   ),
                                 ],
                               ),
@@ -821,11 +822,12 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
   }) {
     final isSelected = (_gender == key);
     return Expanded(
-      child: InkWell(
+      child: BouncyTap(
         onTap: () => _setGender(key),
-        borderRadius: BorderRadius.circular(10),
+        scaleFraction: 0.92,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutBack,
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             color: isSelected ? activeColor : widget.theme.bg,
@@ -1131,8 +1133,8 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
             ],
           ),
           alignment: Alignment.center,
-          child: Text(
-            value,
+          child: AnimatedTextPop(
+            text: value,
             style: widget.theme.fontDisplay(
               fontSize: 22,
               fontWeight: FontWeight.bold,

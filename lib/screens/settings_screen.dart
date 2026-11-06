@@ -4,6 +4,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../widgets_3d/tooler_logo.dart';
+import '../widgets_3d/bouncy_tap.dart';
 
 /// ---------------------------------------------------------------------------
 /// REDESIGNED MINIMAL SETTINGS SCREEN
@@ -201,12 +202,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: theme.text),
-          onPressed: () {
-            SoundService().playClick();
-            Navigator.pop(context);
-          },
+        leading: Center(
+          child: BouncyTap(
+            onTap: () {
+              SoundService().playClick();
+              Navigator.pop(context);
+            },
+            scaleFraction: 0.88,
+            child: Icon(Icons.arrow_back_ios_new_rounded, size: 19, color: theme.text),
+          ),
         ),
         title: Text(
           'Settings',
@@ -269,7 +273,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   Switch.adaptive(
                     value: _isDark,
-                    activeColor: theme.primary,
+                    activeTrackColor: theme.primary,
                     onChanged: _onToggleDarkMode,
                   ),
                 ],
@@ -327,7 +331,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       Switch.adaptive(
                         value: _soundOn,
-                        activeColor: theme.primary,
+                        activeTrackColor: theme.primary,
                         onChanged: (val) {
                           setState(() {
                             _soundOn = val;
@@ -358,7 +362,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       Switch.adaptive(
                         value: _hapticsOn,
-                        activeColor: theme.primary,
+                        activeTrackColor: theme.primary,
                         onChanged: (val) {
                           setState(() {
                             _hapticsOn = val;
@@ -468,10 +472,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: InkWell(
+      child: BouncyTap(
         onTap: () => _onSelectAccent(accent),
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
+        scaleFraction: 0.94,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutBack,
           height: 48,
           padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
@@ -479,25 +485,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isSelected ? theme.primary : theme.border,
-              width: 1.2,
+              width: isSelected ? 1.5 : 1.2,
             ),
           ),
           child: Row(
             children: [
-              // 14px Circular Color Dot
-              Container(
-                width: 16,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: dotColor,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: dotColor.withValues(alpha: 0.35),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
+              // 14px Circular Color Dot with AnimatedScale
+              AnimatedScale(
+                scale: isSelected ? 1.25 : 1.0,
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutBack,
+                child: Container(
+                  width: 16,
+                  height: 16,
+                  decoration: BoxDecoration(
+                    color: dotColor,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: dotColor.withValues(alpha: 0.35),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 14),

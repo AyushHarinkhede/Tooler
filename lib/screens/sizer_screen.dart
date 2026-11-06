@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
+import '../widgets_3d/bouncy_tap.dart';
 
 enum SizerToolType { ring, bangle, strap, ruler }
 
@@ -242,10 +243,21 @@ class _SizerScreenState extends State<SizerScreen> {
 
                   const SizedBox(height: 14),
 
-                  if (_activeType == SizerToolType.ring) _buildRingSizer(),
-                  if (_activeType == SizerToolType.bangle) _buildBangleSizer(),
-                  if (_activeType == SizerToolType.strap) _buildWatchStrapSizer(),
-                  if (_activeType == SizerToolType.ruler) _buildRulerSizer(),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 260),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    child: KeyedSubtree(
+                      key: ValueKey<SizerToolType>(_activeType),
+                      child: _activeType == SizerToolType.ring
+                          ? _buildRingSizer()
+                          : _activeType == SizerToolType.bangle
+                              ? _buildBangleSizer()
+                              : _activeType == SizerToolType.strap
+                                  ? _buildWatchStrapSizer()
+                                  : _buildRulerSizer(),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -258,13 +270,15 @@ class _SizerScreenState extends State<SizerScreen> {
   Widget _buildTabBtn(String label, SizerToolType type, IconData icon) {
     final bool isSelected = (_activeType == type);
     return Expanded(
-      child: InkWell(
+      child: BouncyTap(
         onTap: () {
           SoundService().playClick();
           setState(() => _activeType = type);
         },
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
+        scaleFraction: 0.92,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutBack,
           padding: const EdgeInsets.symmetric(vertical: 8),
           decoration: BoxDecoration(
             color: isSelected ? widget.theme.primary : widget.theme.cardBg,

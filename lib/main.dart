@@ -53,22 +53,29 @@ class _ToolerAppState extends State<ToolerApp> {
 
   @override
   Widget build(BuildContext context) {
+    final themeData = ThemeData(
+      useMaterial3: true,
+      scaffoldBackgroundColor: _currentTheme.bg,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: _currentTheme.primary,
+        surface: _currentTheme.cardBg,
+        onSurface: _currentTheme.text,
+        brightness: _currentTheme.isDark ? Brightness.dark : Brightness.light,
+      ),
+    );
+
     return MaterialApp(
       title: 'Tooler',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        scaffoldBackgroundColor: _currentTheme.bg,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: _currentTheme.primary,
-          surface: _currentTheme.cardBg,
-          onSurface: _currentTheme.text,
-          brightness: _currentTheme.isDark ? Brightness.dark : Brightness.light,
+      theme: themeData,
+      home: AnimatedTheme(
+        data: themeData,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeInOutCubic,
+        child: HomeScreen(
+          theme: _currentTheme,
+          onThemeChanged: _onThemeChanged,
         ),
-      ),
-      home: HomeScreen(
-        theme: _currentTheme,
-        onThemeChanged: _onThemeChanged,
       ),
     );
   }

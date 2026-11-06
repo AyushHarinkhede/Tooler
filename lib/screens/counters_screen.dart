@@ -4,6 +4,7 @@ import '../theme/notebook_painter.dart';
 import '../models/counter_model.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
+import '../widgets_3d/bouncy_tap.dart';
 
 class CountersScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -100,24 +101,34 @@ class _CountersScreenState extends State<CountersScreen> {
                               hintText: "New Counter Name (e.g. Daily Habits)",
                               hintStyle: widget.theme.fontDoodle(
                                 fontSize: 14,
-                                color: widget.theme.text.withOpacity(0.5),
+                                color: widget.theme.text.withValues(alpha: 0.5),
                               ),
                               border: InputBorder.none,
                             ),
                             onSubmitted: (_) => _addCounter(),
                           ),
                         ),
-                        ElevatedButton.icon(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: widget.theme.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
+                        BouncyTap(
+                          onTap: _addCounter,
+                          scaleFraction: 0.92,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                            decoration: BoxDecoration(
+                              color: widget.theme.primary,
                               borderRadius: BorderRadius.circular(10),
                             ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add, size: 18, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text(
+                                  "Add",
+                                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
                           ),
-                          onPressed: _addCounter,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text("Add"),
                         ),
                       ],
                     ),
@@ -133,7 +144,7 @@ class _CountersScreenState extends State<CountersScreen> {
                             textAlign: TextAlign.center,
                             style: widget.theme.fontDoodle(
                               fontSize: 18,
-                              color: widget.theme.text.withOpacity(0.6),
+                              color: widget.theme.text.withValues(alpha: 0.6),
                             ),
                           ),
                         )
@@ -164,26 +175,26 @@ class _CountersScreenState extends State<CountersScreen> {
                                           "Step: ±${c.step}",
                                           style: widget.theme.fontMono(
                                             fontSize: 11,
-                                            color: widget.theme.text.withOpacity(0.6),
+                                            color: widget.theme.text.withValues(alpha: 0.6),
                                           ),
                                         ),
                                       ],
                                     ),
                                   ),
 
-                                  // Decrement
+                                  // Decrement with Bouncy Tap
                                   _buildCounterBtn(
                                     icon: Icons.remove,
                                     onTap: () => _updateCounter(c.id, -c.step),
                                   ),
                                   const SizedBox(width: 12),
 
-                                  // Count Display
+                                  // Count Display with AnimatedTextPop
                                   Container(
                                     constraints: const BoxConstraints(minWidth: 54),
                                     alignment: Alignment.center,
-                                    child: Text(
-                                      "${c.value}",
+                                    child: AnimatedTextPop(
+                                      text: "${c.value}",
                                       style: widget.theme.fontMono(
                                         fontSize: 26,
                                         fontWeight: FontWeight.bold,
@@ -193,7 +204,7 @@ class _CountersScreenState extends State<CountersScreen> {
                                   ),
                                   const SizedBox(width: 12),
 
-                                  // Increment
+                                  // Increment with Bouncy Tap
                                   _buildCounterBtn(
                                     icon: Icons.add,
                                     isPrimary: true,
@@ -239,9 +250,9 @@ class _CountersScreenState extends State<CountersScreen> {
     required VoidCallback onTap,
     bool isPrimary = false,
   }) {
-    return InkWell(
+    return BouncyTap(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
+      scaleFraction: 0.88,
       child: Container(
         width: 42,
         height: 42,

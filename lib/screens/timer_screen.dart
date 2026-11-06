@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
+import '../widgets_3d/bouncy_tap.dart';
 
 class TimerScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -290,9 +291,9 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
                               ),
                               const SizedBox(height: 6),
 
-                              // Big crisp digital digits
-                              Text(
-                                _formatTimerDisplay(_currentSeconds),
+                              // Big crisp digital digits with spring pop
+                              AnimatedTextPop(
+                                text: _formatTimerDisplay(_currentSeconds),
                                 style: widget.theme.fontMono(
                                   fontSize: 44,
                                   fontWeight: FontWeight.w800,
@@ -531,9 +532,9 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
   }
 
   Widget _buildQuickAddChip(String label, int secondsToAdd) {
-    return InkWell(
+    return BouncyTap(
       onTap: () => _addTime(secondsToAdd),
-      borderRadius: BorderRadius.circular(16),
+      scaleFraction: 0.90,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
@@ -563,9 +564,9 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
     final double size = isLarge ? 68 : 54;
     return Column(
       children: [
-        InkWell(
+        BouncyTap(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(size / 2),
+          scaleFraction: 0.88,
           child: Container(
             width: size,
             height: size,
@@ -599,9 +600,9 @@ class _TimerScreenState extends State<TimerScreen> with SingleTickerProviderStat
 
   Widget _buildPresetChip(String label, int seconds) {
     final bool isSelected = (_initialSeconds == seconds);
-    return InkWell(
+    return BouncyTap(
       onTap: () => _setPreset(seconds),
-      borderRadius: BorderRadius.circular(10),
+      scaleFraction: 0.92,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
         decoration: BoxDecoration(

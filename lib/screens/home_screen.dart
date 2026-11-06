@@ -5,6 +5,7 @@ import '../services/sound_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
 import '../widgets_3d/tooler_hover_sheet.dart';
+import '../widgets_3d/bouncy_tap.dart';
 import 'calculator_screen.dart';
 import 'age_calculator_screen.dart';
 import 'converters_screen.dart';
@@ -687,16 +688,29 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          ToolerLogo(
-            height: 36,
-            color: theme.text,
-            accentColor: theme.primary,
+          BouncyTap(
+            onTap: () {
+              SoundService().playClick();
+              if (_scrollController.hasClients) {
+                _scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 320),
+                  curve: Curves.easeOutCubic,
+                );
+              }
+            },
+            scaleFraction: 0.95,
+            child: ToolerLogo(
+              height: 36,
+              color: theme.text,
+              accentColor: theme.primary,
+            ),
           ),
 
-          // Settings Action Button (opens modern settings with color dots & dark mode)
-          InkWell(
+          // Settings Action Button (opens modern settings with bouncy tactile pop)
+          BouncyTap(
             onTap: _openSettings,
-            borderRadius: BorderRadius.circular(20),
+            scaleFraction: 0.88,
             child: Container(
               width: 40,
               height: 40,
@@ -844,17 +858,21 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
                 if (_searchQuery.isNotEmpty)
-                  GestureDetector(
+                  BouncyTap(
                     onTap: () {
                       SoundService().playClick();
                       _searchController.clear();
                       _searchFocusNode.unfocus();
                       FocusScope.of(context).unfocus();
                     },
-                    child: Icon(
-                      Icons.cancel_rounded,
-                      size: 18,
-                      color: theme.textSecondary,
+                    scaleFraction: 0.85,
+                    child: Padding(
+                      padding: const EdgeInsets.all(4.0),
+                      child: Icon(
+                        Icons.cancel_rounded,
+                        size: 18,
+                        color: theme.textSecondary,
+                      ),
                     ),
                   ),
               ],
@@ -904,24 +922,34 @@ class _HomeScreenState extends State<HomeScreen> {
               final isSelected = _selectedCategory == cat;
               return Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: InkWell(
+                child: BouncyTap(
                   onTap: () {
                     SoundService().playClick();
                     _searchFocusNode.unfocus();
                     FocusScope.of(context).unfocus();
                     setState(() => _selectedCategory = cat);
                   },
-                  borderRadius: BorderRadius.circular(20),
+                  scaleFraction: 0.93,
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutBack,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSelected ? theme.lavenderBubble : theme.cardBg,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
                         color: isSelected ? theme.primary : theme.border,
-                        width: 1.2,
+                        width: isSelected ? 1.4 : 1.2,
                       ),
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: theme.primary.withValues(alpha: 0.12),
+                                blurRadius: 8,
+                                offset: const Offset(0, 3),
+                              ),
+                            ]
+                          : null,
                     ),
                     child: Text(
                       cat,
@@ -967,17 +995,17 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildQuickCard(compTool, cardW),
                 const SizedBox(width: 12),
-                // 4th Card: Filled Lilac "All Tools" card (like Image 2!)
-                InkWell(
+                // 4th Card: Filled Lilac "All Tools" card (like Image 2!) with Bouncy Tap
+                BouncyTap(
                   onTap: () {
                     SoundService().playClick();
                     _scrollController.animateTo(
                       380,
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
+                      duration: const Duration(milliseconds: 320),
+                      curve: Curves.easeOutCubic,
                     );
                   },
-                  borderRadius: BorderRadius.circular(20),
+                  scaleFraction: 0.94,
                   child: Container(
                     width: cardW,
                     height: 100,
@@ -1043,9 +1071,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = widget.theme;
     final isDark = theme.isDark;
 
-    return InkWell(
+    return BouncyTap(
       onTap: () => _openTool(tool),
-      borderRadius: BorderRadius.circular(20),
+      scaleFraction: 0.94,
       child: Container(
         width: width,
         height: 100,
@@ -1126,8 +1154,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         if (_searchQuery.isNotEmpty)
-          Text(
-            '${_filteredTools.length} found',
+          AnimatedTextPop(
+            text: '${_filteredTools.length} found',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -1135,13 +1163,14 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           )
         else
-          InkWell(
+          BouncyTap(
             onTap: () {
               SoundService().playClick();
               setState(() => _selectedCategory = 'All');
             },
-            child: Text(
-              'See all',
+            scaleFraction: 0.90,
+            child: AnimatedTextPop(
+              text: 'See all',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -1154,7 +1183,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// -------------------------------------------------------------------------
-  /// 6. List of Clean Modern Tool Cards (Pop-up Hover on tap!)
+  /// 6. List of Clean Modern Tool Cards (Pop-up Hover on tap with Staggered Slide & Bouncyness!)
   /// -------------------------------------------------------------------------
   Widget _buildToolsList(bool isDark) {
     final theme = widget.theme;
@@ -1181,152 +1210,177 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return Column(
-      children: list.map((tool) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            color: theme.cardBg,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: theme.border, width: 1.2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
-              ),
-            ],
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 280),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.05),
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
           ),
-          child: InkWell(
-            onTap: () => _openTool(tool),
-            borderRadius: BorderRadius.circular(20),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Row(
-                children: [
-                  // 2D Line Illustration with Accent Bubble
-                  Minimal2DIcon(
-                    type: tool['iconType'],
-                    size: 46,
-                    bubbleColor: theme.lavenderBubble,
-                    accentColor: theme.primary,
-                    isDark: isDark,
+        );
+      },
+      child: Column(
+        key: ValueKey<String>('${_selectedCategory}_$_searchQuery'),
+        children: list.asMap().entries.map((entry) {
+          final index = entry.key;
+          final tool = entry.value;
+          final highlight = tool['searchHighlight'] as String?;
+
+          return StaggeredSlideItem(
+            index: index < 8 ? index : 8,
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: theme.cardBg,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: theme.border, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.02),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
-                  const SizedBox(width: 14),
-                  // Tool Info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
+                ],
+              ),
+              child: BouncyTap(
+                onTap: () => _openTool(tool),
+                scaleFraction: 0.96,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  child: Row(
+                    children: [
+                      // 2D Line Illustration with Accent Bubble
+                      Minimal2DIcon(
+                        type: tool['iconType'],
+                        size: 46,
+                        bubbleColor: theme.lavenderBubble,
+                        accentColor: theme.primary,
+                        isDark: isDark,
+                      ),
+                      const SizedBox(width: 14),
+                      // Tool Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Flexible(
-                              child: Text(
-                                tool['title'] as String,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
-                                  color: theme.text,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Tag Badge
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: theme.lavenderCard,
-                                borderRadius: BorderRadius.circular(6),
-                                border: Border.all(
-                                  color: theme.border,
-                                  width: 1,
-                                ),
-                              ),
-                              child: Text(
-                                tool['tag'] as String,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.primary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          tool['subtitle'] as String,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: theme.textSecondary,
-                          ),
-                        ),
-                        if (_searchQuery.isNotEmpty && tool['searchHighlight'] != null) ...[
-                          const SizedBox(height: 5),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                            decoration: BoxDecoration(
-                              color: theme.primary.withValues(alpha: 0.08),
-                              borderRadius: BorderRadius.circular(6),
-                              border: Border.all(
-                                color: theme.primary.withValues(alpha: 0.25),
-                                width: 0.8,
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
+                            Row(
                               children: [
-                                Icon(
-                                  Icons.auto_awesome_rounded,
-                                  size: 11,
-                                  color: theme.primary,
-                                ),
-                                const SizedBox(width: 4),
                                 Flexible(
                                   child: Text(
-                                    tool['searchHighlight'] as String,
+                                    tool['title'] as String,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 11,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: theme.text,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Tag Badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: theme.lavenderCard,
+                                    borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: theme.border,
+                                      width: 1,
+                                    ),
+                                  ),
+                                  child: Text(
+                                    tool['tag'] as String,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10,
                                       fontWeight: FontWeight.w600,
-                                      color: theme.primaryDark,
+                                      color: theme.primary,
                                     ),
                                   ),
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-                      ],
-                    ),
+                            const SizedBox(height: 3),
+                            Text(
+                              tool['subtitle'] as String,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: theme.textSecondary,
+                              ),
+                            ),
+                            if (_searchQuery.isNotEmpty && highlight != null) ...[
+                              const SizedBox(height: 5),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: theme.primary.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: theme.primary.withValues(alpha: 0.25),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      Icons.auto_awesome_rounded,
+                                      size: 11,
+                                      color: theme.primary,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        highlight,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.primaryDark,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Circular outline arrow button
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: theme.border, width: 1.2),
+                        ),
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 20,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                    ],
                   ),
-                  const SizedBox(width: 8),
-                  // Circular outline arrow button
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: theme.border, width: 1.2),
-                    ),
-                    child: Icon(
-                      Icons.chevron_right_rounded,
-                      size: 20,
-                      color: theme.textSecondary,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 }

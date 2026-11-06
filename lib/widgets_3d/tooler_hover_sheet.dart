@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
+import 'bouncy_tap.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER UNIFIED HOVER POP-UP SHEET
@@ -56,7 +57,9 @@ class ToolerHoverSheet extends StatefulWidget {
       PageRouteBuilder(
         opaque: false,
         barrierDismissible: true,
-        barrierColor: Colors.black.withValues(alpha: 0.35),
+        barrierColor: Colors.black.withValues(alpha: 0.38),
+        transitionDuration: const Duration(milliseconds: 380),
+        reverseTransitionDuration: const Duration(milliseconds: 260),
         pageBuilder: (context, animation, secondaryAnimation) {
           return ToolerHoverSheet(
             title: title,
@@ -68,19 +71,30 @@ class ToolerHoverSheet extends StatefulWidget {
           );
         },
         transitionsBuilder: (context, animation, secondaryAnimation, page) {
-          final curved = CurvedAnimation(
+          final springCurved = CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOutCubic,
+            curve: Curves.easeOutBack,
             reverseCurve: Curves.easeInCubic,
+          );
+          final fadeCurved = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+            reverseCurve: Curves.easeIn,
           );
           return SlideTransition(
             position: Tween<Offset>(
               begin: const Offset(0, 0.18),
               end: Offset.zero,
-            ).animate(curved),
-            child: FadeTransition(
-              opacity: curved,
-              child: page,
+            ).animate(springCurved),
+            child: ScaleTransition(
+              scale: Tween<double>(
+                begin: 0.92,
+                end: 1.0,
+              ).animate(springCurved),
+              child: FadeTransition(
+                opacity: fadeCurved,
+                child: page,
+              ),
             ),
           );
         },
@@ -221,35 +235,32 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             child: Row(
                               children: [
-                                // Left Back Button (<)
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: () {
-                                      SoundService().playClick();
-                                      Navigator.pop(context);
-                                    },
-                                    borderRadius: BorderRadius.circular(22),
-                                    child: Container(
-                                      width: 42,
-                                      height: 42,
-                                      decoration: BoxDecoration(
-                                        color: theme.cardBg,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: theme.border, width: 1.2),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.04),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Icon(
-                                        Icons.arrow_back_ios_new_rounded,
-                                        size: 18,
-                                        color: theme.text,
-                                      ),
+                                // Left Back Button (<) with Bouncy Tap
+                                BouncyTap(
+                                  onTap: () {
+                                    SoundService().playClick();
+                                    Navigator.pop(context);
+                                  },
+                                  scaleFraction: 0.90,
+                                  child: Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      color: theme.cardBg,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: theme.border, width: 1.2),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.04),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Icon(
+                                      Icons.arrow_back_ios_new_rounded,
+                                      size: 18,
+                                      color: theme.text,
                                     ),
                                   ),
                                 ),
@@ -272,42 +283,46 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                                   ),
                                 ),
 
-                                // Right: Favorite Button (♥)
-                                Material(
-                                  color: Colors.transparent,
-                                  child: InkWell(
-                                    onTap: _toggleFavorite,
-                                    borderRadius: BorderRadius.circular(22),
-                                    child: Container(
-                                      width: 42,
-                                      height: 42,
-                                      decoration: BoxDecoration(
-                                        color: theme.cardBg,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: _isFavorite
-                                              ? theme.primary.withValues(alpha: 0.5)
-                                              : theme.border,
-                                          width: 1.2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: _isFavorite
-                                                ? theme.primary.withValues(alpha: 0.15)
-                                                : Colors.black.withValues(alpha: 0.04),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Icon(
-                                        _isFavorite
-                                            ? Icons.favorite_rounded
-                                            : Icons.favorite_outline_rounded,
-                                        size: 20,
+                                // Right: Favorite Button (♥) with Bouncy Tap & Pulse
+                                BouncyTap(
+                                  onTap: _toggleFavorite,
+                                  scaleFraction: 0.88,
+                                  child: Container(
+                                    width: 42,
+                                    height: 42,
+                                    decoration: BoxDecoration(
+                                      color: theme.cardBg,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
                                         color: _isFavorite
-                                            ? const Color(0xFFFF4757)
-                                            : theme.textSecondary,
+                                            ? theme.primary.withValues(alpha: 0.5)
+                                            : theme.border,
+                                        width: 1.2,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: _isFavorite
+                                              ? theme.primary.withValues(alpha: 0.15)
+                                              : Colors.black.withValues(alpha: 0.04),
+                                          blurRadius: 6,
+                                          offset: const Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Center(
+                                      child: AnimatedScale(
+                                        scale: _isFavorite ? 1.15 : 1.0,
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutBack,
+                                        child: Icon(
+                                          _isFavorite
+                                              ? Icons.favorite_rounded
+                                              : Icons.favorite_outline_rounded,
+                                          size: 20,
+                                          color: _isFavorite
+                                              ? const Color(0xFFFF4757)
+                                              : theme.textSecondary,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -317,25 +332,39 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                           ),
 
                           // 2.3 Dedicated Botanical & Hanging Lamp Vector Artwork Banner (inside hover sheet)
-                          Container(
-                            margin: const EdgeInsets.fromLTRB(16, 6, 16, 8),
-                            height: 76,
-                            width: double.infinity,
-                            decoration: BoxDecoration(
-                              color: theme.lavenderBubble,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: theme.border.withValues(alpha: 0.7),
-                                width: 1.0,
+                          TweenAnimationBuilder<double>(
+                            tween: Tween<double>(begin: 0.0, end: 1.0),
+                            duration: const Duration(milliseconds: 400),
+                            curve: Curves.easeOutCubic,
+                            builder: (context, val, child) {
+                              return Opacity(
+                                opacity: val,
+                                child: Transform.translate(
+                                  offset: Offset(0, 10 * (1 - val)),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.fromLTRB(16, 6, 16, 8),
+                              height: 76,
+                              width: double.infinity,
+                              decoration: BoxDecoration(
+                                color: theme.lavenderBubble,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: theme.border.withValues(alpha: 0.7),
+                                  width: 1.0,
+                                ),
                               ),
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: CustomPaint(
-                                painter: _EnhancedAestheticBannerPainter(
-                                  strokeColor: isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B),
-                                  accentColor: theme.primary,
-                                  isDark: isDark,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: CustomPaint(
+                                  painter: _EnhancedAestheticBannerPainter(
+                                    strokeColor: isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B),
+                                    accentColor: theme.primary,
+                                    isDark: isDark,
+                                  ),
                                 ),
                               ),
                             ),
