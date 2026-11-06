@@ -26,6 +26,10 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     super.initState();
     _initSnakeHigh();
     _initTetrisHigh();
+    _unoFlyController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 380),
+    );
   }
 
   @override
@@ -33,8 +37,10 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     _snakeTimer?.cancel();
     _tetrisTimer?.cancel();
     _ludoBotTimer?.cancel();
+    _ludoStepTimer?.cancel();
     _snlBotTimer?.cancel();
     _unoBotTimer?.cancel();
+    _unoFlyController?.dispose();
     super.dispose();
   }
 
@@ -510,12 +516,17 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   int _ludoDiceVal = 1;
   bool _ludoHasRolled = false;
   bool _ludoIsRolling = false;
+  bool _ludoIsAnimatingMove = false;
+  int? _animatingLudoPlayer;
+  int? _animatingLudoToken;
+  Timer? _ludoStepTimer;
   Timer? _ludoBotTimer;
   String? _ludoWinner;
 
   void _resetLudo() {
     SoundService().playClick();
     _ludoBotTimer?.cancel();
+    _ludoStepTimer?.cancel();
     setState(() {
       _ludoTokens = [
         [-1, -1, -1, -1],
@@ -527,6 +538,9 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       _ludoDiceVal = 1;
       _ludoHasRolled = false;
       _ludoIsRolling = false;
+      _ludoIsAnimatingMove = false;
+      _animatingLudoPlayer = null;
+      _animatingLudoToken = null;
       _ludoWinner = null;
     });
 
@@ -538,7 +552,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   bool _canLudoTokenMove(int pIdx, int tIdx) {
-    if (!_ludoHasRolled) return false;
+    if (!_ludoHasRolled || _ludoIsAnimatingMove) return false;
     final step = _ludoTokens[pIdx][tIdx];
     if (step == -1) return _ludoDiceVal == 6;
     if (step == 56) return false;
@@ -546,7 +560,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   void _rollLudoDice() {
-    if (_ludoHasRolled || _ludoIsRolling || _ludoWinner != null) return;
+    if (_ludoHasRolled || _ludoIsRolling || _ludoIsAnimatingMove || _ludoWinner != null) return;
     if (_ludoCurrentTurn != _ludoHumanPlayer) return;
     _executeLudoRoll();
   }
@@ -639,74 +653,105 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   void _moveLudoToken(int pIdx, int tIdx) {
-    if (!_ludoHasRolled) return;
+    if (!_ludoHasRolled || _ludoIsAnimatingMove) return;
 
     SoundService().playKey();
-    bool getsBonusRoll = false;
+    final currentStep = _ludoTokens[pIdx][tIdx];
 
-    setState(() {
-      final currentStep = _ludoTokens[pIdx][tIdx];
-      if (currentStep == -1) {
+    if (currentStep == -1) {
+      // Step out of base to step 0
+      setState(() {
         _ludoTokens[pIdx][tIdx] = 0;
-      } else {
-        final targetStep = currentStep + _ludoDiceVal;
-        _ludoTokens[pIdx][tIdx] = targetStep;
+        _ludoHasRolled = false;
+      });
+      _finalizeLudoTurn(pIdx, tIdx, 0, bonusOnSix: true);
+      return;
+    }
 
-        if (targetStep == 56) {
-          getsBonusRoll = true;
-          if (_ludoTokens[pIdx].every((s) => s == 56)) {
-            _ludoWinner = _ludoPlayerNames[pIdx];
-            SoundService().playSuccess();
-            final isHumanWin = (pIdx == _ludoHumanPlayer);
-            Timer(const Duration(milliseconds: 300), () {
-              if (!mounted) return;
-              _showGameResultModal(
-                outcome: isHumanWin ? GameOutcome.win : GameOutcome.lose,
-                title: isHumanWin ? 'LUDO VICTORY!' : 'LUDO OVER',
-                subtitle: isHumanWin
-                    ? 'Congratulations! You brought all 4 tokens Home to victory!'
-                    : '${_ludoPlayerNames[pIdx]} brought all tokens home first!',
-                statTitle: 'Winner',
-                statValue: _ludoPlayerNames[pIdx],
-                onPlayAgain: _resetLudo,
-              );
-            });
-            return;
-          }
-        } else if (targetStep <= 50) {
-          final actualTrack = (_getStartIdx(pIdx) + targetStep) % 52;
-          if (!_ludoSafeStars.contains(actualTrack)) {
-            for (int enemy = 0; enemy < 4; enemy++) {
-              if (enemy == pIdx) continue;
-              for (int et = 0; et < 4; et++) {
-                final es = _ludoTokens[enemy][et];
-                if (es >= 0 && es <= 50) {
-                  final enemyTrack = (_getStartIdx(enemy) + es) % 52;
-                  if (enemyTrack == actualTrack) {
-                    _ludoTokens[enemy][et] = -1;
-                    getsBonusRoll = true;
-                    SoundService().playSuccess();
-                  }
-                }
+    final targetStep = currentStep + _ludoDiceVal;
+    setState(() {
+      _ludoIsAnimatingMove = true;
+      _animatingLudoPlayer = pIdx;
+      _animatingLudoToken = tIdx;
+      _ludoHasRolled = false;
+    });
+
+    _ludoStepTimer?.cancel();
+    _ludoStepTimer = Timer.periodic(const Duration(milliseconds: 140), (timer) {
+      if (!mounted) {
+        timer.cancel();
+        return;
+      }
+
+      setState(() {
+        _ludoTokens[pIdx][tIdx]++;
+        SoundService().playKey();
+
+        if (_ludoTokens[pIdx][tIdx] >= targetStep) {
+          timer.cancel();
+          _ludoTokens[pIdx][tIdx] = targetStep;
+          _ludoIsAnimatingMove = false;
+          _animatingLudoPlayer = null;
+          _animatingLudoToken = null;
+          _finalizeLudoTurn(pIdx, tIdx, targetStep, bonusOnSix: true);
+        }
+      });
+    });
+  }
+
+  void _finalizeLudoTurn(int pIdx, int tIdx, int targetStep, {required bool bonusOnSix}) {
+    bool getsBonusRoll = (bonusOnSix && _ludoDiceVal == 6);
+
+    if (targetStep == 56) {
+      getsBonusRoll = true;
+      if (_ludoTokens[pIdx].every((s) => s == 56)) {
+        _ludoWinner = _ludoPlayerNames[pIdx];
+        SoundService().playSuccess();
+        final isHumanWin = (pIdx == _ludoHumanPlayer);
+        Timer(const Duration(milliseconds: 300), () {
+          if (!mounted) return;
+          _showGameResultModal(
+            outcome: isHumanWin ? GameOutcome.win : GameOutcome.lose,
+            title: isHumanWin ? 'LUDO VICTORY!' : 'LUDO OVER',
+            subtitle: isHumanWin
+                ? 'Congratulations! You brought all 4 tokens Home to victory!'
+                : '${_ludoPlayerNames[pIdx]} brought all tokens home first!',
+            statTitle: 'Winner',
+            statValue: _ludoPlayerNames[pIdx],
+            onPlayAgain: _resetLudo,
+          );
+        });
+        return;
+      }
+    } else if (targetStep <= 50) {
+      final actualTrack = (_getStartIdx(pIdx) + targetStep) % 52;
+      if (!_ludoSafeStars.contains(actualTrack)) {
+        for (int enemy = 0; enemy < 4; enemy++) {
+          if (enemy == pIdx) continue;
+          for (int et = 0; et < 4; et++) {
+            final es = _ludoTokens[enemy][et];
+            if (es >= 0 && es <= 50) {
+              final enemyTrack = (_getStartIdx(enemy) + es) % 52;
+              if (enemyTrack == actualTrack) {
+                _ludoTokens[enemy][et] = -1;
+                getsBonusRoll = true;
+                SoundService().playSuccess();
               }
             }
           }
         }
       }
+    }
 
-      if (_ludoDiceVal == 6) getsBonusRoll = true;
-      _ludoHasRolled = false;
-
-      if (getsBonusRoll && _ludoWinner == null) {
-        if (_ludoCurrentTurn != _ludoHumanPlayer) {
-          _ludoBotTimer = Timer(Duration(milliseconds: _ludoBotSpeedMs), () {
-            if (mounted) _executeLudoRoll();
-          });
-        }
-      } else {
-        _nextLudoTurn();
+    if (getsBonusRoll && _ludoWinner == null) {
+      if (_ludoCurrentTurn != _ludoHumanPlayer) {
+        _ludoBotTimer = Timer(Duration(milliseconds: _ludoBotSpeedMs), () {
+          if (mounted) _executeLudoRoll();
+        });
       }
-    });
+    } else {
+      _nextLudoTurn();
+    }
   }
 
   void _nextLudoTurn() {
@@ -871,6 +916,12 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   Timer? _unoBotTimer;
   String _unoPlayerAvatar = '🎓 Scholar';
   String _unoDifficulty = 'normal';
+  AnimationController? _unoFlyController;
+  Animation<Offset>? _unoFlyOffsetAnimation;
+  Animation<double>? _unoFlyScaleAnimation;
+  Animation<double>? _unoFlyRotateAnimation;
+  Map<String, String>? _unoFlyingCard;
+  bool _unoIsAnimatingCard = false;
 
   void _initUno() {
     _unoBotTimer?.cancel();
@@ -918,7 +969,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   void _onUnoCardTapped(int index) {
-    if (_unoCurrentTurn != 'player') return;
+    if (_unoCurrentTurn != 'player' || _unoIsAnimatingCard) return;
     final card = _unoPlayerHand[index];
     if (!_isUnoCardPlayable(card)) {
       SoundService().playAlert();
@@ -979,75 +1030,112 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   }
 
   void _executeUnoPlay(int cardIdx, String chosenColor, {required bool isPlayer}) {
+    if (_unoIsAnimatingCard) return;
+
+    final hand = isPlayer ? _unoPlayerHand : _unoBotHand;
+    final card = hand.removeAt(cardIdx);
+
+    _animateCardToDiscard(card, chosenColor, isPlayer, () {
+      setState(() {
+        if (hand.isEmpty) {
+          _unoStatusMsg = isPlayer ? 'Congratulations! You emptied your hand and Won UNO!' : 'Bot Won UNO!';
+          SoundService().playSuccess();
+          Timer(const Duration(milliseconds: 300), () {
+            if (!mounted) return;
+            _showGameResultModal(
+              outcome: isPlayer ? GameOutcome.win : GameOutcome.lose,
+              title: isPlayer ? 'UNO CHAMPION!' : 'BOT WON UNO',
+              subtitle: isPlayer
+                  ? 'Superb! You emptied all cards from your hand!'
+                  : 'The bot played its last card before you!',
+              statTitle: 'Hand Status',
+              statValue: isPlayer ? '0 Cards (Victory)' : '${_unoPlayerHand.length} cards remaining',
+              secondaryStat: 'Bot Cards: ${_unoBotHand.length}',
+              onPlayAgain: () => setState(() => _initUno()),
+            );
+          });
+          return;
+        }
+
+        if (isPlayer && hand.length == 1 && !_unoSaidUno) {
+          _unoStatusMsg = 'Forgot to shout UNO! 2 penalty cards drawn!';
+          _drawUnoCards(2, isPlayer: true);
+        }
+
+        final val = card['value'];
+        if (val == '+2') {
+          _drawUnoCards(2, isPlayer: !isPlayer);
+          _unoStatusMsg = '${isPlayer ? "You" : "Bot"} played +2! Opponent draws 2 and skips turn!';
+          if (!isPlayer) {
+            _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
+              if (mounted) _executeUnoBotMove();
+            });
+          }
+          return;
+        } else if (val == '+4') {
+          _drawUnoCards(4, isPlayer: !isPlayer);
+          _unoStatusMsg = '${isPlayer ? "You" : "Bot"} played +4! Opponent draws 4 and skips turn!';
+          if (!isPlayer) {
+            _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
+              if (mounted) _executeUnoBotMove();
+            });
+          }
+          return;
+        } else if (val == '🚫' || val == '🔄') {
+          _unoStatusMsg = '${isPlayer ? "You" : "Bot"} played $val! Opponent turn skipped!';
+          if (!isPlayer) {
+            _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
+              if (mounted) _executeUnoBotMove();
+            });
+          }
+          return;
+        }
+
+        _unoCurrentTurn = isPlayer ? 'bot' : 'player';
+        _unoSaidUno = false;
+        _unoStatusMsg = isPlayer ? "Bot's Turn..." : 'Your Turn!';
+
+        if (_unoCurrentTurn == 'bot') {
+          _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
+            if (mounted) _executeUnoBotMove();
+          });
+        }
+      });
+    });
+  }
+
+  void _animateCardToDiscard(Map<String, String> card, String chosenColor, bool isPlayer, VoidCallback onFinish) {
     setState(() {
-      final hand = isPlayer ? _unoPlayerHand : _unoBotHand;
-      final card = hand.removeAt(cardIdx);
-      _unoTopCard = card;
-      _unoActiveColor = chosenColor;
+      _unoFlyingCard = card;
+      _unoIsAnimatingCard = true;
+    });
+    SoundService().playKey();
 
-      if (hand.isEmpty) {
-        _unoStatusMsg = isPlayer ? 'Congratulations! You emptied your hand and Won UNO!' : 'Bot Won UNO!';
-        SoundService().playSuccess();
-        Timer(const Duration(milliseconds: 300), () {
-          if (!mounted) return;
-          _showGameResultModal(
-            outcome: isPlayer ? GameOutcome.win : GameOutcome.lose,
-            title: isPlayer ? 'UNO CHAMPION!' : 'BOT WON UNO',
-            subtitle: isPlayer
-                ? 'Superb! You emptied all cards from your hand!'
-                : 'The bot played its last card before you!',
-            statTitle: 'Hand Status',
-            statValue: isPlayer ? '0 Cards (Victory)' : '${_unoPlayerHand.length} cards remaining',
-            secondaryStat: 'Bot Cards: ${_unoBotHand.length}',
-            onPlayAgain: () => setState(() => _initUno()),
-          );
-        });
-        return;
-      }
+    final startOffset = isPlayer ? const Offset(0.0, 1.8) : const Offset(0.0, -1.8);
+    _unoFlyOffsetAnimation = Tween<Offset>(
+      begin: startOffset,
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _unoFlyController!, curve: Curves.easeOutCubic));
 
-      if (isPlayer && hand.length == 1 && !_unoSaidUno) {
-        _unoStatusMsg = 'Forgot to shout UNO! 2 penalty cards drawn!';
-        _drawUnoCards(2, isPlayer: true);
-      }
+    _unoFlyScaleAnimation = Tween<double>(
+      begin: 0.55,
+      end: 1.0,
+    ).animate(CurvedAnimation(parent: _unoFlyController!, curve: Curves.easeOutBack));
 
-      final val = card['value'];
-      if (val == '+2') {
-        _drawUnoCards(2, isPlayer: !isPlayer);
-        _unoStatusMsg = '${isPlayer ? "You" : "Bot"} played +2! Opponent draws 2 and skips turn!';
-        if (!isPlayer) {
-          _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
-            if (mounted) _executeUnoBotMove();
-          });
-        }
-        return;
-      } else if (val == '+4') {
-        _drawUnoCards(4, isPlayer: !isPlayer);
-        _unoStatusMsg = '${isPlayer ? "You" : "Bot"} played +4! Opponent draws 4 and skips turn!';
-        if (!isPlayer) {
-          _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
-            if (mounted) _executeUnoBotMove();
-          });
-        }
-        return;
-      } else if (val == '🚫' || val == '🔄') {
-        _unoStatusMsg = '${isPlayer ? "You" : "Bot"} played $val! Opponent turn skipped!';
-        if (!isPlayer) {
-          _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
-            if (mounted) _executeUnoBotMove();
-          });
-        }
-        return;
-      }
+    _unoFlyRotateAnimation = Tween<double>(
+      begin: isPlayer ? -0.22 : 0.25,
+      end: (math.Random().nextDouble() - 0.5) * 0.1,
+    ).animate(CurvedAnimation(parent: _unoFlyController!, curve: Curves.easeOutQuad));
 
-      _unoCurrentTurn = isPlayer ? 'bot' : 'player';
-      _unoSaidUno = false;
-      _unoStatusMsg = isPlayer ? "Bot's Turn..." : 'Your Turn!';
-
-      if (_unoCurrentTurn == 'bot') {
-        _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
-          if (mounted) _executeUnoBotMove();
-        });
-      }
+    _unoFlyController!.forward(from: 0.0).then((_) {
+      if (!mounted) return;
+      setState(() {
+        _unoTopCard = card;
+        _unoActiveColor = chosenColor;
+        _unoFlyingCard = null;
+        _unoIsAnimatingCard = false;
+      });
+      onFinish();
     });
   }
 
@@ -2562,6 +2650,8 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               hasRolled: _ludoHasRolled,
               canMoveFunc: _canLudoTokenMove,
               humanPlayer: _ludoHumanPlayer,
+              animatingPlayer: _animatingLudoPlayer,
+              animatingToken: _animatingLudoToken,
             ),
           ),
         ),
@@ -2786,7 +2876,32 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                   ),
                 ),
                 const SizedBox(height: 4),
-                _buildUnoCardWidget(_unoTopCard, isLarge: true),
+                Stack(
+                  alignment: Alignment.center,
+                  clipBehavior: Clip.none,
+                  children: [
+                    _buildUnoCardWidget(_unoTopCard, isLarge: true),
+                    if (_unoIsAnimatingCard && _unoFlyingCard != null && _unoFlyController != null)
+                      AnimatedBuilder(
+                        animation: _unoFlyController!,
+                        builder: (ctx, child) {
+                          return Transform.translate(
+                            offset: Offset(
+                              _unoFlyOffsetAnimation!.value.dx * 120,
+                              _unoFlyOffsetAnimation!.value.dy * 120,
+                            ),
+                            child: Transform.rotate(
+                              angle: _unoFlyRotateAnimation!.value,
+                              child: Transform.scale(
+                                scale: _unoFlyScaleAnimation!.value,
+                                child: _buildUnoCardWidget(_unoFlyingCard!, isLarge: true),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                  ],
+                ),
               ],
             ),
             ElevatedButton(
@@ -3350,6 +3465,8 @@ class _LudoBoardPainter extends CustomPainter {
   final bool hasRolled;
   final bool Function(int, int) canMoveFunc;
   final int humanPlayer;
+  final int? animatingPlayer;
+  final int? animatingToken;
 
   _LudoBoardPainter({
     required this.tokens,
@@ -3357,6 +3474,8 @@ class _LudoBoardPainter extends CustomPainter {
     required this.hasRolled,
     required this.canMoveFunc,
     required this.humanPlayer,
+    this.animatingPlayer,
+    this.animatingToken,
   });
 
   @override
@@ -3440,16 +3559,25 @@ class _LudoBoardPainter extends CustomPainter {
           pos = track[trackIdx];
         }
 
+        final isAnimating = (p == animatingPlayer && t == animatingToken);
+        final drawPos = isAnimating ? Offset(pos.dx, pos.dy - 6.0) : pos;
+
         final tPaint = Paint()..color = tokenColors[p];
         final canMove = p == currentTurn && hasRolled && canMoveFunc(p, t);
 
-        if (canMove) {
+        if (isAnimating) {
+          final jumpHalo = Paint()
+            ..color = const Color(0xFFF1C40F).withValues(alpha: 0.6)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 4;
+          canvas.drawCircle(drawPos, cell * 0.48, jumpHalo);
+        } else if (canMove) {
           final haloPaint = Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 3;
-          canvas.drawCircle(pos, cell * 0.44, haloPaint);
+          canvas.drawCircle(drawPos, cell * 0.44, haloPaint);
         }
 
-        canvas.drawCircle(pos, cell * 0.36, tPaint);
-        canvas.drawCircle(pos, cell * 0.16, Paint()..color = p == humanPlayer ? const Color(0xFFF1C40F) : Colors.white);
+        canvas.drawCircle(drawPos, cell * (isAnimating ? 0.40 : 0.36), tPaint);
+        canvas.drawCircle(drawPos, cell * 0.16, Paint()..color = p == humanPlayer ? const Color(0xFFF1C40F) : Colors.white);
       }
     }
   }
@@ -3493,11 +3621,22 @@ class _SnakesAndLaddersPainter extends CustomPainter {
     required this.p1Color,
   });
 
+  Offset _getCellCenter(int num, double cell) {
+    if (num < 1) num = 1;
+    if (num > 100) num = 100;
+    final idx = num - 1;
+    final r = idx ~/ 10;
+    final c = idx % 10;
+    final actualCol = (r % 2 == 0) ? c : (9 - c);
+    return Offset((actualCol + 0.5) * cell, (9 - r + 0.5) * cell);
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final cell = size.width / 10.0;
     final textPainter = TextPainter(textDirection: TextDirection.ltr);
 
+    // 1. Grid Cells & Numbers
     for (int r = 9; r >= 0; r--) {
       final isEven = (r % 2 == 0);
       for (int c = 0; c < 10; c++) {
@@ -3506,8 +3645,6 @@ class _SnakesAndLaddersPainter extends CustomPainter {
         final cellRect = Rect.fromLTWH(c * cell, (9 - r) * cell, cell, cell);
 
         Color cellColor = cellNum % 2 == 0 ? theme.bg : theme.cardBg;
-        if (snakes.containsKey(cellNum)) cellColor = const Color(0xFFFFEAEA);
-        if (ladders.containsKey(cellNum)) cellColor = const Color(0xFFEAFFEA);
         if (cellNum == 100) cellColor = const Color(0xFFFFF3CD);
 
         canvas.drawRect(cellRect, Paint()..color = cellColor);
@@ -3519,37 +3656,171 @@ class _SnakesAndLaddersPainter extends CustomPainter {
         );
         textPainter.layout();
         textPainter.paint(canvas, Offset(cellRect.left + 2, cellRect.top + 2));
-
-        if (snakes.containsKey(cellNum)) {
-          textPainter.text = TextSpan(
-            text: '🐍${snakes[cellNum]}',
-            style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFFE74C3C)),
-          );
-          textPainter.layout();
-          textPainter.paint(canvas, Offset(cellRect.left + 2, cellRect.bottom - 12));
-        } else if (ladders.containsKey(cellNum)) {
-          textPainter.text = TextSpan(
-            text: '🪜${ladders[cellNum]}',
-            style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFF27AE60)),
-          );
-          textPainter.layout();
-          textPainter.paint(canvas, Offset(cellRect.left + 2, cellRect.bottom - 12));
-        }
       }
     }
 
+    // 2. Draw Real Vector Ladders (No Emojis)
+    ladders.forEach((start, end) {
+      final bottom = _getCellCenter(start, cell);
+      final top = _getCellCenter(end, cell);
+      _drawRealLadder(canvas, bottom, top, cell);
+    });
+
+    // 3. Draw Real Vector Snakes with Mouth to Tail (No Emojis)
+    snakes.forEach((head, tail) {
+      final headPos = _getCellCenter(head, cell);
+      final tailPos = _getCellCenter(tail, cell);
+      _drawRealSnake(canvas, headPos, tailPos, cell, head);
+    });
+
+    // 4. Draw Player Pawns
     _drawPawn(canvas, p1Pos, cell, p1Color, -3);
     _drawPawn(canvas, p2Pos, cell, const Color(0xFF2980B9), 3);
   }
 
+  void _drawRealLadder(Canvas canvas, Offset b, Offset t, double cell) {
+    final dx = t.dx - b.dx;
+    final dy = t.dy - b.dy;
+    final len = math.sqrt(dx * dx + dy * dy);
+    if (len < 5) return;
+
+    // Unit normal vector perpendicular to ladder length
+    final nx = -dy / len;
+    final ny = dx / len;
+    final halfW = cell * 0.22;
+
+    final p1 = Offset(b.dx - nx * halfW, b.dy - ny * halfW);
+    final p2 = Offset(t.dx - nx * halfW, t.dy - ny * halfW);
+    final p3 = Offset(b.dx + nx * halfW, b.dy + ny * halfW);
+    final p4 = Offset(t.dx + nx * halfW, t.dy + ny * halfW);
+
+    // Drop shadow
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.2)
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(p1.dx + 1.5, p1.dy + 2), Offset(p2.dx + 1.5, p2.dy + 2), shadowPaint);
+    canvas.drawLine(Offset(p3.dx + 1.5, p3.dy + 2), Offset(p4.dx + 1.5, p4.dy + 2), shadowPaint);
+
+    // Wood rails
+    final railPaint = Paint()
+      ..color = const Color(0xFF6D4C41)
+      ..strokeWidth = 3.2
+      ..strokeCap = StrokeCap.round;
+    final railHighlight = Paint()
+      ..color = const Color(0xFFA1887F)
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(p1, p2, railPaint);
+    canvas.drawLine(p3, p4, railPaint);
+    canvas.drawLine(p1, p2, railHighlight);
+    canvas.drawLine(p3, p4, railHighlight);
+
+    // Rungs
+    final rungCount = (len / (cell * 0.45)).clamp(3, 14).round();
+    final rungPaint = Paint()
+      ..color = const Color(0xFFD7CCC8)
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+    final rungShadow = Paint()
+      ..color = const Color(0xFF4E342E)
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+
+    for (int i = 1; i <= rungCount; i++) {
+      final frac = i / (rungCount + 1);
+      final r1 = Offset(p1.dx + (p2.dx - p1.dx) * frac, p1.dy + (p2.dy - p1.dy) * frac);
+      final r2 = Offset(p3.dx + (p4.dx - p3.dx) * frac, p3.dy + (p4.dy - p3.dy) * frac);
+      canvas.drawLine(Offset(r1.dx + 0.5, r1.dy + 1.0), Offset(r2.dx + 0.5, r2.dy + 1.0), rungShadow);
+      canvas.drawLine(r1, r2, rungPaint);
+    }
+  }
+
+  void _drawRealSnake(Canvas canvas, Offset h, Offset t, double cell, int seed) {
+    final dx = t.dx - h.dx;
+    final dy = t.dy - h.dy;
+    final dist = math.sqrt(dx * dx + dy * dy);
+    if (dist < 5) return;
+
+    final nx = -dy / dist;
+    final ny = dx / dist;
+    final sign = (seed % 2 == 0) ? 1.0 : -1.0;
+    final waveAmp = cell * 0.42 * sign;
+
+    final mid1 = Offset(h.dx + dx * 0.33 + nx * waveAmp, h.dy + dy * 0.33 + ny * waveAmp);
+    final mid2 = Offset(h.dx + dx * 0.66 - nx * waveAmp * 0.8, h.dy + dy * 0.66 - ny * waveAmp * 0.8);
+
+    final snakePath = Path();
+    snakePath.moveTo(h.dx, h.dy);
+    snakePath.cubicTo(mid1.dx, mid1.dy, mid2.dx, mid2.dy, t.dx, t.dy);
+
+    // 1. Dark Outline
+    final outlinePaint = Paint()
+      ..color = const Color(0xFF0F381E)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 7.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(snakePath, outlinePaint);
+
+    // 2. Emerald Green Body
+    final bodyPaint = Paint()
+      ..color = const Color(0xFF27AE60)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5.2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(snakePath, bodyPaint);
+
+    // 3. Golden Dorsal Spine / Pattern
+    final spinePaint = Paint()
+      ..color = const Color(0xFFF1C40F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
+    canvas.drawPath(snakePath, spinePaint);
+
+    // 4. Snake Head at h (Mouth & Eyes)
+    final headAngle = math.atan2(mid1.dy - h.dy, mid1.dx - h.dx) + math.pi;
+    canvas.save();
+    canvas.translate(h.dx, h.dy);
+    canvas.rotate(headAngle);
+
+    // Red Forked Tongue
+    final tonguePaint = Paint()
+      ..color = const Color(0xFFE74C3C)
+      ..strokeWidth = 1.4
+      ..style = PaintingStyle.stroke;
+    canvas.drawLine(const Offset(6, 0), const Offset(12, 0), tonguePaint);
+    canvas.drawLine(const Offset(12, 0), const Offset(15, -2.5), tonguePaint);
+    canvas.drawLine(const Offset(12, 0), const Offset(15, 2.5), tonguePaint);
+
+    // Oval Cobra Head
+    final headRect = Rect.fromCenter(center: const Offset(1, 0), width: cell * 0.46, height: cell * 0.34);
+    canvas.drawOval(headRect, Paint()..color = const Color(0xFF0F381E));
+    canvas.drawOval(headRect.deflate(1.2), Paint()..color = const Color(0xFF2ECC71));
+
+    // Eyes
+    final eyePaint = Paint()..color = const Color(0xFFF1C40F);
+    canvas.drawCircle(const Offset(3, -4), 2.2, eyePaint);
+    canvas.drawCircle(const Offset(3, 4), 2.2, eyePaint);
+    final pupilPaint = Paint()..color = Colors.black;
+    canvas.drawRect(const Rect.fromLTWH(3.2, -5, 0.8, 2), pupilPaint);
+    canvas.drawRect(const Rect.fromLTWH(3.2, 3, 0.8, 2), pupilPaint);
+
+    canvas.restore();
+
+    // 5. Tail Tip at t
+    final tailPaint = Paint()..color = const Color(0xFFF1C40F);
+    canvas.drawCircle(t, 2.2, tailPaint);
+  }
+
   void _drawPawn(Canvas canvas, int num, double cell, Color col, double shift) {
     if (num < 1 || num > 100) return;
-    int idx = num - 1;
-    int r = idx ~/ 10;
-    int c = idx % 10;
-    int actualCol = (r % 2 == 0) ? c : (9 - c);
-    double x = (actualCol + 0.5) * cell + shift;
-    double y = (9 - r + 0.5) * cell;
+    final pos = _getCellCenter(num, cell);
+    final x = pos.dx + shift;
+    final y = pos.dy;
 
     canvas.drawCircle(Offset(x, y), cell * 0.28, Paint()..color = col);
     canvas.drawCircle(Offset(x, y), cell * 0.12, Paint()..color = Colors.white);
