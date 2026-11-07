@@ -4,6 +4,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
+import '../widgets_3d/tooler_hover_sheet.dart';
 import 'calculator_screen.dart';
 import 'age_calculator_screen.dart';
 import 'converters_screen.dart';
@@ -20,16 +21,13 @@ import 'password_generator_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
-/// REDESIGNED AESTHETIC MINIMAL TOOLER HOME
-/// Directly matching the reference UI design (Images 1 & 2):
-/// - Clean Pure White (#FFFFFF) & Soft Slate (#FAFAFC) palette
-/// - Pastel Lilac / Lavender accents (#EDE9FE / #A855F7 / #F5F3FF)
-/// - Modern 2D Vector Line Art Illustrations with Lavender Accent Bubbles
-/// - Custom Tooler Brand Logo (Zero Emojis, 100% Vector Geometry)
-/// - Hero "What are you looking for?" Card with 2D Desk Illustration & Search
-/// - 2x2 Quick Access Grid + Horizontal Category Filter Chips
-/// - Sleek Tool Cards with Clean 1.2px Borders & Zero Childish Textures
-/// - Modern Docked Bottom Navigation Bar
+/// TOOLER MINIMAL HOME (Images 1 & 2 Match)
+/// - Bottom Nav Bar REMOVED completely (clean edge-to-edge scroll)
+/// - Full-color Pastel Header background with 2D Hanging Lamp, Curly Cord & Plant
+/// - Every tool opens in a Pop-up Hover Page (ToolerHoverSheet)
+/// - Modern Search Bar with instant filtering and clear action
+/// - Clean 2x2 Category Grid + Filter Chips
+/// - Sound and Haptic feedback on every tap
 /// ---------------------------------------------------------------------------
 
 class HomeScreen extends StatefulWidget {
@@ -51,9 +49,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
 
-  int _selectedNavIndex = 0;
   String _selectedCategory = 'All';
   String _searchQuery = '';
+  bool _isSearchFocused = false;
 
   late final List<Map<String, dynamic>> _tools;
 
@@ -72,6 +70,11 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
+      });
+    });
+    _searchFocusNode.addListener(() {
+      setState(() {
+        _isSearchFocused = _searchFocusNode.hasFocus;
       });
     });
   }
@@ -234,37 +237,46 @@ class _HomeScreenState extends State<HomeScreen> {
     }).toList();
   }
 
-  void _openTool(WidgetBuilder builder) {
-    SoundService().playTap();
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: builder),
+  /// Opens any tool in the sleek Pop-up Hover Page (Screen 3 style)
+  void _openTool(Map<String, dynamic> tool) {
+    SoundService().playClick();
+    ToolerHoverSheet.show(
+      context: context,
+      title: tool['title'],
+      subtitle: tool['subtitle'],
+      tag: tool['tag'],
+      theme: widget.theme,
+      child: (tool['builder'] as WidgetBuilder)(context),
     );
   }
 
-  void _toggleTheme() {
-    SoundService().playTap();
-    final nextMode = widget.theme.mode == StationeryThemeMode.classicDoodle
-        ? StationeryThemeMode.blueprintChalkboard
-        : StationeryThemeMode.classicDoodle;
-    widget.onThemeChanged(nextMode);
+  void _openSettings() {
+    SoundService().playClick();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SettingsScreen(
+          theme: widget.theme,
+          onThemeChanged: widget.onThemeChanged,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
-    final isDark = theme.mode == StationeryThemeMode.blueprintChalkboard;
+    final isDark = theme.isDark;
 
     return Scaffold(
       backgroundColor: theme.bg,
       body: SafeArea(
-        bottom: false,
         child: Column(
           children: [
-            // 1. Top Bar with Tooler Logo
+            // 1. Top Bar with Logo & Settings Button
             _buildTopBar(isDark),
 
-            // 2. Main Scrollable Content
+            // 2. Main Scrollable Content (No bottom nav bar!)
             Expanded(
               child: SingleChildScrollView(
                 controller: _scrollController,
@@ -273,20 +285,20 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // A. Hero Banner Card ("What are you looking for?")
+                    // A. Hero Banner Card with 2D Artwork (Lamp & Desk)
                     _buildHeroBanner(isDark),
 
-                    const SizedBox(height: 22),
+                    const SizedBox(height: 20),
 
                     // B. Categories Header & Filter Chips
                     _buildCategoriesSection(isDark),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 18),
 
                     // C. 2x2 Quick Grid (shown when category is 'All' and not searching)
                     if (_selectedCategory == 'All' && _searchQuery.isEmpty) ...[
                       _buildQuick2x2Grid(isDark),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 22),
                     ],
 
                     // D. Recommendations / Filtered Tools List
@@ -297,7 +309,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     // E. List of Tool Cards
                     _buildToolsList(isDark),
 
-                    const SizedBox(height: 100), // padding for bottom nav
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -305,19 +317,18 @@ class _HomeScreenState extends State<HomeScreen> {
           ],
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(isDark),
     );
   }
 
   /// -------------------------------------------------------------------------
-  /// 1. Top Bar: Custom 2D Logo + Tooler Name + Theme/Settings Button
+  /// 1. Top Bar: Custom 2D Monogram + Brand + Settings Button
   /// -------------------------------------------------------------------------
   Widget _buildTopBar(bool isDark) {
+    final theme = widget.theme;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: BoxDecoration(
-        color: widget.theme.bg,
-      ),
+      color: theme.bg,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -335,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
-                      color: widget.theme.text,
+                      color: theme.text,
                     ),
                   ),
                   Text(
@@ -343,66 +354,39 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: widget.theme.textSecondary,
+                      color: theme.textSecondary,
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          Row(
-            children: [
-              // Theme Toggle Circular Outline Button
-              InkWell(
-                onTap: _toggleTheme,
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: widget.theme.cardBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: widget.theme.border, width: 1.2),
+
+          // Settings Action Button (opens modern settings with color dots & dark mode)
+          InkWell(
+            onTap: _openSettings,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: theme.cardBg,
+                shape: BoxShape.circle,
+                border: Border.all(color: theme.border, width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
                   ),
-                  child: Icon(
-                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                    size: 19,
-                    color: widget.theme.text,
-                  ),
-                ),
+                ],
               ),
-              const SizedBox(width: 10),
-              // Settings Shortcut Circular Button
-              InkWell(
-                onTap: () {
-                  SoundService().playTap();
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => SettingsScreen(
-                        theme: widget.theme,
-                        onThemeChanged: widget.onThemeChanged,
-                      ),
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(20),
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: widget.theme.cardBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: widget.theme.border, width: 1.2),
-                  ),
-                  child: Icon(
-                    Icons.tune_rounded,
-                    size: 19,
-                    color: widget.theme.text,
-                  ),
-                ),
+              child: Icon(
+                Icons.tune_rounded,
+                size: 20,
+                color: theme.text,
               ),
-            ],
+            ),
           ),
         ],
       ),
@@ -410,17 +394,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// -------------------------------------------------------------------------
-  /// 2. Hero Banner Card ("What are you looking for?" + 2D Illustration + Search)
+  /// 2. Hero Banner Card with 2D Artwork (Desk & Plant) + Search Bar
   /// -------------------------------------------------------------------------
   Widget _buildHeroBanner(bool isDark) {
+    final theme = widget.theme;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: widget.theme.lavenderCard,
+        color: theme.lavenderCard,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: isDark ? const Color(0xFF27272A) : const Color(0xFFEDE9FE),
+          color: isDark ? const Color(0xFF27272A) : theme.lavenderBubble,
           width: 1.2,
         ),
       ),
@@ -441,34 +427,47 @@ class _HomeScreenState extends State<HomeScreen> {
                         fontWeight: FontWeight.w800,
                         height: 1.25,
                         letterSpacing: -0.5,
-                        color: widget.theme.text,
+                        color: theme.text,
                       ),
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'All smart utilities in one place',
+                      'Fast & minimal smart utility kit',
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: widget.theme.textSecondary,
+                        color: theme.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
-              // 2D Desk & Person Illustration (from Image 1!)
+              const SizedBox(width: 8),
+              // 2D Line Artwork (Person at desk + soft accent bubble)
               const Minimal2DHeroDesk(width: 110, height: 85),
             ],
           ),
+
           const SizedBox(height: 16),
-          // Clean White Pill Search Bar
-          Container(
+
+          // Enhanced Clean Search Bar (Image 2 style)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
             height: 48,
             decoration: BoxDecoration(
-              color: widget.theme.cardBg,
+              color: theme.cardBg,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: widget.theme.border, width: 1.2),
+              border: Border.all(
+                color: _isSearchFocused ? theme.primary : theme.border,
+                width: _isSearchFocused ? 1.6 : 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
@@ -476,7 +475,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 Icon(
                   Icons.search_rounded,
                   size: 20,
-                  color: widget.theme.primary,
+                  color: _isSearchFocused ? theme.primary : theme.textSecondary,
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -486,15 +485,15 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: widget.theme.text,
+                      color: theme.text,
                     ),
                     decoration: InputDecoration(
                       border: InputBorder.none,
-                      hintText: 'Search tools (e.g. calc, units, timer)...',
+                      hintText: 'Search tools (e.g. calc, units, compass)...',
                       hintStyle: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: FontWeight.w400,
-                        color: widget.theme.textSecondary.withValues(alpha: 0.7),
+                        color: theme.textSecondary.withValues(alpha: 0.7),
                       ),
                       isDense: true,
                     ),
@@ -503,13 +502,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (_searchQuery.isNotEmpty)
                   GestureDetector(
                     onTap: () {
+                      SoundService().playClick();
                       _searchController.clear();
                       _searchFocusNode.unfocus();
                     },
                     child: Icon(
                       Icons.cancel_rounded,
                       size: 18,
-                      color: widget.theme.textSecondary,
+                      color: theme.textSecondary,
                     ),
                   ),
               ],
@@ -521,9 +521,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// -------------------------------------------------------------------------
-  /// 3. Categories Section & Filter Chips
+  /// 3. Categories Header & Filter Chips
   /// -------------------------------------------------------------------------
   Widget _buildCategoriesSection(bool isDark) {
+    final theme = widget.theme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -535,7 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: widget.theme.text,
+                color: theme.text,
               ),
             ),
             Text(
@@ -543,7 +545,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: widget.theme.primary,
+                color: theme.primary,
               ),
             ),
           ],
@@ -559,7 +561,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 padding: const EdgeInsets.only(right: 8),
                 child: InkWell(
                   onTap: () {
-                    SoundService().playTap();
+                    SoundService().playClick();
                     setState(() => _selectedCategory = cat);
                   },
                   borderRadius: BorderRadius.circular(20),
@@ -567,12 +569,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     duration: const Duration(milliseconds: 180),
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                     decoration: BoxDecoration(
-                      color: isSelected
-                          ? (isDark ? const Color(0xFF3F3F46) : const Color(0xFFEDE9FE))
-                          : widget.theme.cardBg,
+                      color: isSelected ? theme.lavenderBubble : theme.cardBg,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isSelected ? widget.theme.primary : widget.theme.border,
+                        color: isSelected ? theme.primary : theme.border,
                         width: 1.2,
                       ),
                     ),
@@ -581,9 +581,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 13,
                         fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected
-                            ? (isDark ? Colors.white : const Color(0xFF7C3AED))
-                            : widget.theme.text,
+                        color: isSelected ? theme.primaryDark : theme.text,
                       ),
                     ),
                   ),
@@ -597,9 +595,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// -------------------------------------------------------------------------
-  /// 4. 2x2 Quick Grid (directly inspired by Image 2's 2x2 category block)
+  /// 4. 2x2 Quick Grid (Image 2 style)
   /// -------------------------------------------------------------------------
   Widget _buildQuick2x2Grid(bool isDark) {
+    final theme = widget.theme;
     final calcTool = _tools.firstWhere((t) => t['id'] == 'calc');
     final convTool = _tools.firstWhere((t) => t['id'] == 'converters');
     final compTool = _tools.firstWhere((t) => t['id'] == 'compass');
@@ -611,22 +610,22 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Row(
               children: [
-                _buildQuickCard(calcTool, cardW, isDark),
+                _buildQuickCard(calcTool, cardW),
                 const SizedBox(width: 12),
-                _buildQuickCard(convTool, cardW, isDark),
+                _buildQuickCard(convTool, cardW),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildQuickCard(compTool, cardW, isDark),
+                _buildQuickCard(compTool, cardW),
                 const SizedBox(width: 12),
                 // 4th Card: Filled Lilac "All Tools" card (like Image 2!)
                 InkWell(
                   onTap: () {
-                    SoundService().playTap();
+                    SoundService().playClick();
                     _scrollController.animateTo(
-                      400,
+                      380,
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeOut,
                     );
@@ -637,10 +636,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 100,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFF3E8FF),
+                      color: theme.lavenderBubble,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: isDark ? const Color(0xFF3F3F46) : const Color(0xFFDDD6FE),
+                        color: theme.primary.withValues(alpha: 0.4),
                         width: 1.2,
                       ),
                     ),
@@ -654,7 +653,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: widget.theme.primary.withValues(alpha: 0.15),
+                                color: theme.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(8),
                               ),
                               child: Text(
@@ -662,14 +661,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w700,
-                                  color: widget.theme.primary,
+                                  color: theme.primaryDark,
                                 ),
                               ),
                             ),
                             Icon(
                               Icons.arrow_forward_rounded,
                               size: 18,
-                              color: widget.theme.primary,
+                              color: theme.primaryDark,
                             ),
                           ],
                         ),
@@ -678,7 +677,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
-                            color: isDark ? Colors.white : const Color(0xFF7C3AED),
+                            color: theme.primaryDark,
                           ),
                         ),
                       ],
@@ -693,18 +692,27 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickCard(Map<String, dynamic> tool, double width, bool isDark) {
+  Widget _buildQuickCard(Map<String, dynamic> tool, double width) {
+    final theme = widget.theme;
+
     return InkWell(
-      onTap: () => _openTool(tool['builder']),
+      onTap: () => _openTool(tool),
       borderRadius: BorderRadius.circular(20),
       child: Container(
         width: width,
         height: 100,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: widget.theme.cardBg,
+          color: theme.cardBg,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: widget.theme.border, width: 1.2),
+          border: Border.all(color: theme.border, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -712,6 +720,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Minimal2DIcon(
               type: tool['iconType'],
               size: 44,
+              bubbleColor: theme.lavenderBubble,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -726,7 +735,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: widget.theme.text,
+                      color: theme.text,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -734,8 +743,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     tool['tag'],
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: widget.theme.primary,
+                      fontWeight: FontWeight.w600,
+                      color: theme.primary,
                     ),
                   ),
                 ],
@@ -751,6 +760,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// 5. Recommendations Header
   /// -------------------------------------------------------------------------
   Widget _buildRecommendationsHeader(bool isDark) {
+    final theme = widget.theme;
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -761,7 +772,7 @@ class _HomeScreenState extends State<HomeScreen> {
           style: GoogleFonts.plusJakartaSans(
             fontSize: 17,
             fontWeight: FontWeight.w700,
-            color: widget.theme.text,
+            color: theme.text,
           ),
         ),
         if (_searchQuery.isNotEmpty)
@@ -770,12 +781,13 @@ class _HomeScreenState extends State<HomeScreen> {
             style: GoogleFonts.plusJakartaSans(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: widget.theme.primary,
+              color: theme.primary,
             ),
           )
         else
           InkWell(
             onTap: () {
+              SoundService().playClick();
               setState(() => _selectedCategory = 'All');
             },
             child: Text(
@@ -783,7 +795,7 @@ class _HomeScreenState extends State<HomeScreen> {
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
-                color: widget.theme.primary,
+                color: theme.primary,
               ),
             ),
           ),
@@ -792,9 +804,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// -------------------------------------------------------------------------
-  /// 6. List of Clean Modern Tool Cards (matching Image 1 & 2)
+  /// 6. List of Clean Modern Tool Cards (Pop-up Hover on tap!)
   /// -------------------------------------------------------------------------
   Widget _buildToolsList(bool isDark) {
+    final theme = widget.theme;
     final list = _filteredTools;
 
     if (list.isEmpty) {
@@ -803,14 +816,14 @@ class _HomeScreenState extends State<HomeScreen> {
         alignment: Alignment.center,
         child: Column(
           children: [
-            Minimal2DIcon(type: 'settings', size: 54, color: widget.theme.textSecondary),
+            Minimal2DIcon(type: 'settings', size: 54, color: theme.textSecondary),
             const SizedBox(height: 12),
             Text(
               'No utility tools found',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: widget.theme.textSecondary,
+                color: theme.textSecondary,
               ),
             ),
           ],
@@ -823,21 +836,29 @@ class _HomeScreenState extends State<HomeScreen> {
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: widget.theme.cardBg,
+            color: theme.cardBg,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: widget.theme.border, width: 1.2),
+            border: Border.all(color: theme.border, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
           child: InkWell(
-            onTap: () => _openTool(tool['builder']),
+            onTap: () => _openTool(tool),
             borderRadius: BorderRadius.circular(20),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
-                  // 2D Line Illustration with Lavender Accent Bubble
+                  // 2D Line Illustration with Accent Bubble
                   Minimal2DIcon(
                     type: tool['iconType'],
                     size: 46,
+                    bubbleColor: theme.lavenderBubble,
                   ),
                   const SizedBox(width: 14),
                   // Tool Info
@@ -852,7 +873,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               style: GoogleFonts.plusJakartaSans(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
-                                color: widget.theme.text,
+                                color: theme.text,
                               ),
                             ),
                             const SizedBox(width: 8),
@@ -860,14 +881,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                               decoration: BoxDecoration(
-                                color: isDark
-                                    ? const Color(0xFF27272A)
-                                    : const Color(0xFFF5F3FF),
+                                color: theme.lavenderCard,
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: isDark
-                                      ? const Color(0xFF3F3F46)
-                                      : const Color(0xFFEDE9FE),
+                                  color: theme.border,
                                   width: 1,
                                 ),
                               ),
@@ -876,7 +893,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 style: GoogleFonts.plusJakartaSans(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w600,
-                                  color: widget.theme.primary,
+                                  color: theme.primary,
                                 ),
                               ),
                             ),
@@ -890,7 +907,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,
-                            color: widget.theme.textSecondary,
+                            color: theme.textSecondary,
                           ),
                         ),
                       ],
@@ -903,12 +920,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border: Border.all(color: widget.theme.border, width: 1.2),
+                      border: Border.all(color: theme.border, width: 1.2),
                     ),
                     child: Icon(
                       Icons.chevron_right_rounded,
                       size: 20,
-                      color: widget.theme.textSecondary,
+                      color: theme.textSecondary,
                     ),
                   ),
                 ],
@@ -917,99 +934,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         );
       }).toList(),
-    );
-  }
-
-  /// -------------------------------------------------------------------------
-  /// 7. Docked Bottom Navigation Bar (identical to Image 1 & 2)
-  /// -------------------------------------------------------------------------
-  Widget _buildBottomNav(bool isDark) {
-    return Container(
-      height: 64,
-      decoration: BoxDecoration(
-        color: widget.theme.cardBg,
-        border: Border(
-          top: BorderSide(color: widget.theme.border, width: 1.2),
-        ),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(0, Icons.home_outlined, Icons.home_rounded),
-          _buildNavItem(1, Icons.search_rounded, Icons.search_rounded),
-          _buildNavItem(2, Icons.grid_view_outlined, Icons.grid_view_rounded),
-          _buildNavItem(3, Icons.tune_rounded, Icons.tune_rounded),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData iconOutlined, IconData iconFilled) {
-    final isSelected = _selectedNavIndex == index;
-    return InkWell(
-      onTap: () {
-        SoundService().playTap();
-        setState(() => _selectedNavIndex = index);
-
-        if (index == 0) {
-          _searchController.clear();
-          setState(() => _selectedCategory = 'All');
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        } else if (index == 1) {
-          _searchFocusNode.requestFocus();
-          _scrollController.animateTo(
-            0,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        } else if (index == 2) {
-          setState(() => _selectedCategory = 'All');
-          _scrollController.animateTo(
-            220,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeOut,
-          );
-        } else if (index == 3) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => SettingsScreen(
-                theme: widget.theme,
-                onThemeChanged: widget.onThemeChanged,
-              ),
-            ),
-          );
-        }
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: 48,
-        height: 48,
-        alignment: Alignment.center,
-        child: isSelected
-            ? Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: widget.theme.lavenderCard,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  iconFilled,
-                  size: 22,
-                  color: widget.theme.primary,
-                ),
-              )
-            : Icon(
-                iconOutlined,
-                size: 22,
-                color: widget.theme.textSecondary,
-              ),
-      ),
     );
   }
 }

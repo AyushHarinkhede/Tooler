@@ -14,6 +14,8 @@ class StorageService {
   static const String keyCounters = 'tooler_counters';
   static const String keyCalcHistory = 'tooler_calc_history';
   static const String keyThemeMode = 'tooler_theme_mode';
+  static const String keyIsDarkMode = 'tooler_is_dark_mode';
+  static const String keyAccentColor = 'tooler_accent_color';
   static const String keySoundEnabled = 'tooler_sound_enabled';
   static const String keyHapticsEnabled = 'tooler_haptics_enabled';
 
@@ -21,11 +23,10 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString(keyTasks);
     if (str == null || str.isEmpty) {
-      // Default sample tasks
       return [
-        TaskItem(id: 1, text: "Finish Math Homework", category: "Homework", priority: "High"),
-        TaskItem(id: 2, text: "Sharpen Pencils in Stationery Kit", category: "School", priority: "Medium"),
-        TaskItem(id: 3, text: "Explore Tooler Features", category: "Personal", priority: "Low"),
+        TaskItem(id: 1, text: "Finish Math calculation report", category: "Work", priority: "High"),
+        TaskItem(id: 2, text: "Organize unit conversion references", category: "Focus", priority: "Medium"),
+        TaskItem(id: 3, text: "Explore Tooler features", category: "Personal", priority: "Low"),
       ];
     }
     try {
@@ -48,7 +49,7 @@ class StorageService {
     if (str == null || str.isEmpty) {
       return [
         CounterItem(id: 1, name: "Water Glasses", value: 4, step: 1),
-        CounterItem(id: 2, name: "Study Pomodoros", value: 2, step: 1),
+        CounterItem(id: 2, name: "Productivity Sprints", value: 3, step: 1),
       ];
     }
     try {
@@ -83,18 +84,35 @@ class StorageService {
     await prefs.setString(keyCalcHistory, str);
   }
 
-  Future<StationeryThemeMode> loadThemeMode() async {
+  Future<StationeryTheme> loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
-    final index = prefs.getInt(keyThemeMode) ?? 0;
-    if (index >= 0 && index < StationeryThemeMode.values.length) {
-      return StationeryThemeMode.values[index];
+    final isDark = prefs.getBool(keyIsDarkMode) ?? false;
+    final accentName = prefs.getString(keyAccentColor) ?? 'lilac';
+    ToolerAccent accent = ToolerAccent.lilac;
+    for (final a in ToolerAccent.values) {
+      if (a.name == accentName) {
+        accent = a;
+        break;
+      }
     }
-    return StationeryThemeMode.classicDoodle;
+    return StationeryTheme.custom(isDark: isDark, accent: accent);
+  }
+
+  Future<void> saveTheme(bool isDark, ToolerAccent accent) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyIsDarkMode, isDark);
+    await prefs.setString(keyAccentColor, accent.name);
+  }
+
+  Future<StationeryThemeMode> loadThemeMode() async {
+    final theme = await loadTheme();
+    return theme.mode;
   }
 
   Future<void> saveThemeMode(StationeryThemeMode mode) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(keyThemeMode, mode.index);
+    final isDark = mode == StationeryThemeMode.blueprintChalkboard;
+    final accent = mode == StationeryThemeMode.neonHighlighter ? ToolerAccent.rose : ToolerAccent.lilac;
+    await saveTheme(isDark, accent);
   }
 
   Future<void> clearAllData() async {

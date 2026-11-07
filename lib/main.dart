@@ -15,53 +15,59 @@ void main() async {
     ),
   );
 
-  final initialThemeMode = await StorageService().loadThemeMode();
+  final initialTheme = await StorageService().loadTheme();
 
-  runApp(ToolerApp(initialThemeMode: initialThemeMode));
+  runApp(ToolerApp(initialTheme: initialTheme));
 }
 
 class ToolerApp extends StatefulWidget {
-  final StationeryThemeMode initialThemeMode;
+  final StationeryTheme? initialTheme;
+  final StationeryThemeMode? initialThemeMode;
 
-  const ToolerApp({super.key, required this.initialThemeMode});
+  const ToolerApp({
+    super.key,
+    this.initialTheme,
+    this.initialThemeMode,
+  });
 
   @override
   State<ToolerApp> createState() => _ToolerAppState();
 }
 
 class _ToolerAppState extends State<ToolerApp> {
-  late StationeryThemeMode _currentMode;
+  late StationeryTheme _currentTheme;
 
   @override
   void initState() {
     super.initState();
-    _currentMode = widget.initialThemeMode;
+    _currentTheme = widget.initialTheme ??
+        StationeryTheme(widget.initialThemeMode ?? StationeryThemeMode.classicDoodle);
   }
 
-  void _onThemeChanged(StationeryThemeMode mode) {
+  void _onThemeChanged(StationeryThemeMode mode) async {
+    final theme = await StorageService().loadTheme();
     setState(() {
-      _currentMode = mode;
+      _currentTheme = theme;
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    final stationeryTheme = StationeryTheme(_currentMode);
-
     return MaterialApp(
       title: 'Tooler',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        scaffoldBackgroundColor: stationeryTheme.bg,
+        scaffoldBackgroundColor: _currentTheme.bg,
         colorScheme: ColorScheme.fromSeed(
-          seedColor: stationeryTheme.primary,
-          surface: stationeryTheme.cardBg,
-          onSurface: stationeryTheme.text,
+          seedColor: _currentTheme.primary,
+          surface: _currentTheme.cardBg,
+          onSurface: _currentTheme.text,
+          brightness: _currentTheme.isDark ? Brightness.dark : Brightness.light,
         ),
       ),
       home: HomeScreen(
-        theme: stationeryTheme,
+        theme: _currentTheme,
         onThemeChanged: _onThemeChanged,
       ),
     );
