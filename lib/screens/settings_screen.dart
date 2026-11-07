@@ -82,18 +82,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 10),
-              const ToolerLogo(size: 54),
               const SizedBox(height: 14),
-              Text(
-                'Tooler',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: theme.text,
-                ),
+              ToolerLogo(
+                height: 44,
+                color: theme.text,
+                accentColor: theme.primary,
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Text(
                 'Smart Utility Kit',
                 style: GoogleFonts.plusJakartaSans(

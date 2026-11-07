@@ -332,32 +332,24 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const ToolerLogo(size: 38),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Tooler',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
-                      color: theme.text,
-                    ),
-                  ),
-                  Text(
-                    'Smart Utility Kit',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: theme.textSecondary,
-                    ),
-                  ),
-                ],
+              ToolerLogo(
+                height: 34,
+                color: theme.text,
+                accentColor: theme.primary,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                'Smart Utility Kit',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2,
+                  color: theme.textSecondary,
+                ),
               ),
             ],
           ),
