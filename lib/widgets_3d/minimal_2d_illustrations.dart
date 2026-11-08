@@ -563,6 +563,10 @@ class _IllustrationPainter extends CustomPainter {
       case 'character':
         _drawCharacterStudio(canvas, w, h, p, fillAccent);
         break;
+      case 'all_tools':
+      case 'tools':
+        _drawAllTools(canvas, w, h, p, fillAccent);
+        break;
       case 'settings':
       default:
         _drawSettings(canvas, w, h, p, fillAccent);
@@ -892,6 +896,21 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawCircle(Offset(w * 0.36, h * 0.62), r, p);
     canvas.drawCircle(Offset(w * 0.50, h * 0.62), r * 1.3, fill);
     canvas.drawCircle(Offset(w * 0.64, h * 0.62), r, p);
+  }
+
+  void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    // 2x2 grid of modern rounded squares representing All Tools
+    final s = w * 0.22;
+    final r = Radius.circular(w * 0.06);
+    // Top-left (accent filled)
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.23, h * 0.23, s, s), r), fill);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.23, h * 0.23, s, s), r), p);
+    // Top-right
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.55, h * 0.23, s, s), r), p);
+    // Bottom-left
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.23, h * 0.55, s, s), r), p);
+    // Bottom-right
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.55, h * 0.55, s, s), r), p);
   }
 
   @override

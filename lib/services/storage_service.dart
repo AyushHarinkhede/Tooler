@@ -204,6 +204,11 @@ class StorageService {
     await saveTheme(isDark, accent);
   }
 
+  Future<List<String>> loadFavorites() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getStringList(keyFavorites) ?? [];
+  }
+
   Future<bool> isToolFavorite(String toolTitle) async {
     final prefs = await SharedPreferences.getInstance();
     final list = prefs.getStringList(keyFavorites) ?? [];
@@ -217,7 +222,8 @@ class StorageService {
     if (isFav) {
       list.remove(toolTitle);
     } else {
-      list.add(toolTitle);
+      list.remove(toolTitle);
+      list.insert(0, toolTitle); // Newest favorite placed at top priority
     }
     await prefs.setStringList(keyFavorites, list);
     return !isFav;

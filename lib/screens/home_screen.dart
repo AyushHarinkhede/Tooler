@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
+import '../services/storage_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
 import '../widgets_3d/tooler_character.dart';
@@ -67,6 +68,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   late final List<Map<String, dynamic>> _tools;
+  List<String> _favoriteToolTitles = [];
 
   final List<String> _categories = [
     'All',
@@ -80,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _initTools();
+    _loadFavorites();
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
@@ -90,6 +93,15 @@ class _HomeScreenState extends State<HomeScreen> {
         _isSearchFocused = _searchFocusNode.hasFocus;
       });
     });
+  }
+
+  Future<void> _loadFavorites() async {
+    final favs = await StorageService().loadFavorites();
+    if (mounted) {
+      setState(() {
+        _favoriteToolTitles = favs;
+      });
+    }
   }
 
   @override
@@ -494,9 +506,25 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Map<String, dynamic>> get _filteredTools {
     if (_searchQuery.isEmpty) {
-      return _tools.where((tool) {
+      final base = _tools.where((tool) {
         return _selectedCategory == 'All' || tool['category'] == _selectedCategory;
       }).map((t) => Map<String, dynamic>.from(t)).toList();
+
+      if (_favoriteToolTitles.isNotEmpty) {
+        base.sort((a, b) {
+          final aTitle = a['title'] as String;
+          final bTitle = b['title'] as String;
+          final aIdx = _favoriteToolTitles.indexOf(aTitle);
+          final bIdx = _favoriteToolTitles.indexOf(bTitle);
+          final aFav = aIdx != -1;
+          final bFav = bIdx != -1;
+          if (aFav && bFav) return aIdx.compareTo(bIdx);
+          if (aFav) return -1;
+          if (bFav) return 1;
+          return 0;
+        });
+      }
+      return base;
     }
 
     final query = _searchQuery.trim().toLowerCase();
@@ -514,6 +542,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
       int score = 0;
       String? matchedSnippet;
+
+      // 0. Favorite Priority Bonus
+      if (_favoriteToolTitles.contains(tool['title'])) {
+        score += 350;
+      }
 
       // 1. Direct Title Match
       if (title == query) {
@@ -615,9 +648,13 @@ class _HomeScreenState extends State<HomeScreen> {
       subtitle: tool['subtitle'],
       tag: tool['tag'],
       theme: widget.theme,
+      onFavorite: () {
+        _loadFavorites();
+      },
       child: (tool['builder'] as WidgetBuilder)(context),
     ).then((_) {
       if (mounted) {
+        _loadFavorites();
         _searchFocusNode.unfocus();
         FocusScope.of(context).unfocus();
       }
@@ -675,32 +712,29 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // A. Hero Banner Card with 2D Artwork (Lamp & Desk)
+                    // A. Hero Banner Card with 2D Artwork (Lamp & Desk) & Search Bar
                     RepaintBoundary(
                       child: _buildHeroBanner(isDark),
                     ),
 
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 16),
 
-                    // B. Categories Header & Filter Chips
-                    _buildCategoriesSection(isDark),
-
-                    const SizedBox(height: 18),
-
-                    // C. 2x2 Quick Grid (shown when category is 'All' and not searching)
-                    if (_selectedCategory == 'All' && _searchQuery.isEmpty) ...[
+                    // B. Main 2x2 Section: Calculator, Calendar, Games, All Tools (SVG icons, no extra text)
+                    if (_searchQuery.isEmpty) ...[
                       RepaintBoundary(
                         child: _buildQuick2x2Grid(isDark),
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 16),
                     ],
 
-                    // D. Recommendations / Filtered Tools List
-                    _buildRecommendationsHeader(isDark),
+                    // C. Categories Slide Buttons (Only sliding buttons with smooth slide transitions)
+                    RepaintBoundary(
+                      child: _buildCategoriesSection(isDark),
+                    ),
 
                     const SizedBox(height: 14),
 
-                    // E. List of Tool Cards
+                    // D. List of Tool Cards (Favorites prioritized at top, clean without tags)
                     _buildToolsList(isDark),
 
                     const SizedBox(height: 40),
@@ -925,99 +959,90 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// -------------------------------------------------------------------------
-  /// 3. Categories Header & Filter Chips
+  /// 3. Categories Slide Buttons (Clean animated sliding chips with zero clutter text)
   /// -------------------------------------------------------------------------
   Widget _buildCategoriesSection(bool isDark) {
     final theme = widget.theme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              'Categories',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: theme.text,
-              ),
-            ),
-            Text(
-              '${_tools.length} Utilities',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: theme.primary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          physics: const BouncingScrollPhysics(),
-          child: Row(
-            children: _categories.map((cat) {
-              final isSelected = _selectedCategory == cat;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: BouncyTap(
-                  onTap: () {
-                    SoundService().playClick();
-                    _searchFocusNode.unfocus();
-                    FocusScope.of(context).unfocus();
-                    setState(() => _selectedCategory = cat);
-                  },
-                  scaleFraction: 0.93,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutBack,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected ? theme.lavenderBubble : theme.cardBg,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? theme.primary : theme.border,
-                        width: isSelected ? 1.4 : 1.2,
-                      ),
-                      boxShadow: isSelected
-                          ? [
-                              BoxShadow(
-                                color: theme.primary.withValues(alpha: 0.12),
-                                blurRadius: 8,
-                                offset: const Offset(0, 3),
-                              ),
-                            ]
-                          : null,
-                    ),
-                    child: Text(
-                      cat,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? theme.primaryDark : theme.text,
-                      ),
-                    ),
-                  ),
+    return SizedBox(
+      height: 40,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        itemCount: _categories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final cat = _categories[index];
+          final isSelected = _selectedCategory == cat;
+
+          return TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0.0, end: 1.0),
+            duration: Duration(milliseconds: 180 + (index * 35)),
+            curve: Curves.easeOutCubic,
+            builder: (context, value, child) {
+              return Transform.translate(
+                offset: Offset((1.0 - value) * 18, 0),
+                child: Opacity(
+                  opacity: value.clamp(0.0, 1.0),
+                  child: child,
                 ),
               );
-            }).toList(),
-          ),
-        ),
-      ],
+            },
+            child: BouncyTap(
+              onTap: () {
+                SoundService().playClick();
+                _searchFocusNode.unfocus();
+                FocusScope.of(context).unfocus();
+                setState(() => _selectedCategory = cat);
+              },
+              scaleFraction: 0.93,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? theme.lavenderBubble : theme.cardBg,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected ? theme.primary : theme.border,
+                    width: isSelected ? 1.4 : 1.2,
+                  ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: theme.primary.withValues(alpha: 0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
+                ),
+                alignment: Alignment.center,
+                child: AnimatedDefaultTextStyle(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                    color: isSelected ? theme.primaryDark : theme.text,
+                  ),
+                  child: Text(cat),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 
   /// -------------------------------------------------------------------------
-  /// 4. 2x2 Quick Grid (Image 2 style)
+  /// 4. Main 2x2 Section: Calculator, Calendar, Games, All Tools (SVG Icons only, no extra text)
   /// -------------------------------------------------------------------------
   Widget _buildQuick2x2Grid(bool isDark) {
-    final theme = widget.theme;
     final calcTool = _tools.firstWhere((t) => t['id'] == 'calc');
-    final convTool = _tools.firstWhere((t) => t['id'] == 'converters');
-    final compTool = _tools.firstWhere((t) => t['id'] == 'compass');
+    final calendarTool = _tools.firstWhere((t) => t['id'] == 'calendar');
+    final gamesTool = _tools.firstWhere((t) => t['id'] == 'games');
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1026,80 +1051,17 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Row(
               children: [
-                _buildQuickCard(calcTool, cardW),
+                _buildQuickCard(calcTool, cardW, overrideTitle: 'Calculator'),
                 const SizedBox(width: 12),
-                _buildQuickCard(convTool, cardW),
+                _buildQuickCard(calendarTool, cardW, overrideTitle: 'Calendar'),
               ],
             ),
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildQuickCard(compTool, cardW),
+                _buildQuickCard(gamesTool, cardW, overrideTitle: 'Games'),
                 const SizedBox(width: 12),
-                // 4th Card: Filled Lilac "All Tools" card (like Image 2!) with Bouncy Tap
-                BouncyTap(
-                  onTap: () {
-                    SoundService().playClick();
-                    _scrollController.animateTo(
-                      380,
-                      duration: const Duration(milliseconds: 320),
-                      curve: Curves.easeOutCubic,
-                    );
-                  },
-                  scaleFraction: 0.94,
-                  child: Container(
-                    width: cardW,
-                    height: 100,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: theme.lavenderBubble,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: theme.primary.withValues(alpha: 0.4),
-                        width: 1.2,
-                      ),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: theme.primary.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                'Explore',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: theme.primaryDark,
-                                ),
-                              ),
-                            ),
-                            Icon(
-                              Icons.arrow_forward_rounded,
-                              size: 18,
-                              color: theme.primaryDark,
-                            ),
-                          ],
-                        ),
-                        Text(
-                          'All Tools',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800,
-                            color: theme.primaryDark,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                _buildAllToolsQuickCard(cardW),
               ],
             ),
           ],
@@ -1108,17 +1070,18 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildQuickCard(Map<String, dynamic> tool, double width) {
+  Widget _buildQuickCard(Map<String, dynamic> tool, double width, {String? overrideTitle}) {
     final theme = widget.theme;
     final isDark = theme.isDark;
+    final title = overrideTitle ?? tool['title'] as String;
 
     return BouncyTap(
       onTap: () => _openTool(tool),
       scaleFraction: 0.94,
       child: Container(
         width: width,
-        height: 100,
-        padding: const EdgeInsets.all(14),
+        height: 78,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
           color: theme.cardBg,
           borderRadius: BorderRadius.circular(20),
@@ -1136,37 +1099,22 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             Minimal2DIcon(
               type: tool['iconType'],
-              size: 44,
+              size: 42,
               bubbleColor: theme.lavenderBubble,
               accentColor: theme.primary,
               isDark: isDark,
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    tool['title'],
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: theme.text,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    tool['tag'],
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: theme.primary,
-                    ),
-                  ),
-                ],
+              child: Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: theme.text,
+                ),
               ),
             ),
           ],
@@ -1175,51 +1123,67 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// -------------------------------------------------------------------------
-  /// 5. Recommendations Header
-  /// -------------------------------------------------------------------------
-  Widget _buildRecommendationsHeader(bool isDark) {
+  Widget _buildAllToolsQuickCard(double width) {
     final theme = widget.theme;
+    final isDark = theme.isDark;
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          _searchQuery.isNotEmpty
-              ? 'Search Results'
-              : (_selectedCategory == 'All' ? 'Recommendations' : '$_selectedCategory Tools'),
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 17,
-            fontWeight: FontWeight.w700,
-            color: theme.text,
+    return BouncyTap(
+      onTap: () {
+        SoundService().playClick();
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            290,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          );
+        }
+      },
+      scaleFraction: 0.94,
+      child: Container(
+        width: width,
+        height: 78,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: theme.lavenderBubble,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: theme.primary.withValues(alpha: 0.4),
+            width: 1.2,
           ),
-        ),
-        if (_searchQuery.isNotEmpty)
-          AnimatedTextPop(
-            text: '${_filteredTools.length} found',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: theme.primary,
+          boxShadow: [
+            BoxShadow(
+              color: theme.primary.withValues(alpha: 0.06),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
             ),
-          )
-        else
-          BouncyTap(
-            onTap: () {
-              SoundService().playClick();
-              setState(() => _selectedCategory = 'All');
-            },
-            scaleFraction: 0.90,
-            child: AnimatedTextPop(
-              text: 'See all',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: theme.primary,
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Minimal2DIcon(
+              type: 'all_tools',
+              size: 42,
+              bubbleColor: theme.cardBg,
+              accentColor: theme.primary,
+              isDark: isDark,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'All Tools',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: theme.primaryDark,
+                ),
               ),
             ),
-          ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 
@@ -1324,42 +1288,15 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    tool['title'] as String,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w700,
-                                      color: theme.text,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                // Tag Badge
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: theme.lavenderCard,
-                                    borderRadius: BorderRadius.circular(6),
-                                    border: Border.all(
-                                      color: theme.border,
-                                      width: 1,
-                                    ),
-                                  ),
-                                  child: Text(
-                                    tool['tag'] as String,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.primary,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              tool['title'] as String,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: theme.text,
+                              ),
                             ),
                             const SizedBox(height: 3),
                             Text(
@@ -1413,19 +1350,52 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Circular outline arrow button
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: theme.border, width: 1.2),
+                      // Trailing morph: favorite heart when favorited, chevron arrow when normal
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 240),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, anim) => ScaleTransition(
+                          scale: anim,
+                          child: FadeTransition(opacity: anim, child: child),
                         ),
-                        child: Icon(
-                          Icons.chevron_right_rounded,
-                          size: 20,
-                          color: theme.textSecondary,
-                        ),
+                        child: _favoriteToolTitles.contains(tool['title'])
+                            ? Container(
+                                key: const ValueKey('fav_active'),
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: theme.lavenderBubble,
+                                  border: Border.all(color: theme.primary, width: 1.4),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: theme.primary.withValues(alpha: 0.16),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.favorite_rounded,
+                                  size: 18,
+                                  color: theme.primary,
+                                ),
+                              )
+                            : Container(
+                                key: const ValueKey('fav_inactive'),
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: theme.border, width: 1.2),
+                                ),
+                                child: Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 20,
+                                  color: theme.textSecondary,
+                                ),
+                              ),
                       ),
                     ],
                   ),

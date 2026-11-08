@@ -130,6 +130,7 @@ class ToolerCharacter extends StatefulWidget {
 
 class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProviderStateMixin {
   static final Map<String, String> _rawAssetCache = {};
+  static final Map<String, String> _themedSvgCache = {};
   String? _svgString;
   AnimationController? _animController;
   Animation<double>? _hoverAnimation;
@@ -169,6 +170,16 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
 
   Future<void> _loadSvg() async {
     final assetPath = widget.pose.assetPath;
+    final cacheKey = '${assetPath}_${widget.theme.mode}_${widget.theme.isDark}_${widget.theme.primary.toARGB32()}';
+    if (_themedSvgCache.containsKey(cacheKey)) {
+      if (mounted) {
+        setState(() {
+          _svgString = _themedSvgCache[cacheKey]!;
+        });
+      }
+      return;
+    }
+
     String raw;
     if (_rawAssetCache.containsKey(assetPath)) {
       raw = _rawAssetCache[assetPath]!;
@@ -182,6 +193,7 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
     }
 
     final themed = _processThemedSvg(raw, widget.theme);
+    _themedSvgCache[cacheKey] = themed;
     if (mounted) {
       setState(() {
         _svgString = themed;
