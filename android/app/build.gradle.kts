@@ -41,12 +41,13 @@ android {
             storePassword = keystoreProperties.getProperty("storePassword") ?: "tooler2026"
             enableV1Signing = true
             enableV2Signing = true
+            enableV3Signing = true
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 
