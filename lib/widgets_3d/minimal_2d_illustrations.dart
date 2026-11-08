@@ -570,6 +570,10 @@ class _IllustrationPainter extends CustomPainter {
       case 'character':
         _drawCharacterStudio(canvas, w, h, p, fillAccent);
         break;
+      case 'power':
+      case 'battery':
+        _drawPower(canvas, w, h, p, fillAccent);
+        break;
       case 'all_tools':
       case 'tools':
         _drawAllTools(canvas, w, h, p, fillAccent);
@@ -964,6 +968,41 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawCircle(Offset(w * 0.36, h * 0.62), r, p);
     canvas.drawCircle(Offset(w * 0.50, h * 0.62), r * 1.3, fill);
     canvas.drawCircle(Offset(w * 0.64, h * 0.62), r, p);
+  }
+
+  void _drawPower(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    // Battery outer casing
+    final shell = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.18, h * 0.28, w * 0.56, h * 0.44),
+      Radius.circular(w * 0.08),
+    );
+    canvas.drawRRect(shell, p);
+
+    // Battery positive terminal nipple
+    final terminal = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.74, h * 0.39, w * 0.08, h * 0.22),
+      Radius.circular(w * 0.03),
+    );
+    canvas.drawRRect(terminal, fill);
+    canvas.drawRRect(terminal, p);
+
+    // Energy charge lines inside
+    canvas.drawLine(Offset(w * 0.28, h * 0.38), Offset(w * 0.28, h * 0.62), p);
+
+    // Lightning bolt in center
+    final bolt = Path()
+      ..moveTo(w * 0.48, h * 0.31)
+      ..lineTo(w * 0.36, h * 0.50)
+      ..lineTo(w * 0.46, h * 0.50)
+      ..lineTo(w * 0.42, h * 0.69)
+      ..lineTo(w * 0.58, h * 0.48)
+      ..lineTo(w * 0.48, h * 0.48)
+      ..close();
+    canvas.drawPath(bolt, fill);
+    canvas.drawPath(bolt, p);
+
+    // Full indicator pip
+    canvas.drawCircle(Offset(w * 0.64, h * 0.50), w * 0.04, p);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {

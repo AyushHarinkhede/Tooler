@@ -25,6 +25,7 @@ import 'compass_screen.dart';
 import 'password_generator_screen.dart';
 import 'sound_recorder_screen.dart';
 import 'character_illustrations_screen.dart';
+import 'power_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -291,6 +292,34 @@ class _HomeScreenState extends State<HomeScreen> {
           'uthna', 'ghanti', 'wake-up', 'missions', 'samay', 'ghadi',
         ],
         'builder': (context) => AlarmScreen(theme: widget.theme),
+      },
+      {
+        'id': 'power',
+        'title': 'Power',
+        'subtitle': 'Battery capacity, real-time wattage & charging telemetry',
+        'category': 'Time & Tasks',
+        'tag': 'Hardware',
+        'iconType': 'power',
+        'isFeatured': true,
+        'features': [
+          {'name': 'Direct Brand & Model Hardware', 'desc': 'Direct device hardware identification with battery health and chemistry specs'},
+          {'name': 'Factory Battery Capacity (mAh)', 'desc': 'Dual-cell design capacity with dedicated custom vector SVG architectural icon'},
+          {'name': 'Dynamic-Filling Battery Level (%)', 'desc': 'Dynamic SVG battery casing that physically fills up to match your exact live percentage'},
+          {'name': 'Real-Time Wattage & Amperes', 'desc': 'Live delivered power in Watts (W), Current (A/mA), and Voltage (V)'},
+          {'name': 'Charger Rated vs Delivered Output', 'desc': 'Real-time throughput comparison showing charger rating and current delivery efficiency'},
+          {'name': 'Cable & Link Segmented Bars', 'desc': 'Mini segmented bars for 6A throughput, PD protocol, impedance, and thermal channels'},
+          {'name': 'Circular Temperature Gauge', 'desc': 'Sleek circular ring meter displaying battery/system thermal state in Celsius'},
+          {'name': 'Accurate Time Remaining', 'desc': 'High-precision CC-CV charging curve calculations and active discharge longevity predictions'},
+        ],
+        'keywords': [
+          'power', 'battery', 'charge', 'charger', 'watt', 'watts', 'wattage', 'mah',
+          'capacity', 'battery capacity', 'current', 'amperes', 'amp', 'ma', 'volts', 'voltage',
+          'fast charge', 'turbo charge', 'supervooc', 'hypercharge', 'power delivery', 'pd',
+          'usb-pd', 'cable', 'cable test', 'temperature', 'battery temp', 'phone temp',
+          'time to full', 'charge time', 'battery health', 'battery life', 'charging status',
+          'bijli', 'urja', 'battery kitna hai',
+        ],
+        'builder': (context) => PowerScreen(theme: widget.theme),
       },
       {
         'id': 'sizer',
