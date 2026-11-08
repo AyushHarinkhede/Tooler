@@ -103,10 +103,22 @@ class NotificationService {
           enableVibration: false,
         );
 
+        final alarmChannel = AndroidNotificationChannel(
+          'tooler_alarm_channel',
+          'Smart Alarms',
+          description: 'High-priority wake-up alerts and smart alarms',
+          importance: Importance.max,
+          playSound: true,
+          enableVibration: true,
+          vibrationPattern: vibrationPattern,
+          audioAttributesUsage: AudioAttributesUsage.alarm,
+        );
+
         await androidImpl.createNotificationChannel(timerChannel);
         await androidImpl.createNotificationChannel(taskChannel);
         await androidImpl.createNotificationChannel(calendarChannel);
         await androidImpl.createNotificationChannel(stopwatchChannel);
+        await androidImpl.createNotificationChannel(alarmChannel);
       }
       _initialized = true;
     } catch (_) {}
@@ -414,6 +426,80 @@ class NotificationService {
   }
 
   Future<void> cancelCalendarReminder(int id) async {
+    try {
+      await _notifications.cancel(id);
+    } catch (_) {}
+  }
+
+  // =========================================================================
+  // 5. SMART ALARM NOTIFICATIONS (Exact Background Wake-Up Alarms)
+  // =========================================================================
+
+  Future<void> scheduleAlarmNotification({
+    required int id,
+    required String title,
+    required String body,
+    required DateTime scheduledDate,
+  }) async {
+    if (!await isEnabled) return;
+    await init();
+
+    if (scheduledDate.isBefore(DateTime.now())) return;
+
+    try {
+      final scheduledTz = tz.TZDateTime.from(scheduledDate.toUtc(), tz.UTC);
+
+      const androidDetails = AndroidNotificationDetails(
+        'tooler_alarm_channel',
+        'Smart Alarms',
+        channelDescription: 'High-priority wake-up alerts and smart alarms',
+        importance: Importance.max,
+        priority: Priority.max,
+        playSound: true,
+        enableVibration: true,
+        fullScreenIntent: true,
+        category: AndroidNotificationCategory.alarm,
+        audioAttributesUsage: AudioAttributesUsage.alarm,
+        visibility: NotificationVisibility.public,
+        styleInformation: BigTextStyleInformation(''),
+      );
+
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentSound: true,
+        presentBadge: true,
+        interruptionLevel: InterruptionLevel.critical,
+      );
+
+      const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+      try {
+        await _notifications.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledTz,
+          details,
+          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      } catch (_) {
+        await _notifications.zonedSchedule(
+          id,
+          title,
+          body,
+          scheduledTz,
+          details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+        );
+      }
+    } catch (_) {}
+  }
+
+  Future<void> cancelAlarmNotification(int id) async {
     try {
       await _notifications.cancel(id);
     } catch (_) {}

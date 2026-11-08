@@ -40,6 +40,7 @@ class StorageService {
   static const String keyStopwatchStartEpoch = 'tooler_stopwatch_start_epoch';
   static const String keyStopwatchElapsedMs = 'tooler_stopwatch_elapsed_ms';
   static const String keyStopwatchLaps = 'tooler_stopwatch_laps';
+  static const String keyAlarms = 'tooler_alarms';
 
   Future<bool> loadTamperProtection() async {
     final prefs = await SharedPreferences.getInstance();
@@ -320,6 +321,24 @@ class StorageService {
     await prefs.remove(keyStopwatchStartEpoch);
     await prefs.remove(keyStopwatchElapsedMs);
     await prefs.remove(keyStopwatchLaps);
+  }
+
+  Future<List<Map<String, dynamic>>> loadAlarms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString(keyAlarms);
+    if (jsonStr == null || jsonStr.isEmpty) return [];
+    try {
+      final List<dynamic> list = jsonDecode(jsonStr);
+      return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveAlarms(List<Map<String, dynamic>> alarms) async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = jsonEncode(alarms);
+    await prefs.setString(keyAlarms, jsonStr);
   }
 
   Future<void> clearAllData() async {

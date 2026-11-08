@@ -532,6 +532,9 @@ class _IllustrationPainter extends CustomPainter {
       case 'timer':
         _drawTimer(canvas, w, h, p, fillAccent);
         break;
+      case 'alarm':
+        _drawAlarm(canvas, w, h, p, fillAccent);
+        break;
       case 'age':
         _drawAge(canvas, w, h, p, fillAccent);
         break;
@@ -685,6 +688,67 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawLine(Offset(w * 0.22, h * 0.80), Offset(w * 0.78, h * 0.80), p);
     // Sand droplet in purple
     canvas.drawCircle(Offset(w * 0.50, h * 0.68), w * 0.06, fill);
+  }
+
+  void _drawAlarm(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    final center = Offset(w * 0.50, h * 0.56);
+    final radius = w * 0.30;
+
+    // Twin Bells on top
+    // Left Bell
+    final leftBell = Path()
+      ..addArc(
+        Rect.fromCenter(center: Offset(w * 0.28, h * 0.28), width: w * 0.24, height: w * 0.24),
+        3.14159 * 0.9,
+        3.14159 * 0.85,
+      );
+    canvas.drawPath(leftBell, p);
+
+    // Right Bell
+    final rightBell = Path()
+      ..addArc(
+        Rect.fromCenter(center: Offset(w * 0.72, h * 0.28), width: w * 0.24, height: w * 0.24),
+        -3.14159 * 0.75,
+        3.14159 * 0.85,
+      );
+    canvas.drawPath(rightBell, p);
+
+    // Top Hammer / Arch
+    final hammer = Path()
+      ..moveTo(w * 0.44, h * 0.22)
+      ..quadraticBezierTo(w * 0.50, h * 0.14, w * 0.56, h * 0.22);
+    canvas.drawPath(hammer, p);
+
+    // Peg feet
+    canvas.drawLine(Offset(w * 0.30, h * 0.82), Offset(w * 0.22, h * 0.90), p);
+    canvas.drawLine(Offset(w * 0.70, h * 0.82), Offset(w * 0.78, h * 0.90), p);
+
+    // Clock Body
+    canvas.drawCircle(center, radius, p);
+
+    // Clock Hands (Hour pointing to 10 o'clock, Minute pointing to 2 o'clock)
+    canvas.drawLine(center, Offset(w * 0.38, h * 0.44), p);
+    canvas.drawLine(center, Offset(w * 0.65, h * 0.42), p);
+
+    // Center Accent Dot
+    canvas.drawCircle(center, w * 0.045, fill);
+
+    // Sound wave arcs around bells
+    final waveLeft = Path()
+      ..addArc(
+        Rect.fromCenter(center: Offset(w * 0.16, h * 0.22), width: w * 0.18, height: w * 0.18),
+        3.14159 * 0.8,
+        3.14159 * 0.5,
+      );
+    canvas.drawPath(waveLeft, p);
+
+    final waveRight = Path()
+      ..addArc(
+        Rect.fromCenter(center: Offset(w * 0.84, h * 0.22), width: w * 0.18, height: w * 0.18),
+        -3.14159 * 0.3,
+        3.14159 * 0.5,
+      );
+    canvas.drawPath(waveRight, p);
   }
 
   void _drawAge(Canvas canvas, double w, double h, Paint p, Paint fill) {
