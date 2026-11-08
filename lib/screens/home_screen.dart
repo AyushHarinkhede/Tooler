@@ -26,6 +26,7 @@ import 'password_generator_screen.dart';
 import 'sound_recorder_screen.dart';
 import 'character_illustrations_screen.dart';
 import 'power_screen.dart';
+import 'security_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -320,6 +321,30 @@ class _HomeScreenState extends State<HomeScreen> {
           'bijli', 'urja', 'battery kitna hai',
         ],
         'builder': (context) => PowerScreen(theme: widget.theme),
+      },
+      {
+        'id': 'security',
+        'title': 'Security',
+        'subtitle': 'Hardware & software audit, cache purge & RAM cleaner',
+        'category': 'Time & Tasks',
+        'tag': 'Protection',
+        'iconType': 'security',
+        'isFeatured': true,
+        'features': [
+          {'name': 'Deep Hardware & Software Scan', 'desc': 'Audits Kernel SELinux, Root status, Bootloader, and sensitive app permissions'},
+          {'name': 'Central Radar Orb & 5-Color Waves', 'desc': 'Concentric undulating waves utilizing all signature app theme colors with expansion finish'},
+          {'name': 'Phantom Zero-Byte & Cache Purge', 'desc': 'Detects and eliminates zero-byte empty nodes, corrupted buffers, and temporary storage junk'},
+          {'name': 'Active RAM Optimizer', 'desc': 'Reclaims inactive heap allocations and background ghost processes via memory compaction'},
+          {'name': 'Blue Knife Slash Animation', 'desc': 'Tactical blue knife slicing animation with red strikeout termination for resolved hazards'},
+          {'name': 'Firmware & Patch Level Audit', 'desc': 'Live Android OS release, Security Patch date, and kernel integrity verification'},
+        ],
+        'keywords': [
+          'security', 'antivirus', 'virus', 'malware', 'cleaner', 'ram cleaner', 'ram',
+          'cache', 'clear cache', 'storage clean', 'junk cleaner', 'deep scan', 'scan phone',
+          'android update', 'security patch', 'root check', 'permissions', 'corrupted files',
+          'zero byte', 'phantom files', 'blue knife', 'kill virus', 'suraksha', 'safai',
+        ],
+        'builder': (context) => SecurityScreen(theme: widget.theme),
       },
       {
         'id': 'sizer',

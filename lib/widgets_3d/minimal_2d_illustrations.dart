@@ -574,6 +574,10 @@ class _IllustrationPainter extends CustomPainter {
       case 'battery':
         _drawPower(canvas, w, h, p, fillAccent);
         break;
+      case 'security':
+      case 'shield':
+        _drawSecurity(canvas, w, h, p, fillAccent);
+        break;
       case 'all_tools':
       case 'tools':
         _drawAllTools(canvas, w, h, p, fillAccent);
@@ -1003,6 +1007,30 @@ class _IllustrationPainter extends CustomPainter {
 
     // Full indicator pip
     canvas.drawCircle(Offset(w * 0.64, h * 0.50), w * 0.04, p);
+  }
+
+  void _drawSecurity(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    // Elegant Security Shield outline
+    final shield = Path()
+      ..moveTo(w * 0.50, h * 0.16)
+      ..lineTo(w * 0.78, h * 0.28)
+      ..lineTo(w * 0.78, h * 0.54)
+      ..cubicTo(w * 0.78, h * 0.74, w * 0.50, h * 0.86, w * 0.50, h * 0.86)
+      ..cubicTo(w * 0.50, h * 0.86, w * 0.22, h * 0.74, w * 0.22, h * 0.54)
+      ..lineTo(w * 0.22, h * 0.28)
+      ..close();
+    canvas.drawPath(shield, p);
+
+    // Inner checkmark with accent fill
+    final check = Path()
+      ..moveTo(w * 0.38, h * 0.48)
+      ..lineTo(w * 0.47, h * 0.58)
+      ..lineTo(w * 0.64, h * 0.38);
+    canvas.drawPath(check, fill);
+    canvas.drawPath(check, p);
+
+    // Top protective accent pip
+    canvas.drawCircle(Offset(w * 0.50, h * 0.28), w * 0.04, fill);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {
