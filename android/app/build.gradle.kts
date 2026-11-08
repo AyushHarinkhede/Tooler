@@ -20,7 +20,7 @@ android {
     defaultConfig {
         applicationId = "com.tooler.tooler"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 34
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
