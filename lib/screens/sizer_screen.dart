@@ -1388,106 +1388,101 @@ class _SizerScreenState extends State<SizerScreen> {
   }
 
   // =========================================================================
-  // 3. WATCH STRAP SIZER VIEW (With Vector Long Strap & Calipers)
+  // 3. WATCH STRAP SIZER VIEW (Realistic 1:1 Physical Scale & Control Bar)
   // =========================================================================
   Widget _buildWatchStrapSizer() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // 1. Realistic Watch Strap & 1:1 Physical Caliper Visualizer (At Top)
         Container(
-          padding: const EdgeInsets.all(12),
-          decoration: widget.theme.doodleCard(borderWidth: 1.8),
-          child: Row(
+          height: 350,
+          width: double.infinity,
+          clipBehavior: Clip.antiAlias,
+          decoration: widget.theme.doodleCard(
+            color: widget.theme.cardBg,
+            borderWidth: 2.2,
+          ),
+          child: Stack(
             children: [
-              const Icon(Icons.watch_rounded, color: Color(0xFF2980B9), size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  "Hold your watch case between the caliper gap below to verify the exact lug width (strap size).",
-                  style: widget.theme.fontDoodle(fontSize: 12),
+              // Full Precision Coordinate Graph & Realistic Watch Strap
+              Positioned.fill(
+                child: CustomPaint(
+                  painter: _RealisticWatchStrapCaliperPainter(
+                    lugMm: _selectedLugMm,
+                    pixelsPerMm: _pixelsPerMm,
+                    primaryColor: const Color(0xFF2980B9),
+                    accentColor: const Color(0xFFF1C40F),
+                    gridColor: widget.theme.border,
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
 
-        const SizedBox(height: 14),
-
-        // Lug Width Selection Chips (Min 12mm to Max 26mm)
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: widget.theme.doodleCard(borderWidth: 2.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Standard Watch Lug Widths (Min 12mm to Max 26mm):",
-                style: widget.theme.fontMono(fontSize: 11, fontWeight: FontWeight.bold),
+              // Calibration Shortcut Button (Top Right)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: BouncyTap(
+                  onTap: _showCalibrationDialog,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: widget.theme.bg.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: widget.theme.border, width: 1.2),
+                    ),
+                    child: const Icon(Icons.tune_rounded, size: 16, color: Color(0xFF2980B9)),
+                  ),
+                ),
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [12, 14, 16, 18, 19, 20, 21, 22, 24, 26].map((w) {
-                  final isSel = (_selectedLugMm == w);
-                  return ActionChip(
-                    label: Text(
-                      "$w mm",
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                        color: isSel ? Colors.white : widget.theme.text,
+
+              // Top Live Dimension Badge
+              Positioned(
+                top: 10,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: widget.theme.bg.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFF2980B9).withValues(alpha: 0.4), width: 1.2),
+                  ),
+                  child: Text(
+                    "Lug Width: $_selectedLugMm mm  •  ${(_selectedLugMm / 25.4).toStringAsFixed(2)}\"",
+                    style: widget.theme.fontMono(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF2980B9),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bottom Live Caliper Hint
+              Positioned(
+                bottom: 10,
+                left: 12,
+                right: 12,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: widget.theme.bg.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: widget.theme.border, width: 1.2),
+                      ),
+                      child: Text(
+                        "Physical Scale 1:1  •  Hold watch case lugs between caliper jaws",
+                        style: widget.theme.fontMono(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: widget.theme.text,
+                        ),
                       ),
                     ),
-                    backgroundColor: isSel ? widget.theme.primary : widget.theme.cardBg,
-                    side: BorderSide(
-                      color: isSel ? widget.theme.primary : widget.theme.border,
-                    ),
-                    onPressed: () {
-                      SoundService().playClick();
-                      setState(() => _selectedLugMm = w);
-                    },
-                  );
-                }).toList(),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Live Physical Lug Caliper Gap (Match Watch Head)
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: widget.theme.doodleCard(borderWidth: 2.2),
-          child: Column(
-            children: [
-              Text(
-                "Watch Lug Width Gap: $_selectedLugMm mm",
-                style: widget.theme.fontDisplay(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Place watch head lugs directly inside this colored gap:",
-                style: widget.theme.fontDoodle(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.7)),
-              ),
-              const SizedBox(height: 12),
-              Center(
-                child: Container(
-                  width: _selectedLugMm * _pixelsPerMm,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: widget.theme.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(4),
-                    border: Border.symmetric(
-                      vertical: BorderSide(color: widget.theme.primary, width: 4.5),
-                    ),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(
-                    "$_selectedLugMm mm",
-                    style: widget.theme.fontMono(fontSize: 13, fontWeight: FontWeight.bold, color: widget.theme.primary),
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -1496,87 +1491,111 @@ class _SizerScreenState extends State<SizerScreen> {
 
         const SizedBox(height: 14),
 
-        // Real Vector SVG Long Watch Strap Visualizer
+        // 2. Control Bar (Minus Icon, Slider, Plus Icon & Standard Width Pills)
         Container(
-          padding: const EdgeInsets.all(16),
-          decoration: widget.theme.doodleCard(borderWidth: 2.2),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Realistic Watch Strap Visualizer",
-                style: widget.theme.fontDisplay(fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                "Proportional leather strap with precision perimeter stitching, metallic buckle, and adjustment holes:",
-                style: widget.theme.fontDoodle(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.7)),
-              ),
-              const SizedBox(height: 14),
-              Center(
-                child: SizedBox(
-                  width: 320,
-                  height: 100,
-                  child: CustomPaint(
-                    painter: _LongWatchStrapPainter(
-                      lugMm: _selectedLugMm,
-                      pixelsPerMm: _pixelsPerMm,
-                      themeColor: widget.theme.primary,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Standard Strap Length Guide Table
-        Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: widget.theme.doodleCard(borderWidth: 2.0),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                "Wrist Size & Strap Length Reference",
-                style: widget.theme.fontDisplay(fontSize: 14, fontWeight: FontWeight.bold),
+              Row(
+                children: [
+                  BouncyTap(
+                    onTap: () {
+                      if (_selectedLugMm > 12) {
+                        setState(() => _selectedLugMm = (_selectedLugMm - 1).clamp(12, 26));
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: widget.theme.bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: widget.theme.border, width: 1.5),
+                      ),
+                      child: const Icon(Icons.remove_rounded, size: 22, color: Color(0xFF2980B9)),
+                    ),
+                  ),
+                  Expanded(
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 4.0,
+                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9.0),
+                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 18.0),
+                      ),
+                      child: Slider(
+                        value: _selectedLugMm.toDouble(),
+                        min: 12.0,
+                        max: 26.0,
+                        divisions: 14,
+                        activeColor: const Color(0xFF2980B9),
+                        inactiveColor: widget.theme.border,
+                        onChanged: (val) {
+                          setState(() => _selectedLugMm = val.round());
+                        },
+                      ),
+                    ),
+                  ),
+                  BouncyTap(
+                    onTap: () {
+                      if (_selectedLugMm < 26) {
+                        setState(() => _selectedLugMm = (_selectedLugMm + 1).clamp(12, 26));
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: widget.theme.bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: widget.theme.border, width: 1.5),
+                      ),
+                      child: const Icon(Icons.add_rounded, size: 22, color: Color(0xFF2980B9)),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 8),
-              _buildStrapRow("Short Length", "110 / 70 mm", "Fits wrists 5.5\" – 6.5\" (14 – 16.5 cm)"),
-              const Divider(height: 14),
-              _buildStrapRow("Standard Length", "120 / 80 mm", "Fits wrists 6.5\" – 7.5\" (16.5 – 19 cm)"),
-              const Divider(height: 14),
-              _buildStrapRow("Long Length", "130 / 90 mm", "Fits wrists 7.5\" – 8.5\" (19 – 21.5 cm)"),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
 
-  Widget _buildStrapRow(String name, String dims, String wrist) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(name, style: widget.theme.fontDisplay(fontSize: 13, fontWeight: FontWeight.bold)),
-            Text(wrist, style: widget.theme.fontDoodle(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.7))),
-          ],
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-          decoration: BoxDecoration(
-            color: widget.theme.bg,
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: widget.theme.border),
-          ),
-          child: Text(
-            dims,
-            style: widget.theme.fontMono(fontSize: 11, fontWeight: FontWeight.bold, color: widget.theme.primary),
+              const SizedBox(height: 10),
+
+              // Standard Lug Width Chips (12mm to 26mm)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [12, 14, 16, 18, 19, 20, 21, 22, 24, 26].map((w) {
+                    final isSel = (_selectedLugMm == w);
+                    final isCommon = (w == 18 || w == 20 || w == 22);
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: BouncyTap(
+                        onTap: () {
+                          SoundService().playClick();
+                          setState(() => _selectedLugMm = w);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isSel ? const Color(0xFF2980B9) : widget.theme.bg,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isSel ? const Color(0xFF2980B9) : widget.theme.border,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Text(
+                            isCommon ? "$w mm ★" : "$w mm",
+                            style: widget.theme.fontMono(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: isSel ? Colors.white : widget.theme.text,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -2139,95 +2158,255 @@ class _BangleGraphContainerPainter extends CustomPainter {
       old.primaryColor != primaryColor;
 }
 
-/// Vector Long Watch Strap Painter (Leather texturing, stitches, buckle, pin holes)
-class _LongWatchStrapPainter extends CustomPainter {
+/// Realistic Vector Watch Strap & Physical Caliper (Vertical orientation, true 1:1 physical lug width)
+class _RealisticWatchStrapCaliperPainter extends CustomPainter {
   final int lugMm;
   final double pixelsPerMm;
-  final Color themeColor;
+  final Color primaryColor;
+  final Color accentColor;
+  final Color gridColor;
 
-  _LongWatchStrapPainter({
+  _RealisticWatchStrapCaliperPainter({
     required this.lugMm,
     required this.pixelsPerMm,
-    required this.themeColor,
+    required this.primaryColor,
+    required this.accentColor,
+    required this.gridColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double strapW = size.width;
-    final double strapH = (lugMm * pixelsPerMm).clamp(38.0, 72.0);
-    final double startY = (size.height - strapH) / 2;
+    final center = Offset(size.width / 2, size.height / 2);
 
-    final leatherRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(40, startY, strapW - 80, strapH),
-      const Radius.circular(8),
-    );
+    // 1. Millimeter Coordinate Background Grid
+    final step2mm = 2.0 * pixelsPerMm;
+    final step10mm = 10.0 * pixelsPerMm;
 
-    // Leather Body Gradient Fill
-    final bodyPaint = Paint()..color = const Color(0xFF5D4037);
-    canvas.drawRRect(leatherRect, bodyPaint);
+    final majorGridPaint = Paint()
+      ..color = gridColor.withValues(alpha: 0.18)
+      ..strokeWidth = 1.0;
+    final minorGridPaint = Paint()
+      ..color = gridColor.withValues(alpha: 0.07)
+      ..strokeWidth = 0.5;
 
-    // Perimeter Stitching line
-    final stitchPaint = Paint()
-      ..color = const Color(0xFFFFD54F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
-    final innerStitchRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(44, startY + 4, strapW - 88, strapH - 8),
-      const Radius.circular(5),
-    );
-    canvas.drawRRect(innerStitchRect, stitchPaint);
-
-    // Metallic Buckle on the left
-    final buckleRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(26, startY - 4, 18, strapH + 8),
-      const Radius.circular(4),
-    );
-    final bucklePaint = Paint()
-      ..color = const Color(0xFFCFD8DC)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.0;
-    canvas.drawRRect(buckleRect, bucklePaint);
-
-    // Buckle Prong
-    final prongPaint = Paint()
-      ..color = const Color(0xFF90A4AE)
-      ..strokeWidth = 3.0;
-    canvas.drawLine(Offset(28, startY + strapH / 2), Offset(44, startY + strapH / 2), prongPaint);
-
-    // 7 Adjustment Pin Holes along the strap
-    final holePaint = Paint()..color = const Color(0xFF3E2723);
-    final holeBorder = Paint()
-      ..color = const Color(0xFFD7CCC8)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 0.8;
-
-    for (int i = 0; i < 7; i++) {
-      final double hx = strapW * 0.42 + (i * 20.0);
-      final double hy = startY + strapH / 2;
-      canvas.drawCircle(Offset(hx, hy), 2.5, holePaint);
-      canvas.drawCircle(Offset(hx, hy), 2.5, holeBorder);
+    for (double x = center.dx; x < size.width; x += step2mm) {
+      final isMajor = ((x - center.dx) % step10mm).abs() < (step2mm * 0.4);
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), isMajor ? majorGridPaint : minorGridPaint);
+    }
+    for (double x = center.dx - step2mm; x > 0; x -= step2mm) {
+      final isMajor = ((center.dx - x) % step10mm).abs() < (step2mm * 0.4);
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), isMajor ? majorGridPaint : minorGridPaint);
+    }
+    for (double y = center.dy; y < size.height; y += step2mm) {
+      final isMajor = ((y - center.dy) % step10mm).abs() < (step2mm * 0.4);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), isMajor ? majorGridPaint : minorGridPaint);
+    }
+    for (double y = center.dy - step2mm; y > 0; y -= step2mm) {
+      final isMajor = ((center.dy - y) % step10mm).abs() < (step2mm * 0.4);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), isMajor ? majorGridPaint : minorGridPaint);
     }
 
-    // Spring Bar Pins on the right
-    final pinPaint = Paint()
-      ..color = const Color(0xFF78909C)
-      ..strokeWidth = 3.2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(strapW - 40, startY - 3), Offset(strapW - 40, startY + strapH + 3), pinPaint);
+    // Exact physical strap width in logical pixels
+    final double strapWidth = lugMm * pixelsPerMm;
+    final double leftX = center.dx - (strapWidth / 2);
+    final double rightX = center.dx + (strapWidth / 2);
 
-    // Dimension labels
+    // Watch Head Placement Gap
+    const double gapHeight = 54.0;
+    final double gapTop = center.dy - (gapHeight / 2);
+    final double gapBottom = center.dy + (gapHeight / 2);
+
+    // 2. Leather & Stitching Paints
+    final leatherPaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFF3E2723), Color(0xFF5D4037), Color(0xFF3E2723)],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      ).createShader(Rect.fromLTWH(leftX, 0, strapWidth, size.height));
+
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.25)
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5);
+
+    final stitchPaint = Paint()
+      ..color = const Color(0xFFFFE082)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
+
+    // 3. TOP STRAP PIECE (Buckle End)
+    final double topStrapHeight = gapTop - 28.0;
+    if (topStrapHeight > 20) {
+      final topStrapRect = RRect.fromRectAndCorners(
+        Rect.fromLTWH(leftX, 28, strapWidth, topStrapHeight),
+        topLeft: const Radius.circular(6),
+        topRight: const Radius.circular(6),
+        bottomLeft: const Radius.circular(3),
+        bottomRight: const Radius.circular(3),
+      );
+      canvas.drawRRect(topStrapRect, shadowPaint);
+      canvas.drawRRect(topStrapRect, leatherPaint);
+
+      // Top Stitching
+      final topStitchRect = RRect.fromRectAndCorners(
+        Rect.fromLTWH(leftX + 4, 32, strapWidth - 8, topStrapHeight - 6),
+        topLeft: const Radius.circular(4),
+        topRight: const Radius.circular(4),
+      );
+      canvas.drawRRect(topStitchRect, stitchPaint);
+
+      // Keeper Loops (Fixed keeper & floating keeper)
+      final keeperPaint = Paint()..color = const Color(0xFF4E342E);
+      final keeperStitch = Paint()
+        ..color = const Color(0xFFFFE082).withValues(alpha: 0.8)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+
+      final keeper1Rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(leftX - 1.5, 48, strapWidth + 3, 10),
+        const Radius.circular(2.5),
+      );
+      canvas.drawRRect(keeper1Rect, keeperPaint);
+      canvas.drawRRect(keeper1Rect, keeperStitch);
+
+      final keeper2Rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(leftX - 1.5, 66, strapWidth + 3, 10),
+        const Radius.circular(2.5),
+      );
+      canvas.drawRRect(keeper2Rect, keeperPaint);
+      canvas.drawRRect(keeper2Rect, keeperStitch);
+
+      // Metallic Brushed Steel Buckle at top
+      final buckleOuterRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(leftX - 6, 12, strapWidth + 12, 18),
+        const Radius.circular(4.5),
+      );
+      final bucklePaint = Paint()
+        ..color = const Color(0xFFECEFF1)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 4.2;
+      canvas.drawRRect(buckleOuterRect, bucklePaint);
+
+      // Buckle Prong
+      final prongPaint = Paint()
+        ..color = const Color(0xFF78909C)
+        ..strokeWidth = 3.2
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(center.dx, 12), Offset(center.dx, 32), prongPaint);
+
+      // Top Spring Bar Pin (at gapTop)
+      final pinPaint = Paint()
+        ..color = const Color(0xFF90A4AE)
+        ..strokeWidth = 3.2
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(leftX - 4, gapTop - 1), Offset(rightX + 4, gapTop - 1), pinPaint);
+    }
+
+    // 4. BOTTOM STRAP PIECE (Long Tail Piece with adjustment holes & pointed tip)
+    final double bottomStrapTop = gapBottom + 2;
+    final double bottomStrapBottom = size.height - 18;
+    final double bottomStrapHeight = bottomStrapBottom - bottomStrapTop;
+
+    if (bottomStrapHeight > 20) {
+      final tailPath = Path();
+      tailPath.moveTo(leftX, bottomStrapTop);
+      tailPath.lineTo(rightX, bottomStrapTop);
+      tailPath.lineTo(rightX, bottomStrapBottom - 18);
+      // Traditional English pointed watch strap tip
+      tailPath.lineTo(center.dx, bottomStrapBottom);
+      tailPath.lineTo(leftX, bottomStrapBottom - 18);
+      tailPath.close();
+
+      canvas.drawPath(tailPath, shadowPaint);
+      canvas.drawPath(tailPath, leatherPaint);
+
+      // Bottom Stitching
+      final stitchPath = Path();
+      stitchPath.moveTo(leftX + 4, bottomStrapTop + 4);
+      stitchPath.lineTo(rightX - 4, bottomStrapTop + 4);
+      stitchPath.lineTo(rightX - 4, bottomStrapBottom - 20);
+      stitchPath.lineTo(center.dx, bottomStrapBottom - 4);
+      stitchPath.lineTo(leftX + 4, bottomStrapBottom - 20);
+      stitchPath.close();
+      canvas.drawPath(stitchPath, stitchPaint);
+
+      // 6 Precision Punched Adjustment Holes along center
+      final holeFill = Paint()..color = const Color(0xFF2E1C14);
+      final holeRing = Paint()
+        ..color = const Color(0xFF8D6E63)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.8;
+
+      for (int i = 0; i < 6; i++) {
+        final hy = bottomStrapTop + 24.0 + (i * 14.0);
+        if (hy < bottomStrapBottom - 24) {
+          canvas.drawCircle(Offset(center.dx, hy), 2.2, holeFill);
+          canvas.drawCircle(Offset(center.dx, hy), 2.2, holeRing);
+        }
+      }
+
+      // Bottom Spring Bar Pin (at gapBottom)
+      final pinPaint = Paint()
+        ..color = const Color(0xFF90A4AE)
+        ..strokeWidth = 3.2
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(leftX - 4, gapBottom + 1), Offset(rightX + 4, gapBottom + 1), pinPaint);
+    }
+
+    // 5. CALIPER GUIDE JAWS & DIMENSION TICKS IN WATCH GAP
+    final caliperJawPaint = Paint()
+      ..color = primaryColor
+      ..strokeWidth = 2.5;
+
+    // Left caliper vertical jaw
+    canvas.drawLine(Offset(leftX, gapTop - 6), Offset(leftX, gapBottom + 6), caliperJawPaint);
+    // Right caliper vertical jaw
+    canvas.drawLine(Offset(rightX, gapTop - 6), Offset(rightX, gapBottom + 6), caliperJawPaint);
+
+    // Millimeter ticks on jaws
+    final tickPaint = Paint()
+      ..color = primaryColor
+      ..strokeWidth = 1.2;
+    for (double y = gapTop; y <= gapBottom; y += (2.0 * pixelsPerMm)) {
+      final isMajor = ((y - center.dy).abs() % (10.0 * pixelsPerMm)) < 1.0;
+      final tickLen = isMajor ? 6.0 : 3.5;
+      canvas.drawLine(Offset(leftX, y), Offset(leftX - tickLen, y), tickPaint);
+      canvas.drawLine(Offset(rightX, y), Offset(rightX + tickLen, y), tickPaint);
+    }
+
+    // Dimension Arrow Line between jaws
+    final dimPaint = Paint()
+      ..color = accentColor
+      ..strokeWidth = 1.6;
+    canvas.drawLine(Offset(leftX + 2, center.dy), Offset(rightX - 2, center.dy), dimPaint);
+
+    // Left arrowhead (<)
+    canvas.drawLine(Offset(leftX + 8, center.dy - 4), Offset(leftX + 2, center.dy), dimPaint);
+    canvas.drawLine(Offset(leftX + 8, center.dy + 4), Offset(leftX + 2, center.dy), dimPaint);
+
+    // Right arrowhead (>)
+    canvas.drawLine(Offset(rightX - 8, center.dy - 4), Offset(rightX - 2, center.dy), dimPaint);
+    canvas.drawLine(Offset(rightX - 8, center.dy + 4), Offset(rightX - 2, center.dy), dimPaint);
+
+    // Center Dimension Text Pill inside gap
     final tp = TextPainter(textDirection: TextDirection.ltr);
     tp.text = TextSpan(
-      text: "Lug Width: $lugMm mm",
-      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.white),
+      text: "$lugMm mm",
+      style: const TextStyle(
+        fontSize: 13,
+        fontWeight: FontWeight.bold,
+        color: Color(0xFFF1C40F),
+        backgroundColor: Colors.black87,
+      ),
     );
     tp.layout();
-    tp.paint(canvas, Offset(strapW * 0.16, startY + (strapH - tp.height) / 2));
+    tp.paint(canvas, Offset(center.dx - (tp.width / 2), center.dy - (tp.height / 2)));
   }
 
   @override
-  bool shouldRepaint(covariant _LongWatchStrapPainter old) =>
-      old.lugMm != lugMm || old.pixelsPerMm != pixelsPerMm;
+  bool shouldRepaint(covariant _RealisticWatchStrapCaliperPainter old) =>
+      old.lugMm != lugMm ||
+      old.pixelsPerMm != pixelsPerMm ||
+      old.primaryColor != primaryColor;
 }
 
 /// Phone Side Edge Calibrated Ruler (Horizontal preview)
