@@ -132,6 +132,9 @@ class ToolerHoverSheetScope extends InheritedWidget {
 class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
   bool _isFavorite = false;
   bool _isFullScreen = false;
+  bool _isDockActive = false;
+  double _dragOffsetY = 0.0;
+  bool _isDragging = false;
 
   @override
   void initState() {
@@ -144,6 +147,7 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
     HapticFeedback.lightImpact();
     setState(() {
       _isFullScreen = !_isFullScreen;
+      _dragOffsetY = 0.0;
     });
   }
 
@@ -181,6 +185,129 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
         widget.onFavorite!();
       }
     }
+  }
+
+  Widget _buildDockBar(StationeryTheme theme, bool isDark) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: (_) {
+        setState(() => _isDockActive = true);
+        HapticFeedback.selectionClick();
+      },
+      onTapUp: (_) {
+        SoundService().playClick();
+        HapticFeedback.lightImpact();
+        _toggleFullScreen();
+        Future.delayed(const Duration(milliseconds: 280), () {
+          if (mounted) setState(() => _isDockActive = false);
+        });
+      },
+      onTapCancel: () {
+        setState(() {
+          _isDockActive = false;
+          _dragOffsetY = 0.0;
+        });
+      },
+      onVerticalDragStart: (details) {
+        setState(() {
+          _isDockActive = true;
+          _isDragging = true;
+        });
+        HapticFeedback.lightImpact();
+      },
+      onVerticalDragUpdate: (details) {
+        setState(() {
+          _dragOffsetY += details.primaryDelta!;
+          if (_isFullScreen) {
+            if (_dragOffsetY < 0) _dragOffsetY = 0;
+          } else {
+            if (_dragOffsetY < -50) _dragOffsetY = -50;
+          }
+        });
+      },
+      onVerticalDragEnd: (details) {
+        final velocity = details.primaryVelocity ?? 0.0;
+        if (_dragOffsetY > 60 || velocity > 280) {
+          // Drag down -> Back / exit hover page
+          SoundService().playClick();
+          HapticFeedback.mediumImpact();
+          if (_isFullScreen) {
+            if (_dragOffsetY > 140 || velocity > 600) {
+              Navigator.pop(context);
+            } else {
+              setState(() {
+                _isFullScreen = false;
+                _dragOffsetY = 0.0;
+                _isDockActive = false;
+                _isDragging = false;
+              });
+            }
+          } else {
+            Navigator.pop(context);
+          }
+        } else if (_dragOffsetY < -20 || velocity < -280) {
+          // Push up -> Full screen view
+          SoundService().playClick();
+          HapticFeedback.lightImpact();
+          if (!_isFullScreen) {
+            setState(() {
+              _isFullScreen = true;
+              _dragOffsetY = 0.0;
+              _isDockActive = false;
+              _isDragging = false;
+            });
+          } else {
+            setState(() {
+              _dragOffsetY = 0.0;
+              _isDockActive = false;
+              _isDragging = false;
+            });
+          }
+        } else {
+          // Snap back
+          setState(() {
+            _dragOffsetY = 0.0;
+            _isDockActive = false;
+            _isDragging = false;
+          });
+        }
+      },
+      onVerticalDragCancel: () {
+        setState(() {
+          _dragOffsetY = 0.0;
+          _isDockActive = false;
+          _isDragging = false;
+        });
+      },
+      child: Container(
+        height: 28,
+        width: double.infinity,
+        alignment: Alignment.center,
+        color: Colors.transparent, // Generous touch target
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          width: _isDockActive ? 64 : 44,
+          height: _isDockActive ? 5.5 : 4.5,
+          decoration: BoxDecoration(
+            color: _isDockActive
+                ? theme.primary
+                : (isDark ? Colors.white.withValues(alpha: 0.30) : theme.border.withValues(alpha: 0.90)),
+            borderRadius: BorderRadius.circular(3),
+            boxShadow: _isDockActive
+                ? [
+                    BoxShadow(
+                      color: theme.primary.withValues(alpha: 0.50),
+                      blurRadius: 10,
+                      spreadRadius: 1.5,
+                      offset: const Offset(0, 1),
+                    ),
+                  ]
+                : null,
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -228,52 +355,50 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                               SoundService().playClick();
                               Navigator.pop(context);
                             },
+                            onVerticalDragEnd: (details) {
+                              if ((details.primaryVelocity ?? 0) > 100) {
+                                SoundService().playClick();
+                                HapticFeedback.mediumImpact();
+                                Navigator.pop(context);
+                              }
+                            },
                             child: Container(color: Colors.transparent),
                           ),
                   ),
 
                   // Main Themed Sheet Container
                   Expanded(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 260),
-                      curve: Curves.easeOutCubic,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: theme.bg,
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(_isFullScreen ? 0 : 32),
-                        ),
-                        border: Border.all(
-                          color: _isFullScreen ? Colors.transparent : theme.border,
-                          width: _isFullScreen ? 0 : 1.2,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
-                            blurRadius: 28,
-                            offset: const Offset(0, -6),
+                    child: Transform.translate(
+                      offset: Offset(0, _dragOffsetY > 0 ? _dragOffsetY : _dragOffsetY * 0.4),
+                      child: AnimatedContainer(
+                        duration: _isDragging ? Duration.zero : const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: theme.bg,
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(_isFullScreen ? 0 : 32),
                           ),
-                        ],
-                      ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.vertical(
-                          top: Radius.circular(_isFullScreen ? 0 : 32),
+                          border: Border.all(
+                            color: _isFullScreen ? Colors.transparent : theme.border,
+                            width: _isFullScreen ? 0 : 1.2,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
+                              blurRadius: 28,
+                              offset: const Offset(0, -6),
+                            ),
+                          ],
                         ),
-                        child: Column(
-                          children: [
-                            // 2.1 Drag Handle Pill (Hidden when full-screen)
-                            if (!_isFullScreen)
-                              Center(
-                                child: Container(
-                                  margin: const EdgeInsets.only(top: 10, bottom: 6),
-                                  width: 42,
-                                  height: 4.5,
-                                  decoration: BoxDecoration(
-                                    color: theme.border,
-                                    borderRadius: BorderRadius.circular(3),
-                                  ),
-                                ),
-                              ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(_isFullScreen ? 0 : 32),
+                          ),
+                          child: Column(
+                            children: [
+                              // 2.1 Interactive Drag Handle Dock Bar
+                              _buildDockBar(theme, isDark),
 
                             // 2.2 Unified Header Row: [Back Button] on Left, [Centered Title] in Center, [Fullscreen & Favorite Buttons] on Right
                             Padding(
@@ -470,6 +595,7 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                     ),
                   ),
                 ),
+              ),
               ],
             ),
           ),
