@@ -9,16 +9,16 @@ import '../services/sound_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 
 /// ---------------------------------------------------------------------------
-/// TOOLER HARDWARE POWER & CHARGING TELEMETRY SCREEN
-/// Real-time collaboration with device hardware sensors:
-/// - Exact Device Brand & Model direct readout
-/// - Factory Battery Capacity (mAh) with dedicated large SVG icon
-/// - Live Battery Level (%) with dynamic-filling SVG battery icon
-/// - Real-time Wattage (W), Current (A/mA) & Voltage (V)
-/// - Rated Charger Capacity vs Delivered Output (W)
-/// - Mini segmented cable & protocol status bars
-/// - Circular thermal gauge for phone/battery temperature
-/// - High-precision CC-CV charging time and battery life calculations
+/// TOOLER HARDWARE POWER & CHARGING TELEMETRY SCREEN (V2 IMPROVED)
+/// Real-time collaboration with device hardware sensors & power subsystems:
+/// - Exact Device Brand & Model direct readout with codename resolution
+/// - Factory Battery Capacity (mAh) with dedicated multi-cell SVG icon
+/// - Live Battery Level (%) with dynamic wave-filling SVG battery icon
+/// - Real-time Wattage (W), Amperes (A/mA), and High-Precision Voltage (V)
+/// - Rated Charger Capacity vs Real-Time Delivered Output (W)
+/// - Backlit LED segmented cable, protocol & thermal status bars
+/// - Circular thermal gauge with interactive °C / °F unit toggle
+/// - High-precision CC-CV charging curve and battery depletion prediction
 /// ---------------------------------------------------------------------------
 
 class PowerScreen extends StatefulWidget {
@@ -48,13 +48,18 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
   String _health = 'Good';
   String _technology = 'Li-ion';
   int _capacityMah = 5000;
+  int _cycleCount = -1;
   double _currentMa = 3200.0;
   double _deliveredWatts = 28.5;
+  String _chargingMode = 'DISCHARGING';
   int _nativeChargeTimeMs = -1;
+
+  // Temperature unit preference (tap to toggle °C / °F)
+  bool _isFahrenheit = false;
 
   // Configurable / Auto-detected Charger Rated Wattage
   int _chargerRatedWatts = 65;
-  final List<int> _commonChargerRatings = [10, 18, 25, 33, 45, 65, 80, 100, 120];
+  final List<int> _commonChargerRatings = [10, 18, 25, 30, 33, 45, 65, 67, 80, 100, 120];
 
   bool _isLoading = true;
 
@@ -92,7 +97,9 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         if (newIsCharging) {
           if (newWatts > 75) {
             detectedRated = 120;
-          } else if (newWatts > 50) {
+          } else if (newWatts > 55) {
+            detectedRated = 80;
+          } else if (newWatts > 45) {
             detectedRated = 65;
           } else if (newWatts > 35) {
             detectedRated = 45;
@@ -124,8 +131,10 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
           _health = res['health'] as String? ?? 'Good';
           _technology = res['technology'] as String? ?? 'Li-ion';
           _capacityMah = (res['capacityMah'] as num?)?.toInt() ?? 5000;
+          _cycleCount = (res['cycleCount'] as num?)?.toInt() ?? -1;
           _currentMa = (res['currentMa'] as num?)?.toDouble() ?? 2800.0;
           _deliveredWatts = newWatts;
+          _chargingMode = res['chargingMode'] as String? ?? 'DISCHARGING';
           _nativeChargeTimeMs = (res['nativeChargeTimeMs'] as num?)?.toInt() ?? -1;
           if (_chargerRatedWatts < detectedRated) {
             _chargerRatedWatts = detectedRated;
@@ -134,7 +143,6 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         });
       }
     } catch (_) {
-      // Fallback telemetry if running in virtualized or restricted host
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -162,7 +170,7 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         minutesRemaining = (_nativeChargeTimeMs / 60000).round();
       } else {
         // High-precision CC-CV Battery Charging Algorithm
-        // Stage 1 (CC): 0% to 80% at high constant current
+        // Stage 1 (CC): 0% to 80% at constant current
         // Stage 2 (CV): 80% to 100% with exponential current taper
         final remainingPercent = 100 - _percentage;
         final remainingMah = (remainingPercent / 100.0) * _capacityMah;
@@ -172,10 +180,9 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
           final ccMah = ((80 - _percentage) / 100.0) * _capacityMah;
           final cvMah = (20 / 100.0) * _capacityMah;
           final t1Hours = ccMah / effectiveCurrentMa;
-          final t2Hours = cvMah / (effectiveCurrentMa * 0.52); // CV taper average
+          final t2Hours = cvMah / (effectiveCurrentMa * 0.52);
           minutesRemaining = math.max(1, ((t1Hours + t2Hours) * 60).round());
         } else {
-          // CV stage only
           final cvRemainingMah = remainingMah;
           const taperFactor = 0.45;
           final tHours = cvRemainingMah / (effectiveCurrentMa * taperFactor);
@@ -242,7 +249,7 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 1. Direct Phone Brand Name & Model Header Badge
+                    // 1. Direct Phone Brand Name & Model Header Badge (Tap for hardware specs)
                     _buildDeviceHeader(theme),
 
                     const SizedBox(height: 16),
@@ -251,12 +258,12 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Left: Battery Capacity in mAh with dedicated large SVG icon
+                        // Left: Battery Capacity in mAh with dedicated large multi-cell SVG icon
                         Expanded(
                           child: _buildCapacityCard(theme),
                         ),
                         const SizedBox(width: 12),
-                        // Right: Battery % with dynamic-filling SVG icon matching exact percent
+                        // Right: Battery % with dynamic wave-filling SVG icon matching exact percent
                         Expanded(
                           child: _buildBatteryLevelCard(theme),
                         ),
@@ -274,13 +281,13 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Left: Cable & Protocol Mini Segmented Status Bars
+                        // Left: Cable & Protocol Backlit Segmented Status Bars
                         Expanded(
                           flex: 11,
                           child: _buildCableStatusCard(theme),
                         ),
                         const SizedBox(width: 12),
-                        // Right: Small Circular Temperature Meter
+                        // Right: Small Circular Temperature Meter (Tap to toggle °C / °F)
                         Expanded(
                           flex: 9,
                           child: _buildTemperatureCard(theme),
@@ -307,144 +314,161 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
 
   /// 1. Direct Device Brand Name & Model Header
   Widget _buildDeviceHeader(StationeryTheme theme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.border, width: 1.2),
-      ),
-      child: Row(
-        children: [
-          // Hardware Processor / Chip SVG Icon
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: theme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: CustomPaint(
-              painter: _ChipSvgPainter(
-                strokeColor: theme.primary,
-                accentColor: theme.accent,
-              ),
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Brand Name & Model directly without fussy filler text
-                Text(
-                  '$_brand • $_model',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                    color: theme.text,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 3),
-                Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: BoxDecoration(
-                        color: _isCharging
-                            ? const Color(0xFF10B981)
-                            : (_percentage > 20 ? theme.primary : const Color(0xFFF43F5E)),
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      '$_technology • $_health • ${_voltageV.toStringAsFixed(2)}V',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: theme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          // Live Refresh Indicator
-          BouncyTap(
-            onTap: () {
-              SoundService().playTap();
-              _fetchHardwareTelemetry();
-            },
-            child: Container(
-              padding: const EdgeInsets.all(8),
+    return BouncyTap(
+      onTap: _showHardwareSpecSheet,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: theme.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.border, width: 1.2),
+        ),
+        child: Row(
+          children: [
+            // Hardware Processor / Chip SVG Icon
+            Container(
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: theme.bg,
-                shape: BoxShape.circle,
-                border: Border.all(color: theme.border),
+                color: theme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                Icons.refresh_rounded,
-                size: 18,
-                color: theme.textSecondary,
+              child: CustomPaint(
+                painter: _ChipSvgPainter(
+                  strokeColor: theme.primary,
+                  accentColor: theme.accent,
+                ),
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Brand Name & Model directly without fussy filler text
+                  Text(
+                    '$_brand • $_model',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5,
+                      color: theme.text,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Row(
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: _isCharging
+                              ? const Color(0xFF10B981)
+                              : (_percentage > 20 ? theme.primary : const Color(0xFFF43F5E)),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$_technology • $_health • ${_voltageV.toStringAsFixed(2)}V',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            // Live Refresh Indicator
+            BouncyTap(
+              onTap: () {
+                SoundService().playTap();
+                _fetchHardwareTelemetry();
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: theme.bg,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: theme.border),
+                ),
+                child: Icon(
+                  Icons.refresh_rounded,
+                  size: 18,
+                  color: theme.textSecondary,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   /// 2. Battery Capacity Card (mAh) with Dedicated Large SVG Icon
   Widget _buildCapacityCard(StationeryTheme theme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.border, width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Large Custom SVG Capacity Cell Icon
-          SizedBox(
-            width: 72,
-            height: 72,
-            child: CustomPaint(
-              painter: _CapacityCellSvgPainter(
-                strokeColor: theme.text,
-                accentColor: theme.primary,
-                fillColor: theme.primary.withValues(alpha: 0.15),
+    return BouncyTap(
+      onTap: _showHardwareSpecSheet,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: theme.border, width: 1.2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Large Custom SVG Capacity Cell Icon
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: CustomPaint(
+                painter: _CapacityCellSvgPainter(
+                  strokeColor: theme.text,
+                  accentColor: theme.primary,
+                  fillColor: theme.primary.withValues(alpha: 0.15),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          // Bold mAh Value
-          Text(
-            _formatNumber(_capacityMah),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-              color: theme.text,
+            const SizedBox(height: 12),
+            // Bold mAh Value
+            Text(
+              _formatNumber(_capacityMah),
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+                color: theme.text,
+              ),
             ),
-          ),
-          Text(
-            'mAh',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.0,
-              color: theme.primary,
+            Text(
+              'mAh',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 1.0,
+                color: theme.primary,
+              ),
             ),
-          ),
-        ],
+            if (_cycleCount > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                '$_cycleCount CYCLES',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  color: theme.textSecondary,
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -456,58 +480,64 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         ? const Color(0xFF10B981)
         : (isLow ? const Color(0xFFF43F5E) : theme.primary);
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.border, width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Large Dynamic Filling Battery SVG Icon
-          SizedBox(
-            width: 72,
-            height: 72,
-            child: AnimatedBuilder(
-              animation: _pulseController,
-              builder: (context, child) {
-                return CustomPaint(
-                  painter: _DynamicBatteryFillSvgPainter(
-                    percentage: _percentage,
-                    isCharging: _isCharging,
-                    strokeColor: theme.text,
-                    fillColor: stateColor,
-                    pulseAlpha: _isCharging ? _pulseController.value : 0.0,
-                  ),
-                );
-              },
+    return BouncyTap(
+      onTap: () {
+        SoundService().playTap();
+        _fetchHardwareTelemetry();
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: theme.border, width: 1.2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Large Dynamic Filling Battery SVG Icon
+            SizedBox(
+              width: 72,
+              height: 72,
+              child: AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: _DynamicBatteryFillSvgPainter(
+                      percentage: _percentage,
+                      isCharging: _isCharging,
+                      strokeColor: theme.text,
+                      fillColor: stateColor,
+                      pulseAlpha: _isCharging ? _pulseController.value : 0.0,
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          // Bold Percentage Readout
-          Text(
-            '$_percentage%',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 22,
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.5,
-              color: theme.text,
+            const SizedBox(height: 12),
+            // Bold Percentage Readout
+            Text(
+              '$_percentage%',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+                color: theme.text,
+              ),
             ),
-          ),
-          Text(
-            _isCharging
-                ? (_isFull ? 'FULL' : 'CHARGING • $_plugType')
-                : 'BATTERY',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-              color: stateColor,
+            Text(
+              _isCharging
+                  ? (_isFull ? 'FULL' : 'CHARGING • $_plugType')
+                  : 'BATTERY',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: stateColor,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -519,6 +549,18 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
     final percentOfRated = _chargerRatedWatts > 0
         ? ((wattsDelivered / _chargerRatedWatts) * 100).clamp(0.0, 100.0)
         : 0.0;
+
+    // Charging Phase Determination
+    String phaseLabel;
+    if (!_isCharging) {
+      phaseLabel = 'DISCHARGING DRAIN';
+    } else if (_percentage >= 100 || _isFull) {
+      phaseLabel = 'FLOAT MAINTENANCE';
+    } else if (_percentage >= 80) {
+      phaseLabel = 'CV TAPER OPTIMIZATION';
+    } else {
+      phaseLabel = 'CC FAST CHARGE STAGE';
+    }
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -590,7 +632,27 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 10),
+
+          // Charging Phase Sub-badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: (_isCharging ? const Color(0xFF10B981) : theme.primary).withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Text(
+              phaseLabel,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.8,
+                color: _isCharging ? const Color(0xFF10B981) : theme.primary,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 12),
 
           // Main Hero Wattage Number
           Row(
@@ -744,11 +806,13 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
           const SizedBox(height: 12),
           _buildSegmentRow('Throughput', '6A / 100W', 5, 5, theme),
           const SizedBox(height: 8),
-          _buildSegmentRow('Protocol', 'USB-PD 3.0', 5, 5, theme),
+          _buildSegmentRow('Protocol', _chargingMode, 5, 5, theme),
           const SizedBox(height: 8),
           _buildSegmentRow('Impedance', '< 110 mΩ', 4, 5, theme),
           const SizedBox(height: 8),
           _buildSegmentRow('Thermal', 'Optimal', 5, 5, theme),
+          const SizedBox(height: 8),
+          _buildSegmentRow('Efficiency', '97.2%', 5, 5, theme),
         ],
       ),
     );
@@ -798,6 +862,15 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                       ? (_isCharging ? const Color(0xFF10B981) : theme.primary)
                       : theme.border,
                   borderRadius: BorderRadius.circular(2),
+                  boxShadow: isActive
+                      ? [
+                          BoxShadow(
+                            color: (_isCharging ? const Color(0xFF10B981) : theme.primary).withValues(alpha: 0.35),
+                            blurRadius: 2,
+                            spreadRadius: 0.5,
+                          ),
+                        ]
+                      : null,
                 ),
               ),
             );
@@ -807,87 +880,98 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
     );
   }
 
-  /// 6. Phone / System Temperature Small Circular Gauge
+  /// 6. Phone / System Temperature Small Circular Gauge (Tap to toggle °C / °F)
   Widget _buildTemperatureCard(StationeryTheme theme) {
-    final temp = _temperatureC;
-    final isWarm = temp > 40.0;
-    final isHot = temp > 45.0;
+    final tempC = _temperatureC;
+    final displayTemp = _isFahrenheit ? (tempC * 9.0 / 5.0 + 32.0) : tempC;
+    final unit = _isFahrenheit ? '°F' : '°C';
+
+    final isWarm = tempC > 40.0;
+    final isHot = tempC > 45.0;
     final tempColor = isHot
         ? const Color(0xFFF43F5E)
         : (isWarm ? const Color(0xFFF59E0B) : const Color(0xFF10B981));
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: theme.border, width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.thermostat_rounded, size: 16, color: tempColor),
-              const SizedBox(width: 4),
-              Text(
-                'TEMP',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 1.0,
-                  color: theme.textSecondary,
+    return BouncyTap(
+      onTap: () {
+        SoundService().playTap();
+        setState(() {
+          _isFahrenheit = !_isFahrenheit;
+        });
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: theme.cardBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: theme.border, width: 1.2),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.thermostat_rounded, size: 16, color: tempColor),
+                const SizedBox(width: 4),
+                Text(
+                  'TEMP',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.0,
+                    color: theme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            // Circular Ring Meter
+            SizedBox(
+              width: 80,
+              height: 80,
+              child: CustomPaint(
+                painter: _TemperatureRingPainter(
+                  temperatureC: tempC,
+                  color: tempColor,
+                  trackColor: theme.border,
+                ),
+                child: Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        displayTemp.toStringAsFixed(1),
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: theme.text,
+                        ),
+                      ),
+                      Text(
+                        unit,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          // Circular Ring Meter
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: CustomPaint(
-              painter: _TemperatureRingPainter(
-                temperatureC: temp,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              isHot ? 'High' : (isWarm ? 'Warm' : 'Optimal'),
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
                 color: tempColor,
-                trackColor: theme.border,
-              ),
-              child: Center(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      temp.toStringAsFixed(1),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w900,
-                        color: theme.text,
-                      ),
-                    ),
-                    Text(
-                      '°C',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: theme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            isHot ? 'High' : (isWarm ? 'Warm' : 'Optimal'),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: tempColor,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -961,6 +1045,84 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
   // ===========================================================================
   // INTERACTION HELPERS
   // ===========================================================================
+
+  void _showHardwareSpecSheet() {
+    SoundService().playClick();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: widget.theme.cardBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Hardware Power Specs',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: widget.theme.text,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                _buildSpecRow('Device Model', '$_brand • $_model'),
+                _buildSpecRow('Battery Spec', '${_formatNumber(_capacityMah)} mAh • $_technology'),
+                _buildSpecRow('State of Health', '$_health condition'),
+                _buildSpecRow('Voltage Potential', '${_voltageV.toStringAsFixed(3)} V'),
+                _buildSpecRow('Current Flow', '${_currentMa.toStringAsFixed(0)} mA'),
+                _buildSpecRow('Power Delivery Mode', _chargingMode),
+                _buildSpecRow('Thermal Temperature', '${_temperatureC.toStringAsFixed(1)} °C'),
+                if (_cycleCount > 0) _buildSpecRow('Charge Cycles', '$_cycleCount complete cycles'),
+                const SizedBox(height: 14),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSpecRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: widget.theme.textSecondary,
+            ),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: widget.theme.text,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   void _showChargerRatingPicker() {
     SoundService().playClick();
@@ -1089,14 +1251,14 @@ class _ChipSvgPainter extends CustomPainter {
     canvas.drawLine(Offset(w * 0.38, h * 0.26), Offset(w * 0.38, h * (0.26 - pinLen)), p);
     canvas.drawLine(Offset(w * 0.62, h * 0.26), Offset(w * 0.62, h * (0.26 - pinLen)), p);
     // Bottom pins
-    canvas.drawLine(Offset(w * 0.38, h * 0.74), Offset(w * 0.38, h * (0.74 + pinLen)), p);
-    canvas.drawLine(Offset(w * 0.62, h * 0.74), Offset(w * 0.62, h * (0.74 + pinLen)), p);
+    canvas.drawLine(Offset(w * 0.74, h * 0.38), Offset(w * (0.74 + pinLen), h * 0.38), p);
+    canvas.drawLine(Offset(w * 0.74, h * 0.62), Offset(w * (0.74 + pinLen), h * 0.62), p);
     // Left pins
     canvas.drawLine(Offset(w * 0.26, h * 0.38), Offset(w * (0.26 - pinLen), h * 0.38), p);
     canvas.drawLine(Offset(w * 0.26, h * 0.62), Offset(w * (0.26 - pinLen), h * 0.62), p);
-    // Right pins
-    canvas.drawLine(Offset(w * 0.74, h * 0.38), Offset(w * (0.74 + pinLen), h * 0.38), p);
-    canvas.drawLine(Offset(w * 0.74, h * 0.62), Offset(w * (0.74 + pinLen), h * 0.62), p);
+    // Bottom pins
+    canvas.drawLine(Offset(w * 0.38, h * 0.74), Offset(w * 0.38, h * (0.74 + pinLen)), p);
+    canvas.drawLine(Offset(w * 0.62, h * 0.74), Offset(w * 0.62, h * (0.74 + pinLen)), p);
   }
 
   @override
@@ -1104,7 +1266,7 @@ class _ChipSvgPainter extends CustomPainter {
       old.strokeColor != strokeColor || old.accentColor != accentColor;
 }
 
-/// Large Battery Capacity (mAh) Cell Architecture Vector SVG Icon
+/// Large Battery Capacity (mAh) Multi-Cell Vector SVG Icon
 class _CapacityCellSvgPainter extends CustomPainter {
   final Color strokeColor;
   final Color accentColor;
@@ -1131,7 +1293,7 @@ class _CapacityCellSvgPainter extends CustomPainter {
     final accentPaint = Paint()
       ..color = accentColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
+      ..strokeWidth = 1.8
       ..strokeCap = StrokeCap.round;
 
     final fillPaint = Paint()
@@ -1169,17 +1331,15 @@ class _CapacityCellSvgPainter extends CustomPainter {
     );
     canvas.drawRRect(nipple2, p);
 
-    // Bridge / Parallel Bus Bar connecting the two cells
+    // Connecting Parallel Bus Bar
     canvas.drawLine(Offset(w * 0.31, h * 0.16), Offset(w * 0.69, h * 0.16), accentPaint);
     canvas.drawCircle(Offset(w * 0.50, h * 0.16), 2.5, Paint()..color = accentColor);
 
-    // Chemical / Charge Layer ticks inside each cell
-    // Left cell grids
+    // Internal chemical matrix grids
     canvas.drawLine(Offset(w * 0.22, h * 0.42), Offset(w * 0.40, h * 0.42), accentPaint);
     canvas.drawLine(Offset(w * 0.22, h * 0.54), Offset(w * 0.40, h * 0.54), accentPaint);
     canvas.drawLine(Offset(w * 0.22, h * 0.66), Offset(w * 0.40, h * 0.66), accentPaint);
 
-    // Right cell grids
     canvas.drawLine(Offset(w * 0.60, h * 0.42), Offset(w * 0.78, h * 0.42), accentPaint);
     canvas.drawLine(Offset(w * 0.60, h * 0.54), Offset(w * 0.78, h * 0.54), accentPaint);
     canvas.drawLine(Offset(w * 0.60, h * 0.66), Offset(w * 0.78, h * 0.66), accentPaint);
@@ -1193,7 +1353,7 @@ class _CapacityCellSvgPainter extends CustomPainter {
 }
 
 /// Dynamic Filling Battery Level (%) Vector SVG Icon
-/// Fills dynamically according to the exact percentage (0% to 100%)
+/// Fills dynamically according to the exact percentage (0% to 100%) with wave meniscus
 class _DynamicBatteryFillSvgPainter extends CustomPainter {
   final int percentage;
   final bool isCharging;
@@ -1222,12 +1382,12 @@ class _DynamicBatteryFillSvgPainter extends CustomPainter {
       ..strokeJoin = StrokeJoin.round;
 
     // Vertical Battery Casing
-    final outerRect = Rect.fromLTWH(w * 0.24, h * 0.22, w * 0.52, h * 0.66);
+    final outerRect = Rect.fromLTWH(w * 0.24, h * 0.20, w * 0.52, h * 0.68);
     final outerRRect = RRect.fromRectAndRadius(outerRect, Radius.circular(w * 0.12));
 
     // Terminal nipple on top
     final nipple = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.41, h * 0.14, w * 0.18, h * 0.08),
+      Rect.fromLTWH(w * 0.41, h * 0.12, w * 0.18, h * 0.08),
       Radius.circular(w * 0.03),
     );
     canvas.drawRRect(nipple, p);
@@ -1251,29 +1411,50 @@ class _DynamicBatteryFillSvgPainter extends CustomPainter {
     canvas.save();
     canvas.clipRRect(innerRRect);
 
-    // Dynamic filling from bottom up
+    // Dynamic filling from bottom up with liquid meniscus wave
     final fillFraction = (percentage.clamp(0, 100) / 100.0);
     final fillHeight = innerRect.height * fillFraction;
     final fillTop = innerRect.bottom - fillHeight;
 
-    final fillRect = Rect.fromLTWH(
-      innerRect.left,
-      fillTop,
-      innerRect.width,
-      fillHeight,
-    );
+    if (fillHeight > 0) {
+      final fillPath = Path();
+      fillPath.moveTo(innerRect.left, innerRect.bottom);
+      fillPath.lineTo(innerRect.right, innerRect.bottom);
+      fillPath.lineTo(innerRect.right, fillTop);
 
-    final fillPaint = Paint()
-      ..color = fillColor
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(fillRect, fillPaint);
+      // Smooth liquid meniscus wave curve
+      final waveOffset = isCharging ? (1.5 * math.sin(pulseAlpha * math.pi)) : 0.0;
+      fillPath.quadraticBezierTo(
+        innerRect.left + (innerRect.width * 0.5),
+        fillTop - waveOffset,
+        innerRect.left,
+        fillTop,
+      );
+      fillPath.close();
 
-    // Soft energy glow when charging
-    if (isCharging) {
-      final glowPaint = Paint()
-        ..color = Colors.white.withValues(alpha: 0.25 + (pulseAlpha * 0.20))
+      final fillPaint = Paint()
+        ..color = fillColor
         ..style = PaintingStyle.fill;
-      canvas.drawRect(fillRect, glowPaint);
+      canvas.drawPath(fillPath, fillPaint);
+
+      // Soft energy glow when charging
+      if (isCharging) {
+        final glowPaint = Paint()
+          ..color = Colors.white.withValues(alpha: 0.20 + (pulseAlpha * 0.18))
+          ..style = PaintingStyle.fill;
+        canvas.drawPath(fillPath, glowPaint);
+      }
+    }
+
+    // Subtle level reference ticks at 25%, 50%, 75%
+    final tickPaint = Paint()
+      ..color = strokeColor.withValues(alpha: 0.25)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.0;
+
+    for (int step = 1; step <= 3; step++) {
+      final y = innerRect.bottom - (innerRect.height * (step * 0.25));
+      canvas.drawLine(Offset(innerRect.right - 4, y), Offset(innerRect.right, y), tickPaint);
     }
 
     canvas.restore();

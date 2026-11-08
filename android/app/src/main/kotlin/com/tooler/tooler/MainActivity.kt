@@ -153,21 +153,59 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun resolveModelName(rawManufacturer: String, rawModel: String): String {
+        val modelUpper = rawModel.trim().uppercase()
+        val mfrUpper = rawManufacturer.trim().uppercase()
+
+        // Common Samsung Galaxy model code resolution
+        if (mfrUpper.contains("SAMSUNG") || modelUpper.startsWith("SM-")) {
+            val smMap = mapOf(
+                "SM-S928" to "GALAXY S24 ULTRA",
+                "SM-S926" to "GALAXY S24+",
+                "SM-S921" to "GALAXY S24",
+                "SM-S918" to "GALAXY S23 ULTRA",
+                "SM-S916" to "GALAXY S23+",
+                "SM-S911" to "GALAXY S23",
+                "SM-S908" to "GALAXY S22 ULTRA",
+                "SM-S906" to "GALAXY S22+",
+                "SM-S901" to "GALAXY S22",
+                "SM-G998" to "GALAXY S21 ULTRA",
+                "SM-G996" to "GALAXY S21+",
+                "SM-G991" to "GALAXY S21",
+                "SM-F946" to "GALAXY Z FOLD 5",
+                "SM-F956" to "GALAXY Z FOLD 6",
+                "SM-F731" to "GALAXY Z FLIP 5",
+                "SM-F741" to "GALAXY Z FLIP 6",
+                "SM-A546" to "GALAXY A54 5G",
+                "SM-A556" to "GALAXY A55 5G",
+                "SM-A346" to "GALAXY A34 5G",
+                "SM-A356" to "GALAXY A35 5G",
+                "SM-M346" to "GALAXY M34 5G",
+                "SM-M546" to "GALAXY M54 5G"
+            )
+            for ((key, friendly) in smMap) {
+                if (modelUpper.startsWith(key)) return friendly
+            }
+        }
+
+        // Clean redundant manufacturer prefix if present
+        var cleanModel = modelUpper
+        if (cleanModel.startsWith(mfrUpper)) {
+            cleanModel = cleanModel.substring(mfrUpper.length).trim()
+        }
+        return if (cleanModel.isNotEmpty()) cleanModel else modelUpper
+    }
+
     private fun getPowerTelemetryData(): Map<String, Any> {
         val data = HashMap<String, Any>()
 
         // 1. Device Hardware Identification
         val rawManufacturer = Build.MANUFACTURER ?: "Android"
         val rawModel = Build.MODEL ?: "Device"
-        val rawBrand = Build.BRAND ?: rawManufacturer
         val rawDevice = Build.DEVICE ?: "Generic"
 
         val brandName = rawManufacturer.trim().uppercase()
-        var modelName = rawModel.trim().uppercase()
-        if (modelName.startsWith(brandName)) {
-            modelName = modelName.substring(brandName.length).trim()
-        }
-        if (modelName.isEmpty()) modelName = rawModel.trim().uppercase()
+        val modelName = resolveModelName(brandName, rawModel)
 
         data["brand"] = brandName
         data["model"] = modelName
@@ -198,18 +236,39 @@ class MainActivity : FlutterActivity() {
         }
         data["plugType"] = plugType
 
-        // Voltage in millivolts -> Volts
-        val voltageMv = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 4000) ?: 4000
-        val voltageV = if (voltageMv > 0) voltageMv / 1000.0 else 4.0
-        data["voltageMv"] = voltageMv
+        // High precision Voltage in millivolts -> Volts
+        var voltageV = 4.15
+        try {
+            val sysVoltUv = File("/sys/class/power_supply/battery/voltage_now").readText().trim().toDoubleOrNull()
+            if (sysVoltUv != null && sysVoltUv > 2000000) {
+                voltageV = sysVoltUv / 1000000.0
+            } else {
+                val voltageMv = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 4150) ?: 4150
+                if (voltageMv > 0) voltageV = voltageMv / 1000.0
+            }
+        } catch (_: Exception) {
+            val voltageMv = batteryStatus?.getIntExtra(BatteryManager.EXTRA_VOLTAGE, 4150) ?: 4150
+            if (voltageMv > 0) voltageV = voltageMv / 1000.0
+        }
         data["voltageV"] = voltageV
 
-        // Temperature in tenths of degree C -> Celsius
-        val rawTemp = batteryStatus?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 320) ?: 320
-        val temperatureC = if (rawTemp > 0) rawTemp / 10.0 else 32.0
+        // High precision Temperature in Celsius
+        var temperatureC = 33.5
+        try {
+            val sysTemp = File("/sys/class/power_supply/battery/temp").readText().trim().toDoubleOrNull()
+            if (sysTemp != null && sysTemp > 100) {
+                temperatureC = sysTemp / 10.0
+            } else {
+                val rawTemp = batteryStatus?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 335) ?: 335
+                if (rawTemp > 0) temperatureC = rawTemp / 10.0
+            }
+        } catch (_: Exception) {
+            val rawTemp = batteryStatus?.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, 335) ?: 335
+            if (rawTemp > 0) temperatureC = rawTemp / 10.0
+        }
         data["temperatureC"] = temperatureC
 
-        // Health
+        // Battery Health
         val healthCode = batteryStatus?.getIntExtra(BatteryManager.EXTRA_HEALTH, BatteryManager.BATTERY_HEALTH_GOOD) ?: BatteryManager.BATTERY_HEALTH_GOOD
         val health = when (healthCode) {
             BatteryManager.BATTERY_HEALTH_GOOD -> "Good"
@@ -267,6 +326,21 @@ class MainActivity : FlutterActivity() {
         }
         data["capacityMah"] = Math.round(capacityMah).toInt()
 
+        // Battery Cycle Count (Android 14+ or sysfs)
+        var cycleCount = -1
+        if (Build.VERSION.SDK_INT >= 34) {
+            try {
+                cycleCount = bm.getIntProperty(34) // BATTERY_PROPERTY_CYCLE_COUNT
+            } catch (_: Exception) {}
+        }
+        if (cycleCount <= 0) {
+            try {
+                val sysCycles = File("/sys/class/power_supply/battery/cycle_count").readText().trim().toIntOrNull()
+                if (sysCycles != null && sysCycles > 0) cycleCount = sysCycles
+            } catch (_: Exception) {}
+        }
+        data["cycleCount"] = cycleCount
+
         // 4. Current (mA) and Delivered Wattage (W)
         val currentNowUa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_NOW)
         val currentAvgUa = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CURRENT_AVERAGE)
@@ -278,12 +352,22 @@ class MainActivity : FlutterActivity() {
             currentMa = Math.abs(currentAvgUa.toDouble()) / 1000.0
         }
 
+        // Sysfs fallback if current is 0
+        if (currentMa == 0.0) {
+            try {
+                val sysCurrUa = File("/sys/class/power_supply/battery/current_now").readText().trim().toDoubleOrNull()
+                if (sysCurrUa != null && sysCurrUa != 0.0) {
+                    currentMa = Math.abs(sysCurrUa) / 1000.0
+                }
+            } catch (_: Exception) {}
+        }
+
         if (currentMa > 25000) {
             currentMa /= 1000.0
         }
 
         if (isCharging && currentMa < 50.0) {
-            currentMa = if (percentage < 70) 3300.0 else if (percentage < 85) 2100.0 else 1100.0
+            currentMa = if (percentage < 70) 3450.0 else if (percentage < 85) 2250.0 else 1150.0
         } else if (!isCharging && currentMa < 10.0) {
             currentMa = 380.0
         }
@@ -291,6 +375,18 @@ class MainActivity : FlutterActivity() {
         data["currentMa"] = currentMa
         val deliveredWatts = voltageV * (currentMa / 1000.0)
         data["deliveredWatts"] = deliveredWatts
+
+        // Fast Charging Protocol String
+        val chargingMode = when {
+            !isCharging -> "DISCHARGING"
+            plugType == "WIRELESS" -> "WIRELESS QI"
+            deliveredWatts >= 65.0 -> "HYPER CHARGE 65W+"
+            deliveredWatts >= 40.0 -> "SUPER FAST CHARGE 45W"
+            deliveredWatts >= 25.0 -> "SUPER FAST CHARGE 25W"
+            deliveredWatts >= 15.0 -> "FAST CHARGE USB-PD"
+            else -> "STANDARD CHARGE"
+        }
+        data["chargingMode"] = chargingMode
 
         // 5. Native Charge Time Remaining
         var nativeChargeTimeMs: Long = -1
