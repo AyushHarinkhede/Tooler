@@ -23,7 +23,7 @@ class CalculatorScreen extends StatefulWidget {
   State<CalculatorScreen> createState() => _CalculatorScreenState();
 }
 
-class _CalculatorScreenState extends State<CalculatorScreen> {
+class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerProviderStateMixin {
   CalcMode _calcMode = CalcMode.basic;
 
   // General State
@@ -35,6 +35,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   bool _is2nd = false; // 2nd function toggle for inverse trig / alt powers
   double? _memoryValue;
   List<CalcHistoryItem> _history = [];
+
+  // Slide-up Answer Animation on '='
+  late AnimationController _slideUpController;
+  late Animation<double> _slideUpAnimation;
+  bool _isSlidingUp = false;
+  String _slidingAns = '';
+  String? _slideEgg;
 
   // Programmer State
   ProgBase _progBase = ProgBase.dec;
@@ -56,10 +63,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void initState() {
     super.initState();
     _loadHistory();
+    _slideUpController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 280),
+    );
+    _slideUpAnimation = CurvedAnimation(
+      parent: _slideUpController,
+      curve: Curves.easeOutCubic,
+    );
+    _slideUpController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        if (mounted) {
+          setState(() {
+            _isSlidingUp = false;
+            _expression = _slidingAns;
+            _previewResult = '';
+            _easterEggText = _slideEgg;
+            _slideUpController.reset();
+          });
+        }
+      }
+    });
+    // Initialize initial easter egg ("Nothing ⚪" for 0)
+    _computePreview();
   }
 
   @override
   void dispose() {
+    _slideUpController.dispose();
     _clockTimer?.cancel();
     _displayScrollController.dispose();
     _focusNode.dispose();
@@ -542,27 +573,34 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     try {
       final clean = _expression.trim();
 
-      // Specifically for 0÷0: "pre ans me bhi nahi"
+      // Specifically for 0÷0: "Ask your ChatBot"
       if (clean == '0÷0' || clean == '0/0') {
-        _previewResult = '';
-        _easterEggText = null;
+        _previewResult = '= Ask your ChatBot! 🤖';
+        _easterEggText = _calcMode == CalcMode.basic ? "Ask your ChatBot! 🤖" : null;
         return;
       }
 
+      // Specifically for 1+: "Never Settle"
       if (clean == '1+') {
+        _previewResult = '= Never Settle 🔴';
+        _easterEggText = _calcMode == CalcMode.basic ? "Never Settle 🔴" : null;
+        return;
+      }
+
+      if (clean == '0') {
         _previewResult = '';
-        _easterEggText = null;
+        _easterEggText = _calcMode == CalcMode.basic ? "Nothing ⚪" : null;
         return;
       }
 
       final res = _evaluateExpression(_expression);
       if (res != null && res != 'Error' && !res.startsWith('Cannot') && res != _expression) {
         _previewResult = '= $res';
+        _easterEggText = _calcMode == CalcMode.basic ? _detectEasterEgg(_expression, res) : null;
       } else {
         _previewResult = '';
+        _easterEggText = _calcMode == CalcMode.basic ? _detectEasterEgg(_expression, _expression) : null;
       }
-      // Never show easter egg while typing (only on '=' button press)
-      _easterEggText = null;
     } catch (_) {
       _previewResult = '';
       _easterEggText = null;
@@ -570,24 +608,31 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   void _evaluateFinal() {
+    if (_isSlidingUp) return;
+
     final clean = _expression.trim();
 
-    // Specific exception: "0 divided 0 me Ask Your Chat Bot Ans me hi likhkar aayega usme niche alag se show nahi hoga sidha main Ans me hoga"
+    // 0 ÷ 0
     if (clean == '0÷0' || clean == '0/0') {
       _lastEquation = '0 ÷ 0 =';
-      _expression = 'Ask Your Chat Bot';
+      _slidingAns = 'Ask your ChatBot! 🤖';
+      _slideEgg = "Ask your ChatBot! 🤖";
+      _isSlidingUp = true;
       _previewResult = '';
-      _easterEggText = null;
-      SoundService().playKey();
+      _slideUpController.forward(from: 0.0);
+      SoundService().playSuccess();
       HapticFeedback.mediumImpact();
       return;
     }
 
+    // 1+
     if (clean == '1+' || clean == '1+ ' || clean == '1+0') {
       _lastEquation = '1+ =';
-      _expression = '1';
+      _slidingAns = 'Never Settle 🔴';
+      _slideEgg = "OnePlus • Never Settle";
+      _isSlidingUp = true;
       _previewResult = '';
-      _easterEggText = _calcMode == CalcMode.basic ? "Never Settle" : null;
+      _slideUpController.forward(from: 0.0);
       SoundService().playSuccess();
       HapticFeedback.mediumImpact();
       return;
@@ -596,12 +641,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     try {
       final res = _evaluateExpression(_expression);
       if (res != null) {
-        // "jisme Error show ho ans me niche me Ask your Chat Bot likhkar aaye naaki ans me ans me Error hi likhkar aayega"
         if (res == 'Error' || res.startsWith('Cannot')) {
           _lastEquation = '$_expression =';
           _expression = 'Error';
           _previewResult = '';
-          _easterEggText = _calcMode == CalcMode.basic ? "Ask your Chat Bot" : null;
+          _easterEggText = _calcMode == CalcMode.basic ? "Ask your ChatBot! 🤖" : null;
           HapticFeedback.heavyImpact();
           return;
         }
@@ -615,16 +659,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _history.insert(0, item);
         StorageService().saveCalcHistory(_history);
 
-        // "then jo bhin ans hai wo show hona hi chahiye"
-        _expression = res;
+        // Slide up animation trigger!
+        _slidingAns = res;
+        _slideEgg = _calcMode == CalcMode.basic ? _detectEasterEgg(_lastEquation, res) : null;
+        _isSlidingUp = true;
         _previewResult = '';
-
-        // "ester egg only basic calculator me show hona"
-        if (_calcMode == CalcMode.basic) {
-          _easterEggText = _detectEasterEgg(_lastEquation, res);
-        } else {
-          _easterEggText = null;
-        }
+        _slideUpController.forward(from: 0.0);
 
         SoundService().playSuccess();
         HapticFeedback.mediumImpact();
@@ -632,13 +672,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _lastEquation = '$_expression =';
         _expression = 'Error';
         _previewResult = '';
-        _easterEggText = _calcMode == CalcMode.basic ? "Ask your Chat Bot" : null;
+        _easterEggText = _calcMode == CalcMode.basic ? "Ask your ChatBot! 🤖" : null;
       }
     } catch (_) {
       _lastEquation = '$_expression =';
       _expression = 'Error';
       _previewResult = '';
-      _easterEggText = _calcMode == CalcMode.basic ? "Ask your Chat Bot" : null;
+      _easterEggText = _calcMode == CalcMode.basic ? "Ask your ChatBot! 🤖" : null;
     }
   }
 
@@ -648,58 +688,64 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     final cleanRes = result.replaceAll('=', '').trim();
     final cleanExpr = expr.replaceAll(' ', '');
 
-    if (cleanExpr == '0÷0' || cleanExpr == '0/0') {
-      return null;
+    if (cleanExpr == '0÷0' || cleanExpr == '0/0' || cleanRes.contains('ChatBot') || cleanRes.contains('Chat Bot')) {
+      return "Ask your ChatBot! 🤖";
     }
 
-    if (cleanExpr.startsWith('1+') || cleanRes == 'Never Settle') {
-      return "Never Settle";
+    if (cleanExpr.startsWith('1+') || cleanRes.contains('Never Settle')) {
+      return "Never Settle 🔴";
     }
 
     if (cleanRes == '7') {
-      return "Thala for a reason";
+      return "Thala for a reason! 🦁 #7";
     }
     if (cleanRes == '13') {
-      return "Unlucky";
+      return "Unlucky ⚠️ (Friday 13th)";
     }
     if (cleanRes == '4') {
-      return "Unlucky";
+      return "Unlucky ⚠️ (Tetraphobia)";
     }
     if (cleanRes == '0' || cleanRes == '0.0' || cleanExpr == '0' || cleanExpr == '0=') {
-      return "Nothing";
+      return "Nothing ⚪";
     }
     if (cleanRes == '67') {
-      return "Six Seven";
+      return "Six Seven 🤙";
     }
     if (cleanRes == '911') {
-      return "Emergency Call";
+      return "Emergency Call 🚨";
     }
     if (cleanRes == '42') {
-      return "Answer to Life";
+      return "Answer to Life 🌌";
     }
     if (cleanRes == '69') {
-      return "Nice";
+      return "Nice 😉";
     }
     if (cleanRes == '100') {
-      return "Century";
+      return "Century! 💯";
     }
     if (cleanRes == '360') {
-      return "Full Circle";
+      return "Full Circle 🔄";
     }
     if (cleanRes == '404') {
-      return "Error 404 Not Found";
+      return "Error 404: Not Found 🔍";
     }
     if (cleanRes == '777') {
-      return "Lucky 777";
+      return "Lucky 777 🎰";
     }
     if (cleanRes == '3000') {
-      return "I love you 3000";
+      return "I love you 3000 ❤️";
     }
     if (cleanRes == '2026') {
-      return "Current Era 2026";
+      return "Current Era 2026 🚀";
     }
     if (cleanRes == '3.14' || cleanRes == '3.14159' || cleanRes.startsWith('3.14159')) {
-      return "Pi Day";
+      return "Pi Day 🥧";
+    }
+
+    // Numbers <= 10 (like 1+1 = 2, 9+1 = 10, 5+3 = 8): "It's easy! 😉"
+    final d = double.tryParse(cleanRes);
+    if (d != null && d > 0 && d <= 10 && d == d.roundToDouble()) {
+      return "It's easy! 😉";
     }
 
     return null;
@@ -1172,13 +1218,31 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     );
   }
 
+  double _getFontSize(String expr) {
+    if (expr.length > 14) return 22;
+    if (expr.length > 9) return 28;
+    return 34;
+  }
+
   // --- Display Card with Smooth Animated Sizing, Expression Transitions, Clock Mode & Programmer Multi-Base ---
   Widget _buildDisplayCard() {
     final bool isError = _isErrorState();
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      constraints: BoxConstraints(
+        minHeight: _isClockMode
+            ? 120
+            : _calcMode == CalcMode.programmer
+                ? 260
+                : 144,
+        maxHeight: _isClockMode
+            ? 140
+            : _calcMode == CalcMode.programmer
+                ? 320
+                : 144,
+      ),
       decoration: BoxDecoration(
         color: widget.theme.cardBg,
         borderRadius: BorderRadius.circular(20),
@@ -1196,6 +1260,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // If Live Clock Mode is active (triggered by holding 'C' for at least 3 sec)
           if (_isClockMode) ...[
@@ -1344,161 +1409,218 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               ),
             ),
           ] else ...[
-            // Normal Basic & Scientific Calculator Display Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    if (_memoryValue != null)
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: widget.theme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: widget.theme.primary, width: 1),
-                        ),
-                        child: Text(
-                          "M",
-                          style: widget.theme.fontMono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: widget.theme.primary,
+            // TOP ROW (Height 22): Memory & RAD/DEG on Left, Previous Equation on Right
+            SizedBox(
+              height: 22,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Row(
+                    children: [
+                      if (_memoryValue != null)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: widget.theme.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: widget.theme.primary, width: 1),
+                          ),
+                          child: Text(
+                            "M",
+                            style: widget.theme.fontMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: widget.theme.primary,
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                if (_calcMode == CalcMode.scientific)
-                  GestureDetector(
-                    onTap: () {
-                      HapticFeedback.selectionClick();
-                      setState(() => _isRad = !_isRad);
-                      _computePreview();
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: widget.theme.primary.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: widget.theme.primary.withValues(alpha: 0.5)),
-                      ),
-                      child: Text(
-                        _isRad ? "RAD" : "DEG",
-                        style: widget.theme.fontMono(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: widget.theme.primary,
+                      if (_calcMode == CalcMode.scientific) ...[
+                        const SizedBox(width: 6),
+                        GestureDetector(
+                          onTap: () {
+                            HapticFeedback.selectionClick();
+                            setState(() => _isRad = !_isRad);
+                            _computePreview();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: widget.theme.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: widget.theme.primary.withValues(alpha: 0.5)),
+                            ),
+                            child: Text(
+                              _isRad ? "RAD" : "DEG",
+                              style: widget.theme.fontMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: widget.theme.primary,
+                              ),
+                            ),
+                          ),
                         ),
+                      ],
+                    ],
+                  ),
+                  // Previous equation if available (fades smoothly in and out without resizing container)
+                  AnimatedOpacity(
+                    duration: const Duration(milliseconds: 200),
+                    opacity: _lastEquation.isNotEmpty ? 1.0 : 0.0,
+                    child: Text(
+                      _lastEquation.isNotEmpty ? _lastEquation : '',
+                      textAlign: TextAlign.right,
+                      style: widget.theme.fontMono(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: widget.theme.textSecondary,
                       ),
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
 
-            // Previous equation if available
-            if (_lastEquation.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 2),
-                child: Text(
-                  _lastEquation,
-                  textAlign: TextAlign.right,
-                  style: widget.theme.fontMono(
-                    fontSize: 13,
-                    color: widget.theme.textSecondary,
-                  ),
-                ),
+            // MIDDLE ROW (Height 52): Animated Numbers Display & Slide-Up Real Answer
+            SizedBox(
+              height: 52,
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: _isSlidingUp
+                    ? AnimatedBuilder(
+                        animation: _slideUpAnimation,
+                        builder: (context, child) {
+                          final progress = _slideUpAnimation.value;
+                          return Stack(
+                            alignment: Alignment.centerRight,
+                            children: [
+                              // Old expression sliding up and fading away
+                              Opacity(
+                                opacity: (1.0 - progress).clamp(0.0, 1.0),
+                                child: Transform.translate(
+                                  offset: Offset(0, -26.0 * progress),
+                                  child: Text(
+                                    _expression,
+                                    textAlign: TextAlign.right,
+                                    style: widget.theme.fontMono(
+                                      fontSize: _getFontSize(_expression),
+                                      fontWeight: FontWeight.bold,
+                                      color: widget.theme.text.withValues(alpha: 0.6),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              // New answer sliding up from the preview position to the center in UI theme color
+                              Transform.translate(
+                                offset: Offset(0, 36.0 * (1.0 - progress)),
+                                child: Text(
+                                  _slidingAns,
+                                  textAlign: TextAlign.right,
+                                  style: widget.theme.fontMono(
+                                    fontSize: 18.0 + (progress * (_getFontSize(_slidingAns) - 18.0)),
+                                    fontWeight: FontWeight.bold,
+                                    color: widget.theme.primary, // UI THEME COLOR!
+                                  ),
+                                ),
+                              ),
+                            ],
+                          );
+                        },
+                      )
+                    : GestureDetector(
+                        onLongPress: () => _copyToClipboard(_expression),
+                        child: SingleChildScrollView(
+                          controller: _displayScrollController,
+                          scrollDirection: Axis.horizontal,
+                          reverse: true,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _AnimatedExpressionDisplay(
+                                expression: _expression,
+                                style: widget.theme.fontMono(
+                                  fontSize: _getFontSize(_expression),
+                                  fontWeight: FontWeight.bold,
+                                  color: isError ? Colors.redAccent : widget.theme.text,
+                                ),
+                              ),
+                              if (isError) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFEF4444), width: 1.2),
+                                  ),
+                                  child: Text(
+                                    "Ask your ChatBot! 🤖",
+                                    style: widget.theme.fontMono(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFFDC2626),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ),
               ),
+            ),
 
-            // Primary Interactive Expression with smooth AnimatedSwitcher
-            GestureDetector(
-              onLongPress: () => _copyToClipboard(_expression),
-              child: SingleChildScrollView(
-                controller: _displayScrollController,
-                scrollDirection: Axis.horizontal,
-                reverse: true,
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 140),
+            // BOTTOM ROW (Height 28): Easter Egg Chip on Left, Live Preview Result on Right
+            SizedBox(
+              height: 28,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left: Easter Egg Chip
+                  Flexible(
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
                       transitionBuilder: (child, anim) {
                         return FadeTransition(
                           opacity: anim,
                           child: SlideTransition(
                             position: Tween<Offset>(
-                              begin: const Offset(0.04, 0),
+                              begin: const Offset(-0.08, 0.0),
                               end: Offset.zero,
-                            ).animate(anim),
+                            ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
                             child: child,
                           ),
                         );
                       },
-                      child: Text(
-                        _expression,
-                        key: ValueKey<String>(_expression),
-                        textAlign: TextAlign.right,
-                        style: widget.theme.fontMono(
-                          fontSize: _expression.length > 14
-                              ? 26
-                              : _expression.length > 9
-                                  ? 32
-                                  : 38,
-                          fontWeight: FontWeight.bold,
-                          color: isError ? Colors.redAccent : widget.theme.text,
-                        ),
-                      ),
+                      child: (_easterEggText != null && _calcMode == CalcMode.basic)
+                          ? Container(
+                              key: ValueKey<String>(_easterEggText!),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: widget.theme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: widget.theme.primary.withValues(alpha: 0.4),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                _easterEggText!,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: widget.theme.fontDisplay(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: widget.theme.primary, // UI THEME COLOR!
+                                ),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                    // If error state: show "Ask your ChatBot! 🤖" right next to it!
-                    if (isError) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFEF4444).withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFEF4444), width: 1.2),
-                        ),
-                        child: Text(
-                          "Ask your ChatBot! 🤖",
-                          style: widget.theme.fontMono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: const Color(0xFFDC2626),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+                  ),
 
-            // Live Result Preview with Pop-up Scale Transition & Easter Egg Chip
-            const SizedBox(height: 4),
-            SizedBox(
-              height: 26,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Easter Egg text without BG or border (simply UI colour text, NO emoji, NO explanations)
-                  if (_easterEggText != null && _calcMode == CalcMode.basic)
-                    Flexible(
-                      child: Text(
-                        _easterEggText!,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: widget.theme.fontDisplay(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: widget.theme.primary,
-                        ),
-                      ),
-                    )
-                  else
-                    const SizedBox.shrink(),
-
-                  // Preview Result pop-up
+                  // Right: Preview Result (Fades out when sliding up on =)
                   AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
                     transitionBuilder: (child, anim) {
@@ -1507,14 +1629,14 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                         child: FadeTransition(opacity: anim, child: child),
                       );
                     },
-                    child: _previewResult.isNotEmpty
+                    child: (!_isSlidingUp && _previewResult.isNotEmpty)
                         ? Text(
                             _previewResult,
                             key: ValueKey<String>(_previewResult),
                             style: widget.theme.fontDisplay(
                               fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                              color: widget.theme.primary,
+                              fontWeight: FontWeight.bold,
+                              color: widget.theme.primary, // UI THEME COLOR!
                             ),
                           )
                         : const SizedBox.shrink(),
@@ -2012,6 +2134,107 @@ class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> {
               fontWeight: widget.isEquals || widget.isOp ? FontWeight.w900 : FontWeight.bold,
               color: widget.text,
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- Number Appear & Disappear Spring Pop Micro-Animation ---
+class _AnimatedExpressionDisplay extends StatelessWidget {
+  final String expression;
+  final TextStyle style;
+
+  const _AnimatedExpressionDisplay({
+    required this.expression,
+    required this.style,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final chars = expression.split('');
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.baseline,
+      textBaseline: TextBaseline.alphabetic,
+      children: [
+        for (int i = 0; i < chars.length; i++)
+          _AnimatedDigit(
+            key: ValueKey('d-$i-${chars[i]}'),
+            char: chars[i],
+            style: style,
+            isLatest: i == chars.length - 1,
+          ),
+      ],
+    );
+  }
+}
+
+class _AnimatedDigit extends StatefulWidget {
+  final String char;
+  final TextStyle style;
+  final bool isLatest;
+
+  const _AnimatedDigit({
+    super.key,
+    required this.char,
+    required this.style,
+    this.isLatest = false,
+  });
+
+  @override
+  State<_AnimatedDigit> createState() => _AnimatedDigitState();
+}
+
+class _AnimatedDigitState extends State<_AnimatedDigit> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnim;
+  late Animation<double> _fadeAnim;
+  late Animation<Offset> _slideAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 160),
+    );
+    _scaleAnim = Tween<double>(begin: 0.65, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+    _fadeAnim = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+    );
+    _slideAnim = Tween<Offset>(
+      begin: const Offset(0.0, 0.25),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+    if (widget.isLatest) {
+      _controller.forward();
+    } else {
+      _controller.value = 1.0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fadeAnim,
+      child: SlideTransition(
+        position: _slideAnim,
+        child: ScaleTransition(
+          scale: _scaleAnim,
+          child: Text(
+            widget.char,
+            style: widget.style,
           ),
         ),
       ),
