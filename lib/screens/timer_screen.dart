@@ -633,30 +633,15 @@ class _TimerScreenState extends State<TimerScreen>
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              "Quick Select Presets",
-                              style: widget.theme.fontDisplay(fontSize: 16),
-                            ),
-                            InkWell(
-                              onTap: () => setState(() => _showCustomInput = !_showCustomInput),
-                              child: Text(
-                                _showCustomInput ? "Hide Custom" : "Custom +",
-                                style: widget.theme.fontMono(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: widget.theme.primary,
-                                ),
-                              ),
-                            ),
-                          ],
+                        Text(
+                          "Quick Select Presets",
+                          style: widget.theme.fontDisplay(fontSize: 16),
                         ),
                         const SizedBox(height: 12),
                         Wrap(
                           spacing: 8,
                           runSpacing: 8,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             _buildPresetChip("30s", 30),
                             _buildPresetChip("1m", 60),
@@ -664,10 +649,11 @@ class _TimerScreenState extends State<TimerScreen>
                             _buildPresetChip("5m", 300),
                             _buildPresetChip("10m", 600),
                             _buildPresetChip("15m", 900),
-                            _buildPresetChip("25m (Pomodoro)", 1500),
+                            _buildPresetChip("25m", 1500),
                             _buildPresetChip("30m", 1800),
                             _buildPresetChip("45m", 2700),
                             _buildPresetChip("1h", 3600),
+                            _buildCustomChip(),
                           ],
                         ),
                       ],
@@ -843,9 +829,12 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   Widget _buildPresetChip(String label, int seconds) {
-    final bool isSelected = (_initialSeconds == seconds);
+    final bool isSelected = (_initialSeconds == seconds && !_showCustomInput);
     return BouncyTap(
-      onTap: () => _setPreset(seconds),
+      onTap: () {
+        setState(() => _showCustomInput = false);
+        _setPreset(seconds);
+      },
       scaleFraction: 0.92,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -859,11 +848,61 @@ class _TimerScreenState extends State<TimerScreen>
         ),
         child: Text(
           label,
-          style: widget.theme.fontMono(
+          style: widget.theme.fontDisplay(
             fontSize: 12,
             fontWeight: FontWeight.bold,
             color: isSelected ? Colors.white : widget.theme.text,
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCustomChip() {
+    final bool isSelected = _showCustomInput;
+    return BouncyTap(
+      onTap: () {
+        SoundService().playTap();
+        setState(() => _showCustomInput = !_showCustomInput);
+      },
+      scaleFraction: 0.92,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7.5),
+        decoration: BoxDecoration(
+          color: isSelected ? widget.theme.primary : widget.theme.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: widget.theme.primary,
+            width: 1.8,
+          ),
+          boxShadow: isSelected
+              ? [
+                  BoxShadow(
+                    color: widget.theme.primary.withValues(alpha: 0.28),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ]
+              : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isSelected ? Icons.check_circle_outline_rounded : Icons.tune_rounded,
+              size: 14,
+              color: isSelected ? Colors.white : widget.theme.primary,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              "Custom",
+              style: widget.theme.fontDisplay(
+                fontSize: 12.5,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : widget.theme.primary,
+              ),
+            ),
+          ],
         ),
       ),
     );

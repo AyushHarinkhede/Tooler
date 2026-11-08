@@ -39,6 +39,8 @@ android {
             keyPassword = keystoreProperties.getProperty("keyPassword") ?: "tooler2026"
             storeFile = releaseStoreFile
             storePassword = keystoreProperties.getProperty("storePassword") ?: "tooler2026"
+            enableV1Signing = true
+            enableV2Signing = true
         }
     }
 

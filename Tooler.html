@@ -506,6 +506,35 @@
       color: var(--text-subtle);
     }
 
+    /* Installation Safety & Compatibility Tip */
+    .install-tip-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--amber-light);
+      border: 1px solid rgba(255, 165, 2, 0.35);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      margin-top: 10px;
+      font-size: 12px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    .install-tip-icon {
+      color: #E67E22;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .install-tip-content strong {
+      color: #D35400;
+    }
+
+    [data-theme="dark"] .install-tip-content strong {
+      color: #F39C12;
+    }
+
     /* Hero Mascot Display Box */
     .hero-mascot-box {
       display: flex;
@@ -1198,8 +1227,22 @@
               <div class="progress-bar-fill" id="progress-bar-fill"></div>
             </div>
             <div class="progress-stats-row">
-              <span id="processed-bytes-lbl">Processed: 0 MB / 45.9 MB</span>
+              <span id="processed-bytes-lbl">Processed: 0 MB / 45.4 MB</span>
               <span id="pending-bytes-lbl">Pending: 0%</span>
+            </div>
+          </div>
+
+          <!-- Installation Compatibility & Troubleshooting Notice -->
+          <div class="install-tip-card">
+            <div class="install-tip-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+            </div>
+            <div class="install-tip-content">
+              <strong>Installation Tip:</strong> Agar phone me purana ya debug version pehle se install hai, to use pehle <strong>Uninstall</strong> karein, fir new APK install karein. Android security alag signatures wale apps ko direct update nahi karne deta. Dual-signed (v1 JAR + v2 + v3 scheme) certified.
             </div>
           </div>
         </div>
@@ -1849,7 +1892,7 @@
           statusDesc.innerText = 'Verifying RSA-2048 Play Protect & integrity checksum...';
         } else if (progress >= 100) {
           clearInterval(interval);
-          statusDesc.innerText = `✓ Download complete! Saved ${fileTarget} to device.`;
+          statusDesc.innerText = `✓ Download complete! ${fileTarget} ready. (Tip: Uninstall older version first to avoid conflicts)`;
 
           // Trigger actual file download
           const link = document.createElement('a');

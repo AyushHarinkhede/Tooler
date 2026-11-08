@@ -258,7 +258,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'iconType': 'timer',
         'isFeatured': false,
         'features': [
-          {'name': 'Preset Countdowns', 'desc': 'Quick one-tap presets for 1m, 5m, 15m, 25m Pomodoro, 45m & 60m'},
+          {'name': 'Preset Countdowns', 'desc': 'Quick one-tap presets for 1m, 5m, 15m, 25m, 45m & 60m'},
           {'name': 'Custom Duration Picker', 'desc': 'Flexible hours, minutes, and seconds countdown selector'},
           {'name': 'Circular Progress Ring', 'desc': 'Visual countdown ring with remaining time animation and completion chime'},
         ],
