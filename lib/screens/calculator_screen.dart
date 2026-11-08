@@ -1343,7 +1343,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                 ),
               ),
             ),
-
+          ] else ...[
             // Normal Basic & Scientific Calculator Display Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
