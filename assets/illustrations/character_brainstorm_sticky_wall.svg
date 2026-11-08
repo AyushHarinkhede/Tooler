@@ -1,100 +1,118 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
-  <defs>
-    <style>
-      .char-line { stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-thin { stroke: #1E2235; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-dark { fill: #1E2235; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-skin { fill: #FEE8DE; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants { fill: var(--char-accent, #9468E8); stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants-back { fill: #7E4EE0; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-white { fill: #FFFFFF; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-accent-light { fill: #EDE9FE; stroke: #1E2235; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-      .char-sticky { fill: #DDD6FE; stroke: #1E2235; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-      .char-prop-bg { fill: #F8F7FC; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-    </style>
-  </defs>
-
-  <!-- Ambient Floating Accents -->
-  <circle cx="340" cy="55" r="3.0" fill="#1E2235" />
-  <circle cx="35" cy="115" r="3.5" fill="#9468E8" />
-  <polygon points="360,120 366,123 360,126" fill="#C8B6FA" />
+  <!-- Ambient Accents -->
+  <circle cx="50" cy="70" r="3.5" fill="#C8B6FA" />
+  <circle cx="210" cy="30" r="2.5" fill="#1E2235" />
+  <circle cx="365" cy="120" r="4.0" fill="#9468E8" />
+  <polygon points="360,65 365,68 360,71" fill="#C8B6FA" />
 
   <!-- Floor Baseline -->
-  <line x1="20" y1="340" x2="380" y2="340" class="char-line" />
+  <line x1="20" y1="340" x2="380" y2="340" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
 
-  <!-- Wide Brainstorming Board on Wall -->
-  <rect x="45" y="45" width="280" height="155" rx="4" class="char-prop-bg" />
-  <rect x="40" y="200" width="290" height="6" rx="2" class="char-prop-bg" />
+  <!-- Foliage / Plants at Base (Left & Right) -->
+  <path fill="#DDD6FE" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 45 340 C 40 305, 55 280, 65 290 C 75 300, 70 340, 70 340 Z" />
+  <path fill="#C8B6FA" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 55 340 C 60 315, 80 305, 90 320 C 95 330, 85 340, 85 340 Z" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 55 340 Q 60 310 65 290" />
 
-  <!-- Clustered Sticky Notes Network -->
-  <!-- Cluster 1 (Left) -->
-  <rect x="65" y="65" width="26" height="24" rx="2" class="char-sticky" />
-  <line x1="68" y1="72" x2="88" y2="72" class="char-thin" />
-  <rect x="100" y="65" width="26" height="20" rx="2" class="char-sticky" />
-  <rect x="80" y="95" width="26" height="24" rx="2" class="char-sticky" />
-  <!-- Cluster 2 (Center Web) -->
-  <rect x="175" y="65" width="28" height="24" rx="2" class="char-sticky" />
-  <rect x="145" y="85" width="28" height="26" rx="2" class="char-sticky" />
-  <rect x="205" y="85" width="28" height="24" rx="2" class="char-sticky" />
-  <rect x="170" y="115" width="30" height="28" rx="2" class="char-sticky" />
-  <line x1="174" y1="123" x2="196" y2="123" class="char-thin" />
-  <line x1="174" y1="129" x2="192" y2="129" class="char-thin" />
-  <!-- Cluster 3 (Right) -->
-  <rect x="260" y="68" width="28" height="24" rx="2" class="char-sticky" />
-  <rect x="240" y="100" width="26" height="22" rx="2" class="char-sticky" />
-  <rect x="265" y="130" width="28" height="24" rx="2" class="char-sticky" />
+  <path fill="#DDD6FE" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 330 340 C 325 305, 340 280, 355 290 C 370 300, 365 340, 365 340 Z" />
+  <path fill="#C8B6FA" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 345 340 C 350 315, 370 305, 380 320 C 385 330, 375 340, 375 340 Z" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 345 340 Q 350 310 355 290" />
 
-  <!-- Network Connectors -->
-  <path class="char-thin" d="M 90 89 L 90 95" />
-  <path class="char-thin" d="M 106 107 Q 125 105 145 98" />
-  <path class="char-thin" d="M 173 89 L 189 77" />
-  <path class="char-thin" d="M 173 98 L 205 97" />
-  <path class="char-thin" d="M 185 115 L 189 89" />
-  <path class="char-thin" d="M 233 97 Q 246 80 260 80" />
-  <path class="char-thin" d="M 233 105 Q 248 118 265 135" />
+  <!-- Large Wall Whiteboard Frame -->
+  <rect x="40" y="45" width="245" height="150" rx="6" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="48" y="53" width="229" height="134" rx="3" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" stroke-linejoin="round" />
+  <line x1="35" y1="195" x2="290" y2="195" stroke="#1E2235" stroke-width="3.0" stroke-linecap="round" />
 
-  <!-- Base Foliage -->
-  <path class="char-accent-light" d="M 270 340 C 275 305, 300 285, 315 300 C 325 310, 320 340, 320 340 Z" />
-  <path class="char-accent-light" d="M 330 340 C 335 300, 360 280, 375 295 C 385 310, 370 340, 370 340 Z" />
-  <path class="char-line" d="M 345 340 Q 350 310 345 285" />
-  <path class="char-accent-light" d="M 45 340 C 40 310, 60 295, 75 305 C 80 320, 75 340, 75 340 Z" />
+  <!-- Sticky Notes Cluster Network Web -->
+  <!-- Note 1 (Far Left Top) -->
+  <rect x="60" y="65" width="24" height="20" rx="2" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.5" />
+  <line x1="64" y1="72" x2="80" y2="72" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="64" y1="77" x2="76" y2="77" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" />
 
-  <!-- Standing Character (Interacting with Sticky Wall) -->
-  <!-- Left Leg (Far) -->
-  <path class="char-pants-back" d="M 115 200 L 128 200 C 130 235, 130 285, 128 315 L 112 315 C 112 285, 114 235, 115 200 Z" />
-  <!-- Right Leg (Near) -->
-  <path class="char-pants" d="M 134 200 L 164 200 C 162 235, 160 285, 158 315 L 138 315 C 140 285, 142 235, 134 200 Z" />
-  <path class="char-thin" d="M 144 248 Q 148 254 152 250" />
+  <!-- Note 2 (Left Bottom) -->
+  <rect x="65" y="110" width="24" height="20" rx="2" fill="#C8B6FA" stroke="#1E2235" stroke-width="1.5" />
+  <line x1="69" y1="117" x2="85" y2="117" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="69" y1="122" x2="81" y2="122" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" />
 
-  <!-- White Sneakers -->
-  <path class="char-white" d="M 112 315 L 128 315 C 134 315, 138 322, 144 335 C 146 338, 144 340, 138 340 L 108 340 C 104 340, 105 335, 107 326 Z" />
-  <line x1="108" y1="337" x2="142" y2="337" class="char-line" />
-  <path class="char-white" d="M 138 315 L 156 315 C 162 315, 168 322, 176 335 C 178 338, 176 340, 170 340 L 134 340 C 130 340, 131 335, 133 326 Z" />
-  <line x1="134" y1="337" x2="174" y2="337" class="char-line" />
+  <!-- Note 3 (Center Top) -->
+  <rect x="110" y="60" width="24" height="20" rx="2" fill="#9468E8" stroke="#1E2235" stroke-width="1.5" />
+  <line x1="114" y1="67" x2="130" y2="67" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="114" y1="72" x2="126" y2="72" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
 
-  <!-- Torso & Black Sweater -->
-  <path class="char-dark" d="M 116 135 C 108 145, 105 175, 110 202 L 166 202 C 170 175, 166 145, 158 135 Z" />
-  <path class="char-white" d="M 134 128 L 140 136 L 146 128 Z" />
+  <!-- Note 4 (Center Target Note Being Placed) -->
+  <rect x="155" y="80" width="24" height="20" rx="2" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.5" />
+  <line x1="159" y1="87" x2="175" y2="87" stroke="#9468E8" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="159" y1="92" x2="171" y2="92" stroke="#9468E8" stroke-width="1.2" stroke-linecap="round" />
 
-  <!-- Head & Face (Looking Upwards Towards Sticky Wall) -->
-  <path class="char-skin" d="M 134 126 L 146 126 L 146 114 L 134 114 Z" />
-  <path class="char-skin" d="M 130 114 C 130 114, 126 98, 134 86 C 142 74, 158 74, 166 86 C 170 92, 170 102, 168 106 L 164 108 C 164 114, 157 120, 148 120 C 138 120, 132 118, 130 114 Z" />
-  <ellipse cx="136" cy="102" rx="4" ry="5.5" class="char-skin" />
-  <circle cx="156" cy="96" r="1.5" fill="#1E2235" />
-  <path class="char-thin" d="M 154 92 Q 157 91 160 93" />
-  <path class="char-thin" d="M 161 98 L 166 100 L 161 103" />
-  <path class="char-thin" d="M 156 108 Q 160 109 163 106" />
-  <path class="char-dark" d="M 130 100 C 126 90, 130 76, 140 70 C 150 62, 168 64, 174 76 C 178 84, 176 94, 168 94 C 162 94, 160 88, 152 86 C 144 84, 138 88, 134 96 Z" />
+  <!-- Note 5 (Middle Center) -->
+  <rect x="120" y="125" width="24" height="20" rx="2" fill="#9468E8" stroke="#1E2235" stroke-width="1.5" />
+  <line x1="124" y1="132" x2="140" y2="132" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="124" y1="137" x2="136" y2="137" stroke="#FFFFFF" stroke-width="1.2" stroke-linecap="round" />
 
-  <!-- Arms -->
-  <!-- Right Arm: Raised placing sticky note on wall -->
-  <path class="char-dark" d="M 152 140 C 164 135, 178 125, 190 115 L 205 98 C 210 94, 214 96, 212 102 L 202 115 C 192 128, 178 142, 164 150 Z" />
-  <path class="char-skin" d="M 210 96 C 212 92, 218 90, 222 94 C 220 98, 214 100, 208 100 Z" />
-  <!-- Sticky Note in Hand being Placed -->
-  <rect x="214" y="86" width="24" height="20" rx="1.5" class="char-pants" />
+  <!-- Note 6 (Far Right Top) -->
+  <rect x="210" y="70" width="24" height="20" rx="2" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.5" />
+  <line x1="214" y1="77" x2="230" y2="77" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="214" y1="82" x2="226" y2="82" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" />
 
-  <!-- Left Arm: Holding extra notes / marker at side -->
-  <path class="char-dark" d="M 118 140 C 108 150, 102 170, 105 188 L 100 196 C 96 200, 90 198, 92 192 L 98 178 C 102 165, 108 150, 114 140 Z" />
-  <path class="char-skin" d="M 98 196 C 94 198, 90 198, 88 194 C 90 190, 96 190, 100 194 Z" />
-  <rect x="84" y="194" width="14" height="4" rx="1" class="char-dark" />
+  <!-- Note 7 (Far Right Bottom) -->
+  <rect x="220" y="120" width="24" height="20" rx="2" fill="#C8B6FA" stroke="#1E2235" stroke-width="1.5" />
+  <line x1="224" y1="127" x2="240" y2="127" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="224" y1="132" x2="236" y2="132" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" />
+
+  <!-- Network Connecting Pin Lines -->
+  <line x1="84" y1="75" x2="110" y2="70" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="134" y1="70" x2="155" y2="90" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="132" y1="125" x2="160" y2="100" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="179" y1="90" x2="210" y2="80" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="144" y1="135" x2="220" y2="130" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+
+  <!-- Character Standing (Facing Whiteboard) -->
+  <!-- Legs & Trousers -->
+  <!-- Left Leg (Shadow tone) -->
+  <path fill="#7E4EE0" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 195 185 L 215 185 L 212 295 L 193 295 Z" />
+  <!-- Right Leg (Main Tone) -->
+  <path fill="#9468E8" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 215 185 L 235 185 L 231 295 L 212 295 Z" />
+  <line x1="223" y1="195" x2="221" y2="285" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+
+  <!-- White Sneakers with Dark Outsole -->
+  <!-- Left Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 189 295 L 212 295 C 215 308, 219 325, 222 336 L 182 336 C 182 325, 185 308, 189 295 Z" />
+  <line x1="182" y1="334" x2="222" y2="334" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Right Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 212 295 L 235 295 C 238 308, 242 325, 245 336 L 205 336 C 205 325, 208 308, 212 295 Z" />
+  <line x1="205" y1="334" x2="245" y2="334" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+
+  <!-- Charcoal Sweater Body (Rear-Three-Quarter View) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 189 185 L 239 185 C 242 155, 245 128, 232 115 C 222 105, 205 105, 195 115 C 185 125, 185 155, 189 185 Z" />
+  <!-- White Inner Collar Peeking -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 206 109 L 214 116 L 218 109 Z" />
+
+  <!-- Head & Neck -->
+  <!-- Neck -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 206 108 L 218 108 L 218 94 L 206 94 Z" />
+  <!-- Head & Jaw (Looking slightly left towards board) -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 222 94 C 222 94, 228 80, 220 68 C 210 54, 192 54, 184 66 C 178 74, 180 84, 182 88 L 188 90 C 188 96, 196 102, 206 102 C 216 102, 220 98, 222 94 Z" />
+  <!-- Ear -->
+  <ellipse cx="216" cy="83" rx="4.5" ry="6" fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" />
+  <!-- Profile Features -->
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 194 74 Q 190 73 188 75" />
+  <circle cx="191" cy="79" r="1.5" fill="#1E2235" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M 184 80 L 180 83 L 184 85" />
+  <!-- Modern Charcoal Hair -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 222 80 C 226 70, 224 56, 212 48 C 200 40, 182 42, 176 54 C 172 62, 174 72, 182 72 C 188 72, 190 66, 198 64 C 206 62, 214 66, 218 76 Z" />
+
+  <!-- Left Arm (Casual Down Holding Marker) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 235 122 C 245 135, 248 155, 244 178 L 236 178 C 238 160, 235 142, 227 130 Z" />
+  <!-- Left Hand Cuff (White) -->
+  <polygon points="236,178 244,178 243,184 235,184" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <!-- Left Hand (Skin) -->
+  <ellipse cx="239" cy="189" rx="4.5" ry="6" fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" />
+  <!-- Marker Pen in Left Hand -->
+  <line x1="234" y1="192" x2="246" y2="192" stroke="#1E2235" stroke-width="3.0" stroke-linecap="round" />
+
+  <!-- Right Arm (Reaching Up Placing Sticky Note) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 198 120 C 188 120, 175 112, 168 98 L 175 92 C 182 104, 192 110, 204 110 Z" />
+  <!-- Right Hand Cuff (White) -->
+  <polygon points="168,98 175,92 171,88 164,94" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <!-- Right Hand (Skin) Placing Note -->
+  <ellipse cx="163" cy="88" rx="4.5" ry="5.5" fill="#FEE8DE" stroke="#1E2235" stroke-width="1.8" />
 </svg>

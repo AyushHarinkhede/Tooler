@@ -1,114 +1,110 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
-  <defs>
-    <style>
-      .char-line { stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-thin { stroke: #1E2235; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-dark { fill: #1E2235; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-skin { fill: #FEE8DE; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants { fill: var(--char-accent, #9468E8); stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants-back { fill: #7E4EE0; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-white { fill: #FFFFFF; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-accent-light { fill: #EDE9FE; stroke: #1E2235; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-      .char-prop-bg { fill: #F8F7FC; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-    </style>
-  </defs>
+  <!-- Ambient Accents -->
+  <circle cx="55" cy="80" r="3.5" fill="#C8B6FA" />
+  <circle cx="195" cy="40" r="2.5" fill="#1E2235" />
+  <circle cx="330" cy="90" r="4.0" fill="#9468E8" />
+  <polygon points="120,65 125,68 120,71" fill="#C8B6FA" />
 
-  <!-- Ambient Floating Accents -->
-  <circle cx="150" cy="55" r="3.0" fill="#1E2235" />
-  <circle cx="215" cy="45" r="4.0" fill="#9468E8" />
-  <polygon points="65,115 71,118 65,121" fill="#C8B6FA" />
-
-  <!-- 3x3 Dot Matrix -->
+  <!-- Mini 3x3 dot matrix -->
   <g fill="#C8B6FA">
-    <circle cx="280" cy="175" r="1.8" /><circle cx="287" cy="175" r="1.8" /><circle cx="294" cy="175" r="1.8" />
-    <circle cx="280" cy="182" r="1.8" /><circle cx="287" cy="182" r="1.8" /><circle cx="294" cy="182" r="1.8" />
-    <circle cx="280" cy="189" r="1.8" /><circle cx="287" cy="189" r="1.8" /><circle cx="294" cy="189" r="1.8" />
+    <circle cx="280" cy="180" r="1.8" /><circle cx="287" cy="180" r="1.8" /><circle cx="294" cy="180" r="1.8" />
+    <circle cx="280" cy="187" r="1.8" /><circle cx="287" cy="187" r="1.8" /><circle cx="294" cy="187" r="1.8" />
+    <circle cx="280" cy="194" r="1.8" /><circle cx="287" cy="194" r="1.8" /><circle cx="294" cy="194" r="1.8" />
   </g>
 
   <!-- Floor Baseline -->
-  <line x1="20" y1="340" x2="380" y2="340" class="char-line" />
+  <line x1="20" y1="340" x2="380" y2="340" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
 
-  <!-- Plant at Bottom Left Behind Desk -->
-  <path class="char-accent-light" d="M 35 340 C 30 300, 50 275, 65 285 C 75 295, 70 340, 70 340 Z" />
-  <path class="char-line" d="M 50 340 Q 55 305 65 285" />
+  <!-- Foliage / Plants at Base (Left) -->
+  <path fill="#DDD6FE" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 40 340 C 35 305, 50 280, 60 290 C 70 300, 65 340, 65 340 Z" />
+  <path fill="#C8B6FA" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 50 340 C 55 315, 75 305, 85 320 C 90 330, 80 340, 80 340 Z" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 50 340 Q 55 310 60 290" />
 
-  <!-- Desk Surface & Legs -->
-  <rect x="50" y="215" width="280" height="12" rx="3" class="char-prop-bg" />
-  <rect x="65" y="227" width="10" height="113" rx="2" class="char-prop-bg" />
-  <rect x="305" y="227" width="10" height="113" rx="2" class="char-prop-bg" />
-
-  <!-- Stack of Books & Binders on Left of Desk -->
-  <!-- Vertical Binder 1 -->
-  <rect x="75" y="175" width="16" height="40" rx="2" class="char-accent-light" />
-  <circle cx="83" cy="185" r="2.5" fill="#1E2235" />
-  <!-- Vertical Binder 2 -->
-  <rect x="93" y="175" width="16" height="40" rx="2" class="char-prop-bg" />
-  <circle cx="101" cy="185" r="2.5" fill="#1E2235" />
-  <!-- Horizontal Book Stack -->
-  <rect x="115" y="205" width="45" height="10" rx="1.5" class="char-prop-bg" />
-  <rect x="118" y="195" width="40" height="10" rx="1.5" class="char-accent-light" />
-
-  <!-- Architect Desk Lamp on Right of Desk -->
-  <ellipse cx="295" cy="215" rx="14" ry="4" class="char-prop-bg" />
-  <line x1="295" y1="215" x2="310" y2="165" class="char-line" />
-  <line x1="310" y1="165" x2="275" y2="135" class="char-line" />
-  <!-- Lamp Shade -->
-  <polygon points="275,135 255,145 265,160 285,150" class="char-prop-bg" />
-  <!-- Light Beam Cones -->
-  <polygon points="255,145 265,160 220,215 170,215" fill="#FDF4DC" opacity="0.3" />
-
-  <!-- Open Hardcover Notebook on Desk -->
-  <polygon points="160,215 195,212 195,202 160,205" class="char-prop-bg" />
-  <polygon points="195,212 230,215 230,205 195,202" class="char-prop-bg" />
-  <line x1="166" y1="208" x2="190" y2="206" class="char-thin" />
-  <line x1="200" y1="206" x2="224" y2="208" class="char-thin" />
-
-  <!-- Seated Character (Leaning forward in focused study) -->
   <!-- Office Chair Behind Character -->
-  <rect x="250" y="200" width="12" height="55" rx="6" class="char-accent-light" />
-  <line x1="256" y1="255" x2="256" y2="275" class="char-line" />
-  <rect x="210" y="265" width="60" height="12" rx="5" class="char-prop-bg" />
-  <line x1="240" y1="277" x2="240" y2="318" class="char-line" />
-  <path class="char-line" d="M 210 334 L 240 318 L 270 334" />
-  <circle cx="208" cy="336" r="4" fill="#1E2235" />
-  <circle cx="240" cy="336" r="4" fill="#1E2235" />
-  <circle cx="272" cy="336" r="4" fill="#1E2235" />
+  <rect x="230" y="180" width="12" height="60" rx="6" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="236" y1="240" x2="236" y2="265" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <rect x="180" y="255" width="65" height="13" rx="6.5" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="210" y1="268" x2="210" y2="320" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <path fill="none" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 185 334 L 210 320 L 235 334" />
+  <circle cx="182" cy="336" r="4.5" fill="#1E2235" />
+  <circle cx="238" cy="336" r="4.5" fill="#1E2235" />
 
-  <!-- Legs & Trousers -->
-  <path class="char-pants-back" d="M 225 255 L 185 255 C 173 255, 169 262, 171 274 L 179 316 C 180 325, 175 328, 165 328 L 150 328 C 143 328, 141 322, 142 315 L 147 270 C 149 256, 159 246, 175 246 L 215 246 Z" />
-  <path class="char-pants" d="M 240 255 L 200 255 C 190 255, 185 262, 187 274 L 195 316 C 196 325, 191 328, 181 328 L 165 328 C 157 328, 155 322, 157 315 L 163 270 C 165 256, 177 246, 193 246 L 230 246 Z" />
-  <path class="char-thin" d="M 190 264 Q 193 272 190 280" />
+  <!-- Legs & Trousers (Seated Leaning Forward) -->
+  <!-- Left Leg (Shadow tone) -->
+  <path fill="#7E4EE0" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 210 235 L 180 235 L 175 285 L 170 320 L 190 320 L 195 285 L 218 245 Z" />
+  <!-- Right Leg (Main Tone) -->
+  <path fill="#9468E8" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 195 235 L 165 235 L 160 285 L 155 320 L 175 320 L 180 285 L 205 245 Z" />
+  <line x1="180" y1="245" x2="175" y2="305" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
 
-  <!-- White Sneakers -->
-  <path class="char-white" d="M 165 328 L 149 328 C 141 328, 133 332, 117 340 L 170 340 C 171 338, 169 335, 167 332 Z" />
-  <line x1="120" y1="337" x2="170" y2="337" class="char-line" />
-  <path class="char-white" d="M 181 328 L 165 328 C 157 328, 149 332, 133 340 L 187 340 C 189 338, 187 335, 183 332 Z" />
-  <line x1="135" y1="337" x2="187" y2="337" class="char-line" />
+  <!-- White Sneakers with Dark Outsole -->
+  <!-- Left Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 170 320 L 190 320 C 192 328, 196 336, 215 336 L 165 336 C 165 328, 168 322, 170 320 Z" />
+  <line x1="165" y1="334" x2="215" y2="334" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Right Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 155 320 L 175 320 C 177 328, 181 336, 200 336 L 150 336 C 150 328, 153 322, 155 320 Z" />
+  <line x1="150" y1="334" x2="200" y2="334" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
 
-  <!-- Torso & Black Sweater (Leaning Forward) -->
-  <path class="char-dark" d="M 245 238 C 250 210, 243 180, 223 165 C 209 155, 193 156, 185 168 C 179 175, 177 205, 181 240 Z" />
-  <path class="char-white" d="M 199 162 L 191 170 L 185 162 Z" />
+  <!-- Charcoal Sweater Body (Leaning Forward) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 220 225 C 225 195, 218 165, 200 150 C 188 140, 168 142, 158 152 C 150 162, 152 195, 158 225 Z" />
+  <!-- White Inner Collar -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 175 146 L 183 154 L 186 146 Z" />
 
-  <!-- Head & Face (Looking Down at Open Notebook) -->
-  <path class="char-skin" d="M 199 160 L 187 160 L 187 146 L 199 146 Z" />
-  <path class="char-skin" d="M 203 146 C 203 146, 207 130, 199 116 C 189 104, 173 104, 163 116 C 159 122, 159 132, 161 136 L 165 138 C 165 144, 173 150, 183 150 C 193 150, 199 148, 203 146 Z" />
-  <ellipse cx="197" cy="132" rx="4" ry="5.5" class="char-skin" />
-  <path class="char-thin" d="M 197 130 Q 195 132 197 134" />
-  <!-- Focused Downward Looking Eye -->
-  <circle cx="178" cy="128" r="1.5" fill="#1E2235" />
-  <path class="char-thin" d="M 179 123 Q 175 122 172 124" />
-  <path class="char-thin" d="M 172 129 L 167 131 L 172 134" />
-  <path class="char-thin" d="M 175 139 Q 171 140 168 137" />
-  <!-- Hair -->
-  <path class="char-dark" d="M 203 130 C 207 120, 203 106, 193 98 C 181 90, 163 92, 157 104 C 153 112, 155 122, 163 122 C 169 122, 171 116, 179 114 C 187 112, 193 116, 197 124 Z" />
+  <!-- Head & Neck (Leaning Down Studying) -->
+  <!-- Neck -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 175 145 L 186 145 L 186 130 L 175 132 Z" />
+  <!-- Head & Jaw -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 188 130 C 188 130, 192 114, 184 102 C 174 88, 156 88, 148 100 C 142 108, 144 118, 146 122 L 152 124 C 152 130, 160 136, 170 136 C 180 136, 186 134, 188 130 Z" />
+  <!-- Ear -->
+  <ellipse cx="180" cy="116" rx="4.5" ry="6" fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" />
+  <!-- Concentrated Studying Face Details -->
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 160 108 Q 156 107, 153 109" />
+  <circle cx="156" cy="113" r="1.5" fill="#1E2235" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M 150 113 L 146 116 L 150 119" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 156 124 Q 160 126, 164 123" />
+
+  <!-- Modern Charcoal Hair -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 188 112 C 192 102, 188 88, 176 80 C 164 72, 146 74, 140 86 C 136 94, 138 104, 146 104 C 152 104, 154 98, 162 96 C 170 94, 178 98, 182 108 Z" />
 
   <!-- Arms & Hands Writing in Notebook -->
-  <!-- Left Hand: Holding Notebook Page Flat -->
-  <path class="char-dark" d="M 188 170 C 178 180, 162 195, 150 200 L 165 204 C 172 204, 178 200, 184 195 Z" />
-  <path class="char-skin" d="M 160 204 C 165 204, 172 202, 175 204 C 176 206, 174 207, 168 207 L 160 207 Z" />
-  <!-- Right Arm: Holding Pen Writing -->
-  <path class="char-dark" d="M 210 170 C 202 180, 196 195, 192 202 L 198 208 C 204 208, 212 198, 222 188 Z" />
-  <path class="char-skin" d="M 194 202 C 196 200, 202 198, 204 202 C 204 204, 200 206, 195 206 Z" />
-  <!-- Stylus / Ballpoint Pen in Hand -->
-  <line x1="202" y1="196" x2="190" y2="209" class="char-dark" />
+  <!-- Left Arm (Holding Notebook Flat) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 162 155 C 152 165, 140 178, 132 188 L 150 196 L 165 182 C 172 174, 178 165, 175 155 Z" />
+  <polygon points="144,193 150,196 153,190 147,187" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <ellipse cx="148" cy="195" rx="5" ry="4" fill="#FEE8DE" stroke="#1E2235" stroke-width="1.8" />
+
+  <!-- Right Arm (Writing with Pen) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 195 155 C 198 168, 196 182, 188 194 L 175 190 C 180 180, 182 168, 180 155 Z" />
+  <polygon points="185,188 189,194 183,196 180,190" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <ellipse cx="182" cy="195" rx="4.5" ry="4" fill="#FEE8DE" stroke="#1E2235" stroke-width="1.8" />
+  <!-- Pen in Hand -->
+  <line x1="184" y1="190" x2="176" y2="198" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+
+  <!-- Study Desk Surface & Legs -->
+  <rect x="55" y="196" width="280" height="12" rx="3" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="68" y="208" width="10" height="132" rx="2" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="310" y="208" width="10" height="132" rx="2" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="78" y1="300" x2="310" y2="300" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+
+  <!-- Open Study Notebook on Desk -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 140 196 L 165 192 L 190 196 L 186 200 L 165 197 L 144 200 Z" />
+  <line x1="165" y1="192" x2="165" y2="197" stroke="#1E2235" stroke-width="1.5" />
+
+  <!-- Upright File Binders & Stacked Books on Left -->
+  <!-- Binder 1 -->
+  <rect x="75" y="152" width="12" height="44" rx="2" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.8" />
+  <circle cx="81" cy="164" r="2" fill="#9468E8" />
+  <!-- Binder 2 -->
+  <rect x="89" y="152" width="12" height="44" rx="2" fill="#C8B6FA" stroke="#1E2235" stroke-width="1.8" />
+  <circle cx="95" cy="164" r="2" fill="#9468E8" />
+  <!-- Stacked Books Beside Binders -->
+  <rect x="106" y="180" width="30" height="8" rx="1.5" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.5" />
+  <rect x="108" y="188" width="30" height="8" rx="1.5" fill="#9468E8" stroke="#1E2235" stroke-width="1.5" />
+
+  <!-- Angled Architect Desk Lamp on Right -->
+  <line x1="300" y1="196" x2="295" y2="155" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <line x1="295" y1="155" x2="270" y2="140" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <circle cx="295" cy="155" r="3.5" fill="#1E2235" />
+  <!-- Lamp Shade (Angled towards notebook) -->
+  <polygon points="270,140 250,145 260,165" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.0" stroke-linejoin="round" />
+  <!-- Light Beam Dotted Lines -->
+  <line x1="252" y1="155" x2="195" y2="192" stroke="#C8B6FA" stroke-width="1.5" stroke-dasharray="3,3" />
 </svg>

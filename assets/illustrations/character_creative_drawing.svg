@@ -1,105 +1,101 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
-  <defs>
-    <style>
-      .char-line { stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-thin { stroke: #1E2235; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-dark { fill: #1E2235; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-skin { fill: #FEE8DE; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants { fill: var(--char-accent, #9468E8); stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants-back { fill: #7E4EE0; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-white { fill: #FFFFFF; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-accent-light { fill: #EDE9FE; stroke: #1E2235; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-      .char-prop-bg { fill: #F8F7FC; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-    </style>
-  </defs>
-
-  <!-- Ambient Floating Accents -->
-  <circle cx="340" cy="55" r="3.0" fill="#1E2235" />
-  <circle cx="240" cy="45" r="4.0" fill="#9468E8" />
-  <polygon points="255,165 261,168 255,171" fill="#C8B6FA" />
+  <!-- Ambient Accents -->
+  <circle cx="50" cy="70" r="3.5" fill="#C8B6FA" />
+  <circle cx="210" cy="35" r="2.5" fill="#1E2235" />
+  <circle cx="360" cy="115" r="4.0" fill="#9468E8" />
+  <polygon points="350,65 355,68 350,71" fill="#C8B6FA" />
 
   <!-- Floor Baseline -->
-  <line x1="20" y1="340" x2="380" y2="340" class="char-line" />
+  <line x1="20" y1="340" x2="380" y2="340" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
 
-  <!-- Floating UI Wireframe Mockup Artboard on Wall -->
-  <rect x="235" y="75" width="46" height="60" rx="3" class="char-prop-bg" />
-  <rect x="240" y="80" width="36" height="8" rx="1.5" class="char-accent-light" />
-  <!-- Wireframe Box 1 with X -->
-  <rect x="240" y="92" width="16" height="18" rx="1" class="char-prop-bg" />
-  <line x1="240" y1="92" x2="256" y2="110" class="char-thin" />
-  <line x1="256" y1="92" x2="240" y2="110" class="char-thin" />
-  <!-- Wireframe Box 2 with X -->
-  <rect x="260" y="92" width="16" height="18" rx="1" class="char-prop-bg" />
-  <line x1="260" y1="92" x2="276" y2="110" class="char-thin" />
-  <line x1="276" y1="92" x2="260" y2="110" class="char-thin" />
-  <!-- Text lines below wireframes -->
-  <line x1="240" y1="116" x2="276" y2="116" class="char-thin" />
-  <line x1="240" y1="122" x2="268" y2="122" class="char-thin" />
-  <line x1="240" y1="128" x2="272" y2="128" class="char-thin" />
+  <!-- Side Stool Table (Far Left) & Steaming Coffee Cup -->
+  <!-- Stool Legs & Top -->
+  <rect x="52" y="270" width="38" height="6" rx="2" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="56" y1="276" x2="52" y2="340" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+  <line x1="86" y1="276" x2="90" y2="340" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+  <line x1="55" y1="310" x2="87" y2="310" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+  <!-- Coffee Cup on Stool -->
+  <rect x="64" y="254" width="14" height="16" rx="2.5" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 78 259 C 83 259, 83 266, 78 266" />
+  <path fill="none" stroke="#9468E8" stroke-width="1.2" stroke-linecap="round" d="M 69 250 Q 67 245 70 240" />
 
-  <!-- Small Wooden Stool with Steaming Coffee (Left of Chair) -->
-  <ellipse cx="230" cy="225" rx="18" ry="4" class="char-prop-bg" />
-  <line x1="216" y1="227" x2="210" y2="295" class="char-line" />
-  <line x1="244" y1="227" x2="250" y2="295" class="char-line" />
-  <line x1="212" y1="265" x2="248" y2="265" class="char-thin" />
-  <!-- Coffee Mug & Steam -->
-  <rect x="223" y="207" width="14" height="18" rx="2" class="char-accent-light" />
-  <path class="char-line" d="M 237 212 C 243 212, 243 220, 237 220" />
-  <path class="char-thin" d="M 227 202 Q 229 196 226 190 Q 229 184 227 178" />
+  <!-- Botanical Plant Beside Stool -->
+  <path fill="#DDD6FE" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 35 340 C 30 310, 42 290, 52 298 C 60 306, 55 340, 55 340 Z" />
+  <path fill="#C8B6FA" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 45 340 C 50 320, 68 312, 75 325 C 78 332, 72 340, 72 340 Z" />
 
-  <!-- Plant Leaves at Bottom Left Behind Stool -->
-  <path class="char-accent-light" d="M 195 340 C 190 295, 215 270, 235 285 C 250 300, 240 340, 240 340 Z" />
-  <path class="char-line" d="M 210 340 Q 220 295 233 285" />
+  <!-- Floating UI Wireframe Board on Wall (Left) -->
+  <rect x="75" y="70" width="62" height="78" rx="4" fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Wireframe Header -->
+  <rect x="80" y="76" width="52" height="10" rx="1.5" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.2" />
+  <!-- Wireframe Card with Image Placeholder X -->
+  <rect x="80" y="90" width="24" height="24" rx="1.5" fill="#F4F1F8" stroke="#1E2235" stroke-width="1.2" />
+  <line x1="80" y1="90" x2="104" y2="114" stroke="#C8B6FA" stroke-width="1.2" />
+  <line x1="104" y1="90" x2="80" y2="114" stroke="#C8B6FA" stroke-width="1.2" />
+  <!-- Wireframe Card 2 -->
+  <rect x="108" y="90" width="24" height="24" rx="1.5" fill="#F4F1F8" stroke="#1E2235" stroke-width="1.2" />
+  <line x1="108" y1="90" x2="132" y2="114" stroke="#C8B6FA" stroke-width="1.2" />
+  <line x1="132" y1="90" x2="108" y2="114" stroke="#C8B6FA" stroke-width="1.2" />
+  <!-- Wireframe Bottom Lines -->
+  <line x1="80" y1="122" x2="132" y2="122" stroke="#9468E8" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="80" y1="128" x2="122" y2="128" stroke="#9468E8" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="80" y1="134" x2="112" y2="134" stroke="#9468E8" stroke-width="1.2" stroke-linecap="round" />
 
-  <!-- Executive High-Back Chair Behind Character -->
-  <rect x="330" y="165" width="55" height="105" rx="14" class="char-prop-bg" />
-  <rect x="335" y="175" width="42" height="85" rx="8" class="char-accent-light" />
-  <rect x="290" y="260" width="65" height="15" rx="6" class="char-prop-bg" />
-  <line x1="320" y1="275" x2="320" y2="315" class="char-line" />
-  <line x1="320" y1="285" x2="335" y2="285" class="char-line" />
-  <circle cx="337" cy="285" r="3" fill="#1E2235" />
-  <path class="char-line" d="M 290 332 L 320 315 L 350 332" />
-  <circle cx="288" cy="336" r="4.5" fill="#1E2235" />
-  <circle cx="320" cy="336" r="4.5" fill="#1E2235" />
-  <circle cx="352" cy="336" r="4.5" fill="#1E2235" />
+  <!-- High-Back Ergonomic Office Chair Behind Character -->
+  <rect x="295" y="165" width="16" height="75" rx="8" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="303" y1="240" x2="303" y2="265" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <rect x="235" y="258" width="75" height="15" rx="7" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="275" y1="273" x2="275" y2="320" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <path fill="none" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 245 334 L 275 320 L 305 334" />
+  <circle cx="242" cy="336" r="4.5" fill="#1E2235" />
+  <circle cx="308" cy="336" r="4.5" fill="#1E2235" />
 
-  <!-- Character Legs Crossed at Ankle -->
-  <!-- Bottom Leg (Far) -->
-  <path class="char-pants-back" d="M 305 250 L 255 250 C 245 250, 238 256, 234 268 L 210 315 C 205 324, 200 325, 192 322 L 180 318 C 175 316, 175 310, 180 304 L 208 260 C 216 248, 228 238, 244 238 L 290 238 Z" />
-  <!-- Top Leg (Near, Crossed Over) -->
-  <path class="char-pants" d="M 315 248 L 260 248 C 248 248, 236 240, 222 226 L 178 188 C 170 182, 164 186, 160 196 L 145 242 C 142 252, 134 256, 124 256 L 115 256 C 108 256, 106 250, 108 242 L 118 205 C 124 185, 140 174, 160 174 C 180 174, 205 190, 230 215 L 265 240 Z" />
+  <!-- Legs & Trousers (Crossed Reclined Sitting) -->
+  <!-- Left Leg (Straight/Lower) -->
+  <path fill="#7E4EE0" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 270 248 L 210 248 C 200 248, 195 255, 197 268 L 205 305 C 207 316, 201 320, 190 320 L 170 320 C 161 320, 159 312, 161 305 L 167 265 C 170 250, 180 240, 200 240 L 255 240 Z" />
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 190 320 L 170 320 C 163 320, 153 325, 135 336 L 185 336 C 190 336, 193 330, 193 324 Z" />
+  <line x1="137" y1="334" x2="190" y2="334" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" />
 
-  <!-- White Sneakers -->
-  <path class="char-white" d="M 124 256 L 110 256 C 102 256, 95 264, 82 280 C 78 284, 80 286, 88 286 L 128 286 C 134 286, 132 278, 130 268 Z" />
-  <line x1="84" y1="283" x2="128" y2="283" class="char-line" />
-  <path class="char-white" d="M 192 322 L 178 322 C 170 322, 165 326, 153 336 C 150 338, 152 340, 158 340 L 194 340 C 200 340, 198 335, 196 328 Z" />
-  <line x1="154" y1="337" x2="194" y2="337" class="char-line" />
+  <!-- Upper Crossed Leg (Diagonal Across) -->
+  <path fill="#9468E8" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 280 248 L 220 235 C 207 232, 195 236, 180 248 L 140 285 C 130 294, 135 305, 147 305 L 180 295 C 193 290, 203 280, 215 268 L 265 262 Z" />
+  <!-- Crossed Sneaker (White) -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 147 302 L 130 292 C 121 286, 107 290, 97 302 L 110 316 C 123 322, 135 318, 145 312 Z" />
+  <line x1="100" y1="304" x2="143" y2="310" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
 
-  <!-- Torso & Black Sweater -->
-  <path class="char-dark" d="M 325 230 C 330 200, 323 165, 303 150 C 289 140, 273 142, 265 154 C 259 162, 257 195, 261 232 Z" />
-  <path class="char-white" d="M 279 148 L 271 156 L 265 148 Z" />
+  <!-- Charcoal Sweater Body (Reclined Facing Left) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 298 235 C 302 210, 291 168, 270 154 C 256 144, 238 146, 230 156 C 224 164, 222 192, 226 235 Z" />
+  <!-- White Inner Collar -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 244 152 L 234 160 L 232 150 Z" />
 
-  <!-- Head & Face Profile (Looking at Tablet Screen) -->
-  <path class="char-skin" d="M 279 145 L 267 145 L 267 128 L 279 130 Z" />
-  <path class="char-skin" d="M 283 128 C 283 128, 287 110, 279 98 C 269 84, 251 84, 243 96 C 237 104, 239 114, 241 118 L 247 120 C 247 126, 255 132, 265 132 C 275 132, 281 130, 283 128 Z" />
-  <ellipse cx="277" cy="114" rx="4" ry="5.5" class="char-skin" />
-  <path class="char-thin" d="M 277 112 Q 275 114 277 116" />
-  <circle cx="255" cy="110" r="1.5" fill="#1E2235" />
-  <path class="char-thin" d="M 257 105 Q 253 104 250 106" />
-  <path class="char-thin" d="M 250 110 L 245 112 L 250 115" />
-  <path class="char-thin" d="M 252 121 Q 248 122 245 119" />
-  <path class="char-dark" d="M 283 110 C 287 100, 283 86, 271 78 C 259 70, 241 72, 235 84 C 231 92, 233 102, 241 102 C 247 102, 249 96, 257 94 C 265 92, 273 96, 277 106 Z" />
+  <!-- Head & Neck -->
+  <!-- Neck -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 246 150 L 234 150 L 234 132 L 246 134 Z" />
+  <!-- Head & Jaw (Profile facing left) -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 248 134 C 248 134, 252 116, 244 104 C 234 90, 216 90, 208 102 C 202 110, 204 120, 206 124 L 212 126 C 212 132, 220 138, 230 138 C 240 138, 246 136, 248 134 Z" />
+  <!-- Ear -->
+  <ellipse cx="240" cy="120" rx="4.5" ry="6" fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" />
+  <!-- Creative Facial Details -->
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 222 110 Q 218 109, 214 111" />
+  <circle cx="218" cy="115" r="1.5" fill="#1E2235" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M 212 115 L 207 118 L 212 121" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 220 126 Q 216 128, 212 125" />
 
-  <!-- Arms Drawing with Stylus on Tablet -->
-  <!-- Left Hand Holding Tablet -->
-  <path class="char-dark" d="M 280 156 C 272 165, 258 178, 244 182 L 216 186 C 208 188, 204 184, 208 178 L 228 172 C 242 168, 254 158, 262 150 Z" />
-  <path class="char-skin" d="M 216 184 C 211 184, 204 182, 200 186 C 198 188, 200 190, 206 190 L 218 190 Z" />
-  <!-- Tablet Held in Hand -->
-  <rect x="200" y="150" width="38" height="52" rx="4" transform="rotate(15, 200, 150)" class="char-prop-bg" />
-  <rect x="204" y="154" width="30" height="44" rx="2" transform="rotate(15, 200, 150)" class="char-accent-light" />
-  <!-- Right Arm with Stylus -->
-  <path class="char-dark" d="M 305 155 C 298 165, 282 180, 272 188 L 252 196 C 246 198, 242 194, 244 188 L 256 180 C 268 172, 280 162, 290 150 Z" />
-  <path class="char-skin" d="M 248 192 C 244 190, 238 188, 236 192 C 236 194, 240 196, 246 196 Z" />
-  <!-- Stylus Pen Pointing at Tablet -->
-  <line x1="250" y1="185" x2="238" y2="198" class="char-dark" />
+  <!-- Modern Charcoal Hair -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 248 116 C 252 106, 248 92, 236 84 C 224 76, 206 78, 200 90 C 196 98, 198 108, 206 108 C 212 108, 214 102, 222 100 C 230 98, 238 102, 242 112 Z" />
+
+  <!-- Arms & Tablet Drawing with Stylus -->
+  <!-- Left Arm (Holding Tablet Base) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 260 160 C 253 172, 237 190, 217 198 L 185 205 L 190 215 L 227 206 C 243 200, 255 185, 265 170 Z" />
+  <polygon points="190,204 183,205 185,212 192,211" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <ellipse cx="179" cy="210" rx="5" ry="4" fill="#FEE8DE" stroke="#1E2235" stroke-width="1.8" />
+
+  <!-- Drawing Tablet -->
+  <rect x="155" y="170" width="40" height="50" rx="4" transform="rotate(-18 195 170)" fill="#1E2235" stroke="#1E2235" stroke-width="2.2" />
+  <rect x="158" y="173" width="34" height="44" rx="2" transform="rotate(-18 195 170)" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.5" />
+
+  <!-- Right Arm (Drawing with Stylus Pen) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 250 160 C 240 170, 220 180, 203 170 L 207 140 C 210 132, 217 130, 220 135 L 225 152 Z" />
+  <polygon points="211,136 205,136 206,142 212,142" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <ellipse cx="206" cy="136" rx="4.5" ry="4" fill="#FEE8DE" stroke="#1E2235" stroke-width="1.8" />
+  <!-- Stylus Pen in Hand Touching Tablet -->
+  <line x1="206" y1="134" x2="188" y2="168" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
 </svg>

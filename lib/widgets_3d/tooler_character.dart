@@ -216,13 +216,13 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
         .replaceAll('#DDD6FE', hexLight);
 
     if (isDark) {
-      // In dark mode: inverting dark outlines & furniture fills to elegant light slate
+      // In dark mode: adapt furniture fills and dark outlines to sleek, high-contrast palette
+      // NEVER turn human skin dark/black! Skin stays warm natural peach (#FEE8DE).
       svg = svg
-          .replaceAll('#1E2235', '#F4F4F5')
-          .replaceAll('#1D2436', '#F4F4F5')
-          .replaceAll('#F8F7FC', '#27272A')
-          .replaceAll('#F4F1F8', '#27272A')
-          .replaceAll('#FEE8DE', '#2C2B36'); // Deep skin tone for dark mode
+          .replaceAll('fill="#F4F1F8"', 'fill="#262335"')
+          .replaceAll('fill="#F8F7FC"', 'fill="#262335"')
+          .replaceAll('stroke="#1E2235"', 'stroke="#E4E4E7"')
+          .replaceAll('fill="#1E2235"', 'fill="#222030"'); // Hair & sweater become sleek charcoal
     }
 
     return svg;

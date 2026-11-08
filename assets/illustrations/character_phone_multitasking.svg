@@ -1,101 +1,100 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
-  <defs>
-    <style>
-      .char-line { stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-thin { stroke: #1E2235; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-dark { fill: #1E2235; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-skin { fill: #FEE8DE; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants { fill: var(--char-accent, #9468E8); stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants-back { fill: #7E4EE0; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-white { fill: #FFFFFF; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-accent-light { fill: #EDE9FE; stroke: #1E2235; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-      .char-prop-bg { fill: #F8F7FC; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-    </style>
-  </defs>
-
-  <!-- Ambient Floating Accents -->
-  <circle cx="55" cy="70" r="3.0" fill="#C8B6FA" />
-  <circle cx="360" cy="115" r="4.0" fill="#9468E8" />
-  <circle cx="45" cy="165" r="2.0" fill="#1E2235" />
+  <!-- Ambient Accents -->
+  <circle cx="50" cy="70" r="3.5" fill="#C8B6FA" />
+  <circle cx="160" cy="45" r="2.5" fill="#1E2235" />
+  <circle cx="365" cy="120" r="4.0" fill="#9468E8" />
   <polygon points="360,65 365,68 360,71" fill="#C8B6FA" />
 
   <!-- 3x3 Dot Matrix -->
   <g fill="#C8B6FA">
-    <circle cx="280" cy="85" r="1.8" /><circle cx="287" cy="85" r="1.8" /><circle cx="294" cy="85" r="1.8" />
-    <circle cx="280" cy="92" r="1.8" /><circle cx="287" cy="92" r="1.8" /><circle cx="294" cy="92" r="1.8" />
-    <circle cx="280" cy="99" r="1.8" /><circle cx="287" cy="99" r="1.8" /><circle cx="294" cy="99" r="1.8" />
+    <circle cx="110" cy="80" r="1.8" /><circle cx="117" cy="80" r="1.8" /><circle cx="124" cy="80" r="1.8" />
+    <circle cx="110" cy="87" r="1.8" /><circle cx="117" cy="87" r="1.8" /><circle cx="124" cy="87" r="1.8" />
+    <circle cx="110" cy="94" r="1.8" /><circle cx="117" cy="94" r="1.8" /><circle cx="124" cy="94" r="1.8" />
   </g>
 
   <!-- Floor Baseline -->
-  <line x1="20" y1="340" x2="380" y2="340" class="char-line" />
+  <line x1="20" y1="340" x2="380" y2="340" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+
+  <!-- Foliage / Plants at Base (Left) -->
+  <path fill="#DDD6FE" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 40 340 C 35 305, 50 280, 60 290 C 70 300, 65 340, 65 340 Z" />
+  <path fill="#C8B6FA" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 50 340 C 55 315, 75 305, 85 320 C 90 330, 80 340, 80 340 Z" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 50 340 Q 55 310 60 290" />
 
   <!-- Floating Certified Contract Document with Seal -->
-  <rect x="240" y="80" width="34" height="46" rx="3" class="char-prop-bg" />
-  <line x1="246" y1="90" x2="268" y2="90" class="char-thin" />
-  <line x1="246" y1="96" x2="265" y2="96" class="char-thin" />
-  <line x1="246" y1="102" x2="262" y2="102" class="char-thin" />
-  <line x1="246" y1="108" x2="258" y2="108" class="char-thin" />
-  <!-- Certified Wax Seal Badge -->
-  <circle cx="264" cy="114" r="4.5" fill="#C8B6FA" />
+  <rect x="75" y="90" width="36" height="48" rx="3" fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="82" y1="98" x2="104" y2="98" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="82" y1="105" x2="104" y2="105" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="82" y1="112" x2="96" y2="112" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
+  <!-- Round Seal Stamp on Document -->
+  <circle cx="98" cy="122" r="5" fill="#EDE9FE" stroke="#9468E8" stroke-width="1.5" />
 
   <!-- Office Chair Behind Character -->
-  <rect x="330" y="185" width="12" height="60" rx="6" class="char-accent-light" />
-  <line x1="336" y1="245" x2="336" y2="270" class="char-line" />
-  <rect x="290" y="260" width="60" height="12" rx="5" class="char-prop-bg" />
-  <line x1="320" y1="272" x2="320" y2="315" class="char-line" />
-  <path class="char-line" d="M 290 332 L 320 315 L 350 332" />
-  <circle cx="288" cy="336" r="4" fill="#1E2235" />
-  <circle cx="320" cy="336" r="4" fill="#1E2235" />
-  <circle cx="352" cy="336" r="4" fill="#1E2235" />
+  <rect x="330" y="185" width="14" height="60" rx="7" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="337" y1="245" x2="337" y2="270" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <rect x="270" y="255" width="70" height="13" rx="6.5" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="310" y1="268" x2="310" y2="320" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <path fill="none" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 285 334 L 310 320 L 335 334" />
+  <circle cx="282" cy="336" r="4.5" fill="#1E2235" />
+  <circle cx="338" cy="336" r="4.5" fill="#1E2235" />
 
-  <!-- Seated Character Legs -->
-  <path class="char-pants-back" d="M 305 250 L 265 250 C 253 250, 249 257, 251 269 L 259 311 C 260 320, 255 323, 245 323 L 230 323 C 223 323, 221 317, 222 310 L 227 265 C 229 251, 239 241, 255 241 L 295 241 Z" />
-  <path class="char-pants" d="M 320 250 L 280 250 C 270 250, 265 257, 267 269 L 275 311 C 276 320, 271 323, 261 323 L 245 323 C 237 323, 235 317, 237 310 L 243 265 C 245 251, 257 241, 273 241 L 310 241 Z" />
-  <path class="char-thin" d="M 270 259 Q 273 267 270 275" />
+  <!-- Legs & Trousers (Facing Left) -->
+  <!-- Far Leg (Shadow tone) -->
+  <path fill="#7E4EE0" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 290 240 L 235 240 C 225 240, 222 248, 224 260 L 232 305 C 233 316, 227 320, 216 320 L 198 320 C 190 320, 188 312, 189 305 L 194 255 C 196 242, 206 230, 222 230 L 275 230 Z" />
+  <!-- Near Leg (Bright Theme Tone) -->
+  <path fill="#9468E8" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 305 240 L 250 240 C 240 240, 236 248, 238 260 L 247 305 C 248 316, 242 320, 232 320 L 214 320 C 205 320, 203 312, 204 305 L 210 255 C 212 242, 222 230, 240 230 L 295 230 Z" />
 
-  <!-- White Sneakers -->
-  <path class="char-white" d="M 245 323 L 229 323 C 221 323, 213 327, 197 335 L 250 335 C 251 333, 249 330, 247 327 Z" />
-  <line x1="200" y1="337" x2="250" y2="337" class="char-line" />
-  <path class="char-white" d="M 261 323 L 245 323 C 237 323, 229 327, 213 335 L 267 335 C 269 333, 267 330, 263 327 Z" />
-  <line x1="215" y1="337" x2="267" y2="337" class="char-line" />
+  <!-- White Sneakers with Dark Outsole -->
+  <!-- Far Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 216 320 L 200 320 C 192 320, 182 325, 162 336 C 158 338, 160 340, 168 340 L 210 340 C 216 340, 218 335, 218 328 Z" />
+  <line x1="164" y1="337" x2="216" y2="337" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Near Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 232 320 L 216 320 C 208 320, 198 325, 178 336 C 174 338, 176 340, 184 340 L 226 340 C 232 340, 234 335, 234 328 Z" />
+  <line x1="180" y1="337" x2="232" y2="337" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
 
-  <!-- Torso & Black Sweater -->
-  <path class="char-dark" d="M 325 233 C 330 205, 323 175, 303 160 C 289 150, 273 151, 265 163 C 259 170, 257 200, 261 235 Z" />
-  <path class="char-white" d="M 279 157 L 271 165 L 265 157 Z" />
+  <!-- Charcoal Sweater Body -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 315 225 C 320 200, 310 165, 290 152 C 276 142, 260 144, 252 154 C 246 160, 244 185, 246 225 Z" />
+  <!-- White Inner Collar -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 265 149 L 255 158 L 252 149 Z" />
 
-  <!-- Head & Face Profile with Smartphone Held to Ear -->
-  <path class="char-skin" d="M 279 155 L 267 155 L 267 141 L 279 141 Z" />
-  <path class="char-skin" d="M 283 141 C 283 141, 287 125, 279 111 C 269 99, 253 99, 243 111 C 239 117, 239 127, 241 131 L 245 133 C 245 139, 253 145, 263 145 C 273 145, 279 143, 283 141 Z" />
-  <circle cx="253" cy="121" r="1.5" fill="#1E2235" />
-  <path class="char-thin" d="M 254 115 Q 258 113 262 116" />
-  <path class="char-thin" d="M 252 122 L 247 124 L 252 127" />
-  <path class="char-thin" d="M 254 130 Q 259 132 263 129" />
-  <path class="char-dark" d="M 283 125 C 287 115, 283 101, 273 93 C 261 85, 243 87, 237 99 C 233 107, 235 117, 243 117 C 249 117, 251 111, 259 109 C 267 107, 273 111, 277 119 Z" />
+  <!-- Head & Neck -->
+  <!-- Neck -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 266 147 L 254 147 L 254 130 L 266 132 Z" />
+  <!-- Head & Jaw (Profile facing left) -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 268 132 C 268 132, 272 114, 264 102 C 254 88, 236 88, 228 100 C 222 108, 224 118, 226 122 L 232 124 C 232 130, 240 136, 250 136 C 260 136, 266 134, 268 132 Z" />
+  <!-- Ear & Smartphone to Ear -->
+  <ellipse cx="260" cy="118" rx="4.5" ry="6" fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" />
+  <rect x="254" y="108" width="7" height="18" rx="2" fill="#1E2235" stroke="#1E2235" stroke-width="1.5" />
+  <!-- Face Details (Talking happily on phone) -->
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 242 108 Q 238 107, 235 109" />
+  <circle cx="238" cy="113" r="1.5" fill="#1E2235" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M 232 113 L 227 116 L 232 119" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 238 124 Q 234 126, 230 122" />
 
-  <!-- Smartphone held to ear by left hand -->
-  <rect x="278" y="115" width="8" height="18" rx="2" class="char-dark" />
-  <path class="char-skin" d="M 284 120 C 288 120, 290 125, 286 128 L 282 128 Z" />
+  <!-- Modern Charcoal Hair -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 268 114 C 272 104, 268 90, 256 82 C 244 74, 226 76, 220 88 C 216 96, 218 106, 226 106 C 232 106, 234 100, 242 98 C 250 96, 258 100, 262 110 Z" />
 
-  <!-- Arms -->
-  <!-- Left Arm (Bent holding phone to ear) -->
-  <path class="char-dark" d="M 300 160 C 310 152, 318 140, 312 128 L 298 124 C 294 126, 290 132, 294 138 L 298 152 Z" />
+  <!-- Left Arm (Holding Phone to Ear) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 282 152 C 286 142, 282 128, 266 122 L 260 130 C 270 135, 274 144, 270 156 Z" />
+  <polygon points="266,122 260,130 255,126 261,118" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <ellipse cx="257" cy="120" rx="4.5" ry="4" fill="#FEE8DE" stroke="#1E2235" stroke-width="1.8" />
 
-  <!-- Right Arm: Pointing with index finger at floating document -->
-  <path class="char-dark" d="M 270 165 C 260 172, 244 180, 230 180 L 195 178 C 187 178, 184 172, 190 166 L 204 158 C 218 150, 236 150, 253 155 Z" />
-  <!-- Hand with Pointing Finger -->
-  <path class="char-skin" d="M 188 168 C 182 168, 172 168, 168 170 C 166 172, 168 174, 174 174 L 188 174 Z" />
+  <!-- Right Arm (Extended Pointing at Floating Contract) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 252 150 C 242 155, 205 160, 165 145 L 168 135 C 200 148, 235 145, 248 138 Z" />
+  <polygon points="165,145 168,135 161,133 158,143" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 158 143 C 150 143, 146 138, 148 134 C 150 130, 158 130, 162 133 Z" />
+  <!-- Pointing Finger -->
+  <line x1="152" y1="138" x2="138" y2="138" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
 
   <!-- Desk & Laptop -->
-  <rect x="70" y="215" width="220" height="12" rx="3" class="char-prop-bg" />
-  <rect x="85" y="227" width="10" height="113" rx="2" class="char-prop-bg" />
-  <rect x="270" y="227" width="10" height="113" rx="2" class="char-prop-bg" />
-  <!-- Laptop on Desk -->
-  <polygon points="120,215 178,215 172,207 126,207" class="char-prop-bg" />
-  <polygon points="172,207 196,157 156,157 132,207" class="char-prop-bg" />
-  <polygon points="168,203 190,161 160,161 138,203" class="char-accent-light" />
-  <rect x="144" y="210" width="14" height="4" rx="1" class="char-thin" />
+  <!-- Desk Top -->
+  <rect x="55" y="196" width="240" height="12" rx="3" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Desk Legs -->
+  <rect x="68" y="208" width="10" height="132" rx="2" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="280" y="208" width="10" height="132" rx="2" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="78" y1="300" x2="280" y2="300" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
 
-  <!-- Plant at Bottom Left Behind Desk -->
-  <path class="char-accent-light" d="M 35 340 C 30 300, 50 275, 65 285 C 75 295, 70 340, 70 340 Z" />
-  <path class="char-line" d="M 50 340 Q 55 305 65 285" />
+  <!-- Open Laptop on Desk -->
+  <polygon points="110,196 168,196 162,188 116,188" fill="#1E2235" stroke="#1E2235" stroke-width="2.2" stroke-linejoin="round" />
+  <polygon points="162,188 186,138 146,138 122,188" fill="#1E2235" stroke="#1E2235" stroke-width="2.2" stroke-linejoin="round" />
+  <polygon points="158,184 180,142 150,142 128,184" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.5" stroke-linejoin="round" />
 </svg>

@@ -1,109 +1,107 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
-  <defs>
-    <style>
-      .char-line { stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-thin { stroke: #1E2235; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-dark { fill: #1E2235; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-skin { fill: #FEE8DE; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants { fill: var(--char-accent, #9468E8); stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants-back { fill: #7E4EE0; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-white { fill: #FFFFFF; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-accent-light { fill: #EDE9FE; stroke: #1E2235; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-      .char-prop-bg { fill: #F8F7FC; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-    </style>
-  </defs>
-
-  <!-- Ambient Floating Accents -->
-  <circle cx="55" cy="85" r="3.0" fill="#C8B6FA" />
-  <circle cx="360" cy="115" r="4.0" fill="#9468E8" />
-  <circle cx="45" cy="165" r="2.0" fill="#1E2235" />
-
-  <!-- Floating Video Call Badge & Speech Bubble -->
-  <rect x="290" y="60" width="38" height="24" rx="6" class="char-prop-bg" />
-  <path class="char-prop-bg" d="M 298 84 L 294 92 L 305 84 Z" />
-  <line x1="298" y1="68" x2="318" y2="68" class="char-thin" />
-  <line x1="298" y1="74" x2="312" y2="74" class="char-thin" />
-  <!-- Video Camera Icon Badge -->
-  <rect x="345" y="80" width="18" height="13" rx="3" class="char-dark" />
-  <polygon points="363,83 371,79 371,94 363,90" class="char-dark" />
+  <!-- Ambient Accents -->
+  <circle cx="45" cy="85" r="4.5" fill="#9468E8" />
+  <circle cx="165" cy="45" r="3.0" fill="#C8B6FA" />
+  <circle cx="360" cy="115" r="3.5" fill="#C8B6FA" />
+  <circle cx="310" cy="80" r="2.5" fill="#1E2235" />
 
   <!-- 3x3 Dot Matrix -->
   <g fill="#C8B6FA">
-    <circle cx="350" cy="175" r="1.8" /><circle cx="357" cy="175" r="1.8" /><circle cx="364" cy="175" r="1.8" />
-    <circle cx="350" cy="182" r="1.8" /><circle cx="357" cy="182" r="1.8" /><circle cx="364" cy="182" r="1.8" />
-    <circle cx="350" cy="189" r="1.8" /><circle cx="357" cy="189" r="1.8" /><circle cx="364" cy="189" r="1.8" />
+    <circle cx="310" cy="180" r="1.8" /><circle cx="317" cy="180" r="1.8" /><circle cx="324" cy="180" r="1.8" />
+    <circle cx="310" cy="187" r="1.8" /><circle cx="317" cy="187" r="1.8" /><circle cx="324" cy="187" r="1.8" />
+    <circle cx="310" cy="194" r="1.8" /><circle cx="317" cy="194" r="1.8" /><circle cx="324" cy="194" r="1.8" />
   </g>
 
   <!-- Floor Baseline -->
-  <line x1="20" y1="340" x2="380" y2="340" class="char-line" />
+  <line x1="20" y1="340" x2="380" y2="340" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
 
   <!-- Office Chair Behind Character -->
-  <rect x="62" y="170" width="14" height="60" rx="7" class="char-accent-light" />
-  <line x1="69" y1="230" x2="69" y2="250" class="char-line" />
-  <rect x="66" y="245" width="68" height="13" rx="6.5" class="char-accent-light" />
-  <line x1="95" y1="258" x2="95" y2="315" class="char-line" />
-  <line x1="95" y1="270" x2="80" y2="270" class="char-line" />
-  <circle cx="78" cy="270" r="3" fill="#1E2235" />
-  <path class="char-line" d="M 60 332 L 95 315 L 130 332" />
+  <rect x="62" y="170" width="14" height="60" rx="7" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="69" y1="230" x2="69" y2="250" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <rect x="66" y="245" width="68" height="13" rx="6.5" fill="#EDE9FE" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="95" y1="258" x2="95" y2="315" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
+  <path fill="none" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 60 332 L 95 315 L 130 332" />
+  <line x1="95" y1="315" x2="95" y2="335" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
   <circle cx="58" cy="335" r="4.5" fill="#1E2235" />
   <circle cx="95" cy="336" r="4.5" fill="#1E2235" />
   <circle cx="132" cy="335" r="4.5" fill="#1E2235" />
 
   <!-- Legs & Trousers -->
-  <path class="char-pants-back" d="M 105 235 L 165 235 C 175 235, 178 242, 176 254 L 168 300 C 167 312, 173 316, 184 316 L 202 316 C 210 316, 212 308, 211 300 L 206 250 C 204 238, 194 226, 178 226 L 120 226 Z" />
-  <path class="char-pants" d="M 90 235 L 150 235 C 160 235, 164 242, 162 254 L 153 300 C 152 312, 158 316, 168 316 L 186 316 C 195 316, 197 308, 196 300 L 190 250 C 188 238, 178 226, 160 226 L 105 226 Z" />
-  <path class="char-thin" d="M 160 244 Q 157 252 160 260" />
+  <!-- Far Leg (Shadow tone) -->
+  <path fill="#7E4EE0" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 105 235 L 165 235 C 175 235, 178 242, 176 254 L 168 300 C 167 312, 173 316, 184 316 L 202 316 C 210 316, 212 308, 211 300 L 206 250 C 204 238, 194 226, 178 226 L 120 226 Z" />
+  <!-- Near Leg (Bright Theme Tone) -->
+  <path fill="#9468E8" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 90 235 L 150 235 C 160 235, 164 242, 162 254 L 153 300 C 152 312, 158 316, 168 316 L 186 316 C 195 316, 197 308, 196 300 L 190 250 C 188 238, 178 226, 160 226 L 105 226 Z" />
+  <!-- Pants crease fold lines -->
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 160 244 Q 157 252 160 260" />
 
-  <!-- White Sneakers -->
-  <path class="char-white" d="M 184 316 L 200 316 C 208 316, 218 322, 238 335 C 242 338, 240 340, 232 340 L 190 340 C 184 340, 182 335, 182 328 Z" />
-  <line x1="184" y1="337" x2="236" y2="337" class="char-line" />
-  <path class="char-white" d="M 168 316 L 184 316 C 192 316, 202 322, 222 335 C 226 338, 224 340, 216 340 L 174 340 C 168 340, 166 335, 166 328 Z" />
-  <line x1="168" y1="337" x2="220" y2="337" class="char-line" />
+  <!-- White Sneakers with Dark Outsole -->
+  <!-- Back Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 184 316 L 200 316 C 208 316, 218 322, 238 335 C 242 338, 240 340, 232 340 L 190 340 C 184 340, 182 335, 182 328 Z" />
+  <line x1="184" y1="337" x2="236" y2="337" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Front Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 168 316 L 184 316 C 192 316, 202 322, 222 335 C 226 338, 224 340, 216 340 L 174 340 C 168 340, 166 335, 166 328 Z" />
+  <line x1="168" y1="337" x2="220" y2="337" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
 
-  <!-- Torso & Black Sweater -->
-  <path class="char-dark" d="M 75 218 C 70 196, 80 162, 100 150 C 114 140, 130 142, 138 152 C 144 158, 146 182, 144 218 Z" />
-  <path class="char-white" d="M 125 147 L 135 156 L 138 147 Z" />
+  <!-- Charcoal Sweater Body -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 75 218 C 70 196, 80 162, 100 150 C 114 140, 130 142, 138 152 C 144 158, 146 182, 144 218 Z" />
+  <!-- White Inner Collar -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 125 147 L 135 156 L 138 147 Z" />
 
-  <!-- Head & Face (Smiling at Webcam) -->
-  <path class="char-skin" d="M 124 145 L 136 145 L 136 128 L 124 130 Z" />
-  <path class="char-skin" d="M 122 130 C 122 130, 118 112, 126 100 C 136 86, 154 86, 162 98 C 168 106, 166 116, 164 120 L 158 122 C 158 128, 150 134, 140 134 C 130 134, 124 132, 122 130 Z" />
-  <ellipse cx="130" cy="116" rx="4.5" ry="6" class="char-skin" />
-  <path class="char-thin" d="M 130 114 Q 132 116 130 118" />
-  <path class="char-thin" d="M 148 106 Q 152 105 155 107" />
+  <!-- Head & Neck -->
+  <!-- Neck -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 124 145 L 136 145 L 136 128 L 124 130 Z" />
+  <!-- Head & Jaw (Profile facing right towards laptop) -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 122 130 C 122 130, 118 112, 126 100 C 136 86, 154 86, 162 98 C 168 106, 166 116, 164 120 L 158 122 C 158 128, 150 134, 140 134 C 130 134, 124 132, 122 130 Z" />
+  <!-- Ear -->
+  <ellipse cx="130" cy="116" rx="4.5" ry="6" fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" />
+  <!-- Facial Details (Smiling cheerfully on video call) -->
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 148 106 Q 152 105 155 107" />
   <circle cx="152" cy="111" r="1.5" fill="#1E2235" />
-  <path class="char-thin" d="M 158 111 L 163 114 L 158 117" />
-  <path class="char-thin" d="M 152 122 Q 157 124 161 120" />
-  <path class="char-dark" d="M 122 112 C 118 102, 122 88, 134 80 C 146 72, 164 74, 170 86 C 174 94, 172 104, 164 104 C 158 104, 156 98, 148 96 C 140 94, 132 98, 128 108 Z" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M 158 111 L 163 114 L 158 117" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 152 122 Q 156 125 160 120" />
 
-  <!-- Arms -->
-  <!-- Left Hand: Resting on Desk -->
-  <path class="char-dark" d="M 95 155 C 88 165, 82 178, 86 195 L 94 200 C 104 200, 116 198, 135 195 L 180 186 C 188 184, 186 178, 180 176 L 140 172 C 126 168, 116 158, 108 148 Z" />
-  <path class="char-skin" d="M 180 184 C 185 184, 192 182, 196 186 C 196 188, 192 190, 186 190 L 175 190 Z" />
+  <!-- Modern Charcoal Hair -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 122 112 C 118 102, 122 88, 134 80 C 146 72, 164 74, 170 86 C 174 94, 172 104, 164 104 C 158 104, 156 98, 148 96 C 140 94, 132 98, 128 108 Z" />
 
-  <!-- Right Arm: Raised Waving Hand `👋` -->
-  <path class="char-dark" d="M 120 152 C 130 148, 145 138, 155 125 L 168 108 C 172 102, 176 105, 174 110 L 164 128 C 154 142, 140 158, 130 166 Z" />
-  <!-- Open Waving Hand with 4 Fingers & Thumb -->
-  <path class="char-skin" d="M 170 106 C 170 98, 176 94, 182 98 C 186 102, 184 108, 180 114 L 170 112 Z" />
-  <line x1="174" y1="96" x2="174" y2="102" class="char-thin" />
-  <line x1="178" y1="96" x2="178" y2="102" class="char-thin" />
-  <!-- Wave Motion Lines -->
-  <path class="char-thin" d="M 188 95 Q 192 98 188 102" />
-  <path class="char-thin" d="M 192 92 Q 198 98 192 105" />
+  <!-- Left Arm (Raised Waving 👋 at Webcam) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 128 152 C 136 142, 154 125, 175 110 L 180 120 C 164 132, 148 150, 142 162 Z" />
+  <!-- Left Hand Cuff (White) -->
+  <polygon points="175,110 180,120 186,117 181,107" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <!-- Left Hand (Skin) Waving Open Palm & Fingers -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 181 107 C 182 98, 192 94, 196 102 C 198 106, 195 115, 186 117 Z" />
+  <!-- Extended Waving Fingers -->
+  <line x1="184" y1="96" x2="184" y2="88" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" />
+  <line x1="189" y1="95" x2="191" y2="87" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" />
+  <line x1="194" y1="98" x2="198" y2="92" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" />
+
+  <!-- Right Arm (Resting on Laptop Keyboard) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 95 155 C 85 158, 80 172, 82 188 C 84 198, 92 202, 102 198 L 175 182 C 185 180, 187 174, 182 168 L 140 166 C 130 164, 120 156, 110 148 Z" />
+  <polygon points="174,180 181,179 180,173 173,174" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 181 179 C 186 179, 192 177, 198 181 C 200 183, 198 185, 192 185 L 178 184 Z" />
 
   <!-- Modern Desk & Laptop -->
-  <rect x="70" y="196" width="280" height="12" rx="3" class="char-prop-bg" />
-  <rect x="85" y="208" width="10" height="132" rx="2" class="char-prop-bg" />
-  <rect x="325" y="208" width="10" height="132" rx="2" class="char-prop-bg" />
+  <!-- Desk Top -->
+  <rect x="70" y="196" width="280" height="12" rx="3" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <!-- Desk Legs -->
+  <rect x="85" y="208" width="10" height="132" rx="2" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="325" y="208" width="10" height="132" rx="2" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+  <line x1="95" y1="300" x2="325" y2="300" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
 
-  <!-- Open Laptop with Glowing Video Screen -->
-  <polygon points="210,196 268,196 262,188 216,188" class="char-prop-bg" />
-  <polygon points="262,188 286,138 246,138 222,188" class="char-prop-bg" />
-  <polygon points="258,184 280,142 250,142 228,184" class="char-accent-light" />
-  <!-- Webcam Dot -->
-  <circle cx="266" cy="140" r="1.5" fill="#1E2235" />
+  <!-- Open Laptop on Desk -->
+  <polygon points="190,196 248,196 242,188 196,188" fill="#1E2235" stroke="#1E2235" stroke-width="2.2" stroke-linejoin="round" />
+  <polygon points="242,188 266,138 226,138 202,188" fill="#1E2235" stroke="#1E2235" stroke-width="2.2" stroke-linejoin="round" />
+  <polygon points="238,184 260,142 230,142 208,184" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.5" stroke-linejoin="round" />
 
-  <!-- Steaming Coffee Mug -->
-  <rect x="300" y="174" width="18" height="22" rx="3" class="char-accent-light" />
-  <path class="char-line" d="M 318 180 C 326 180, 326 190, 318 190" />
-  <path class="char-thin" d="M 304 168 Q 306 162 303 156 Q 306 150 304 144" />
+  <!-- Floating Video Call Camera & Speech Bubble -->
+  <!-- Video Camera Icon -->
+  <rect x="250" y="90" width="16" height="12" rx="2" fill="#9468E8" stroke="#1E2235" stroke-width="1.5" />
+  <polygon points="266,93 273,89 273,103 266,99" fill="#9468E8" stroke="#1E2235" stroke-width="1.5" stroke-linejoin="round" />
+  <!-- Speech Bubble -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 225 55 L 260 55 C 265 55, 268 58, 268 62 L 268 76 C 268 80, 265 83, 260 83 L 240 83 L 232 90 L 234 83 L 225 83 C 220 83, 217 80, 217 76 L 217 62 C 217 58, 220 55, 225 55 Z" />
+  <line x1="225" y1="65" x2="258" y2="65" stroke="#9468E8" stroke-width="1.2" stroke-linecap="round" />
+  <line x1="225" y1="72" x2="248" y2="72" stroke="#9468E8" stroke-width="1.2" stroke-linecap="round" />
+
+  <!-- Coffee Mug on Right of Desk -->
+  <rect x="290" y="174" width="16" height="22" rx="3" fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" d="M 306 180 C 312 180, 312 190, 306 190" />
 </svg>

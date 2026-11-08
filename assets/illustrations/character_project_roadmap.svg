@@ -1,97 +1,100 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
-  <defs>
-    <style>
-      .char-line { stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-thin { stroke: #1E2235; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; fill: none; }
-      .char-dark { fill: #1E2235; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-skin { fill: #FEE8DE; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants { fill: var(--char-accent, #9468E8); stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-pants-back { fill: #7E4EE0; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-white { fill: #FFFFFF; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-      .char-accent-light { fill: #EDE9FE; stroke: #1E2235; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-      .char-prop-bg { fill: #F8F7FC; stroke: #1E2235; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
-    </style>
-  </defs>
-
-  <!-- Ambient Floating Accents -->
-  <circle cx="350" cy="55" r="3.0" fill="#C8B6FA" />
-  <circle cx="45" cy="115" r="3.5" fill="#9468E8" />
-  <polygon points="360,180 366,183 360,186" fill="#C8B6FA" />
+  <!-- Ambient Accents -->
+  <circle cx="50" cy="70" r="3.5" fill="#C8B6FA" />
+  <circle cx="210" cy="30" r="2.5" fill="#1E2235" />
+  <circle cx="365" cy="120" r="4.0" fill="#9468E8" />
+  <polygon points="360,65 365,68 360,71" fill="#C8B6FA" />
 
   <!-- Floor Baseline -->
-  <line x1="20" y1="340" x2="380" y2="340" class="char-line" />
+  <line x1="20" y1="340" x2="380" y2="340" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" />
 
-  <!-- Wide Project Roadmap / Gantt Schedule Board on Wall -->
-  <rect x="45" y="55" width="280" height="150" rx="4" class="char-prop-bg" />
-  <rect x="40" y="205" width="290" height="6" rx="2" class="char-prop-bg" />
+  <!-- Foliage / Plants at Base (Left) -->
+  <path fill="#DDD6FE" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 45 340 C 40 305, 55 280, 65 290 C 75 300, 70 340, 70 340 Z" />
+  <path fill="#C8B6FA" stroke="#1E2235" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M 55 340 C 60 315, 80 305, 90 320 C 95 330, 85 340, 85 340 Z" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 55 340 Q 60 310 65 290" />
 
-  <!-- Grid Rows & Columns -->
-  <line x1="45" y1="80" x2="325" y2="80" class="char-thin" />
-  <line x1="45" y1="105" x2="325" y2="105" class="char-thin" />
-  <line x1="45" y1="130" x2="325" y2="130" class="char-thin" />
-  <line x1="45" y1="155" x2="325" y2="155" class="char-thin" />
-  <line x1="45" y1="180" x2="325" y2="180" class="char-thin" />
-  <!-- Vertical Week Columns -->
-  <line x1="105" y1="55" x2="105" y2="205" class="char-thin" />
-  <line x1="150" y1="55" x2="150" y2="205" class="char-thin" />
-  <line x1="195" y1="55" x2="195" y2="205" class="char-thin" />
-  <line x1="240" y1="55" x2="240" y2="205" class="char-thin" />
-  <line x1="285" y1="55" x2="285" y2="205" class="char-thin" />
+  <!-- Large Wall Gantt Roadmap Board Frame -->
+  <rect x="40" y="55" width="235" height="135" rx="5" fill="#F4F1F8" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
+  <rect x="48" y="63" width="219" height="119" rx="3" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" stroke-linejoin="round" />
 
-  <!-- Gantt Schedule Bars & Milestones -->
-  <rect x="115" y="85" width="55" height="14" rx="3" class="char-accent-light" />
-  <rect x="160" y="110" width="75" height="14" rx="3" class="char-pants" />
-  <rect x="225" y="135" width="60" height="14" rx="3" class="char-accent-light" />
-  <rect x="195" y="160" width="80" height="14" rx="3" class="char-prop-bg" />
-  <!-- Flow arrows between bars -->
-  <path class="char-thin" d="M 170 99 L 170 110" />
-  <path class="char-thin" d="M 235 124 L 235 135" />
+  <!-- Grid Columns (Timeline Days/Weeks) -->
+  <line x1="88" y1="63" x2="88" y2="182" stroke="#EDE9FE" stroke-width="1.5" />
+  <line x1="128" y1="63" x2="128" y2="182" stroke="#EDE9FE" stroke-width="1.5" />
+  <line x1="168" y1="63" x2="168" y2="182" stroke="#EDE9FE" stroke-width="1.5" />
+  <line x1="208" y1="63" x2="208" y2="182" stroke="#EDE9FE" stroke-width="1.5" />
 
-  <!-- Base Foliage Behind Feet -->
-  <path class="char-accent-light" d="M 45 340 C 40 305, 65 285, 80 300 C 90 310, 85 340, 85 340 Z" />
-  <path class="char-accent-light" d="M 285 340 C 290 300, 315 280, 330 295 C 340 310, 330 340, 330 340 Z" />
-  <path class="char-line" d="M 60 340 Q 65 310 60 285" />
-  <path class="char-line" d="M 305 340 Q 310 310 305 285" />
+  <!-- Column Header Dashes -->
+  <line x1="62" y1="72" x2="74" y2="72" stroke="#9468E8" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="102" y1="72" x2="114" y2="72" stroke="#9468E8" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="142" y1="72" x2="154" y2="72" stroke="#9468E8" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="182" y1="72" x2="194" y2="72" stroke="#9468E8" stroke-width="1.5" stroke-linecap="round" />
+  <line x1="222" y1="72" x2="234" y2="72" stroke="#9468E8" stroke-width="1.5" stroke-linecap="round" />
 
-  <!-- Standing Character Presenting Roadmap -->
-  <!-- Left Leg (Far) -->
-  <path class="char-pants-back" d="M 288 200 L 298 200 C 302 235, 305 285, 306 315 L 290 315 C 288 285, 286 235, 288 200 Z" />
-  <!-- Right Leg (Near) -->
-  <path class="char-pants" d="M 302 200 L 332 200 C 330 235, 328 285, 326 315 L 306 315 C 308 285, 310 235, 302 200 Z" />
-  <path class="char-thin" d="M 308 245 Q 312 250 316 248" />
+  <!-- Horizontal Roadmap Milestone Bars -->
+  <!-- Milestone 1 -->
+  <rect x="55" y="85" width="45" height="10" rx="3" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.2" />
+  <!-- Milestone 2 -->
+  <rect x="95" y="103" width="55" height="10" rx="3" fill="#9468E8" stroke="#1E2235" stroke-width="1.2" />
+  <!-- Milestone 3 -->
+  <rect x="145" y="121" width="45" height="10" rx="3" fill="#C8B6FA" stroke="#1E2235" stroke-width="1.2" />
+  <!-- Milestone 4 -->
+  <rect x="175" y="140" width="50" height="10" rx="3" fill="#EDE9FE" stroke="#1E2235" stroke-width="1.2" />
 
-  <!-- White Sneakers -->
-  <path class="char-white" d="M 290 315 L 304 315 C 310 315, 314 322, 320 335 C 322 338, 320 340, 314 340 L 285 340 C 280 340, 282 335, 284 326 Z" />
-  <line x1="285" y1="337" x2="318" y2="337" class="char-line" />
-  <path class="char-white" d="M 306 315 L 324 315 C 330 315, 336 322, 344 335 C 346 338, 344 340, 338 340 L 302 340 C 298 340, 299 335, 301 326 Z" />
-  <line x1="302" y1="337" x2="342" y2="337" class="char-line" />
+  <!-- Connecting Dependency Lines -->
+  <path fill="none" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" d="M 100 95 L 100 103" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" d="M 150 113 L 150 121" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.2" stroke-linecap="round" d="M 190 131 L 190 140" />
 
-  <!-- Torso & Black Sweater -->
-  <path class="char-dark" d="M 284 135 C 275 145, 272 175, 278 202 L 334 202 C 338 175, 335 145, 326 135 Z" />
-  <path class="char-white" d="M 302 128 L 308 136 L 314 128 Z" />
+  <!-- Character Standing (Facing Board) -->
+  <!-- Legs & Trousers -->
+  <!-- Left Leg (Shadow tone) -->
+  <path fill="#7E4EE0" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 235 185 L 255 185 L 252 295 L 233 295 Z" />
+  <!-- Right Leg (Main Tone) -->
+  <path fill="#9468E8" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 255 185 L 275 185 L 271 295 L 252 295 Z" />
+  <line x1="263" y1="195" x2="261" y2="285" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" />
 
-  <!-- Head & Face Profile -->
-  <path class="char-skin" d="M 302 126 L 314 126 L 314 115 L 302 115 Z" />
-  <path class="char-skin" d="M 298 116 C 298 116, 294 100, 302 88 C 310 76, 326 76, 334 88 C 338 94, 338 104, 336 108 L 332 110 C 332 116, 325 122, 316 122 C 306 122, 300 120, 298 116 Z" />
-  <ellipse cx="304" cy="104" rx="4" ry="5.5" class="char-skin" />
-  <circle cx="324" cy="99" r="1.5" fill="#1E2235" />
-  <path class="char-thin" d="M 322 95 Q 325 94 328 96" />
-  <path class="char-thin" d="M 329 101 L 334 103 L 329 106" />
-  <path class="char-thin" d="M 324 111 Q 328 112 331 109" />
-  <path class="char-dark" d="M 298 102 C 294 92, 298 78, 308 72 C 318 64, 336 66, 342 78 C 346 86, 344 96, 336 96 C 330 96, 328 90, 320 88 C 312 86, 306 90, 302 98 Z" />
+  <!-- White Sneakers with Dark Outsole -->
+  <!-- Left Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 229 295 L 252 295 C 255 308, 259 325, 262 336 L 222 336 C 222 325, 225 308, 229 295 Z" />
+  <line x1="222" y1="334" x2="262" y2="334" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
+  <!-- Right Sneaker -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 252 295 L 275 295 C 278 308, 282 325, 285 336 L 245 336 C 245 325, 248 308, 252 295 Z" />
+  <line x1="245" y1="334" x2="285" y2="334" stroke="#1E2235" stroke-width="2.2" stroke-linecap="round" />
 
-  <!-- Arms -->
-  <!-- Left Hand: Holding Executive Clipboard -->
-  <path class="char-dark" d="M 328 140 C 336 150, 340 168, 338 185 L 322 196 C 318 198, 312 195, 314 190 L 324 180 C 326 170, 324 156, 320 146 Z" />
-  <path class="char-skin" d="M 314 190 C 310 192, 305 192, 302 188 C 304 186, 310 186, 314 188 Z" />
-  <!-- Clipboard with Sheet -->
-  <rect x="290" y="172" width="24" height="34" rx="2" transform="rotate(-10, 290, 172)" class="char-prop-bg" />
-  <rect x="296" y="170" width="12" height="4" rx="1" transform="rotate(-10, 290, 170)" class="char-dark" />
-  <line x1="295" y1="180" x2="308" y2="178" class="char-thin" />
-  <line x1="294" y1="186" x2="307" y2="184" class="char-thin" />
+  <!-- Charcoal Sweater Body -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 229 185 L 279 185 C 282 155, 285 128, 272 115 C 262 105, 245 105, 235 115 C 225 125, 225 155, 229 185 Z" />
+  <!-- White Inner Collar -->
+  <path fill="#FFFFFF" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 246 110 L 254 118 L 258 110 Z" />
 
-  <!-- Right Arm: Pointing with Marker at Gantt Chart Bar -->
-  <path class="char-dark" d="M 294 138 C 282 142, 260 142, 245 138 L 225 125 C 220 122, 220 116, 225 114 L 235 110 C 242 108, 255 115, 268 122 L 286 130 Z" />
-  <path class="char-skin" d="M 225 114 C 220 114, 215 115, 212 112 C 213 110, 216 109, 222 110 L 227 112 Z" />
-  <rect x="204" y="108" width="14" height="4" rx="1" transform="rotate(-15, 204, 108)" class="char-dark" />
+  <!-- Head & Neck -->
+  <!-- Neck -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 246 110 L 258 110 L 258 96 L 246 96 Z" />
+  <!-- Head & Jaw (Profile facing left) -->
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 262 96 C 262 96, 268 82, 260 70 C 250 56, 232 56, 224 68 C 218 76, 220 86, 222 90 L 228 92 C 228 98, 236 104, 246 104 C 256 104, 260 100, 262 96 Z" />
+  <!-- Ear -->
+  <ellipse cx="256" cy="85" rx="4.5" ry="6" fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" />
+  <!-- Profile Features -->
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 234 76 Q 230 75 228 77" />
+  <circle cx="231" cy="81" r="1.5" fill="#1E2235" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" d="M 224 82 L 220 85 L 224 87" />
+  <path fill="none" stroke="#1E2235" stroke-width="1.5" stroke-linecap="round" d="M 228 92 Q 232 94 236 91" />
+
+  <!-- Modern Charcoal Hair -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 262 82 C 266 72, 264 58, 252 50 C 240 42, 222 44, 216 56 C 212 64, 214 74, 222 74 C 228 74, 230 68, 238 66 C 246 64, 254 68, 258 78 Z" />
+
+  <!-- Left Arm Holding Clipboard Against Chest -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 270 125 C 275 140, 270 160, 255 170 L 245 162 C 255 152, 258 138, 256 128 Z" />
+  <polygon points="250,165 244,162 247,156 253,159" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <ellipse cx="244" cy="158" rx="4.5" ry="5.5" fill="#FEE8DE" stroke="#1E2235" stroke-width="1.8" />
+  <!-- Clipboard -->
+  <rect x="235" y="145" width="22" height="32" rx="2" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <rect x="241" y="142" width="10" height="4" rx="1" fill="#9468E8" stroke="#1E2235" stroke-width="1.2" />
+  <line x1="239" y1="154" x2="253" y2="154" stroke="#EDE9FE" stroke-width="1.5" />
+  <line x1="239" y1="160" x2="253" y2="160" stroke="#EDE9FE" stroke-width="1.5" />
+
+  <!-- Right Arm (Pointing Marker at Milestone Bar) -->
+  <path fill="#1E2235" stroke="#1E2235" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" d="M 238 120 C 228 125, 205 125, 182 118 L 185 108 C 210 115, 228 114, 242 108 Z" />
+  <polygon points="182,118 185,108 178,106 175,116" fill="#FFFFFF" stroke="#1E2235" stroke-width="1.8" />
+  <path fill="#FEE8DE" stroke="#1E2235" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" d="M 175 116 C 168 116, 164 112, 166 108 C 168 104, 175 104, 179 107 Z" />
+  <polygon points="160,104 172,110 170,114 158,108" fill="#1E2235" stroke="#1E2235" stroke-width="1.5" />
 </svg>
