@@ -227,25 +227,23 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
       },
       onVerticalDragEnd: (details) {
         final velocity = details.primaryVelocity ?? 0.0;
-        if (_dragOffsetY > 60 || velocity > 280) {
-          // Drag down -> Back / exit hover page
+        if (_dragOffsetY > 45 || velocity > 220) {
+          // Drag down -> Back / exit full-screen or hover page
           SoundService().playClick();
           HapticFeedback.mediumImpact();
           if (_isFullScreen) {
-            if (_dragOffsetY > 140 || velocity > 600) {
-              Navigator.pop(context);
-            } else {
-              setState(() {
-                _isFullScreen = false;
-                _dragOffsetY = 0.0;
-                _isDockActive = false;
-                _isDragging = false;
-              });
-            }
+            // In full-screen mode: pushing/dragging down ALWAYS returns to hover screen!
+            setState(() {
+              _isFullScreen = false;
+              _dragOffsetY = 0.0;
+              _isDockActive = false;
+              _isDragging = false;
+            });
           } else {
+            // In hover mode: dragging down dismisses the sheet back to home screen
             Navigator.pop(context);
           }
-        } else if (_dragOffsetY < -20 || velocity < -280) {
+        } else if (_dragOffsetY < -25 || velocity < -220) {
           // Push up -> Full screen view
           SoundService().playClick();
           HapticFeedback.lightImpact();
@@ -280,25 +278,25 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
         });
       },
       child: Container(
-        height: 28,
+        height: 32,
         width: double.infinity,
         alignment: Alignment.center,
-        color: Colors.transparent, // Generous touch target
+        color: Colors.transparent, // Generous 32px touch target across the screen
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           curve: Curves.easeOutCubic,
-          width: _isDockActive ? 64 : 44,
-          height: _isDockActive ? 5.5 : 4.5,
+          width: _isDockActive ? 72 : 50,
+          height: _isDockActive ? 6.0 : 4.8,
           decoration: BoxDecoration(
             color: _isDockActive
                 ? theme.primary
-                : (isDark ? Colors.white.withValues(alpha: 0.30) : theme.border.withValues(alpha: 0.90)),
+                : (isDark ? Colors.white.withValues(alpha: 0.32) : theme.border.withValues(alpha: 0.95)),
             borderRadius: BorderRadius.circular(3),
             boxShadow: _isDockActive
                 ? [
                     BoxShadow(
-                      color: theme.primary.withValues(alpha: 0.50),
-                      blurRadius: 10,
+                      color: theme.primary.withValues(alpha: 0.55),
+                      blurRadius: 12,
                       spreadRadius: 1.5,
                       offset: const Offset(0, 1),
                     ),
@@ -314,6 +312,7 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final isDark = theme.isDark;
+    final topInset = MediaQuery.of(context).padding.top;
 
     return ToolerHoverSheetScope(
       isFullScreen: _isFullScreen,
@@ -337,15 +336,16 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
             // 2. Sliding Hover Sheet with top empty space
             SafeArea(
               bottom: false,
-              top: !_isFullScreen,
+              top: false, // Explicitly managed with topInset so full-screen edge background stays seamless
               child: Column(
                 children: [
-                  // Top Empty Space (~65-72px): Allows user to see live blurred home screen!
-                  // Tapping it dismisses the sheet smoothly.
+                  // Top Empty Space in Hover Mode (~topInset + 54px):
+                  // Allows user to see live blurred home screen and taps/swipes dismiss smoothly.
+                  // Collapses to 0 in full-screen mode.
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 260),
                     curve: Curves.easeOutCubic,
-                    height: _isFullScreen ? 0 : 68,
+                    height: _isFullScreen ? 0 : (topInset > 0 ? topInset + 50 : 64),
                     width: double.infinity,
                     child: _isFullScreen
                         ? const SizedBox.shrink()
@@ -397,150 +397,178 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                           ),
                           child: Column(
                             children: [
-                              // 2.1 Interactive Drag Handle Dock Bar
+                              // 2.1 System Notch / Status Bar / Control Centre Clearance:
+                              // When in full-screen mode, this adds topInset + 6px so the dock bar and
+                              // all three buttons sit SAFELY below the Android status bar and control center swipe zone!
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 260),
+                                curve: Curves.easeOutCubic,
+                                height: _isFullScreen ? (topInset > 0 ? topInset + 6 : 28) : 4,
+                              ),
+
+                              // 2.2 Interactive Drag Handle Dock Bar (Pull down in full screen to return to hover sheet)
                               _buildDockBar(theme, isDark),
 
-                            // 2.2 Unified Header Row: [Back Button] on Left, [Centered Title] in Center, [Fullscreen & Favorite Buttons] on Right
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                              child: Row(
-                                children: [
-                                  // Left Back Button (<) with Bouncy Tap
-                                  BouncyTap(
-                                    onTap: () {
-                                      SoundService().playClick();
-                                      Navigator.pop(context);
-                                    },
-                                    scaleFraction: 0.90,
-                                    child: Container(
-                                      width: 42,
-                                      height: 42,
-                                      decoration: BoxDecoration(
-                                        color: theme.cardBg,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(color: theme.border, width: 1.2),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.04),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
+                              // 2.3 Unified Header Row: [Back Button] on Left, [Centered Title] in Center, [Fullscreen & Favorite Buttons] on Right
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                                child: Row(
+                                  children: [
+                                    // Left: Back Button (<) with comfortable 44x44 touch target & squircle styling
+                                    BouncyTap(
+                                      onTap: () {
+                                        SoundService().playClick();
+                                        Navigator.pop(context);
+                                      },
+                                      scaleFraction: 0.90,
+                                      child: Container(
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
+                                          color: theme.cardBg,
+                                          borderRadius: BorderRadius.circular(13),
+                                          border: Border.all(color: theme.border, width: 1.2),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: Icon(
+                                            Icons.arrow_back_ios_new_rounded,
+                                            size: 18,
+                                            color: theme.text,
                                           ),
-                                        ],
-                                      ),
-                                      child: Icon(
-                                        Icons.arrow_back_ios_new_rounded,
-                                        size: 18,
-                                        color: theme.text,
-                                      ),
-                                    ),
-                                  ),
-
-                                  // Center: Upper Tool Title
-                                  Expanded(
-                                    child: Center(
-                                      child: Text(
-                                        widget.title,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.4,
-                                          color: theme.text,
                                         ),
                                       ),
                                     ),
-                                  ),
 
-                                  // Fullscreen Toggle Button (Hover Sheet <-> Full Device Screen)
-                                  BouncyTap(
-                                    onTap: _toggleFullScreen,
-                                    scaleFraction: 0.88,
-                                    child: Container(
-                                      width: 42,
-                                      height: 42,
-                                      margin: const EdgeInsets.only(right: 8),
-                                      decoration: BoxDecoration(
-                                        color: theme.cardBg,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: _isFullScreen
-                                              ? theme.primary.withValues(alpha: 0.6)
-                                              : theme.border,
-                                          width: 1.2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: _isFullScreen
-                                                ? theme.primary.withValues(alpha: 0.15)
-                                                : Colors.black.withValues(alpha: 0.04),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
+                                    // Center: Upper Tool Title
+                                    Expanded(
                                       child: Center(
-                                        child: Icon(
-                                          _isFullScreen
-                                              ? Icons.fullscreen_exit_rounded
-                                              : Icons.fullscreen_rounded,
-                                          size: 22,
+                                        child: Text(
+                                          widget.title,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          textAlign: TextAlign.center,
+                                          style: GoogleFonts.plusJakartaSans(
+                                            fontSize: 19,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: -0.4,
+                                            color: theme.text,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    // Dedicated Fullscreen Toggle Button (Hover Sheet <-> Full Device Screen)
+                                    BouncyTap(
+                                      onTap: _toggleFullScreen,
+                                      scaleFraction: 0.88,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutCubic,
+                                        width: 44,
+                                        height: 44,
+                                        margin: const EdgeInsets.only(right: 8),
+                                        decoration: BoxDecoration(
                                           color: _isFullScreen
                                               ? theme.primary
-                                              : theme.text,
+                                              : (isDark
+                                                  ? theme.primary.withValues(alpha: 0.20)
+                                                  : theme.primary.withValues(alpha: 0.10)),
+                                          borderRadius: BorderRadius.circular(13),
+                                          border: Border.all(
+                                            color: _isFullScreen
+                                                ? theme.primary
+                                                : theme.primary.withValues(alpha: 0.38),
+                                            width: 1.4,
+                                          ),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: _isFullScreen
+                                                  ? theme.primary.withValues(alpha: 0.40)
+                                                  : theme.primary.withValues(alpha: 0.12),
+                                              blurRadius: _isFullScreen ? 10 : 6,
+                                              spreadRadius: _isFullScreen ? 1 : 0,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: AnimatedSwitcher(
+                                            duration: const Duration(milliseconds: 200),
+                                            transitionBuilder: (child, anim) => RotationTransition(
+                                              turns: Tween<double>(begin: 0.85, end: 1.0).animate(anim),
+                                              child: FadeTransition(opacity: anim, child: child),
+                                            ),
+                                            child: Icon(
+                                              _isFullScreen
+                                                  ? Icons.close_fullscreen_rounded
+                                              : Icons.open_in_full_rounded,
+                                              key: ValueKey<bool>(_isFullScreen),
+                                              size: 19,
+                                              color: _isFullScreen ? Colors.white : theme.primary,
+                                            ),
+                                          ),
                                         ),
                                       ),
                                     ),
-                                  ),
 
-                                  // Right: Favorite Button (♥) with Bouncy Tap & Pulse
-                                  BouncyTap(
-                                    onTap: _toggleFavorite,
-                                    scaleFraction: 0.88,
-                                    child: Container(
-                                      width: 42,
-                                      height: 42,
-                                      decoration: BoxDecoration(
-                                        color: theme.cardBg,
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
+                                    // Right: Favorite Button (♥) with Bouncy Tap & Pulse
+                                    BouncyTap(
+                                      onTap: _toggleFavorite,
+                                      scaleFraction: 0.88,
+                                      child: AnimatedContainer(
+                                        duration: const Duration(milliseconds: 220),
+                                        curve: Curves.easeOutCubic,
+                                        width: 44,
+                                        height: 44,
+                                        decoration: BoxDecoration(
                                           color: _isFavorite
-                                              ? theme.primary.withValues(alpha: 0.5)
-                                              : theme.border,
-                                          width: 1.2,
-                                        ),
-                                        boxShadow: [
-                                          BoxShadow(
+                                              ? const Color(0xFFFF4757).withValues(alpha: 0.12)
+                                              : theme.cardBg,
+                                          borderRadius: BorderRadius.circular(13),
+                                          border: Border.all(
                                             color: _isFavorite
-                                                ? theme.primary.withValues(alpha: 0.15)
-                                                : Colors.black.withValues(alpha: 0.04),
-                                            blurRadius: 6,
-                                            offset: const Offset(0, 2),
+                                                ? const Color(0xFFFF4757).withValues(alpha: 0.45)
+                                                : theme.border,
+                                            width: 1.2,
                                           ),
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: AnimatedScale(
-                                          scale: _isFavorite ? 1.15 : 1.0,
-                                          duration: const Duration(milliseconds: 220),
-                                          curve: Curves.easeOutBack,
-                                          child: Icon(
-                                            _isFavorite
-                                                ? Icons.favorite_rounded
-                                                : Icons.favorite_outline_rounded,
-                                            size: 20,
-                                            color: _isFavorite
-                                                ? const Color(0xFFFF4757)
-                                                : theme.textSecondary,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: _isFavorite
+                                                  ? const Color(0xFFFF4757).withValues(alpha: 0.18)
+                                                  : Colors.black.withValues(alpha: isDark ? 0.25 : 0.05),
+                                              blurRadius: 6,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Center(
+                                          child: AnimatedScale(
+                                            scale: _isFavorite ? 1.15 : 1.0,
+                                            duration: const Duration(milliseconds: 220),
+                                            curve: Curves.easeOutBack,
+                                            child: Icon(
+                                              _isFavorite
+                                                  ? Icons.favorite_rounded
+                                                  : Icons.favorite_outline_rounded,
+                                              size: 20,
+                                              color: _isFavorite
+                                                  ? const Color(0xFFFF4757)
+                                                  : theme.textSecondary,
+                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
-                            ),
 
                             // 2.3 Dedicated Botanical Artwork Banner (Collapsed in full screen mode for maximum content area)
                             if (!_isFullScreen)
