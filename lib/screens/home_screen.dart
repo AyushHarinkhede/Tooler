@@ -280,8 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
           {'name': 'Ring Sizer Graph', 'desc': '1:1 precision millimeter coordinate graph, clean micro-stepper adjustment, cm size selector & international standards'},
           {'name': 'Bangle Sizer Graph', 'desc': '1:1 edge-reaching millimeter coordinate graph, clean micro-stepper adjustment & standard Indian/global sizes'},
           {'name': 'Watch Strap Caliper', 'desc': '1:1 realistic leather watch strap & physical caliper with 12–26mm slider position bar'},
-          {'name': 'Flush Screen Edge Ruler', 'desc': 'True 1:1 ruler flush with physical phone device edge for quick measurements'},
-          {'name': 'Full Screen Scrollable Ruler', 'desc': 'Full-screen scrollable tape up to 320cm+ (3.2m / 126 in) with mm/cm/inch scales & interactive pin point drop markers'},
+          {'name': 'Vertical Edge & Tape Ruler', 'desc': 'True 1:1 vertical ruler with mm/cm & inch scales, fullscreen mode & interactive pin markers'},
         ],
         'keywords': [
           'sizer', 'caliper', 'ruler', 'ring sizer', 'ring size', 'ring',

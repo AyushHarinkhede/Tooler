@@ -36,7 +36,6 @@ class _SizerScreenState extends State<SizerScreen> {
 
   // --- 4. RULER & FULL SCREEN STATE ---
   bool _isFullScreenRuler = false;
-  double _rulerCaliperMm = 50.0;
   final ScrollController _rulerScrollCtrl = ScrollController();
   final List<double> _pinnedPointsMm = [];
 
@@ -1603,119 +1602,109 @@ class _SizerScreenState extends State<SizerScreen> {
   }
 
   // =========================================================================
-  // 4. RULER SIZER (Phone Side Edge & Full Screen Scrollable 300cm+ with Pins)
+  // 4. RULER SIZER (Vertical Default View ~10 to 30 cm & Full Screen Mode)
   // =========================================================================
   Widget _buildRulerSizer() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Side Edge Mode Callout & Full Screen Action Button
+        // Top edge unit indicator & single full-screen action button
         Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: widget.theme.doodleCard(borderWidth: 2.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              // Left side unit indicator
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.straighten_rounded, color: Color(0xFF27AE60), size: 24),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Phone Edge Ruler & Infinite 300cm+ Full Screen Tape",
-                      style: widget.theme.fontDisplay(fontSize: 15, fontWeight: FontWeight.bold),
+                  const Icon(Icons.arrow_left_rounded, color: Color(0xFF27AE60), size: 22),
+                  Text(
+                    "CM / MM (Metric)",
+                    style: widget.theme.fontDisplay(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF27AE60),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
-              Text(
-                "Measure directly on phone's side edge or enter Full Screen Ruler to scroll up to 300cm+ (3 meters) and drop pinned checkpoints.",
-                style: widget.theme.fontDoodle(fontSize: 12),
-              ),
-              const SizedBox(height: 12),
-              ElevatedButton.icon(
-                onPressed: () {
-                  SoundService().playClick();
-                  setState(() => _isFullScreenRuler = true);
-                },
-                icon: const Icon(Icons.fullscreen_rounded, color: Colors.white),
-                label: const Text(
-                  "Enter Full Screen Scrollable Ruler (0–300cm+)",
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: widget.theme.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              // Single full-screen button (No extra words or captions)
+              Material(
+                color: widget.theme.primary,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: () {
+                    SoundService().playClick();
+                    setState(() => _isFullScreenRuler = true);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    child: const Icon(
+                      Icons.fullscreen_rounded,
+                      color: Colors.white,
+                      size: 26,
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Side Edge Quick Ruler Preview
-        Container(
-          height: 180,
-          decoration: widget.theme.doodleCard(
-            color: const Color(0xFFFDEAA7),
-            borderWidth: 2.2,
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: CustomPaint(
-              size: const Size(double.infinity, 180),
-              painter: _EdgeRulerPainter(
-                pixelsPerMm: _pixelsPerMm,
-                caliperMm: _rulerCaliperMm,
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Slider for Caliper
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: widget.theme.doodleCard(borderWidth: 2.0),
-          child: Column(
-            children: [
+              // Right side unit indicator
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    "Measured: ${_rulerCaliperMm.toStringAsFixed(1)} mm  (${(_rulerCaliperMm / 10).toStringAsFixed(2)} cm)",
-                    style: widget.theme.fontDisplay(fontSize: 14, fontWeight: FontWeight.bold),
+                    "(Imperial) INCHES",
+                    style: widget.theme.fontDisplay(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF0984E3),
+                    ),
                   ),
-                  Text(
-                    "${(_rulerCaliperMm / 25.4).toStringAsFixed(2)} inches",
-                    style: widget.theme.fontMono(fontSize: 13, color: widget.theme.primary, fontWeight: FontWeight.bold),
-                  ),
+                  const Icon(Icons.arrow_right_rounded, color: Color(0xFF0984E3), size: 22),
                 ],
-              ),
-              Slider(
-                value: _rulerCaliperMm,
-                min: 0.0,
-                max: 120.0,
-                divisions: 120,
-                activeColor: widget.theme.primary,
-                onChanged: (val) => setState(() => _rulerCaliperMm = val),
               ),
             ],
           ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Default Vertical Physical Ruler (around 10 to 30 cm height based on phone/tab screen)
+        LayoutBuilder(
+          builder: (context, constraints) {
+            const double rulerHeight = 360.0; // ~20 cm physical height on phone screen
+            return Container(
+              height: rulerHeight,
+              decoration: widget.theme.doodleCard(
+                color: const Color(0xFFF9F1DC),
+                borderWidth: 2.2,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: CustomPaint(
+                  size: Size(constraints.maxWidth, rulerHeight),
+                  painter: _InfiniteTapeRulerPainter(
+                    pixelsPerMm: _pixelsPerMm,
+                    totalCm: (rulerHeight / _pixelsPerMm) / 10.0,
+                    pinnedPointsMm: _pinnedPointsMm,
+                    primaryColor: widget.theme.primary,
+                  ),
+                ),
+              ),
+            );
+          },
         ),
       ],
     );
   }
 
   // =========================================================================
-  // 5. FULL SCREEN SCROLLABLE RULER (0 - 300cm+ with Pins & Dual Scale)
+  // 5. FULL SCREEN SCROLLABLE RULER (Smooth Scroll, Dual Edge, Vector Pins & Modal)
   // =========================================================================
   Widget _buildFullScreenRulerView() {
-    const double totalLengthCm = 320.0; // 320 cm = 3.2 Meters / 126 inches
+    const double totalLengthCm = 500.0; // 500 cm = 5 Meters seamless tape without displayed limits
     final double totalHeightPx = totalLengthCm * 10.0 * _pixelsPerMm;
 
     return Scaffold(
@@ -1723,15 +1712,17 @@ class _SizerScreenState extends State<SizerScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Full Screen Top Header Bar
+            // Full Screen Top Header Bar: Back, Unit Indicators & Pin Point Button
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: widget.theme.cardBg,
                 border: Border(bottom: BorderSide(color: widget.theme.border, width: 2)),
               ),
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  // Back button
                   IconButton(
                     icon: const Icon(Icons.arrow_back_rounded, size: 24),
                     onPressed: () {
@@ -1739,43 +1730,67 @@ class _SizerScreenState extends State<SizerScreen> {
                       setState(() => _isFullScreenRuler = false);
                     },
                   ),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Full Screen Ruler (0 – 320 cm / 3.2m)",
-                          style: widget.theme.fontDisplay(fontSize: 15, fontWeight: FontWeight.bold),
+                  // Middle: Unit indicators showing Left vs Right
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        "◀ CM / MM",
+                        style: widget.theme.fontDisplay(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF27AE60),
                         ),
-                        Text(
-                          "Scroll tape vertically. Tap anywhere to pin a measurement.",
-                          style: widget.theme.fontDoodle(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.7)),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        "INCHES ▶",
+                        style: widget.theme.fontDisplay(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF0984E3),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
-                  // Pin button
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      SoundService().playKey();
-                      final currentMm = (_rulerScrollCtrl.hasClients ? _rulerScrollCtrl.offset / _pixelsPerMm : 0.0) + 30.0;
-                      setState(() {
-                        _pinnedPointsMm.add(currentMm);
-                      });
-                    },
-                    icon: const Icon(Icons.push_pin_rounded, size: 16, color: Colors.white),
-                    label: const Text("Pin Point", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE74C3C),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    ),
+                  // Pin points button with badge (opens bottom hover sheet)
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.push_pin_rounded, color: Color(0xFFE74C3C), size: 24),
+                        onPressed: () {
+                          SoundService().playClick();
+                          _showPinsBottomSheet();
+                        },
+                      ),
+                      if (_pinnedPointsMm.isNotEmpty)
+                        Positioned(
+                          right: 4,
+                          top: 4,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFE74C3C),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Text(
+                              '${_pinnedPointsMm.length}',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
 
-            // Scrollable Ruler Canvas
+            // Smooth Scrollable Ruler Canvas
             Expanded(
               child: GestureDetector(
                 onTapUp: (details) {
@@ -1807,81 +1822,140 @@ class _SizerScreenState extends State<SizerScreen> {
                 ),
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
 
-            // Pinned Points Bottom Panel
-            if (_pinnedPointsMm.isNotEmpty) ...[
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: widget.theme.cardBg,
-                  border: Border(top: BorderSide(color: widget.theme.border, width: 2)),
-                ),
+  // Pin points bottom hover sheet with Undo and Clear All
+  void _showPinsBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: widget.theme.cardBg,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                border: Border.all(color: widget.theme.border, width: 2),
+              ),
+              child: SafeArea(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // Sheet Header with Title, Undo, and Clear All
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          "Pinned Points (${_pinnedPointsMm.length}):",
-                          style: widget.theme.fontDisplay(fontSize: 13, fontWeight: FontWeight.bold),
+                          "Pinned Points (${_pinnedPointsMm.length})",
+                          style: widget.theme.fontDisplay(fontSize: 15, fontWeight: FontWeight.bold),
                         ),
-                        TextButton(
-                          onPressed: () {
-                            SoundService().playClick();
-                            setState(() => _pinnedPointsMm.clear());
-                          },
-                          child: const Text("Clear All Pins", style: TextStyle(color: Color(0xFFE74C3C), fontSize: 12)),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            // Undo button (removes newest / last pin)
+                            TextButton.icon(
+                              onPressed: _pinnedPointsMm.isEmpty
+                                  ? null
+                                  : () {
+                                      SoundService().playClick();
+                                      setState(() {
+                                        _pinnedPointsMm.removeLast();
+                                      });
+                                      setSheetState(() {});
+                                    },
+                              icon: const Icon(Icons.undo_rounded, size: 16),
+                              label: const Text("Undo", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            ),
+                            const SizedBox(width: 4),
+                            // Clear All button
+                            TextButton.icon(
+                              onPressed: _pinnedPointsMm.isEmpty
+                                  ? null
+                                  : () {
+                                      SoundService().playClick();
+                                      setState(() {
+                                        _pinnedPointsMm.clear();
+                                      });
+                                      setSheetState(() {});
+                                    },
+                              icon: const Icon(Icons.delete_sweep_rounded, size: 16, color: Color(0xFFE74C3C)),
+                              label: const Text("Clear All", style: TextStyle(color: Color(0xFFE74C3C), fontWeight: FontWeight.bold, fontSize: 12)),
+                            ),
+                          ],
                         ),
                       ],
                     ),
-                    SizedBox(
-                      height: 52,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: _pinnedPointsMm.length,
-                        itemBuilder: (ctx, i) {
-                          final mm = _pinnedPointsMm[i];
-                          final cm = mm / 10.0;
-                          final inches = mm / 25.4;
-                          return Container(
-                            margin: const EdgeInsets.only(right: 8),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: widget.theme.bg,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFE74C3C)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFFE74C3C)),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "Pin #${i + 1}: ${cm.toStringAsFixed(1)} cm (${inches.toStringAsFixed(2)} in)",
-                                  style: widget.theme.fontMono(fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                                const SizedBox(width: 4),
-                                InkWell(
-                                  onTap: () {
-                                    SoundService().playClick();
-                                    setState(() => _pinnedPointsMm.removeAt(i));
-                                  },
-                                  child: const Icon(Icons.close, size: 14, color: Colors.grey),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
+                    const Divider(height: 16),
+                    if (_pinnedPointsMm.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 24),
+                        child: Center(
+                          child: Text(
+                            "No pins yet. Tap anywhere on the ruler canvas to drop a pin!",
+                            style: widget.theme.fontDoodle(fontSize: 12, color: Colors.grey),
+                          ),
+                        ),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _pinnedPointsMm.length,
+                          itemBuilder: (ctx, i) {
+                            final mm = _pinnedPointsMm[i];
+                            final cm = mm / 10.0;
+                            final inches = mm / 25.4;
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: widget.theme.bg,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: widget.theme.border.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.push_pin_rounded, size: 16, color: Color(0xFFE74C3C)),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      "Pin #${i + 1}:  ${cm.toStringAsFixed(2)} cm  /  ${inches.toStringAsFixed(3)} in  (${mm.toStringAsFixed(1)} mm)",
+                                      style: widget.theme.fontMono(fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.close_rounded, size: 16, color: Colors.grey),
+                                    onPressed: () {
+                                      SoundService().playClick();
+                                      setState(() {
+                                        _pinnedPointsMm.removeAt(i);
+                                      });
+                                      setSheetState(() {});
+                                    },
+                                    constraints: const BoxConstraints(),
+                                    padding: EdgeInsets.zero,
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
-            ],
-          ],
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }
@@ -2409,57 +2483,7 @@ class _RealisticWatchStrapCaliperPainter extends CustomPainter {
       old.primaryColor != primaryColor;
 }
 
-/// Phone Side Edge Calibrated Ruler (Horizontal preview)
-class _EdgeRulerPainter extends CustomPainter {
-  final double pixelsPerMm;
-  final double caliperMm;
-
-  _EdgeRulerPainter({required this.pixelsPerMm, required this.caliperMm});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final tickPaint = Paint()
-      ..color = const Color(0xFF2C1E12)
-      ..strokeWidth = 1.0;
-    final cmPaint = Paint()
-      ..color = const Color(0xFF1E140A)
-      ..strokeWidth = 2.0;
-    final tp = TextPainter(textDirection: TextDirection.ltr);
-
-    for (int mm = 0; mm * pixelsPerMm < size.width; mm++) {
-      final double x = mm * pixelsPerMm;
-      final bool isCm = (mm % 10 == 0);
-      final bool isHalf = (mm % 5 == 0);
-
-      if (isCm) {
-        canvas.drawLine(Offset(x, 0), Offset(x, 32), cmPaint);
-        tp.text = TextSpan(
-          text: '${mm ~/ 10} cm',
-          style: const TextStyle(color: Color(0xFF2C1E12), fontSize: 10, fontWeight: FontWeight.bold),
-        );
-        tp.layout();
-        tp.paint(canvas, Offset(x + 2, 36));
-      } else if (isHalf) {
-        canvas.drawLine(Offset(x, 0), Offset(x, 20), tickPaint);
-      } else {
-        canvas.drawLine(Offset(x, 0), Offset(x, 12), tickPaint);
-      }
-    }
-
-    // Caliper red marker line
-    final double cx = caliperMm * pixelsPerMm;
-    final caliperPaint = Paint()
-      ..color = const Color(0xFFFF4757)
-      ..strokeWidth = 2.5;
-    canvas.drawLine(Offset(cx, 0), Offset(cx, size.height), caliperPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant _EdgeRulerPainter old) =>
-      old.caliperMm != caliperMm || old.pixelsPerMm != pixelsPerMm;
-}
-
-/// Infinite Vertical Scrollable Tape Ruler (0 to 320 cm / 3.2 Meters with Pins & Dual Scale)
+/// Smooth Vertical Scrollable Tape Ruler (Dual Unit Edge Scales & Vector SVG Pins)
 class _InfiniteTapeRulerPainter extends CustomPainter {
   final double pixelsPerMm;
   final double totalCm;
@@ -2503,20 +2527,20 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
         // Meter Milestone Line
         canvas.drawRect(Rect.fromLTWH(0, y - 2, w, 4), meterBannerPaint);
         tp.text = TextSpan(
-          text: '★ ${mm ~/ 1000} METER (${mm ~/ 10} cm) ★',
-          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w900),
+          text: '${mm ~/ 1000} METER',
+          style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900),
         );
         tp.layout();
         canvas.drawRRect(
-          RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.28, y - 11, tp.width + 16, 22), const Radius.circular(6)),
+          RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.5 - (tp.width + 16) / 2, y - 11, tp.width + 16, 22), const Radius.circular(6)),
           Paint()..color = const Color(0xFFE74C3C),
         );
-        tp.paint(canvas, Offset(w * 0.28 + 8, y - 8));
+        tp.paint(canvas, Offset(w * 0.5 - tp.width / 2, y - tp.height / 2));
       } else if (isCm) {
-        canvas.drawLine(Offset(0, y), Offset(42, y), cmTickPaint);
+        canvas.drawLine(Offset(0, y), Offset(40, y), cmTickPaint);
         final cmVal = mm ~/ 10;
         tp.text = TextSpan(
-          text: '$cmVal cm',
+          text: '$cmVal',
           style: TextStyle(
             color: cmVal % 10 == 0 ? const Color(0xFFD63031) : const Color(0xFF2D3436),
             fontSize: 11,
@@ -2524,11 +2548,11 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
           ),
         );
         tp.layout();
-        tp.paint(canvas, Offset(46, y - tp.height / 2));
+        tp.paint(canvas, Offset(44, y - tp.height / 2));
       } else if (isHalf) {
-        canvas.drawLine(Offset(0, y), Offset(24, y), tickPaint);
+        canvas.drawLine(Offset(0, y), Offset(22, y), tickPaint);
       } else {
-        canvas.drawLine(Offset(0, y), Offset(14, y), tickPaint);
+        canvas.drawLine(Offset(0, y), Offset(13, y), tickPaint);
       }
     }
 
@@ -2546,53 +2570,80 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
       final bool isQuarter = (s % 4 == 0);
 
       if (isWhole) {
-        canvas.drawLine(Offset(w - 42, y), Offset(w, y), cmTickPaint);
+        canvas.drawLine(Offset(w - 40, y), Offset(w, y), cmTickPaint);
         final int wholeInch = s ~/ 16;
         tp.text = TextSpan(
           text: '$wholeInch"',
           style: const TextStyle(color: Color(0xFF0984E3), fontSize: 12, fontWeight: FontWeight.bold),
         );
         tp.layout();
-        tp.paint(canvas, Offset(w - 46 - tp.width, y - tp.height / 2));
+        tp.paint(canvas, Offset(w - 44 - tp.width, y - tp.height / 2));
       } else if (isHalf) {
-        canvas.drawLine(Offset(w - 28, y), Offset(w, y), tickPaint);
+        canvas.drawLine(Offset(w - 26, y), Offset(w, y), tickPaint);
       } else if (isQuarter) {
-        canvas.drawLine(Offset(w - 20, y), Offset(w, y), tickPaint);
+        canvas.drawLine(Offset(w - 18, y), Offset(w, y), tickPaint);
       } else {
-        canvas.drawLine(Offset(w - 12, y), Offset(w, y), tickPaint);
+        canvas.drawLine(Offset(w - 11, y), Offset(w, y), tickPaint);
       }
     }
 
-    // 3. Draw Center Dividing Line
-    final centerLine = Paint()
-      ..color = const Color(0xFFB2BEC3)
-      ..strokeWidth = 1.0;
-    canvas.drawLine(Offset(w * 0.5, 0), Offset(w * 0.5, size.height), centerLine);
+    // NOTE: Center dividing line is completely removed per user instructions!
 
-    // 4. Draw Pinned Points
+    // 3. Draw Pinned Points with Clean Vector Push-Pin Icons (No emojis)
     for (int p = 0; p < pinnedPointsMm.length; p++) {
       final pinMm = pinnedPointsMm[p];
       final pinY = pinMm * pixelsPerMm;
 
-      // Pin marker line
+      // Pin marker line across ruler
       final pinLine = Paint()
         ..color = const Color(0xFFE74C3C)
         ..strokeWidth = 2.0;
       canvas.drawLine(Offset(0, pinY), Offset(w, pinY), pinLine);
 
-      // Pin icon flag badge
-      final pinBadge = RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.5 - 38, pinY - 11, 76, 22),
+      // Pin badge dimensions
+      const double badgeW = 90.0;
+      const double badgeH = 22.0;
+      final double badgeX = w * 0.5 - badgeW / 2;
+      final double badgeY = pinY - badgeH / 2;
+
+      // Badge shadow and pill background
+      final badgeRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(badgeX, badgeY, badgeW, badgeH),
         const Radius.circular(11),
       );
-      canvas.drawRRect(pinBadge, Paint()..color = const Color(0xFFE74C3C));
+      canvas.drawRRect(badgeRect, Paint()..color = const Color(0xFFE74C3C));
 
+      // Vector Push-Pin Icon (drawn with Canvas & Path)
+      final pinCenterX = badgeX + 13.0;
+      final pinCenterY = pinY;
+
+      // Metal needle tip
+      final needlePaint = Paint()
+        ..color = const Color(0xFFECF0F1)
+        ..strokeWidth = 1.8
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(pinCenterX, pinCenterY), Offset(pinCenterX, pinCenterY + 6), needlePaint);
+
+      // Pin red top knob with white accent highlight
+      final knobPaint = Paint()..color = const Color(0xFFC0392B);
+      canvas.drawCircle(Offset(pinCenterX, pinCenterY - 2), 4.5, knobPaint);
+
+      final rimPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2;
+      canvas.drawCircle(Offset(pinCenterX, pinCenterY - 2), 4.5, rimPaint);
+
+      final highlightPaint = Paint()..color = Colors.white;
+      canvas.drawCircle(Offset(pinCenterX - 1.2, pinCenterY - 3.2), 1.2, highlightPaint);
+
+      // Pin Text Measurement
       tp.text = TextSpan(
-        text: '📍 ${(pinMm / 10).toStringAsFixed(1)}cm',
+        text: '${(pinMm / 10).toStringAsFixed(1)} cm',
         style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
       );
       tp.layout();
-      tp.paint(canvas, Offset(w * 0.5 - tp.width / 2, pinY - tp.height / 2));
+      tp.paint(canvas, Offset(badgeX + 26, pinY - tp.height / 2));
     }
   }
 
