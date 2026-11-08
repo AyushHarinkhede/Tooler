@@ -78,23 +78,17 @@ class ToolerHoverSheet extends StatefulWidget {
           );
           final fadeCurved = CurvedAnimation(
             parent: animation,
-            curve: Curves.easeOut,
-            reverseCurve: Curves.easeIn,
+            curve: const Interval(0.0, 0.90, curve: Curves.easeOut),
+            reverseCurve: const Interval(0.10, 1.0, curve: Curves.easeIn),
           );
           return SlideTransition(
             position: Tween<Offset>(
-              begin: const Offset(0, 0.12),
+              begin: const Offset(0, 0.08),
               end: Offset.zero,
             ).animate(smoothCurved),
-            child: ScaleTransition(
-              scale: Tween<double>(
-                begin: 0.96,
-                end: 1.0,
-              ).animate(smoothCurved),
-              child: FadeTransition(
-                opacity: fadeCurved,
-                child: page,
-              ),
+            child: FadeTransition(
+              opacity: fadeCurved,
+              child: page,
             ),
           );
         },
@@ -205,7 +199,7 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
             Positioned.fill(
               child: RepaintBoundary(
                 child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                  filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
                   child: Container(
                     color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
                   ),
@@ -453,6 +447,8 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(16),
                                     child: CustomPaint(
+                                      isComplex: true,
+                                      willChange: false,
                                       painter: _EnhancedAestheticBannerPainter(
                                         strokeColor: isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B),
                                         accentColor: theme.primary,

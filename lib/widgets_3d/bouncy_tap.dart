@@ -103,15 +103,9 @@ class _BouncyTapState extends State<BouncyTap> with SingleTickerProviderStateMix
       onTapCancel: _onTapCancel,
       onLongPress: widget.onLongPress,
       child: RepaintBoundary(
-        child: AnimatedBuilder(
-          animation: _scaleAnimation,
-          builder: (context, child) {
-            return Transform.scale(
-              scale: _scaleAnimation.value,
-              alignment: Alignment.center,
-              child: child,
-            );
-          },
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          alignment: Alignment.center,
           child: widget.child,
         ),
       ),
@@ -195,9 +189,9 @@ class StaggeredSlideItem extends StatefulWidget {
     super.key,
     required this.index,
     required this.child,
-    this.delayBase = const Duration(milliseconds: 24),
-    this.duration = const Duration(milliseconds: 240),
-    this.offsetBegin = const Offset(0, 0.08),
+    this.delayBase = const Duration(milliseconds: 20),
+    this.duration = const Duration(milliseconds: 220),
+    this.offsetBegin = const Offset(0, 0.06),
   });
 
   @override
@@ -218,22 +212,19 @@ class _StaggeredSlideItemState extends State<StaggeredSlideItem> with SingleTick
       duration: widget.duration,
     );
 
-    _opacity = CurvedAnimation(
+    final curved = CurvedAnimation(
       parent: _controller,
-      curve: Curves.easeOut,
+      curve: Curves.easeOutCubic,
     );
+
+    _opacity = Tween<double>(begin: 0.0, end: 1.0).animate(curved);
 
     _slide = Tween<Offset>(
       begin: widget.offsetBegin,
       end: Offset.zero,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutCubic,
-      ),
-    );
+    ).animate(curved);
 
-    final delay = widget.delayBase * (widget.index < 6 ? widget.index : 6);
+    final delay = widget.delayBase * (widget.index < 4 ? widget.index : 4);
     if (delay == Duration.zero) {
       _controller.forward();
     } else {

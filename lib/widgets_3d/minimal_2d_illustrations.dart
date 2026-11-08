@@ -458,16 +458,20 @@ class Minimal2DIcon extends StatelessWidget {
     final effectiveBubble = bubbleColor ??
         (isDark ? effectiveAccent.withValues(alpha: 0.16) : effectiveAccent.withValues(alpha: 0.12));
 
-    return SizedBox(
-      width: size,
-      height: size,
-      child: CustomPaint(
-        painter: _IllustrationPainter(
-          type: type,
-          strokeColor: effectiveStroke,
-          bubbleColor: effectiveBubble,
-          accentColor: effectiveAccent,
-          isDark: isDark,
+    return RepaintBoundary(
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: CustomPaint(
+          isComplex: true,
+          willChange: false,
+          painter: _IllustrationPainter(
+            type: type,
+            strokeColor: effectiveStroke,
+            bubbleColor: effectiveBubble,
+            accentColor: effectiveAccent,
+            isDark: isDark,
+          ),
         ),
       ),
     );

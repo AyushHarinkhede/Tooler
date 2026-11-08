@@ -245,15 +245,17 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
     );
 
     if (_hoverAnimation != null) {
-      content = AnimatedBuilder(
-        animation: _hoverAnimation!,
-        builder: (context, child) {
-          return Transform.translate(
-            offset: Offset(0, _hoverAnimation!.value),
-            child: child,
-          );
-        },
-        child: content,
+      content = RepaintBoundary(
+        child: AnimatedBuilder(
+          animation: _hoverAnimation!,
+          builder: (context, child) {
+            return Transform.translate(
+              offset: Offset(0, _hoverAnimation!.value),
+              child: child,
+            );
+          },
+          child: content,
+        ),
       );
     }
 
