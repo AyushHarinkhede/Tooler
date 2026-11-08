@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/stationery_theme.dart';
-import '../theme/notebook_painter.dart';
 
 class Stationery3DModal extends StatefulWidget {
   final String title;
@@ -155,16 +154,6 @@ class _Stationery3DModalState extends State<Stationery3DModal> {
                   ),
                 ],
               ],
-            ),
-          ),
-
-          // Top Sticky Tape decoration
-          const Positioned(
-            top: 6,
-            child: StickyTapeWidget(
-              width: 90,
-              height: 24,
-              angle: -0.04,
             ),
           ),
         ],

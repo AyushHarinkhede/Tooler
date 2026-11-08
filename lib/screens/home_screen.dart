@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
-import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
-import '../widgets_3d/notebook_header_area.dart';
-import '../widgets_3d/notebook_sticky_calculator.dart';
-import '../widgets_3d/minimal_sticky_note.dart';
-import '../widgets_3d/minimal_ink_icons.dart';
-import '../widgets_3d/paper_crumple_unfold.dart';
+import '../widgets_3d/tooler_logo.dart';
+import '../widgets_3d/minimal_2d_illustrations.dart';
+import 'calculator_screen.dart';
 import 'age_calculator_screen.dart';
 import 'converters_screen.dart';
 import 'stopwatch_screen.dart';
@@ -23,12 +20,16 @@ import 'password_generator_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
-/// REDESIGNED AESTHETIC NOTEBOOK HOME DESK
-/// Clean, minimal, authentic ruled paper notebook:
-/// - Top notebook header index area with real Date/Page window
-/// - Minimal flat pastel Sticky Note Calculator
-/// - Minimal pastel Sticky Notes with ink-drawn icons & ZERO shadows
-/// - Crumpled Paper Ball Unfolding / Compression page transition
+/// REDESIGNED AESTHETIC MINIMAL TOOLER HOME
+/// Directly matching the reference UI design (Images 1 & 2):
+/// - Clean Pure White (#FFFFFF) & Soft Slate (#FAFAFC) palette
+/// - Pastel Lilac / Lavender accents (#EDE9FE / #A855F7 / #F5F3FF)
+/// - Modern 2D Vector Line Art Illustrations with Lavender Accent Bubbles
+/// - Custom Tooler Brand Logo (Zero Emojis, 100% Vector Geometry)
+/// - Hero "What are you looking for?" Card with 2D Desk Illustration & Search
+/// - 2x2 Quick Access Grid + Horizontal Category Filter Chips
+/// - Sleek Tool Cards with Clean 1.2px Borders & Zero Childish Textures
+/// - Modern Docked Bottom Navigation Bar
 /// ---------------------------------------------------------------------------
 
 class HomeScreen extends StatefulWidget {
@@ -46,275 +47,968 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late final List<Map<String, dynamic>> _stickyTools;
+  final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
+  final ScrollController _scrollController = ScrollController();
+
+  int _selectedNavIndex = 0;
+  String _selectedCategory = 'All';
+  String _searchQuery = '';
+
+  late final List<Map<String, dynamic>> _tools;
+
+  final List<String> _categories = [
+    'All',
+    'Calculate',
+    'Convert',
+    'Time & Tasks',
+    'Utilities',
+  ];
 
   @override
   void initState() {
     super.initState();
     _initTools();
+    _searchController.addListener(() {
+      setState(() {
+        _searchQuery = _searchController.text.trim().toLowerCase();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchFocusNode.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   void _initTools() {
-    // 13 tools with Hand-Drawn Ink Icons & Flat Pastel Post-it Hues (Zero Shadows)
-    _stickyTools = [
+    _tools = [
       {
-        'title': 'Age Calculator',
-        'subtitle': 'Birthdays & milestones',
-        'iconWidget': const InkCalendarIcon(size: 20, color: Color(0xFF854D0E)),
-        'noteColor': const Color(0xFFFEF9C3), // Butter Yellow
-        'borderColor': const Color(0xFFCA8A04),
-        'textColor': const Color(0xFF713F12),
-        'angle': -0.018,
-        'builder': (context) => AgeCalculatorScreen(theme: widget.theme),
+        'id': 'calc',
+        'title': 'Calculator',
+        'subtitle': 'Normal & scientific math functions',
+        'category': 'Calculate',
+        'tag': 'Precision',
+        'iconType': 'calc',
+        'isFeatured': true,
+        'builder': (context) => CalculatorScreen(theme: widget.theme),
       },
       {
-        'title': 'Converters',
-        'subtitle': 'Length, Mass, Speed, Data',
-        'iconWidget': const InkRulerIcon(size: 20, color: Color(0xFF065F46)),
-        'noteColor': const Color(0xFFD1FAE5), // Mint Sage
-        'borderColor': const Color(0xFF059669),
-        'textColor': const Color(0xFF064E3B),
-        'angle': 0.016,
+        'id': 'converters',
+        'title': 'Unit Converters',
+        'subtitle': 'Length, Mass, Speed, Data, Temp',
+        'category': 'Convert',
+        'tag': 'Multi-unit',
+        'iconType': 'converters',
+        'isFeatured': true,
         'builder': (context) => ConvertersScreen(theme: widget.theme),
       },
       {
-        'title': 'Stopwatch',
-        'subtitle': 'Precision laps & splits',
-        'iconWidget': const InkStopwatchIcon(size: 20, color: Color(0xFF9D174D)),
-        'noteColor': const Color(0xFFFFE4E6), // Rose Petal
-        'borderColor': const Color(0xFFE11D48),
-        'textColor': const Color(0xFF831843),
-        'angle': -0.014,
-        'builder': (context) => StopwatchScreen(theme: widget.theme),
-      },
-      {
-        'title': 'Timer',
-        'subtitle': 'Countdown arc presets',
-        'iconWidget': const InkHourglassIcon(size: 20, color: Color(0xFF0369A1)),
-        'noteColor': const Color(0xFFE0F2FE), // Sky Wash
-        'borderColor': const Color(0xFF0284C7),
-        'textColor': const Color(0xFF0C4A6E),
-        'angle': 0.018,
-        'builder': (context) => TimerScreen(theme: widget.theme),
-      },
-      {
-        'title': 'Sizer Tools',
-        'subtitle': 'Ring, Bangle, Strap & Ruler',
-        'iconWidget': const InkSizerIcon(size: 20, color: Color(0xFF9A3412)),
-        'noteColor': const Color(0xFFFFEDD5), // Peach Blossom
-        'borderColor': const Color(0xFFEA580C),
-        'textColor': const Color(0xFF7C2D12),
-        'angle': -0.016,
-        'builder': (context) => SizerScreen(theme: widget.theme),
-      },
-      {
-        'title': 'Custom Counters',
-        'subtitle': 'Tally habits & daily goals',
-        'iconWidget': const InkCounterIcon(size: 20, color: Color(0xFF5B21B6)),
-        'noteColor': const Color(0xFFEDE9FE), // Lavender Mist
-        'borderColor': const Color(0xFF7C3AED),
-        'textColor': const Color(0xFF4C1D95),
-        'angle': 0.015,
-        'builder': (context) => CountersScreen(theme: widget.theme),
-      },
-      {
-        'title': 'Task Manager',
-        'subtitle': 'Homework & study to-dos',
-        'iconWidget': const InkClipboardIcon(size: 20, color: Color(0xFF166534)),
-        'noteColor': const Color(0xFFDCFCE7), // Pale Celery
-        'borderColor': const Color(0xFF16A34A),
-        'textColor': const Color(0xFF14532D),
-        'angle': -0.018,
-        'builder': (context) => TasksScreen(theme: widget.theme),
-      },
-      {
-        'title': 'Currency',
-        'subtitle': '15+ global exchange rates',
-        'iconWidget': const InkCoinsIcon(size: 20, color: Color(0xFF3730A3)),
-        'noteColor': const Color(0xFFE0E7FF), // Ice Indigo
-        'borderColor': const Color(0xFF4F46E5),
-        'textColor': const Color(0xFF312E81),
-        'angle': 0.016,
-        'builder': (context) => CurrencyScreen(theme: widget.theme),
-      },
-      {
-        'title': 'Games Arcade',
-        'subtitle': 'Tic-Tac-Toe, Snake, Dice',
-        'iconWidget': const InkDiceIcon(size: 20, color: Color(0xFF9F1239)),
-        'noteColor': const Color(0xFFFCE7F3), // Bubblegum Wash
-        'borderColor': const Color(0xFFDB2777),
-        'textColor': const Color(0xFF881337),
-        'angle': -0.015,
-        'builder': (context) => GamesScreen(theme: widget.theme),
-      },
-      {
-        'title': 'Web Browser',
-        'subtitle': 'Fast links & research',
-        'iconWidget': const InkGlobeIcon(size: 20, color: Color(0xFF1E3A8A)),
-        'noteColor': const Color(0xFFDBEAFE), // Soft Blue
-        'borderColor': const Color(0xFF2563EB),
-        'textColor': const Color(0xFF1E1B4B),
-        'angle': 0.017,
-        'builder': (context) => BrowserScreen(theme: widget.theme),
-      },
-      {
+        'id': 'compass',
         'title': 'Digital Compass',
-        'subtitle': 'Sensor rose needle & level',
-        'iconWidget': const InkCompassIcon(size: 20, color: Color(0xFF92400E)),
-        'noteColor': const Color(0xFFFEF3C7), // Warm Amber
-        'borderColor': const Color(0xFFD97706),
-        'textColor': const Color(0xFF78350F),
-        'angle': -0.017,
+        'subtitle': 'Real-time gyro & spirit level sensor',
+        'category': 'Utilities',
+        'tag': 'Live Sensor',
+        'iconType': 'compass',
+        'isFeatured': true,
         'builder': (context) => CompassScreen(theme: widget.theme),
       },
       {
-        'title': 'Password Gen',
-        'subtitle': 'Secure tokens & strength',
-        'iconWidget': const InkPadlockIcon(size: 20, color: Color(0xFF334155)),
-        'noteColor': const Color(0xFFF1F5F9), // Soft Slate
-        'borderColor': const Color(0xFF64748B),
-        'textColor': const Color(0xFF1E293B),
-        'angle': 0.015,
+        'id': 'age',
+        'title': 'Age Calculator',
+        'subtitle': 'Birthdays, age breakdown & milestones',
+        'category': 'Calculate',
+        'tag': 'Date Math',
+        'iconType': 'age',
+        'isFeatured': false,
+        'builder': (context) => AgeCalculatorScreen(theme: widget.theme),
+      },
+      {
+        'id': 'stopwatch',
+        'title': 'Stopwatch',
+        'subtitle': 'Split laps, millisecond timer',
+        'category': 'Time & Tasks',
+        'tag': 'Accurate',
+        'iconType': 'stopwatch',
+        'isFeatured': false,
+        'builder': (context) => StopwatchScreen(theme: widget.theme),
+      },
+      {
+        'id': 'timer',
+        'title': 'Timer',
+        'subtitle': 'Preset countdowns & circular progress',
+        'category': 'Time & Tasks',
+        'tag': 'Background',
+        'iconType': 'timer',
+        'isFeatured': false,
+        'builder': (context) => TimerScreen(theme: widget.theme),
+      },
+      {
+        'id': 'sizer',
+        'title': 'Sizer & Caliper',
+        'subtitle': 'Screen measurement ruler with mm/inch',
+        'category': 'Convert',
+        'tag': 'Screen Scale',
+        'iconType': 'sizer',
+        'isFeatured': false,
+        'builder': (context) => SizerScreen(theme: widget.theme),
+      },
+      {
+        'id': 'counters',
+        'title': 'Tally Counters',
+        'subtitle': 'Multi-counter tracking with step counts',
+        'category': 'Calculate',
+        'tag': 'Persistent',
+        'iconType': 'counters',
+        'isFeatured': false,
+        'builder': (context) => CountersScreen(theme: widget.theme),
+      },
+      {
+        'id': 'tasks',
+        'title': 'Tasks & Notes',
+        'subtitle': 'Clean checklist & quick daily memo',
+        'category': 'Time & Tasks',
+        'tag': 'Checklist',
+        'iconType': 'tasks',
+        'isFeatured': false,
+        'builder': (context) => TasksScreen(theme: widget.theme),
+      },
+      {
+        'id': 'currency',
+        'title': 'Currency Converter',
+        'subtitle': 'Global forex exchange rate estimator',
+        'category': 'Convert',
+        'tag': 'Forex',
+        'iconType': 'currency',
+        'isFeatured': false,
+        'builder': (context) => CurrencyScreen(theme: widget.theme),
+      },
+      {
+        'id': 'password',
+        'title': 'Password Generator',
+        'subtitle': 'Cryptographic entropy & custom rules',
+        'category': 'Utilities',
+        'tag': 'Security',
+        'iconType': 'password',
+        'isFeatured': false,
         'builder': (context) => PasswordGeneratorScreen(theme: widget.theme),
       },
       {
-        'title': 'Settings',
-        'subtitle': 'Themes, sounds & modes',
-        'iconWidget': const InkGearsIcon(size: 20, color: Color(0xFF6B21A8)),
-        'noteColor': const Color(0xFFF3E8FF), // Pastel Violet
-        'borderColor': const Color(0xFFA855F7),
-        'textColor': const Color(0xFF581C87),
-        'angle': -0.016,
-        'builder': (context) => SettingsScreen(
-          theme: widget.theme,
-          onThemeChanged: widget.onThemeChanged,
-        ),
+        'id': 'browser',
+        'title': 'Mini Browser',
+        'subtitle': 'Lightweight web search & quick reference',
+        'category': 'Utilities',
+        'tag': 'Web Utility',
+        'iconType': 'browser',
+        'isFeatured': false,
+        'builder': (context) => BrowserScreen(theme: widget.theme),
+      },
+      {
+        'id': 'games',
+        'title': 'Focus Mini Games',
+        'subtitle': 'Tic-Tac-Toe & reflex training',
+        'category': 'Utilities',
+        'tag': 'Offline Play',
+        'iconType': 'games',
+        'isFeatured': false,
+        'builder': (context) => GamesScreen(theme: widget.theme),
       },
     ];
   }
 
-  /// Opens the selected tool using the authentic Crumpled Paper Ball Unfolding Animation!
-  void _openTool(Map<String, dynamic> tool) {
-    SoundService().playClick();
+  List<Map<String, dynamic>> get _filteredTools {
+    return _tools.where((tool) {
+      final matchesCategory = _selectedCategory == 'All' || tool['category'] == _selectedCategory;
+      if (_searchQuery.isEmpty) return matchesCategory;
+
+      final title = (tool['title'] as String).toLowerCase();
+      final subtitle = (tool['subtitle'] as String).toLowerCase();
+      final tag = (tool['tag'] as String).toLowerCase();
+      final matchesSearch = title.contains(_searchQuery) ||
+          subtitle.contains(_searchQuery) ||
+          tag.contains(_searchQuery);
+      return matchesCategory && matchesSearch;
+    }).toList();
+  }
+
+  void _openTool(WidgetBuilder builder) {
+    SoundService().playTap();
     Navigator.push(
       context,
-      PaperUnfoldRoute(
-        title: tool['title'] as String,
-        noteColor: tool['noteColor'] as Color,
-        borderColor: tool['borderColor'] as Color,
-        textColor: tool['textColor'] as Color,
-        child: (tool['builder'] as WidgetBuilder)(context),
-      ),
+      MaterialPageRoute(builder: builder),
     );
   }
 
-  void _cycleTheme() {
-    SoundService().playClick();
-    final next = widget.theme.mode == StationeryThemeMode.classicDoodle
+  void _toggleTheme() {
+    SoundService().playTap();
+    final nextMode = widget.theme.mode == StationeryThemeMode.classicDoodle
         ? StationeryThemeMode.blueprintChalkboard
-        : widget.theme.mode == StationeryThemeMode.blueprintChalkboard
-            ? StationeryThemeMode.neonHighlighter
-            : StationeryThemeMode.classicDoodle;
-    widget.onThemeChanged(next);
+        : StationeryThemeMode.classicDoodle;
+    widget.onThemeChanged(nextMode);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: widget.theme.bg,
-      body: Stack(
-        children: [
-          // 1. Notebook Ruled Paper Background with blue lines, paper texture & red margins
-          CustomPaint(
-            size: Size.infinite,
-            painter: NotebookBackgroundPainter(mode: widget.theme.mode),
-          ),
+    final theme = widget.theme;
+    final isDark = theme.mode == StationeryThemeMode.blueprintChalkboard;
 
-          // 2. Main Scrollable Desk
-          SafeArea(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                // Top Notebook Header / Index Space (Tooler + Date & Page Stamp)
-                SliverToBoxAdapter(
-                  child: NotebookHeaderArea(
-                    theme: widget.theme,
-                    onThemeToggle: _cycleTheme,
+    return Scaffold(
+      backgroundColor: theme.bg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // 1. Top Bar with Tooler Logo
+            _buildTopBar(isDark),
+
+            // 2. Main Scrollable Content
+            Expanded(
+              child: SingleChildScrollView(
+                controller: _scrollController,
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // A. Hero Banner Card ("What are you looking for?")
+                    _buildHeroBanner(isDark),
+
+                    const SizedBox(height: 22),
+
+                    // B. Categories Header & Filter Chips
+                    _buildCategoriesSection(isDark),
+
+                    const SizedBox(height: 20),
+
+                    // C. 2x2 Quick Grid (shown when category is 'All' and not searching)
+                    if (_selectedCategory == 'All' && _searchQuery.isEmpty) ...[
+                      _buildQuick2x2Grid(isDark),
+                      const SizedBox(height: 24),
+                    ],
+
+                    // D. Recommendations / Filtered Tools List
+                    _buildRecommendationsHeader(isDark),
+
+                    const SizedBox(height: 14),
+
+                    // E. List of Tool Cards
+                    _buildToolsList(isDark),
+
+                    const SizedBox(height: 100), // padding for bottom nav
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: _buildBottomNav(isDark),
+    );
+  }
+
+  /// -------------------------------------------------------------------------
+  /// 1. Top Bar: Custom 2D Logo + Tooler Name + Theme/Settings Button
+  /// -------------------------------------------------------------------------
+  Widget _buildTopBar(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      decoration: BoxDecoration(
+        color: widget.theme.bg,
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              const ToolerLogo(size: 38),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Tooler',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -0.5,
+                      color: widget.theme.text,
+                    ),
+                  ),
+                  Text(
+                    'Smart Utility Kit',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                      color: widget.theme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              // Theme Toggle Circular Outline Button
+              InkWell(
+                onTap: _toggleTheme,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: widget.theme.cardBg,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: widget.theme.border, width: 1.2),
+                  ),
+                  child: Icon(
+                    isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                    size: 19,
+                    color: widget.theme.text,
                   ),
                 ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 6)),
-
-                // Minimal Aesthetic Sticky Note Calculator (Tooler.html inspired)
-                SliverToBoxAdapter(
-                  child: NotebookStickyCalculator(theme: widget.theme),
+              ),
+              const SizedBox(width: 10),
+              // Settings Shortcut Circular Button
+              InkWell(
+                onTap: () {
+                  SoundService().playTap();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SettingsScreen(
+                        theme: widget.theme,
+                        onThemeChanged: widget.onThemeChanged,
+                      ),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: widget.theme.cardBg,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: widget.theme.border, width: 1.2),
+                  ),
+                  child: Icon(
+                    Icons.tune_rounded,
+                    size: 19,
+                    color: widget.theme.text,
+                  ),
                 ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 
-                const SliverToBoxAdapter(child: SizedBox(height: 10)),
+  /// -------------------------------------------------------------------------
+  /// 2. Hero Banner Card ("What are you looking for?" + 2D Illustration + Search)
+  /// -------------------------------------------------------------------------
+  Widget _buildHeroBanner(bool isDark) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: widget.theme.lavenderCard,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: isDark ? const Color(0xFF27272A) : const Color(0xFFEDE9FE),
+          width: 1.2,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'What are you\nlooking for?',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        height: 1.25,
+                        letterSpacing: -0.5,
+                        color: widget.theme.text,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'All smart utilities in one place',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: widget.theme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              // 2D Desk & Person Illustration (from Image 1!)
+              const Minimal2DHeroDesk(width: 110, height: 85),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Clean White Pill Search Bar
+          Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: widget.theme.cardBg,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: widget.theme.border, width: 1.2),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.search_rounded,
+                  size: 20,
+                  color: widget.theme.primary,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    focusNode: _searchFocusNode,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: widget.theme.text,
+                    ),
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: 'Search tools (e.g. calc, units, timer)...',
+                      hintStyle: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w400,
+                        color: widget.theme.textSecondary.withValues(alpha: 0.7),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                if (_searchQuery.isNotEmpty)
+                  GestureDetector(
+                    onTap: () {
+                      _searchController.clear();
+                      _searchFocusNode.unfocus();
+                    },
+                    child: Icon(
+                      Icons.cancel_rounded,
+                      size: 18,
+                      color: widget.theme.textSecondary,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-                // Sticky Notes Section Guideline
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                    child: Row(
+  /// -------------------------------------------------------------------------
+  /// 3. Categories Section & Filter Chips
+  /// -------------------------------------------------------------------------
+  Widget _buildCategoriesSection(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Categories',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: widget.theme.text,
+              ),
+            ),
+            Text(
+              '13 Utilities',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: widget.theme.primary,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          child: Row(
+            children: _categories.map((cat) {
+              final isSelected = _selectedCategory == cat;
+              return Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: InkWell(
+                  onTap: () {
+                    SoundService().playTap();
+                    setState(() => _selectedCategory = cat);
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? (isDark ? const Color(0xFF3F3F46) : const Color(0xFFEDE9FE))
+                          : widget.theme.cardBg,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isSelected ? widget.theme.primary : widget.theme.border,
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Text(
+                      cat,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13,
+                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                        color: isSelected
+                            ? (isDark ? Colors.white : const Color(0xFF7C3AED))
+                            : widget.theme.text,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// -------------------------------------------------------------------------
+  /// 4. 2x2 Quick Grid (directly inspired by Image 2's 2x2 category block)
+  /// -------------------------------------------------------------------------
+  Widget _buildQuick2x2Grid(bool isDark) {
+    final calcTool = _tools.firstWhere((t) => t['id'] == 'calc');
+    final convTool = _tools.firstWhere((t) => t['id'] == 'converters');
+    final compTool = _tools.firstWhere((t) => t['id'] == 'compass');
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cardW = (constraints.maxWidth - 12) / 2;
+        return Column(
+          children: [
+            Row(
+              children: [
+                _buildQuickCard(calcTool, cardW, isDark),
+                const SizedBox(width: 12),
+                _buildQuickCard(convTool, cardW, isDark),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                _buildQuickCard(compTool, cardW, isDark),
+                const SizedBox(width: 12),
+                // 4th Card: Filled Lilac "All Tools" card (like Image 2!)
+                InkWell(
+                  onTap: () {
+                    SoundService().playTap();
+                    _scrollController.animateTo(
+                      400,
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    width: cardW,
+                    height: 100,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF27272A) : const Color(0xFFF3E8FF),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: isDark ? const Color(0xFF3F3F46) : const Color(0xFFDDD6FE),
+                        width: 1.2,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          "STUDY DESK NOTES",
-                          style: GoogleFonts.robotoMono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: widget.theme.text.withValues(alpha: 0.5),
-                            letterSpacing: 1.5,
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: widget.theme.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                'Explore',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: widget.theme.primary,
+                                ),
+                              ),
+                            ),
+                            Icon(
+                              Icons.arrow_forward_rounded,
+                              size: 18,
+                              color: widget.theme.primary,
+                            ),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Container(
-                            height: 1.0,
-                            color: widget.theme.border.withValues(alpha: 0.2),
+                        Text(
+                          'All Tools',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800,
+                            color: isDark ? Colors.white : const Color(0xFF7C3AED),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
-
-                // Flat Pastel Sticky Notes Grid (Zero Shadows, Drawn Ink Icons)
-                SliverPadding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 2,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.98, // Square Post-it proportion
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final tool = _stickyTools[index];
-                        return MinimalStickyNote(
-                          title: tool['title'] as String,
-                          subtitle: tool['subtitle'] as String,
-                          iconWidget: tool['iconWidget'] as Widget,
-                          noteColor: tool['noteColor'] as Color,
-                          borderColor: tool['borderColor'] as Color,
-                          textColor: tool['textColor'] as Color,
-                          rotationAngle: tool['angle'] as double,
-                          onTap: () => _openTool(tool),
-                        );
-                      },
-                      childCount: _stickyTools.length,
-                    ),
-                  ),
-                ),
-
-                const SliverToBoxAdapter(child: SizedBox(height: 36)),
               ],
             ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildQuickCard(Map<String, dynamic> tool, double width, bool isDark) {
+    return InkWell(
+      onTap: () => _openTool(tool['builder']),
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        width: width,
+        height: 100,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: widget.theme.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: widget.theme.border, width: 1.2),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Minimal2DIcon(
+              type: tool['iconType'],
+              size: 44,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    tool['title'],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: widget.theme.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    tool['tag'],
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: widget.theme.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// -------------------------------------------------------------------------
+  /// 5. Recommendations Header
+  /// -------------------------------------------------------------------------
+  Widget _buildRecommendationsHeader(bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          _searchQuery.isNotEmpty
+              ? 'Search Results'
+              : (_selectedCategory == 'All' ? 'Recommendations' : '$_selectedCategory Tools'),
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+            color: widget.theme.text,
           ),
+        ),
+        if (_searchQuery.isNotEmpty)
+          Text(
+            '${_filteredTools.length} found',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: widget.theme.primary,
+            ),
+          )
+        else
+          InkWell(
+            onTap: () {
+              setState(() => _selectedCategory = 'All');
+            },
+            child: Text(
+              'See all',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: widget.theme.primary,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// -------------------------------------------------------------------------
+  /// 6. List of Clean Modern Tool Cards (matching Image 1 & 2)
+  /// -------------------------------------------------------------------------
+  Widget _buildToolsList(bool isDark) {
+    final list = _filteredTools;
+
+    if (list.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(32),
+        alignment: Alignment.center,
+        child: Column(
+          children: [
+            Minimal2DIcon(type: 'settings', size: 54, color: widget.theme.textSecondary),
+            const SizedBox(height: 12),
+            Text(
+              'No utility tools found',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: widget.theme.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return Column(
+      children: list.map((tool) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: widget.theme.cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: widget.theme.border, width: 1.2),
+          ),
+          child: InkWell(
+            onTap: () => _openTool(tool['builder']),
+            borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              child: Row(
+                children: [
+                  // 2D Line Illustration with Lavender Accent Bubble
+                  Minimal2DIcon(
+                    type: tool['iconType'],
+                    size: 46,
+                  ),
+                  const SizedBox(width: 14),
+                  // Tool Info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              tool['title'],
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: widget.theme.text,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Tag Badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isDark
+                                    ? const Color(0xFF27272A)
+                                    : const Color(0xFFF5F3FF),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: isDark
+                                      ? const Color(0xFF3F3F46)
+                                      : const Color(0xFFEDE9FE),
+                                  width: 1,
+                                ),
+                              ),
+                              child: Text(
+                                tool['tag'],
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: widget.theme.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          tool['subtitle'],
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: widget.theme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // Circular outline arrow button
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: widget.theme.border, width: 1.2),
+                    ),
+                    child: Icon(
+                      Icons.chevron_right_rounded,
+                      size: 20,
+                      color: widget.theme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  /// -------------------------------------------------------------------------
+  /// 7. Docked Bottom Navigation Bar (identical to Image 1 & 2)
+  /// -------------------------------------------------------------------------
+  Widget _buildBottomNav(bool isDark) {
+    return Container(
+      height: 64,
+      decoration: BoxDecoration(
+        color: widget.theme.cardBg,
+        border: Border(
+          top: BorderSide(color: widget.theme.border, width: 1.2),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildNavItem(0, Icons.home_outlined, Icons.home_rounded),
+          _buildNavItem(1, Icons.search_rounded, Icons.search_rounded),
+          _buildNavItem(2, Icons.grid_view_outlined, Icons.grid_view_rounded),
+          _buildNavItem(3, Icons.tune_rounded, Icons.tune_rounded),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNavItem(int index, IconData iconOutlined, IconData iconFilled) {
+    final isSelected = _selectedNavIndex == index;
+    return InkWell(
+      onTap: () {
+        SoundService().playTap();
+        setState(() => _selectedNavIndex = index);
+
+        if (index == 0) {
+          _searchController.clear();
+          setState(() => _selectedCategory = 'All');
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else if (index == 1) {
+          _searchFocusNode.requestFocus();
+          _scrollController.animateTo(
+            0,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else if (index == 2) {
+          setState(() => _selectedCategory = 'All');
+          _scrollController.animateTo(
+            220,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        } else if (index == 3) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => SettingsScreen(
+                theme: widget.theme,
+                onThemeChanged: widget.onThemeChanged,
+              ),
+            ),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 48,
+        height: 48,
+        alignment: Alignment.center,
+        child: isSelected
+            ? Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: widget.theme.lavenderCard,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  iconFilled,
+                  size: 22,
+                  color: widget.theme.primary,
+                ),
+              )
+            : Icon(
+                iconOutlined,
+                size: 22,
+                color: widget.theme.textSecondary,
+              ),
       ),
     );
   }

@@ -49,7 +49,7 @@ class _ToolerAppState extends State<ToolerApp> {
     final stationeryTheme = StationeryTheme(_currentMode);
 
     return MaterialApp(
-      title: 'Tooler ✂️📏',
+      title: 'Tooler',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

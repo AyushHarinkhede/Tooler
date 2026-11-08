@@ -17,6 +17,8 @@ class SoundService {
     }
   }
 
+  void playTap() => playClick();
+
   void playKey() {
     if (soundEnabled) {
       SystemSound.play(SystemSoundType.click);
