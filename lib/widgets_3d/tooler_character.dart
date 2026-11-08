@@ -222,7 +222,8 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
           .replaceAll('fill="#F4F1F8"', 'fill="#262335"')
           .replaceAll('fill="#F8F7FC"', 'fill="#262335"')
           .replaceAll('stroke="#1E2235"', 'stroke="#E4E4E7"')
-          .replaceAll('fill="#1E2235"', 'fill="#222030"'); // Hair & sweater become sleek charcoal
+          .replaceAll('fill="#1E2235"', 'fill="#F4F4F5"')
+          .replaceAll('fill="#1D2436"', 'fill="#F4F4F5"'); // Outlines, hair & linework become clean white/silver
     }
 
     return svg;
