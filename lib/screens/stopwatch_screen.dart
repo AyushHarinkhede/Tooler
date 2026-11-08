@@ -5,6 +5,7 @@ import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
+import '../services/notification_service.dart';
 import '../widgets_3d/tooler_character.dart';
 
 class StopwatchScreen extends StatefulWidget {
@@ -54,7 +55,14 @@ class _StopwatchScreenState extends State<StopwatchScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
       _persistStopwatchState();
+      if (_isRunning) {
+        NotificationService().showStopwatchActiveNotification(
+          timeStr: _formatTime(_elapsedMs),
+          ongoing: true,
+        );
+      }
     } else if (state == AppLifecycleState.resumed) {
+      NotificationService().cancelStopwatchNotification();
       _restoreStopwatchState();
     }
   }
@@ -127,6 +135,7 @@ class _StopwatchScreenState extends State<StopwatchScreen>
 
   void _pauseTimer() {
     SoundService().playClick();
+    NotificationService().cancelStopwatchNotification();
     final current = _elapsedMs;
     _ticker?.cancel();
     setState(() {
@@ -143,6 +152,7 @@ class _StopwatchScreenState extends State<StopwatchScreen>
 
   void _resetTimer() {
     SoundService().playClick();
+    NotificationService().cancelStopwatchNotification();
     _ticker?.cancel();
     StorageService().clearStopwatchState();
     setState(() {
@@ -187,6 +197,12 @@ class _StopwatchScreenState extends State<StopwatchScreen>
 
   @override
   void dispose() {
+    if (_isRunning) {
+      NotificationService().showStopwatchActiveNotification(
+        timeStr: _formatTime(_elapsedMs),
+        ongoing: true,
+      );
+    }
     WidgetsBinding.instance.removeObserver(this);
     _ticker?.cancel();
     super.dispose();

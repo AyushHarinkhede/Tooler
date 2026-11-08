@@ -60,6 +60,12 @@ class _TimerScreenState extends State<TimerScreen>
         remainingSeconds: _currentSeconds,
         targetEpochMs: targetEpoch,
       );
+      // Ensure real-time scheduled alarm matches current remaining time
+      NotificationService().scheduleTimerNotification(
+        secondsRemaining: _currentSeconds,
+        label: _formatTimerDisplay(_initialSeconds),
+        completionTime: DateTime.fromMillisecondsSinceEpoch(targetEpoch),
+      );
     } else if (!_isRunning && _currentSeconds < _initialSeconds && _currentSeconds > 0) {
       StorageService().saveTimerState(
         isRunning: false,
@@ -67,6 +73,7 @@ class _TimerScreenState extends State<TimerScreen>
         remainingSeconds: _currentSeconds,
         targetEpochMs: 0,
       );
+      NotificationService().cancelTimerNotification();
     }
   }
 
@@ -113,6 +120,15 @@ class _TimerScreenState extends State<TimerScreen>
   void _resumeActiveTicker() {
     _timer?.cancel();
     setState(() => _isRunning = true);
+
+    // Schedule real-time exact AlarmManager notification so it rings even if app is closed or killed in RAM
+    final targetEpoch = DateTime.now().millisecondsSinceEpoch + (_currentSeconds * 1000);
+    NotificationService().scheduleTimerNotification(
+      secondsRemaining: _currentSeconds,
+      label: _formatTimerDisplay(_initialSeconds),
+      completionTime: DateTime.fromMillisecondsSinceEpoch(targetEpoch),
+    );
+
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted) {
         timer.cancel();
@@ -147,6 +163,13 @@ class _TimerScreenState extends State<TimerScreen>
       targetEpochMs: targetEpoch,
     );
 
+    // Schedule real-time exact AlarmManager notification so it rings even if app is closed or killed in RAM
+    NotificationService().scheduleTimerNotification(
+      secondsRemaining: _currentSeconds,
+      label: _formatTimerDisplay(_initialSeconds),
+      completionTime: DateTime.fromMillisecondsSinceEpoch(targetEpoch),
+    );
+
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (_currentSeconds > 1) {
@@ -169,6 +192,7 @@ class _TimerScreenState extends State<TimerScreen>
       remainingSeconds: _currentSeconds,
       targetEpochMs: 0,
     );
+    NotificationService().cancelTimerNotification();
   }
 
   void _resetTimer() {
@@ -176,6 +200,7 @@ class _TimerScreenState extends State<TimerScreen>
     _timer?.cancel();
     StorageService().clearTimerState();
     SoundService().stopTimerAlarm();
+    NotificationService().cancelTimerNotification();
     setState(() {
       _isRunning = false;
       _currentSeconds = _initialSeconds;
@@ -187,6 +212,7 @@ class _TimerScreenState extends State<TimerScreen>
     _timer?.cancel();
     StorageService().clearTimerState();
     SoundService().stopTimerAlarm();
+    NotificationService().cancelTimerNotification();
     setState(() {
       _isRunning = false;
       _initialSeconds = totalSec;
@@ -205,7 +231,18 @@ class _TimerScreenState extends State<TimerScreen>
       _initialSeconds = math.max(_initialSeconds, _currentSeconds);
     });
     if (_isRunning) {
-      _persistCurrentTimer();
+      final targetEpoch = DateTime.now().millisecondsSinceEpoch + (_currentSeconds * 1000);
+      StorageService().saveTimerState(
+        isRunning: true,
+        initialSeconds: _initialSeconds,
+        remainingSeconds: _currentSeconds,
+        targetEpochMs: targetEpoch,
+      );
+      NotificationService().scheduleTimerNotification(
+        secondsRemaining: _currentSeconds,
+        label: _formatTimerDisplay(_initialSeconds),
+        completionTime: DateTime.fromMillisecondsSinceEpoch(targetEpoch),
+      );
     }
   }
 
@@ -216,6 +253,7 @@ class _TimerScreenState extends State<TimerScreen>
     _timer?.cancel();
     StorageService().clearTimerState();
     SoundService().stopTimerAlarm();
+    NotificationService().cancelTimerNotification();
     setState(() {
       _isRunning = false;
       _initialSeconds = total;
@@ -229,14 +267,17 @@ class _TimerScreenState extends State<TimerScreen>
     _timer?.cancel();
     setState(() => _isRunning = false);
     StorageService().clearTimerState();
+    NotificationService().cancelTimerNotification();
 
     // Ring continuous timer alarm audio
     SoundService().playTimerAlarm();
 
-    // Trigger high-priority notification with sound
-    NotificationService().showTimerCompleteNotification(
-      label: _formatTimerDisplay(_initialSeconds),
-    );
+    if (!wasBackground) {
+      // Trigger high-priority notification with sound if app was active in foreground
+      NotificationService().showTimerCompleteNotification(
+        label: _formatTimerDisplay(_initialSeconds),
+      );
+    }
 
     _showFinishedDialog();
   }
