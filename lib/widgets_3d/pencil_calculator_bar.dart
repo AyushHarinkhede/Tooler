@@ -6,6 +6,7 @@ import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../models/calc_history_model.dart';
 import 'stationery_3d_modal.dart';
+import 'stationery_3d_icons.dart';
 
 class PencilCalculatorBar extends StatefulWidget {
   final StationeryTheme theme;
@@ -278,7 +279,7 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
     SoundService().playClick();
     Stationery3DModal.show(
       context: context,
-      title: "Pencil Calculation History 📜",
+      title: "Pencil Calculation History",
       subtitle: "Recent answers on paper tape",
       theme: widget.theme,
       content: _history.isEmpty
@@ -286,7 +287,7 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Text(
-                  "No calculations yet!\nWrite with the pencil calculator above ✏️",
+                  "No calculations yet!\nWrite with the pencil calculator above",
                   textAlign: TextAlign.center,
                   style: widget.theme.fontDoodle(
                     fontSize: 15,
@@ -308,7 +309,7 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
                 return ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  leading: const Text("📝", style: TextStyle(fontSize: 18)),
+                  leading: const Icon3DClipboard(size: 20),
                   title: Text(
                     itm.expression,
                     style: GoogleFonts.architectsDaughter(
@@ -433,8 +434,10 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
+                        const Icon3DPencil(size: 20),
+                        const SizedBox(width: 8),
                         Text(
-                          "✏️ CALCULATOR",
+                          "CALCULATOR",
                           style: GoogleFonts.architectsDaughter(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -657,8 +660,10 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                const Icon3DFasciaFlask(size: 16),
+                const SizedBox(width: 6),
                 Text(
-                  _isScientific ? "🧪 Scientific ON" : "🔬 Scientific",
+                  _isScientific ? "Scientific ON" : "Scientific",
                   style: GoogleFonts.kalam(
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
@@ -692,8 +697,8 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
             ),
             child: Row(
               children: [
-                const Text("📜", style: TextStyle(fontSize: 14)),
-                const SizedBox(width: 4),
+                const Icon3DPaperTape(size: 16),
+                const SizedBox(width: 5),
                 Text(
                   "Tape",
                   style: GoogleFonts.kalam(
@@ -729,7 +734,7 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
 
   // --- ERASER SHAPED BUTTON (Pink & Blue Bevel Eraser with Paper Band) ---
   Widget _buildEraserCutButton() {
-    return GestureDetector(
+    return _TactileEraserCutButton(
       onTap: () => _onKeyPress("⌫"),
       onLongPress: () {
         SoundService().playSuccess();
@@ -738,62 +743,6 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
           _previewResult = '';
         });
       },
-      child: Container(
-        height: 36,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: const Color(0xFFFB7185), // Eraser rubber pink
-          borderRadius: const BorderRadius.only(
-            topLeft: Radius.circular(12), // Angled bevel cut
-            topRight: Radius.circular(6),
-            bottomRight: Radius.circular(6),
-            bottomLeft: Radius.circular(6),
-          ),
-          border: Border.all(
-            color: const Color(0xFF9F1239),
-            width: 2.2,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0xFF881337),
-              offset: Offset(2, 3),
-              blurRadius: 0,
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // White eraser sleeve band
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(3),
-                border: Border.all(color: const Color(0xFF9F1239), width: 1),
-              ),
-              child: Text(
-                "ERASE",
-                style: GoogleFonts.robotoMono(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w900,
-                  color: const Color(0xFF9F1239),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-            const Text(
-              "⌫",
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -899,7 +848,7 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
     );
   }
 
-  // Generic Tactical Doodle Button
+  // Generic Tactical Doodle Button with mechanical physical depression
   Widget _buildDoodleButton({
     required String label,
     required Color color,
@@ -910,47 +859,186 @@ class _PencilCalculatorBarState extends State<PencilCalculatorBar>
     double fontSize = 18,
     bool isSketchFont = false,
   }) {
-    return SizedBox(
+    return _TactileDoodleButton(
+      label: label,
+      color: color,
+      textColor: textColor,
+      borderColor: widget.theme.border,
+      onTap: onTap,
       height: height,
       width: width,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(10),
-          child: Container(
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: widget.theme.border,
-                width: 2.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: widget.theme.border.withValues(alpha: 0.3),
-                  offset: const Offset(2, 3),
-                  blurRadius: 0,
-                ),
-              ],
+      fontSize: fontSize,
+      isSketchFont: isSketchFont,
+    );
+  }
+}
+
+// --- TACTILE MECHANICAL DOODLE BUTTON ---
+class _TactileDoodleButton extends StatefulWidget {
+  final String label;
+  final Color color;
+  final Color textColor;
+  final Color borderColor;
+  final VoidCallback onTap;
+  final double height;
+  final double? width;
+  final double fontSize;
+  final bool isSketchFont;
+
+  const _TactileDoodleButton({
+    required this.label,
+    required this.color,
+    required this.textColor,
+    required this.borderColor,
+    required this.onTap,
+    this.height = 40,
+    this.width,
+    this.fontSize = 18,
+    this.isSketchFont = false,
+  });
+
+  @override
+  State<_TactileDoodleButton> createState() => _TactileDoodleButtonState();
+}
+
+class _TactileDoodleButtonState extends State<_TactileDoodleButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: widget.height,
+      width: widget.width,
+      child: GestureDetector(
+        onTapDown: (_) => setState(() => _pressed = true),
+        onTapUp: (_) {
+          setState(() => _pressed = false);
+          widget.onTap();
+        },
+        onTapCancel: () => setState(() => _pressed = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 60),
+          transform: Matrix4.translationValues(0, _pressed ? 2.5 : 0, 0),
+          decoration: BoxDecoration(
+            color: widget.color,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: widget.borderColor,
+              width: 2.0,
             ),
-            child: Center(
-              child: Text(
-                label,
-                style: isSketchFont
-                    ? GoogleFonts.architectsDaughter(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      )
-                    : GoogleFonts.kalam(
-                        fontSize: fontSize,
-                        fontWeight: FontWeight.bold,
-                        color: textColor,
-                      ),
+            boxShadow: [
+              BoxShadow(
+                color: widget.borderColor.withValues(alpha: 0.3),
+                offset: _pressed ? const Offset(1, 1) : const Offset(2, 3),
+                blurRadius: 0,
               ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              widget.label,
+              style: widget.isSketchFont
+                  ? GoogleFonts.architectsDaughter(
+                      fontSize: widget.fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: widget.textColor,
+                    )
+                  : GoogleFonts.kalam(
+                      fontSize: widget.fontSize,
+                      fontWeight: FontWeight.bold,
+                      color: widget.textColor,
+                    ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- TACTILE ERASER CUT BUTTON ---
+class _TactileEraserCutButton extends StatefulWidget {
+  final VoidCallback onTap;
+  final VoidCallback onLongPress;
+
+  const _TactileEraserCutButton({
+    required this.onTap,
+    required this.onLongPress,
+  });
+
+  @override
+  State<_TactileEraserCutButton> createState() => _TactileEraserCutButtonState();
+}
+
+class _TactileEraserCutButtonState extends State<_TactileEraserCutButton> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      onLongPress: widget.onLongPress,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 60),
+        height: 36,
+        transform: Matrix4.translationValues(0, _pressed ? 2.0 : 0, 0),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFB7185), // Eraser rubber pink
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(12), // Angled bevel cut
+            topRight: Radius.circular(6),
+            bottomRight: Radius.circular(6),
+            bottomLeft: Radius.circular(6),
+          ),
+          border: Border.all(
+            color: const Color(0xFF9F1239),
+            width: 2.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFF881337),
+              offset: _pressed ? const Offset(1, 1) : const Offset(2, 3),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // White eraser sleeve band
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(3),
+                border: Border.all(color: const Color(0xFF9F1239), width: 1),
+              ),
+              child: Text(
+                "ERASE",
+                style: GoogleFonts.robotoMono(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: const Color(0xFF9F1239),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            const Text(
+              "⌫",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+          ],
         ),
       ),
     );

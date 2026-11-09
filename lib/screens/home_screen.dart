@@ -6,6 +6,7 @@ import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
 import '../widgets_3d/pencil_calculator_bar.dart';
 import '../widgets_3d/sticky_note_card.dart';
+import '../widgets_3d/stationery_3d_icons.dart';
 import 'age_calculator_screen.dart';
 import 'converters_screen.dart';
 import 'stopwatch_screen.dart';
@@ -44,12 +45,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _initTools() {
-    // 13 tools (Calculator is now the interactive Pencil Bar at top)
+    // 13 tools with authentic 3D Vector Icons (Zero Emojis)
     _stickyTools = [
       {
         'title': 'Age Calculator',
         'subtitle': 'Birthdays & milestones',
-        'icon': '🎂',
+        'iconWidget': const Icon3DCalendarMilestone(size: 26),
         'noteColor': const Color(0xFFFEF08A), // Canary Yellow
         'borderColor': const Color(0xFFEAB308),
         'textColor': const Color(0xFF713F12),
@@ -59,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Converters',
         'subtitle': 'Length, Mass, Speed, Data',
-        'icon': '📏',
+        'iconWidget': const Icon3DRulerScissors(size: 26),
         'noteColor': const Color(0xFFA7F3D0), // Fresh Mint
         'borderColor': const Color(0xFF10B981),
         'textColor': const Color(0xFF064E3B),
@@ -69,7 +70,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Stopwatch',
         'subtitle': 'Precision laps & splits',
-        'icon': '⏱️',
+        'iconWidget': const Icon3DStopwatch(size: 26),
         'noteColor': const Color(0xFFFBCFE8), // Bubblegum Pink
         'borderColor': const Color(0xFFF43F5E),
         'textColor': const Color(0xFF831843),
@@ -79,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Timer',
         'subtitle': 'Countdown arc presets',
-        'icon': '⏳',
+        'iconWidget': const Icon3DHourglass(size: 26),
         'noteColor': const Color(0xFFBAE6FD), // Sky Blue
         'borderColor': const Color(0xFF0EA5E9),
         'textColor': const Color(0xFF0C4A6E),
@@ -89,7 +90,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Sizer Tools',
         'subtitle': 'Ring, Bangle, Strap & Ruler',
-        'icon': '💍',
+        'iconWidget': const Icon3DCaliperRing(size: 26),
         'noteColor': const Color(0xFFFED7AA), // Pastel Peach
         'borderColor': const Color(0xFFF97316),
         'textColor': const Color(0xFF7C2D12),
@@ -99,7 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Custom Counters',
         'subtitle': 'Tally habits & goals',
-        'icon': '🔢',
+        'iconWidget': const Icon3DTallyCounter(size: 26),
         'noteColor': const Color(0xFFDDD6FE), // Soft Lavender
         'borderColor': const Color(0xFF8B5CF6),
         'textColor': const Color(0xFF4C1D95),
@@ -109,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Task Manager',
         'subtitle': 'Homework & study to-dos',
-        'icon': '📝',
+        'iconWidget': const Icon3DClipboard(size: 26),
         'noteColor': const Color(0xFFBBF7D0), // Pale Lime
         'borderColor': const Color(0xFF22C55E),
         'textColor': const Color(0xFF14532D),
@@ -119,7 +120,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Currency',
         'subtitle': '15+ global exchange rates',
-        'icon': '💱',
+        'iconWidget': const Icon3DGoldCoins(size: 26),
         'noteColor': const Color(0xFFC7D2FE), // Periwinkle Blue
         'borderColor': const Color(0xFF6366F1),
         'textColor': const Color(0xFF312E81),
@@ -129,7 +130,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Games Arcade',
         'subtitle': 'Tic-Tac-Toe, Snake, 3D Dice',
-        'icon': '🎮',
+        'iconWidget': const Icon3DDiceArcade(size: 26),
         'noteColor': const Color(0xFFFECDD3), // Soft Rose
         'borderColor': const Color(0xFFFB7185),
         'textColor': const Color(0xFF881337),
@@ -139,7 +140,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Web Browser',
         'subtitle': 'Fast links & research',
-        'icon': '🌐',
+        'iconWidget': const Icon3DGlobe(size: 26),
         'noteColor': const Color(0xFFE0E7FF), // Ice Indigo
         'borderColor': const Color(0xFF4F46E5),
         'textColor': const Color(0xFF1E1B4B),
@@ -149,7 +150,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Digital Compass',
         'subtitle': '3D Rose needle & level',
-        'icon': '🧭',
+        'iconWidget': const Icon3DCompass(size: 26),
         'noteColor': const Color(0xFFFEF3C7), // Warm Amber
         'borderColor': const Color(0xFFD97706),
         'textColor': const Color(0xFF78350F),
@@ -159,7 +160,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Password Gen',
         'subtitle': 'Secure tokens & strength',
-        'icon': '🔐',
+        'iconWidget': const Icon3DPadlock(size: 26),
         'noteColor': const Color(0xFFE2E8F0), // Cool Slate
         'borderColor': const Color(0xFF64748B),
         'textColor': const Color(0xFF1E293B),
@@ -169,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'title': 'Settings',
         'subtitle': 'Themes, sounds & modes',
-        'icon': '⚙️',
+        'iconWidget': const Icon3DGears(size: 26),
         'noteColor': const Color(0xFFF3E8FF), // Pastel Violet
         'borderColor': const Color(0xFFA855F7),
         'textColor': const Color(0xFF581C87),
@@ -273,13 +274,26 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             child: Row(
                               children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  margin: const EdgeInsets.only(right: 6),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: widget.theme.mode == StationeryThemeMode.classicDoodle
+                                        ? const Color(0xFFF59E0B)
+                                        : widget.theme.mode == StationeryThemeMode.blueprintChalkboard
+                                            ? const Color(0xFF38BDF8)
+                                            : const Color(0xFF22C55E),
+                                  ),
+                                ),
                                 Text(
                                   widget.theme.mode == StationeryThemeMode.classicDoodle
-                                      ? "🎨 Classic"
+                                      ? "Classic Desk"
                                       : widget.theme.mode ==
                                               StationeryThemeMode.blueprintChalkboard
-                                          ? "📐 Chalk"
-                                          : "⚡ Neon",
+                                          ? "Blueprint"
+                                          : "Neon Glow",
                                   style: GoogleFonts.kalam(
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
@@ -347,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         return StickyNoteCard(
                           title: tool['title'] as String,
                           subtitle: tool['subtitle'] as String,
-                          icon: tool['icon'] as String,
+                          iconWidget: tool['iconWidget'] as Widget,
                           noteColor: tool['noteColor'] as Color,
                           borderColor: tool['borderColor'] as Color,
                           textColor: tool['textColor'] as Color,

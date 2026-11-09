@@ -215,7 +215,7 @@ class _GamesScreenState extends State<GamesScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Stationery Games 🎮",
+          "Stationery Games",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -234,11 +234,11 @@ class _GamesScreenState extends State<GamesScreen> {
                   // Games Selector Tabs
                   Row(
                     children: [
-                      _buildGameTab("Tic-Tac-Toe ❌⭕", GameType.tictactoe),
+                      _buildGameTab("Tic-Tac-Toe", GameType.tictactoe),
                       const SizedBox(width: 8),
-                      _buildGameTab("Snake 🐍", GameType.snake),
+                      _buildGameTab("Snake", GameType.snake),
                       const SizedBox(width: 8),
-                      _buildGameTab("3D Dice 🎲", GameType.dice),
+                      _buildGameTab("3D Dice", GameType.dice),
                     ],
                   ),
 
@@ -310,7 +310,7 @@ class _GamesScreenState extends State<GamesScreen> {
                 children: [
                   Text("Mode: ", style: widget.theme.fontMono(fontSize: 12)),
                   ChoiceChip(
-                    label: const Text("vs AI 🤖"),
+                    label: const Text("vs AI"),
                     selected: _vsComputer,
                     selectedColor: widget.theme.primary,
                     onSelected: (val) {
@@ -322,7 +322,7 @@ class _GamesScreenState extends State<GamesScreen> {
                   ),
                   const SizedBox(width: 6),
                   ChoiceChip(
-                    label: const Text("2P 👥"),
+                    label: const Text("2-Player"),
                     selected: !_vsComputer,
                     selectedColor: widget.theme.secondary,
                     onSelected: (val) {
@@ -353,13 +353,13 @@ class _GamesScreenState extends State<GamesScreen> {
               borderWidth: 2.5,
             ),
             child: Text(
-              _tttWinner == 'Draw' ? "🤝 Match Draw!" : "🎉 Player $_tttWinner Wins!",
+              _tttWinner == 'Draw' ? "Match Draw!" : "Player $_tttWinner Wins!",
               style: widget.theme.fontDisplay(fontSize: 20, fontWeight: FontWeight.bold),
             ),
           )
         else
           Text(
-            "Turn: Player ${_isPlayerXTurn ? 'X ✏️' : 'O 🖊️'}",
+            "Turn: Player ${_isPlayerXTurn ? 'X' : 'O'}",
             style: widget.theme.fontDisplay(fontSize: 16),
           ),
 
@@ -428,8 +428,8 @@ class _GamesScreenState extends State<GamesScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
-            Text("Score: $_snakeScore 🍎", style: widget.theme.fontDisplay(fontSize: 18)),
-            Text("High Score: $_snakeHighScore 🏆", style: widget.theme.fontDisplay(fontSize: 18)),
+            Text("Score: $_snakeScore", style: widget.theme.fontDisplay(fontSize: 18)),
+            Text("High Score: $_snakeHighScore", style: widget.theme.fontDisplay(fontSize: 18)),
           ],
         ),
         const SizedBox(height: 12),
@@ -463,7 +463,7 @@ class _GamesScreenState extends State<GamesScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
             ),
             onPressed: _startSnake,
-            child: const Text("Start Snake Game 🎮"),
+            child: const Text("Start Snake Game"),
           )
         else
           // D-Pad Controls
@@ -544,7 +544,7 @@ class _GamesScreenState extends State<GamesScreen> {
           ),
           onPressed: _rollDice,
           icon: const Icon(Icons.casino),
-          label: Text(_isRolling ? "Rolling..." : "Roll Dice 🎲"),
+          label: Text(_isRolling ? "Rolling..." : "Roll Dice"),
         ),
       ],
     );

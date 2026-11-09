@@ -98,7 +98,7 @@ class _TasksScreenState extends State<TasksScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "My Tasks & Homework 📝",
+          "My Tasks & Homework",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -123,7 +123,7 @@ class _TasksScreenState extends State<TasksScreen> {
                           controller: _taskCtrl,
                           style: widget.theme.fontDoodle(fontSize: 16),
                           decoration: InputDecoration(
-                            hintText: "Write a new task (e.g. Science Project 🔬)",
+                            hintText: "Write a new task (e.g. Science Project)",
                             hintStyle: widget.theme.fontDoodle(
                               fontSize: 14,
                               color: widget.theme.text.withOpacity(0.5),
@@ -230,7 +230,7 @@ class _TasksScreenState extends State<TasksScreen> {
                   child: _filteredTasks.isEmpty
                       ? Center(
                           child: Text(
-                            "No tasks found! 📝\nEnjoy your free time!",
+                            "No tasks found!\nEnjoy your free time!",
                             textAlign: TextAlign.center,
                             style: widget.theme.fontDoodle(
                               fontSize: 18,

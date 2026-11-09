@@ -57,7 +57,7 @@ class _SizerScreenState extends State<SizerScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Sizer & Ruler Tools 💍📏",
+          "Sizer & Ruler Tools",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -76,13 +76,13 @@ class _SizerScreenState extends State<SizerScreen> {
                   // Tab selection row
                   Row(
                     children: [
-                      _buildTabBtn("Ring Sizer 💍", SizerToolType.ring),
+                      _buildTabBtn("Ring Sizer", SizerToolType.ring),
                       const SizedBox(width: 8),
-                      _buildTabBtn("Bangle Sizer ⭕", SizerToolType.bangle),
+                      _buildTabBtn("Bangle Sizer", SizerToolType.bangle),
                       const SizedBox(width: 8),
-                      _buildTabBtn("Watch Strap ⌚", SizerToolType.strap),
+                      _buildTabBtn("Watch Strap", SizerToolType.strap),
                       const SizedBox(width: 8),
-                      _buildTabBtn("Ruler 📐", SizerToolType.ruler),
+                      _buildTabBtn("Ruler", SizerToolType.ruler),
                     ],
                   ),
 

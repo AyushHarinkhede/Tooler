@@ -231,7 +231,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void _showHistoryModal() {
     Stationery3DModal.show(
       context: context,
-      title: "Calculation History 📜",
+      title: "Calculation History",
       subtitle: "Recent answers on paper tape",
       theme: widget.theme,
       content: _history.isEmpty
@@ -239,7 +239,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
-                  "No calculation history yet.\nSolve something first! 📐",
+                  "No calculation history yet.\nSolve something first!",
                   textAlign: TextAlign.center,
                   style: widget.theme.fontDoodle(fontSize: 16),
                 ),
@@ -325,7 +325,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Calculator 📐",
+          "Calculator",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
         actions: [
@@ -448,7 +448,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   }
 
   Widget _buildKeyBtn(String key) {
-    final bool isAction = ['C', '⌫', '='].contains(key);
     final bool isOp = ['+', '-', '×', '÷', '%', '(', ')'].contains(key);
 
     Color btnBg = widget.theme.cardBg;

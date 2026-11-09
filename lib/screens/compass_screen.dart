@@ -60,7 +60,7 @@ class _CompassScreenState extends State<CompassScreen>
     SoundService().playClick();
     Stationery3DModal.show(
       context: context,
-      title: "Compass Sensor Calibration ♾️",
+      title: "Compass Sensor Calibration",
       subtitle: "Calibrate magnetometer & gyroscope",
       theme: widget.theme,
       content: Column(
@@ -75,7 +75,7 @@ class _CompassScreenState extends State<CompassScreen>
             ),
             child: Column(
               children: [
-                const Text("📱 ➔ ♾️", style: TextStyle(fontSize: 40)),
+                const Icon(Icons.screen_rotation_rounded, size: 48, color: Color(0xFF2563EB)),
                 const SizedBox(height: 10),
                 Text(
                   "Wave your phone smoothly in a Figure-8 motion in the air 3 to 4 times.",
@@ -126,7 +126,7 @@ class _CompassScreenState extends State<CompassScreen>
               SoundService().playSuccess();
             },
             child: Text(
-              "Done Calibrating ✓",
+              "Done Calibrating",
               style: widget.theme.fontDoodle(
                 fontSize: 14,
                 fontWeight: FontWeight.bold,
@@ -188,7 +188,7 @@ class _CompassScreenState extends State<CompassScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Digital Compass 🧭",
+          "Digital Compass",
           style: GoogleFonts.architectsDaughter(
             fontSize: 22,
             fontWeight: FontWeight.bold,
@@ -416,7 +416,7 @@ class _CompassScreenState extends State<CompassScreen>
   Widget _buildCenterBubbleLevel() {
     const double levelSize = 64.0;
     // Map pitch & roll [-20°, 20°] to bubble offset [-20px, 20px]
-    final double maxOffset = 18.0;
+    const double maxOffset = 18.0;
     final double bubbleX =
         (_reading.roll / 20.0).clamp(-1.0, 1.0) * maxOffset;
     final double bubbleY =
@@ -586,7 +586,7 @@ class _CompassScreenState extends State<CompassScreen>
             children: [
               Row(
                 children: [
-                  const Text("🧭", style: TextStyle(fontSize: 16)),
+                  const Icon(Icons.explore_rounded, size: 18, color: Color(0xFFD97706)),
                   const SizedBox(width: 6),
                   Text(
                     "Sensor Fusion Telemetry",
@@ -616,7 +616,7 @@ class _CompassScreenState extends State<CompassScreen>
                     border: Border.all(color: widget.theme.border, width: 1),
                   ),
                   child: Text(
-                    _manualOverride ? "Manual Mode ✏️" : "Auto Sensor ⚡",
+                    _manualOverride ? "Manual Mode" : "Auto Sensor Fusion",
                     style: GoogleFonts.robotoMono(
                       fontSize: 10,
                       fontWeight: FontWeight.bold,

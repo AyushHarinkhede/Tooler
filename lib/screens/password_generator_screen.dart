@@ -64,7 +64,7 @@ class _PasswordGeneratorScreenState extends State<PasswordGeneratorScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          "Copied password to clipboard! 📋",
+          "Copied password to clipboard!",
           style: widget.theme.fontDoodle(fontSize: 14, color: Colors.white),
         ),
         backgroundColor: widget.theme.border,
@@ -90,13 +90,13 @@ class _PasswordGeneratorScreenState extends State<PasswordGeneratorScreen> {
     Color strengthColor = const Color(0xFFFF4757);
 
     if (strength >= 4) {
-      strengthText = 'Strong 💪';
+      strengthText = 'Strong';
       strengthColor = const Color(0xFF2ED573);
     } else if (strength >= 3) {
-      strengthText = 'Good 👍';
+      strengthText = 'Good';
       strengthColor = const Color(0xFFFFA502);
     } else if (strength >= 2) {
-      strengthText = 'Fair ⚡';
+      strengthText = 'Fair';
       strengthColor = const Color(0xFFECCC68);
     }
 
@@ -110,7 +110,7 @@ class _PasswordGeneratorScreenState extends State<PasswordGeneratorScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Password Generator 🔐",
+          "Password Generator",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),

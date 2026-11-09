@@ -97,7 +97,7 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Currency Converter 💱",
+          "Currency Converter",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),

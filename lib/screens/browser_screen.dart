@@ -18,12 +18,12 @@ class _BrowserScreenState extends State<BrowserScreen> {
   final List<String> _history = ['https://en.wikipedia.org'];
   int _historyIndex = 0;
 
-  final List<Map<String, String>> _bookmarks = [
-    {'title': 'Wikipedia', 'url': 'https://en.wikipedia.org', 'icon': '📚'},
-    {'title': 'Google', 'url': 'https://www.google.com', 'icon': '🔍'},
-    {'title': 'Khan Academy', 'url': 'https://www.khanacademy.org', 'icon': '🎓'},
-    {'title': 'Math is Fun', 'url': 'https://www.mathsisfun.com', 'icon': '📐'},
-    {'title': 'GitHub', 'url': 'https://github.com', 'icon': '🐙'},
+  final List<Map<String, dynamic>> _bookmarks = [
+    {'title': 'Wikipedia', 'url': 'https://en.wikipedia.org', 'icon': Icons.menu_book},
+    {'title': 'Google', 'url': 'https://www.google.com', 'icon': Icons.search},
+    {'title': 'Khan Academy', 'url': 'https://www.khanacademy.org', 'icon': Icons.school},
+    {'title': 'Math is Fun', 'url': 'https://www.mathsisfun.com', 'icon': Icons.calculate},
+    {'title': 'GitHub', 'url': 'https://github.com', 'icon': Icons.code},
   ];
 
   void _navigateTo(String target) {
@@ -89,7 +89,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Stationery Web Viewer 🌐",
+          "Stationery Web Viewer",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -163,9 +163,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: ActionChip(
-                          avatar: Text(b['icon']!),
+                          avatar: Icon(b['icon'] as IconData, size: 16, color: widget.theme.primary),
                           label: Text(
-                            b['title']!,
+                            b['title'] as String,
                             style: widget.theme.fontMono(fontSize: 11, fontWeight: FontWeight.bold),
                           ),
                           backgroundColor: widget.theme.cardBg,
@@ -173,7 +173,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                             borderRadius: BorderRadius.circular(8),
                             side: BorderSide(color: widget.theme.border, width: 1.5),
                           ),
-                          onPressed: () => _navigateTo(b['url']!),
+                          onPressed: () => _navigateTo(b['url'] as String),
                         ),
                       );
                     },

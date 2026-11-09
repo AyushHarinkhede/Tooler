@@ -33,7 +33,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showAboutModal() {
     Stationery3DModal.show(
       context: context,
-      title: "About Tooler ✂️📏",
+      title: "About Tooler",
       subtitle: "Your Complete School Kit Toolkit",
       theme: widget.theme,
       content: Column(
@@ -58,7 +58,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            "Created with love by Ayush Harinkhede ❤️",
+            "Created by Ayush Harinkhede",
             style: widget.theme.fontDisplay(fontSize: 14, color: widget.theme.primary),
           ),
         ],
@@ -77,7 +77,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             side: BorderSide(color: widget.theme.border, width: 2.5),
           ),
           title: Text(
-            "Clear All Saved Data? 🗑️",
+            "Clear All Saved Data?",
             style: widget.theme.fontDisplay(fontSize: 18, color: Colors.red),
           ),
           content: Text(
@@ -120,7 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Settings ⚙️",
+          "Settings",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -142,7 +142,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Stationery Themes 🎨",
+                        "Stationery Themes",
                         style: widget.theme.fontDisplay(fontSize: 18),
                       ),
                       const SizedBox(height: 12),
@@ -177,7 +177,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Tactile & Sound Feedback 🔔",
+                        "Tactile & Sound Feedback",
                         style: widget.theme.fontDisplay(fontSize: 18),
                       ),
                       SwitchListTile(

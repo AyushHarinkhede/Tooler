@@ -23,9 +23,9 @@ class StorageService {
     if (str == null || str.isEmpty) {
       // Default sample tasks
       return [
-        TaskItem(id: 1, text: "Finish Math Homework 📐", category: "Homework", priority: "High"),
-        TaskItem(id: 2, text: "Sharpen Pencils in Stationery Kit ✏️", category: "School", priority: "Medium"),
-        TaskItem(id: 3, text: "Explore Tooler Features 🚀", category: "Personal", priority: "Low"),
+        TaskItem(id: 1, text: "Finish Math Homework", category: "Homework", priority: "High"),
+        TaskItem(id: 2, text: "Sharpen Pencils in Stationery Kit", category: "School", priority: "Medium"),
+        TaskItem(id: 3, text: "Explore Tooler Features", category: "Personal", priority: "Low"),
       ];
     }
     try {
@@ -47,8 +47,8 @@ class StorageService {
     final str = prefs.getString(keyCounters);
     if (str == null || str.isEmpty) {
       return [
-        CounterItem(id: 1, name: "Water Glasses 🥛", value: 4, step: 1),
-        CounterItem(id: 2, name: "Study Pomodoros 🍅", value: 2, step: 1),
+        CounterItem(id: 1, name: "Water Glasses", value: 4, step: 1),
+        CounterItem(id: 2, name: "Study Pomodoros", value: 2, step: 1),
       ];
     }
     try {

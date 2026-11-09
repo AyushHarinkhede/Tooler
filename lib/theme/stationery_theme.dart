@@ -54,7 +54,6 @@ class StationeryTheme {
       case StationeryThemeMode.neonHighlighter:
         return neonBg;
       case StationeryThemeMode.classicDoodle:
-      default:
         return classicBg;
     }
   }
@@ -66,7 +65,6 @@ class StationeryTheme {
       case StationeryThemeMode.neonHighlighter:
         return neonNoteBg;
       case StationeryThemeMode.classicDoodle:
-      default:
         return classicNoteBg;
     }
   }
@@ -78,7 +76,6 @@ class StationeryTheme {
       case StationeryThemeMode.neonHighlighter:
         return neonText;
       case StationeryThemeMode.classicDoodle:
-      default:
         return classicText;
     }
   }
@@ -90,7 +87,6 @@ class StationeryTheme {
       case StationeryThemeMode.neonHighlighter:
         return neonPrimary;
       case StationeryThemeMode.classicDoodle:
-      default:
         return classicPrimary;
     }
   }
@@ -102,7 +98,6 @@ class StationeryTheme {
       case StationeryThemeMode.neonHighlighter:
         return neonSecondary;
       case StationeryThemeMode.classicDoodle:
-      default:
         return classicSecondary;
     }
   }
@@ -114,7 +109,6 @@ class StationeryTheme {
       case StationeryThemeMode.neonHighlighter:
         return neonAccent;
       case StationeryThemeMode.classicDoodle:
-      default:
         return classicAccent;
     }
   }
@@ -126,7 +120,6 @@ class StationeryTheme {
       case StationeryThemeMode.neonHighlighter:
         return neonBorder;
       case StationeryThemeMode.classicDoodle:
-      default:
         return classicBorder;
     }
   }
@@ -138,7 +131,6 @@ class StationeryTheme {
       case StationeryThemeMode.neonHighlighter:
         return neonTape;
       case StationeryThemeMode.classicDoodle:
-      default:
         return classicTape;
     }
   }

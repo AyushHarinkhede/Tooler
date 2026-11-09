@@ -83,7 +83,7 @@ class _CountersScreenState extends State<CountersScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Custom Counters 🔢",
+          "Custom Counters",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -109,7 +109,7 @@ class _CountersScreenState extends State<CountersScreen> {
                             controller: _nameCtrl,
                             style: widget.theme.fontDoodle(fontSize: 16),
                             decoration: InputDecoration(
-                              hintText: "New Counter Name (e.g. Pushups 💪)",
+                              hintText: "New Counter Name (e.g. Daily Habits)",
                               hintStyle: widget.theme.fontDoodle(
                                 fontSize: 14,
                                 color: widget.theme.text.withOpacity(0.5),
@@ -141,7 +141,7 @@ class _CountersScreenState extends State<CountersScreen> {
                   child: _counters.isEmpty
                       ? Center(
                           child: Text(
-                            "No counters yet.\nAdd one above! ✏️",
+                            "No counters yet.\nAdd one above!",
                             textAlign: TextAlign.center,
                             style: widget.theme.fontDoodle(
                               fontSize: 18,

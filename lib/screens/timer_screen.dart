@@ -78,7 +78,7 @@ class _TimerScreenState extends State<TimerScreen> {
             ),
           ),
           content: Text(
-            "Your timer has finished counting down! 🎉",
+            "Your timer has finished counting down!",
             style: widget.theme.fontDoodle(fontSize: 16),
           ),
           actions: [
@@ -233,7 +233,7 @@ class _TimerScreenState extends State<TimerScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Quick Presets ⚡",
+                          "Quick Presets",
                           style: widget.theme.fontDisplay(fontSize: 16),
                         ),
                         const SizedBox(height: 12),
@@ -245,7 +245,7 @@ class _TimerScreenState extends State<TimerScreen> {
                             _buildPresetChip("5 min", 5),
                             _buildPresetChip("10 min", 10),
                             _buildPresetChip("15 min", 15),
-                            _buildPresetChip("25 min 🍅", 25),
+                            _buildPresetChip("25 min (Pomodoro)", 25),
                             _buildPresetChip("30 min", 30),
                             _buildPresetChip("60 min", 60),
                           ],

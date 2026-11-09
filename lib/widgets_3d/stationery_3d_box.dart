@@ -95,7 +95,7 @@ class _Stationery3DPencilBoxState extends State<Stationery3DPencilBox>
                             const Icon(Icons.school, color: Colors.white, size: 24),
                             const SizedBox(width: 8),
                             Text(
-                              "TOOLER STATIONERY KIT ✂️📏",
+                              "TOOLER STATIONERY KIT",
                               style: widget.theme.fontDisplay(
                                 fontSize: 16,
                                 color: Colors.white,

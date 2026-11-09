@@ -218,7 +218,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                   child: _laps.isEmpty
                       ? Center(
                           child: Text(
-                            "No laps recorded yet 🏁",
+                            "No laps recorded yet",
                             style: widget.theme.fontDoodle(
                               fontSize: 16,
                               color: widget.theme.text.withOpacity(0.6),

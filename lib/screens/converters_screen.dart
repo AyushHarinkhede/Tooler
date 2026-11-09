@@ -208,16 +208,16 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
     return inBytes / (toBytes[to] ?? 1.0);
   }
 
-  String _getCategoryIcon(ConverterType type) {
+  IconData _getCategoryIcon(ConverterType type) {
     switch (type) {
-      case ConverterType.length: return '📏';
-      case ConverterType.weight: return '⚖️';
-      case ConverterType.temperature: return '🌡️';
-      case ConverterType.height: return '🧍';
-      case ConverterType.area: return '🗺️';
-      case ConverterType.volume: return '🧪';
-      case ConverterType.speed: return '🚀';
-      case ConverterType.data: return '💾';
+      case ConverterType.length: return Icons.straighten;
+      case ConverterType.weight: return Icons.scale;
+      case ConverterType.temperature: return Icons.thermostat;
+      case ConverterType.height: return Icons.height;
+      case ConverterType.area: return Icons.square_foot;
+      case ConverterType.volume: return Icons.science;
+      case ConverterType.speed: return Icons.speed;
+      case ConverterType.data: return Icons.memory;
     }
   }
 
@@ -233,7 +233,7 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Universal Converters 📏",
+          "Universal Converters",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -259,7 +259,7 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
                         final type = ConverterType.values[index];
                         final bool isSelected = (type == _activeType);
                         final String name = type.name[0].toUpperCase() + type.name.substring(1);
-                        final String icon = _getCategoryIcon(type);
+                        final IconData icon = _getCategoryIcon(type);
 
                         return Padding(
                           padding: const EdgeInsets.only(right: 8.0),
@@ -284,7 +284,7 @@ class _ConvertersScreenState extends State<ConvertersScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  Text(icon, style: const TextStyle(fontSize: 16)),
+                                  Icon(icon, size: 16, color: isSelected ? Colors.white : widget.theme.primary),
                                   const SizedBox(width: 6),
                                   Text(
                                     name,

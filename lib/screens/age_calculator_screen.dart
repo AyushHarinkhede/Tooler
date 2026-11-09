@@ -14,7 +14,7 @@ class AgeCalculatorScreen extends StatefulWidget {
 
 class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
   DateTime _selectedDate = DateTime(2000, 1, 1);
-  DateTime _targetDate = DateTime.now();
+  final DateTime _targetDate = DateTime.now();
 
   Map<String, dynamic>? _results;
 
@@ -119,7 +119,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Age Calculator 🎂",
+          "Age Calculator",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -147,7 +147,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                             const Icon(Icons.cake, color: Color(0xFFFF6B6B), size: 28),
                             const SizedBox(width: 8),
                             Text(
-                              "Date of Birth 🎈",
+                              "Date of Birth",
                               style: widget.theme.fontDisplay(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
@@ -223,7 +223,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                               border: Border.all(color: widget.theme.border, width: 1.5),
                             ),
                             child: Text(
-                              "Born on a ${_results!['bornDayOfWeek']} 🎉",
+                              "Born on a ${_results!['bornDayOfWeek']}",
                               style: widget.theme.fontDoodle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
