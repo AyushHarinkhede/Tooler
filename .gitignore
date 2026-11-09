@@ -28,6 +28,8 @@ migrate_working_dir/
 .packages
 .pub-cache/
 .pub/
+# APK and build artifacts
+*.apk
 /build/
 
 # Symbol processing related
