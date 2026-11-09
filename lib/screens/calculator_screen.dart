@@ -134,7 +134,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       return false;
     }
 
-    double parseExpression();
+    late double Function() parseExpression;
 
     double parseFactor() {
       if (eat(43)) return parseFactor(); // +
@@ -210,7 +210,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       }
     }
 
-    double parseExpression() {
+    parseExpression = () {
       double x = parseTerm();
       for (;;) {
         if (eat(43)) {
@@ -221,7 +221,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           return x;
         }
       }
-    }
+    };
 
     nextChar();
     double result = parseExpression();

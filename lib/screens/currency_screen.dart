@@ -34,18 +34,18 @@ class _CurrencyScreenState extends State<CurrencyScreen> {
   };
 
   final Map<String, String> _currencyNames = {
-    'USD': 'US Dollar ($)',
+    'USD': r'US Dollar ($)',
     'EUR': 'Euro (€)',
     'GBP': 'British Pound (£)',
     'INR': 'Indian Rupee (₹)',
     'JPY': 'Japanese Yen (¥)',
-    'CAD': 'Canadian Dollar (C$)',
-    'AUD': 'Australian Dollar (A$)',
+    'CAD': r'Canadian Dollar (C$)',
+    'AUD': r'Australian Dollar (A$)',
     'CHF': 'Swiss Franc (CHF)',
     'CNY': 'Chinese Yuan (¥)',
     'AED': 'UAE Dirham (د.إ)',
-    'SGD': 'Singapore Dollar (S$)',
-    'NZD': 'New Zealand Dollar (NZ$)',
+    'SGD': r'Singapore Dollar (S$)',
+    'NZD': r'New Zealand Dollar (NZ$)',
   };
 
   @override
