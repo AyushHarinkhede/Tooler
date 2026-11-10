@@ -1,100 +1,82 @@
-# ✂️📏 Tooler - Complete School Stationery Kit Doodle App
+# Tooler - Complete School Stationery Kit Doodle Utility App
 
-**Tooler** is an all-in-one multiplatform mobile utility toolkit (Android & iOS) designed with a nostalgic **School Stationery Kit / Pencil Box & Notebook Paper** UI/UX.
+**Tooler** is an all-in-one multiplatform mobile utility toolkit (Android & Web) designed with a nostalgic **School Stationery Kit / Pencil Box & Notebook Paper** UI/UX.
 
 ---
 
-## 🎨 UI/UX Design & 3D Visual Aesthetics
+## UI/UX Design & Visual Aesthetics
 - **School Kit Stationery Concept**: Designed like an authentic geometry box & stationery desk with wooden rulers, pencils, erasers, paper tape, and compass dividers.
 - **2D & 3D Interactive Models & Modals**:
-  - **3D Pencil Box**: Hinged 3D geometry box with perspective opening to reveal stationery tool trays.
-  - **3D Wooden Ruler**: Calibrated beveled wooden ruler with millimeter markings and brass trim.
-  - **3D Rotating Compass**: Real-time rotating needle dial with cardinal headings.
-  - **3D Tumbling Dice**: Physical rolling dice with dot faces.
-  - **3D Origami Fold Modals**: Popups that fold out in 3D perspective with sticky tape headers.
-- **Multiple Stationery Themes**:
-  - ✏️ **Classic School Kit (Doodle Notebook)**: Parchment cream paper, blue notebook rules, red margin, graphite pencil borders.
-  - 📐 **Blueprint / Chalkboard Navy**: Blackboard texture with cyan and white chalk drawings.
-  - 🌈 **Highlighter Neon**: Carbon black desk with fluorescent highlighter markers.
+  - **Hinged Geometry Box**: Perspective opening revealing stationery tool trays.
+  - **Calibrated Wooden Ruler**: Millimeter markings and brass trim for real-world sizing.
+  - **Rotating Compass & Leveler**: Real-time rotating needle dial, crosshair alignment bar, and automatic spirit leveler switch.
+  - **Origami Fold Modals**: Popups that fold out in 3D perspective with sticky tape headers.
+  - **2D Character Illustrations Suite**: 12 scalable flat vector poses in purple, black, and white.
+- **Stationery Themes**:
+  - **Classic School Kit (Doodle Notebook)**: Parchment cream paper, blue notebook rules, red margin, graphite pencil borders.
+  - **Blueprint / Chalkboard Navy**: Blackboard texture with cyan and white chalk drawings.
+  - **Highlighter Neon**: Carbon black desk with fluorescent highlighter markers.
 
 ---
 
-## 🛠️ Complete Feature Set
-1. **📐 Calculator**: Standard & Scientific math (`sin`, `cos`, `tan`, `ln`, `log`, `√`, `x^y`, `!`, `π`, `e`) with persistent paper tape calculation history.
-2. **🎂 Age Calculator**: Exact calendar age (years, months, days), total days/weeks lived, born day of week, and upcoming birthday countdown.
-3. **📏 Universal Converters**: Real-time dynamic conversions for:
-   - Length (Meters, Kilometers, Centimeters, Millimeters, Miles, Yards, Feet, Inches)
-   - Weight / Mass (Kilograms, Grams, Milligrams, Pounds, Ounces, Tons)
-   - Temperature (Celsius, Fahrenheit, Kelvin, Rankine, Reaumur)
-   - Height (Centimeters, Meters, Feet, Inches)
-   - Area (Sq Meters, Sq Kilometers, Sq Feet, Sq Yards, Acres, Hectares)
-   - Volume (Liters, Milliliters, Gallons, Quarts, Pints, Cups)
-   - Speed (km/h, m/s, mph, Knots)
-   - Data Storage (Bytes, KB, MB, GB, TB)
-4. **⏱️ Stopwatch**: Millisecond precision stopwatch with rotating second hand and lap comparison.
-5. **⏳ Countdown Timer**: Circular progress arc with preset quick buttons (1m, 5m, 15m, 25m Pomodoro, 30m, 60m) and chime alert.
-6. **💍 Sizer Tools & Screen Ruler**:
-   - Interactive calibrated Ring Sizer with international size charts (US, UK, EU, Japan).
-   - Bangle Sizer with inner circumference measurements.
-   - Watch Strap Lug Width guide (18mm, 20mm, 22mm, 24mm).
-   - Calibrated On-Screen Ruler in mm and inches.
-7. **🔢 Custom Counters**: Multi-counter tally cards with custom step increments, goals, and sound feedback.
-8. **📝 Task Manager (Homework & To-Dos)**: Notebook homework list with priority color tags, category filters, and scribble strike-through completion.
-9. **💱 Currency Converter**: 15+ world currencies with instant swap and conversion calculation.
-10. **🎮 Games Arcade**:
-    - **Tic-Tac-Toe**: Player vs Player & Player vs Computer (AI).
-    - **Retro Doodle Snake**: Grid canvas snake with food, score, and D-pad controls.
-    - **3D Tumbling Dice Roller**: Random rolling dice for board games.
-11. **🌐 Web Browser Viewer**: In-app web viewer with address bar, search query handler, and educational bookmarks.
-12. **🧭 Digital Compass**: Rotating 3D compass rose, heading degrees (0° - 359°), cardinal directions, and level/tilt indicators.
-13. **🔐 Password Generator**: Custom length slider (6-48), character toggles, real-time strength meter, and 1-tap clipboard copy.
-14. **⚙️ Settings & Tactile Feedback**: Stationery theme picker, sound effects toggle, haptics toggle, and data reset.
+## Complete Feature Set
+
+1. **Calculator**: Standard & Scientific math (`sin`, `cos`, `tan`, `ln`, `log`, `sqrt`, `x^y`, `!`, `pi`, `e`) with persistent paper tape calculation history.
+2. **Age Calculator & Legal Eligibility**:
+   - Exact calendar age (years, months, days), total days, weeks, hours, and next birthday countdown.
+   - **18+ Adult Status Banner**: Major vs Minor status with remaining years to adulthood.
+   - **Legal Eligibility Verification** with SVG vector icons:
+     - Drive (Motor Vehicles): 18+
+     - Vote (Electoral Rights): 18+
+     - Marriage: Dynamic by gender (Female: 18+, Male: 21+, Other: 21+)
+     - Alcohol Consumption: 21+
+3. **Universal Converters**: Real-time dynamic conversions for Length, Weight/Mass, Temperature, Height, Area, Volume, Speed, Time, Data Storage, Pressure, Energy, Power, Fuel Economy, Angle, Frequency, Typography, Density.
+4. **Digital Compass & Spirit Level**:
+   - Real-time magnetic azimuth with cardinal headings.
+   - Calibrated precision with crosshair axis bar (Front, Back, Left, Right).
+   - Auto-switching between flat compass and straight spirit level with manual toggle lock.
+5. **Stopwatch**:
+   - Millisecond precision dial with dual circular progression rings.
+   - Split lap tracking with best/worst lap highlighting.
+6. **Countdown Timer**:
+   - Quick duration select pills and custom manual time entry.
+   - Circular countdown progress visualizer.
+   - Audio chime and sound alerts when time expires.
+7. **Sound Recorder & Audio Memos**:
+   - Real-time animated audio waveform visualizer.
+   - Interactive timeline scrubber with bookmark annotations.
+   - Audio captions, memo categorization, playback speed control (0.5x to 2.0x), and persistent storage.
+8. **Games Arcade**:
+   - **Tic-Tac-Toe**: Unbeatable Minimax AI algorithm with X/O selection.
+   - **Real Ludo**: 15x15 board with 4 tokens, roll 6 rule, captures, and safe star zones.
+   - **Snake Pro**: Anti-suicide input buffer, touch swipe controls, and golden apple powerups.
+   - **Snake and Ladder**: 100-cell board with authentic snakes and ladder skips.
+   - **UNO Cards**: 108 cards, wild color picker, Reverse/Skip/Draw 2/Draw 4, and UNO shout.
+   - **Tetris**: 10x20 matrix, piece preview, score/level progression, and keyboard/touch controls.
+9. **Character Vector Studio**:
+   - 12 scalable 2D flat vector character poses in purple (`#9468E8`), black (`#23233A`), and white (`#FFFFFF`).
+   - One-click SVG code copy and SVG file download.
+   - Color palette picker with hex code clipboard copy.
+10. **Ring & Finger Sizer**: Interactive screen-based caliper with calibrated sizing benchmarks.
+11. **Tally Counters**: Multi-counter support with customizable step values, reset, and haptic feedback.
+12. **Task Manager (Sticky Notes)**: Notebook-styled todo list with priority tags and completion states.
+13. **Currency Converter**: Real-time foreign exchange rate calculator with multi-currency tracking.
+14. **Password Generator**: Customizable strength, length, and character sets with entropy rating.
+15. **Built-in Safe Browser**: Lightweight web view for quick reference lookups.
+16. **Settings**: Theme switcher, sound effects toggle, vibration haptics, and display preferences.
 
 ---
 
-## 💻 Companion C# 2D & 3D Models
-Located in the `csharp_models/` folder:
-- `Stationery3DGeometry.cs`: 3D Vector, 2D projection, and mesh structures.
-- `Stationery3DBoxModel.cs`: 3D geometry case mesh and hinge controller.
-- `Calculator3DModel.cs`: Calculation logic and history buffer.
-- `AgeCalculatorModel.cs`: Exact date/time milestone calculations.
-- `UniversalConverterModel.cs`: Unit conversion algorithms.
-- `Sizer3DToolModel.cs`: Ring torus mesh generation & international sizing lookup.
-- `DigitalCompass3DModel.cs`: Heading degrees and needle orientation vectors.
-- `Stationery3DModalController.cs`: 3D origami fold-in/fold-out animation state machine.
+## Build & Release
 
----
-
-## 🚀 How to Run the App
-
-### Requirements
-- [Flutter SDK](https://flutter.dev/docs/get-started/install) (version 3.0.0 or higher)
-- Android Studio / Xcode (for iOS) or VS Code
-
-### Steps
+### Android Release APK
 ```bash
-# 1. Fetch dependencies
-flutter pub get
+# Build standalone release APK
+flutter build apk --release --no-tree-shake-icons
 
-# 2. Run on connected Android / iOS device or emulator
-flutter run
-
-# 3. Build APK for Android
-flutter build apk --release
-
-# 4. Build iOS App
-flutter build ios --release
+# Output path:
+# build/app/outputs/flutter-apk/app-release.apk
 ```
 
----
-
-## 🔗 GitHub Sync
-This repository is linked with:
-`https://github.com/AyushHarinkhede/Tooler.git`
-
-To push updates:
-```bash
-git add .
-git commit -m "Convert Tooler to full Flutter app with 2D/3D School Stationery Kit UI and C# models"
-git push origin main
-```
+### Web Application
+Open `Tooler.html` in any modern web browser or host on any static web server.
