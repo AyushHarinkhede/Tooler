@@ -13,16 +13,29 @@ class StopwatchScreen extends StatefulWidget {
   State<StopwatchScreen> createState() => _StopwatchScreenState();
 }
 
-class _StopwatchScreenState extends State<StopwatchScreen> {
+class _LapRecord {
+  final int lapNumber;
+  final int totalMs;
+  final int lapDurationMs;
+
+  _LapRecord({
+    required this.lapNumber,
+    required this.totalMs,
+    required this.lapDurationMs,
+  });
+}
+
+class _StopwatchScreenState extends State<StopwatchScreen> with SingleTickerProviderStateMixin {
   final Stopwatch _stopwatch = Stopwatch();
   Timer? _timer;
-  final List<String> _laps = [];
+  final List<_LapRecord> _laps = [];
+  int _lastLapTotalMs = 0;
 
   void _startTimer() {
     SoundService().playClick();
     _stopwatch.start();
     _timer = Timer.periodic(const Duration(milliseconds: 30), (timer) {
-      setState(() {});
+      if (mounted) setState(() {});
     });
   }
 
@@ -30,7 +43,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     SoundService().playClick();
     _stopwatch.stop();
     _timer?.cancel();
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   void _resetTimer() {
@@ -39,14 +52,26 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     _timer?.cancel();
     setState(() {
       _laps.clear();
+      _lastLapTotalMs = 0;
     });
   }
 
   void _lapTimer() {
     if (!_stopwatch.isRunning) return;
     SoundService().playKey();
+    final int currentMs = _stopwatch.elapsedMilliseconds;
+    final int lapDuration = currentMs - _lastLapTotalMs;
+    _lastLapTotalMs = currentMs;
+
     setState(() {
-      _laps.insert(0, _formatTime(_stopwatch.elapsedMilliseconds));
+      _laps.insert(
+        0,
+        _LapRecord(
+          lapNumber: _laps.length + 1,
+          totalMs: currentMs,
+          lapDurationMs: lapDuration,
+        ),
+      );
     });
   }
 
@@ -74,6 +99,14 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     final double secondsFraction = (elapsedMs % 60000) / 1000.0;
     final double needleAngle = (secondsFraction / 60.0) * 2 * math.pi;
 
+    // Find fastest and slowest lap duration for highlighting
+    int? minLapMs;
+    int? maxLapMs;
+    if (_laps.length >= 2) {
+      minLapMs = _laps.map((l) => l.lapDurationMs).reduce(math.min);
+      maxLapMs = _laps.map((l) => l.lapDurationMs).reduce(math.max);
+    }
+
     return Scaffold(
       backgroundColor: widget.theme.bg,
       appBar: AppBar(
@@ -84,7 +117,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Stopwatch ⏱️",
+          "Stopwatch",
           style: widget.theme.fontDisplay(fontSize: 22),
         ),
       ),
@@ -97,21 +130,21 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
           SafeArea(
             child: Column(
               children: [
-                const SizedBox(height: 12),
+                const SizedBox(height: 10),
 
-                // 3D Stopwatch Dial Face
+                // Precision Dual-Ring Stopwatch Dial Face
                 Center(
                   child: Container(
-                    width: 220,
-                    height: 220,
+                    width: 240,
+                    height: 240,
                     decoration: BoxDecoration(
                       color: widget.theme.cardBg,
                       shape: BoxShape.circle,
-                      border: Border.all(color: widget.theme.border, width: 4),
+                      border: Border.all(color: widget.theme.border, width: 3.5),
                       boxShadow: [
                         BoxShadow(
-                          color: widget.theme.border.withOpacity(0.35),
-                          offset: const Offset(4, 6),
+                          color: widget.theme.border.withValues(alpha: 0.25),
+                          offset: const Offset(3, 5),
                           blurRadius: 0,
                         ),
                       ],
@@ -119,35 +152,57 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Ticks Painter
+                        // Ticks & Numerical Dial Painter
                         CustomPaint(
-                          size: const Size(220, 220),
-                          painter: _StopwatchDialPainter(border: widget.theme.border),
+                          size: const Size(240, 240),
+                          painter: _StopwatchDialPainter(
+                            border: widget.theme.border,
+                            primaryColor: widget.theme.primary,
+                          ),
                         ),
+
                         // Rotating Needle
                         Transform.rotate(
                           angle: needleAngle,
                           child: Align(
                             alignment: Alignment.topCenter,
                             child: Container(
-                              margin: const EdgeInsets.only(top: 25),
+                              margin: const EdgeInsets.only(top: 24),
                               width: 3.5,
-                              height: 85,
+                              height: 96,
                               decoration: BoxDecoration(
                                 color: widget.theme.primary,
                                 borderRadius: BorderRadius.circular(2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: widget.theme.primary.withValues(alpha: 0.4),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
                         ),
-                        // Center Pivot Pin
+
+                        // Center Pivot Reticle Pin
                         Container(
-                          width: 16,
-                          height: 16,
+                          width: 18,
+                          height: 18,
                           decoration: BoxDecoration(
-                            color: widget.theme.border,
+                            color: widget.theme.cardBg,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            border: Border.all(color: widget.theme.primary, width: 3),
+                          ),
+                          child: Center(
+                            child: Container(
+                              width: 4,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: widget.theme.text,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
                           ),
                         ),
                       ],
@@ -155,26 +210,48 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
-                // Digital Readout Display
+                // Digital Readout Display with Status Badge
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
                   decoration: widget.theme.doodleCard(
-                    color: widget.theme.accent.withOpacity(0.2),
-                    borderWidth: 2.5,
+                    color: widget.theme.lavenderCard,
+                    borderWidth: 2.0,
                   ),
-                  child: Text(
-                    _formatTime(elapsedMs),
-                    style: widget.theme.fontMono(
-                      fontSize: 38,
-                      fontWeight: FontWeight.bold,
-                      color: widget.theme.text,
-                    ),
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: _stopwatch.isRunning
+                              ? const Color(0xFF2ED573).withValues(alpha: 0.2)
+                              : widget.theme.border.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          _stopwatch.isRunning ? "RUNNING" : (elapsedMs > 0 ? "PAUSED" : "STOPPED"),
+                          style: widget.theme.fontMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: _stopwatch.isRunning ? const Color(0xFF2ED573) : widget.theme.textSecondary,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _formatTime(elapsedMs),
+                        style: widget.theme.fontMono(
+                          fontSize: 38,
+                          fontWeight: FontWeight.w800,
+                          color: widget.theme.text,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
                 // Controls Row
                 Padding(
@@ -185,14 +262,14 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                       // Reset / Clear
                       _buildRoundBtn(
                         label: "Reset",
-                        icon: Icons.refresh,
+                        icon: Icons.refresh_rounded,
                         color: widget.theme.cardBg,
                         onTap: _resetTimer,
                       ),
                       // Start / Pause
                       _buildRoundBtn(
                         label: _stopwatch.isRunning ? "Pause" : "Start",
-                        icon: _stopwatch.isRunning ? Icons.pause : Icons.play_arrow,
+                        icon: _stopwatch.isRunning ? Icons.pause_rounded : Icons.play_arrow_rounded,
                         color: _stopwatch.isRunning
                             ? const Color(0xFFFFB300)
                             : widget.theme.primary,
@@ -203,56 +280,122 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
                       _buildRoundBtn(
                         label: "Lap",
                         icon: Icons.flag_outlined,
-                        color: widget.theme.secondary.withOpacity(0.4),
+                        color: widget.theme.lavenderCard,
                         onTap: _lapTimer,
                       ),
                     ],
                   ),
                 ),
 
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
                 const Divider(height: 1),
 
-                // Laps List
+                // Laps List with Best/Worst Split Highlighting
                 Expanded(
                   child: _laps.isEmpty
                       ? Center(
-                          child: Text(
-                            "No laps recorded yet",
-                            style: widget.theme.fontDoodle(
-                              fontSize: 16,
-                              color: widget.theme.text.withOpacity(0.6),
-                            ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.timer_outlined,
+                                size: 36,
+                                color: widget.theme.textSecondary.withValues(alpha: 0.5),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                "No laps recorded yet",
+                                style: widget.theme.fontDoodle(
+                                  fontSize: 15,
+                                  color: widget.theme.textSecondary,
+                                ),
+                              ),
+                            ],
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                           itemCount: _laps.length,
                           itemBuilder: (context, index) {
-                            final lapNum = _laps.length - index;
-                            final lapTime = _laps[index];
+                            final lap = _laps[index];
+                            final bool isFastest = minLapMs != null && lap.lapDurationMs == minLapMs;
+                            final bool isSlowest = maxLapMs != null && lap.lapDurationMs == maxLapMs;
+
+                            Color badgeBg = widget.theme.cardBg;
+                            Color badgeColor = widget.theme.textSecondary;
+                            String? badgeText;
+
+                            if (isFastest) {
+                              badgeBg = const Color(0xFF2ED573).withValues(alpha: 0.15);
+                              badgeColor = const Color(0xFF2ED573);
+                              badgeText = "Fastest";
+                            } else if (isSlowest) {
+                              badgeBg = const Color(0xFFFF4757).withValues(alpha: 0.15);
+                              badgeColor = const Color(0xFFFF4757);
+                              badgeText = "Slowest";
+                            }
+
                             return Container(
                               margin: const EdgeInsets.only(bottom: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                               decoration: BoxDecoration(
                                 color: widget.theme.cardBg,
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: widget.theme.border, width: 1.5),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isFastest
+                                      ? const Color(0xFF2ED573)
+                                      : widget.theme.border,
+                                  width: isFastest ? 1.8 : 1.2,
+                                ),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text(
-                                    "Lap $lapNum",
-                                    style: widget.theme.fontDisplay(fontSize: 16),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        "Lap ${lap.lapNumber}",
+                                        style: widget.theme.fontDisplay(fontSize: 15),
+                                      ),
+                                      if (badgeText != null) ...[
+                                        const SizedBox(width: 8),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: badgeBg,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            badgeText,
+                                            style: widget.theme.fontMono(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: badgeColor,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                  Text(
-                                    lapTime,
-                                    style: widget.theme.fontMono(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: widget.theme.primary,
-                                    ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        _formatTime(lap.lapDurationMs),
+                                        style: widget.theme.fontMono(
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.bold,
+                                          color: isFastest ? const Color(0xFF2ED573) : widget.theme.primary,
+                                        ),
+                                      ),
+                                      Text(
+                                        "Total: ${_formatTime(lap.totalMs)}",
+                                        style: widget.theme.fontMono(
+                                          fontSize: 11,
+                                          color: widget.theme.textSecondary,
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
@@ -275,7 +418,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
     required VoidCallback onTap,
     bool isLarge = false,
   }) {
-    final double size = isLarge ? 72 : 56;
+    final double size = isLarge ? 72 : 54;
     return Column(
       children: [
         InkWell(
@@ -287,10 +430,10 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
-              border: Border.all(color: widget.theme.border, width: 2.5),
+              border: Border.all(color: widget.theme.border, width: 2.2),
               boxShadow: [
                 BoxShadow(
-                  color: widget.theme.border.withOpacity(0.3),
+                  color: widget.theme.border.withValues(alpha: 0.25),
                   offset: const Offset(2, 3),
                   blurRadius: 0,
                 ),
@@ -298,7 +441,7 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
             ),
             child: Icon(
               icon,
-              size: isLarge ? 34 : 26,
+              size: isLarge ? 34 : 24,
               color: isLarge ? Colors.white : widget.theme.text,
             ),
           ),
@@ -315,20 +458,21 @@ class _StopwatchScreenState extends State<StopwatchScreen> {
 
 class _StopwatchDialPainter extends CustomPainter {
   final Color border;
-  _StopwatchDialPainter({required this.border});
+  final Color primaryColor;
+  _StopwatchDialPainter({required this.border, required this.primaryColor});
 
   @override
   void paint(Canvas canvas, Size size) {
     final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = (size.width / 2) - 12;
+    final double radius = (size.width / 2) - 14;
 
     final Paint tickPaint = Paint()
-      ..color = border.withOpacity(0.4)
-      ..strokeWidth = 1.5;
+      ..color = border.withValues(alpha: 0.3)
+      ..strokeWidth = 1.2;
 
     final Paint majorTickPaint = Paint()
       ..color = border
-      ..strokeWidth = 2.5;
+      ..strokeWidth = 2.4;
 
     for (int i = 0; i < 60; i++) {
       final double angle = (i * 6) * math.pi / 180;

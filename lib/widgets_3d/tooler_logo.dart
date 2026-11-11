@@ -241,30 +241,28 @@ class _ToolerWordmarkPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     // -----------------------------------------------------------------------
-    // 1. LETTER 'T': Inquisitive Brow & Solid Upright Stem
+    // 1. LETTER 'T': Sleek, Polished Modern Vector Glyph
     // -----------------------------------------------------------------------
-    // Top Brow Crossbar with slightly curved protective wing
-    final tCrossbar = Path()
-      ..moveTo(4, 9.5)
-      ..lineTo(26, 9.5)
-      ..arcToPoint(
-        const Offset(26, 16),
-        radius: const Radius.circular(3.2),
-      )
-      ..lineTo(4, 16)
-      ..arcToPoint(
-        const Offset(4, 9.5),
-        radius: const Radius.circular(3.2),
-      )
+    final tPath = Path()
+      // Top Crossbar
+      ..moveTo(4.5, 9.5)
+      ..lineTo(25.5, 9.5)
+      ..arcToPoint(const Offset(27.0, 12.0), radius: const Radius.circular(2.5))
+      ..arcToPoint(const Offset(25.5, 14.5), radius: const Radius.circular(2.5))
+      ..lineTo(19.0, 14.5)
+      // Smooth curved fillet from crossbar into vertical stem
+      ..quadraticBezierTo(18.5, 16.0, 18.5, 17.5)
+      ..lineTo(18.5, 34.0)
+      // Rounded base terminal at baseline
+      ..arcToPoint(const Offset(11.5, 34.0), radius: const Radius.circular(3.5))
+      ..lineTo(11.5, 17.5)
+      // Left fillet into crossbar
+      ..quadraticBezierTo(11.5, 16.0, 11.0, 14.5)
+      ..lineTo(4.5, 14.5)
+      ..arcToPoint(const Offset(3.0, 12.0), radius: const Radius.circular(2.5))
+      ..arcToPoint(const Offset(4.5, 9.5), radius: const Radius.circular(2.5))
       ..close();
-    canvas.drawPath(tCrossbar, textPaint);
-
-    // Vertical Stem
-    final tStem = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(11.5, 14, 7.0, 23),
-      const Radius.circular(3.5),
-    );
-    canvas.drawRRect(tStem, textPaint);
+    canvas.drawPath(tPath, textPaint);
 
     // -----------------------------------------------------------------------
     // 2. FIRST 'o' (LEFT EYE): Live observant circle with tracking pupil
@@ -323,40 +321,39 @@ class _ToolerWordmarkPainter extends CustomPainter {
     canvas.restore();
 
     // -----------------------------------------------------------------------
-    // 4. LETTER 'l': Tall sleek periscope / column
+    // 4. LETTER 'l': Tall, Crisp Architectural Column
     // -----------------------------------------------------------------------
     final lStem = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(91.5, 7.0, 6.8, 30.0),
-      const Radius.circular(3.4),
+      const Rect.fromLTWH(91.5, 7.5, 7.0, 29.5),
+      const Radius.circular(3.5),
     );
     canvas.drawRRect(lStem, textPaint);
 
     // -----------------------------------------------------------------------
-    // 5. LETTER 'e': Cheerful smiling mouth curve
+    // 5. LETTER 'e': Geometric, Cheerful Vector Smile Glyph
     // -----------------------------------------------------------------------
-    // Outer 'e' curve
     final ePath = Path()
-      // Horizontal crossbar (mouth smile line)
-      ..moveTo(105.5, 25.5)
-      ..lineTo(123.5, 25.5)
-      // Top eye of 'e'
+      // Crisp horizontal mouth line
+      ..moveTo(104.2, 25.5)
+      ..lineTo(123.8, 25.5)
+      // Top circular eye arc
       ..arcToPoint(
-        const Offset(114.5, 15.0),
-        radius: const Radius.circular(9.0),
+        const Offset(114.0, 15.0),
+        radius: const Radius.circular(9.5),
       )
       ..arcToPoint(
-        const Offset(105.5, 25.5),
-        radius: const Radius.circular(9.0),
+        const Offset(104.2, 25.5),
+        radius: const Radius.circular(9.5),
       )
-      // Bottom happy curve sweeping up
+      // Bottom happy sweeping curve
       ..arcToPoint(
-        const Offset(114.5, 36.5),
-        radius: const Radius.circular(10.0),
+        const Offset(114.0, 36.8),
+        radius: const Radius.circular(10.2),
         clockwise: false,
       )
       ..arcToPoint(
-        const Offset(123.8, 31.0),
-        radius: const Radius.circular(10.0),
+        const Offset(124.0, 31.0),
+        radius: const Radius.circular(10.2),
         clockwise: false,
       );
 
@@ -369,31 +366,32 @@ class _ToolerWordmarkPainter extends CustomPainter {
     canvas.drawPath(ePath, eStrokePaint);
 
     // -----------------------------------------------------------------------
-    // 6. LETTER 'r': Friendly waving arm / tool hook
+    // 6. LETTER 'r': Flowing Organic Shoulder with Playful Accent
     // -----------------------------------------------------------------------
-    // Main vertical stem
+    // Solid vertical stem
     final rStem = RRect.fromRectAndRadius(
-      const Rect.fromLTWH(133.0, 15.5, 6.5, 21.5),
-      const Radius.circular(3.2),
+      const Rect.fromLTWH(133.0, 15.5, 6.8, 21.5),
+      const Radius.circular(3.4),
     );
     canvas.drawRRect(rStem, textPaint);
 
-    // Waving hook arm arching upwards
-    final rArm = Path()
-      ..moveTo(136.0, 22.0)
-      ..quadraticBezierTo(140.0, 15.5, 149.0, 15.5);
+    // Organic curving shoulder arch
+    final rArch = Path()
+      ..moveTo(136.5, 23.0)
+      ..cubicTo(138.0, 16.8, 142.5, 14.8, 148.5, 14.8)
+      ..lineTo(149.5, 15.2);
 
-    final rArmPaint = Paint()
+    final rArchPaint = Paint()
       ..color = textColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 5.2
       ..strokeCap = StrokeCap.round;
-    canvas.drawPath(rArm, rArmPaint);
+    canvas.drawPath(rArch, rArchPaint);
 
-    // Friendly little accent tip dot in primary color on waving tip
+    // Accent tip dot
     canvas.drawCircle(
-      const Offset(149.0, 15.5),
-      2.6,
+      const Offset(149.5, 15.2),
+      2.7,
       pupilPaint,
     );
 

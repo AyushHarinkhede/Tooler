@@ -219,71 +219,16 @@ class ToolerHoverSheet extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    title,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: -0.5,
-                                      color: theme.text,
-                                    ),
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: theme.lavenderCard,
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: theme.primary.withValues(alpha: 0.3), width: 1),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        Icons.star_rounded,
-                                        size: 15,
-                                        color: theme.primary,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        '4.9',
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w700,
-                                          color: theme.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 4),
                             Text(
-                              subtitle,
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.plusJakartaSans(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w500,
-                                color: theme.textSecondary,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                                color: theme.text,
                               ),
-                            ),
-                            const SizedBox(height: 12),
-                            // Tags Row (like Wi-Fi, Cafe, Pets in Image 1/2)
-                            Row(
-                              children: [
-                                _buildTagChip('Fast Offline', Icons.bolt_rounded),
-                                const SizedBox(width: 8),
-                                _buildTagChip(tag, Icons.verified_rounded),
-                                const SizedBox(width: 8),
-                                _buildTagChip('Precision', Icons.tune_rounded),
-                              ],
                             ),
                           ],
                         ),
@@ -303,36 +248,6 @@ class ToolerHoverSheet extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildTagChip(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: theme.border, width: 1.2),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 13,
-            color: theme.primary,
-          ),
-          const SizedBox(width: 5),
-          Text(
-            label,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              color: theme.text,
-            ),
-          ),
-        ],
       ),
     );
   }

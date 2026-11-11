@@ -88,15 +88,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 color: theme.text,
                 accentColor: theme.primary,
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Smart Utility Kit',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: theme.primary,
-                ),
-              ),
               const SizedBox(height: 14),
               Text(
                 'A clean, aesthetic, minimal multi-utility application offering precision calculators, unit converters, live compass sensors, and productivity tools with zero clutter.',

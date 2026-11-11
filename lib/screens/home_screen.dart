@@ -356,26 +356,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ToolerLogo(
-                height: 34,
-                color: theme.text,
-                accentColor: theme.primary,
-              ),
-              const SizedBox(height: 2),
-              Text(
-                'Smart Utility Kit',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.2,
-                  color: theme.textSecondary,
-                ),
-              ),
-            ],
+          ToolerLogo(
+            height: 36,
+            color: theme.text,
+            accentColor: theme.primary,
           ),
 
           // Settings Action Button (opens modern settings with color dots & dark mode)
@@ -925,17 +909,6 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                             ),
                           ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          tool['subtitle'],
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w400,
-                            color: theme.textSecondary,
-                          ),
                         ),
                       ],
                     ),
