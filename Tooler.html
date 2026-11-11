@@ -3526,33 +3526,75 @@ body.tool-view-open {
             </div>
         </div>
 
-        <div id="compass" class="tool-container">
+                <div id="compass" class="tool-container">
             <div class="tool-header">
-                <h2>~ Digital Compass ~</h2>
+                <h2>~ Precision Compass & Leveler ~</h2>
                 <button class="btn-clear" onclick="app.closeTool()">Close</button>
             </div>
             
+            <!-- Mode Selector Toolbar -->
+            <div style="
+                background: var(--note-bg);
+                border: 3px dashed var(--doodle-border);
+                padding: 12px 16px;
+                border-radius: 15px;
+                margin-bottom: 16px;
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                justify-content: space-between;
+                gap: 10px;
+            ">
+                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span style="font-weight: bold; font-family: 'Comic Sans MS', cursive; color: var(--doodle-text);">Mode:</span>
+                    <div style="display: inline-flex; background: white; border: 2px solid var(--doodle-border); border-radius: 20px; padding: 3px; gap: 4px;">
+                        <button id="compass-mode-auto" onclick="app.compass.setMode('auto')" style="padding: 6px 14px; border-radius: 16px; border: none; font-weight: bold; font-family: 'Comic Sans MS', cursive; cursor: pointer; transition: all 0.2s; background: var(--doodle-primary); color: white;">
+                            🔄 Auto (Tilt-Switch)
+                        </button>
+                        <button id="compass-mode-compass" onclick="app.compass.setMode('compass')" style="padding: 6px 14px; border-radius: 16px; border: none; font-weight: bold; font-family: 'Comic Sans MS', cursive; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--doodle-text);">
+                            🧭 Lock Compass
+                        </button>
+                        <button id="compass-mode-leveler" onclick="app.compass.setMode('leveler')" style="padding: 6px 14px; border-radius: 16px; border: none; font-weight: bold; font-family: 'Comic Sans MS', cursive; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--doodle-text);">
+                            ⚖️ Lock Leveler
+                        </button>
+                    </div>
+                </div>
+
+                <div id="compass-active-indicator" style="
+                    font-size: 13px;
+                    font-weight: bold;
+                    font-family: 'Comic Sans MS', cursive;
+                    padding: 5px 12px;
+                    border-radius: 12px;
+                    background: #eef9ff;
+                    border: 1.5px solid #3498db;
+                    color: #2980b9;
+                ">
+                    🔄 Auto: Flat = Compass | Straight = Leveler
+                </div>
+            </div>
+
             <!-- Compass Status -->
             <div style="
                 background: var(--note-bg);
                 border: 3px dashed var(--doodle-border);
-                padding: 15px;
+                padding: 12px 15px;
                 border-radius: 15px;
                 margin-bottom: 20px;
                 text-align: center;
                 position: relative;
             ">
                 <div style="position: absolute; top: -10px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px;">
-                    <span style="color: var(--doodle-primary); font-weight: bold;">Status</span>
+                    <span style="color: var(--doodle-primary); font-weight: bold; font-size: 13px;">Sensor & Posture</span>
                 </div>
                 <div id="compass-status" style="color: var(--doodle-text); font-family: 'Comic Sans MS', cursive; font-weight: bold;">
-                    Click "Start Compass" to begin
+                    Click "Start Sensor" to begin precision orientation tracking
                 </div>
             </div>
             
-            <!-- Main Compass Display -->
+            <!-- Main Instrument Display (Grid with Instrument + Info) -->
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                <!-- Compass Visual -->
+                <!-- Instrument Visual (Dynamic Compass or Leveler) -->
                 <div style="
                     background: var(--note-bg);
                     border: 3px dashed var(--doodle-border);
@@ -3562,71 +3604,224 @@ body.tool-view-open {
                     flex-direction: column;
                     align-items: center;
                     position: relative;
-                "
-                onmouseover="this.style.borderColor='var(--doodle-primary)'; this.style.transform='scale(1.02)'"
-                onmouseout="this.style.borderColor='var(--doodle-border)'; this.style.transform='scale(1)'">
-                    <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px;">
-                        <span style="color: var(--doodle-primary); font-weight: bold;">Compass</span>
+                    min-height: 330px;
+                    justify-content: center;
+                ">
+                    <div id="instrument-badge" style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: white; padding: 0 12px; border: 1.5px solid var(--doodle-border); border-radius: 10px;">
+                        <span id="instrument-title" style="color: var(--doodle-primary); font-weight: bold; font-family: 'Comic Sans MS', cursive;">🧭 Compass (Flat Mode)</span>
                     </div>
-                    
-                    <div id="compass-display" style="
-                        width: 200px;
-                        height: 200px;
-                        border: 3px solid var(--doodle-border);
-                        border-radius: 50%;
-                        background: linear-gradient(135deg, #fff, #f8f9fa);
-                        position: relative;
-                        margin: 10px 0;
-                        box-shadow: 0 5px 15px var(--shadow-color);
-                        transition: all 0.3s;
-                    ">
-                        <!-- Compass Directions -->
-                        <div class="compass-direction compass-n" style="color: var(--doodle-primary); font-weight: bold;">N</div>
-                        <div class="compass-direction compass-s" style="color: var(--doodle-text);">S</div>
-                        <div class="compass-direction compass-e" style="color: var(--doodle-text);">E</div>
-                        <div class="compass-direction compass-w" style="color: var(--doodle-text);">W</div>
-                        
-                        <!-- Animated Compass Needle -->
-                        <div id="compass-needle" style="
-                            position: absolute;
-                            top: 50%;
-                            left: 50%;
-                            width: 4px;
-                            height: 80px;
-                            background: linear-gradient(to top, #e74c3c 50%, #c0392b 50%);
-                            transform: translate(-50%, -100%) rotate(0deg);
-                            transform-origin: center bottom;
-                            transition: transform 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
-                            border-radius: 2px;
-                            box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
-                            z-index: 10;
-                        "></div>
-                        
-                        <!-- Compass Center -->
-                        <div style="
-                            position: absolute;
-                            top: 50%;
-                            left: 50%;
-                            width: 16px;
-                            height: 16px;
-                            background: var(--doodle-primary);
+
+                    <!-- 1. COMPASS VIEW CONTAINER (Active when flat) -->
+                    <div id="compass-view-container" style="display: flex; flex-direction: column; align-items: center; width: 100%;">
+                        <div id="compass-display" style="
+                            width: 230px;
+                            height: 230px;
+                            border: 3.5px solid var(--doodle-border);
                             border-radius: 50%;
-                            transform: translate(-50%, -50%);
-                            border: 2px solid white;
-                            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                            z-index: 11;
-                        "></div>
+                            background: radial-gradient(circle, #ffffff 55%, #f1f5f9 100%);
+                            position: relative;
+                            margin: 10px 0;
+                            box-shadow: 0 6px 18px var(--shadow-color);
+                            overflow: hidden;
+                        ">
+                            <!-- Outer Degree Ring Markings -->
+                            <div style="position: absolute; inset: 0; pointer-events: none;">
+                                <div style="position: absolute; top: 4px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: 900; color: #e74c3c; font-family: 'Comic Sans MS', cursive;">N</div>
+                                <div style="position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%); font-size: 13px; font-weight: bold; color: var(--doodle-text); font-family: 'Comic Sans MS', cursive;">S</div>
+                                <div style="position: absolute; right: 6px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: bold; color: var(--doodle-text); font-family: 'Comic Sans MS', cursive;">E</div>
+                                <div style="position: absolute; left: 6px; top: 50%; transform: translateY(-50%); font-size: 13px; font-weight: bold; color: var(--doodle-text); font-family: 'Comic Sans MS', cursive;">W</div>
+                            </div>
+
+                            <!-- PLUS BAR (+) - Vertical Front/Back & Horizontal Left/Right Lines -->
+                            <svg viewBox="0 0 230 230" style="position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4;">
+                                <!-- Concentric Guide Ring (subtle) -->
+                                <circle cx="115" cy="115" r="75" fill="none" stroke="#e2e8f0" stroke-width="1.5" stroke-dasharray="3 3"/>
+                                
+                                <!-- Horizontal Axis Line (LEFT <-> RIGHT) -->
+                                <line x1="28" y1="115" x2="202" y2="115" stroke="var(--doodle-border)" stroke-width="2.5" stroke-linecap="round"/>
+                                <!-- Left Bar End Crossbar -->
+                                <line x1="28" y1="107" x2="28" y2="123" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+                                <!-- Right Bar End Crossbar -->
+                                <line x1="202" y1="107" x2="202" y2="123" stroke="#2563eb" stroke-width="3" stroke-linecap="round"/>
+
+                                <!-- Vertical Axis Line (FRONT <-> BACK) -->
+                                <line x1="115" y1="28" x2="115" y2="202" stroke="var(--doodle-border)" stroke-width="2.5" stroke-linecap="round"/>
+                                <!-- Front Bar End Crossbar -->
+                                <line x1="107" y1="28" x2="123" y2="28" stroke="#dc2626" stroke-width="3" stroke-linecap="round"/>
+                                <!-- Back Bar End Crossbar -->
+                                <line x1="107" y1="202" x2="123" y2="202" stroke="#475569" stroke-width="3" stroke-linecap="round"/>
+
+                                <!-- Axis Ticks -->
+                                <line x1="75" y1="111" x2="75" y2="119" stroke="var(--doodle-border)" stroke-width="1.5"/>
+                                <line x1="155" y1="111" x2="155" y2="119" stroke="var(--doodle-border)" stroke-width="1.5"/>
+                                <line x1="111" y1="75" x2="119" y2="75" stroke="var(--doodle-border)" stroke-width="1.5"/>
+                                <line x1="111" y1="155" x2="119" y2="155" stroke="var(--doodle-border)" stroke-width="1.5"/>
+
+                                <!-- Hollow Center Reticle Ring (NO SOLID DOT!) -->
+                                <circle cx="115" cy="115" r="9" fill="white" stroke="var(--doodle-primary)" stroke-width="2"/>
+                                <circle cx="115" cy="115" r="3" fill="none" stroke="var(--doodle-border)" stroke-width="1"/>
+                            </svg>
+
+                            <!-- PLUS BAR LABELS (Front, Back, Left, Right) -->
+                            <div style="position: absolute; top: 16px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 800; color: #dc2626; letter-spacing: 0.5px; z-index: 5; background: rgba(255,255,255,0.85); padding: 1px 4px; border-radius: 4px;">▲ FRONT</div>
+                            <div style="position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 800; color: #475569; letter-spacing: 0.5px; z-index: 5; background: rgba(255,255,255,0.85); padding: 1px 4px; border-radius: 4px;">▼ BACK</div>
+                            <div style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: 800; color: #2563eb; letter-spacing: 0.5px; z-index: 5; background: rgba(255,255,255,0.85); padding: 1px 3px; border-radius: 4px;">◀ LEFT</div>
+                            <div style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: 800; color: #2563eb; letter-spacing: 0.5px; z-index: 5; background: rgba(255,255,255,0.85); padding: 1px 3px; border-radius: 4px;">RIGHT ▶</div>
+
+                            <!-- Animated Compass Needle -->
+                            <div id="compass-needle" style="
+                                position: absolute;
+                                top: 50%;
+                                left: 50%;
+                                width: 6px;
+                                height: 96px;
+                                transform: translate(-50%, -100%) rotate(0deg);
+                                transform-origin: center bottom;
+                                transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1);
+                                z-index: 10;
+                                pointer-events: none;
+                            ">
+                                <!-- North Pointer (Red) -->
+                                <div style="
+                                    width: 0;
+                                    height: 0;
+                                    border-left: 5px solid transparent;
+                                    border-right: 5px solid transparent;
+                                    border-bottom: 78px solid #e74c3c;
+                                    margin: 0 auto;
+                                    filter: drop-shadow(0 2px 4px rgba(231,76,60,0.5));
+                                "></div>
+                                <!-- South Pointer (Slate) -->
+                                <div style="
+                                    position: absolute;
+                                    top: 96px;
+                                    left: 50%;
+                                    transform: translateX(-50%);
+                                    width: 0;
+                                    height: 0;
+                                    border-left: 4px solid transparent;
+                                    border-right: 4px solid transparent;
+                                    border-top: 48px solid #64748b;
+                                "></div>
+                            </div>
+                        </div>
+
+                        <!-- Degree Display -->
+                        <div id="compass-degree" style="
+                            margin-top: 8px;
+                            font-size: 26px;
+                            font-weight: 900;
+                            color: var(--doodle-primary);
+                            font-family: 'Comic Sans MS', cursive;
+                            text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+                        ">0° N</div>
                     </div>
-                    
-                    <!-- Degree Display -->
-                    <div id="compass-degree" style="
-                        margin-top: 10px;
-                        font-size: 24px;
-                        font-weight: bold;
-                        color: var(--doodle-primary);
-                        font-family: 'Comic Sans MS', cursive;
-                        text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-                    ">0°</div>
+
+                    <!-- 2. LEVELER VIEW CONTAINER (Active when upright/straight) -->
+                    <div id="leveler-view-container" style="display: none; flex-direction: column; align-items: center; width: 100%; padding: 10px 0;">
+                        <!-- Horizon Tube Leveler Instrument -->
+                        <div id="leveler-tube-wrapper" style="
+                            width: 100%;
+                            max-width: 250px;
+                            background: white;
+                            border: 3px solid var(--doodle-border);
+                            border-radius: 30px;
+                            padding: 10px 14px;
+                            box-shadow: inset 0 2px 6px rgba(0,0,0,0.1), 0 4px 12px var(--shadow-color);
+                            position: relative;
+                            margin-bottom: 14px;
+                        ">
+                            <div style="font-size: 11px; font-weight: bold; color: var(--doodle-secondary); text-align: center; margin-bottom: 6px; font-family: 'Comic Sans MS', cursive;">
+                                SPIRIT HORIZON TUBE
+                            </div>
+
+                            <!-- Tube Track -->
+                            <div style="
+                                width: 100%;
+                                height: 34px;
+                                background: linear-gradient(180deg, #e2e8f0 0%, #ffffff 50%, #cbd5e1 100%);
+                                border: 2px solid var(--doodle-border);
+                                border-radius: 17px;
+                                position: relative;
+                                overflow: hidden;
+                            ">
+                                <!-- Graduation degree ticks -->
+                                <div style="position: absolute; inset: 0; display: flex; justify-content: space-between; align-items: center; padding: 0 16px; pointer-events: none;">
+                                    <span style="font-size: 9px; font-weight: bold; color: #94a3b8;">-20°</span>
+                                    <span style="font-size: 9px; font-weight: bold; color: #94a3b8;">-10°</span>
+                                    <span style="width: 1px; height: 100%;"></span>
+                                    <span style="font-size: 9px; font-weight: bold; color: #94a3b8;">+10°</span>
+                                    <span style="font-size: 9px; font-weight: bold; color: #94a3b8;">+20°</span>
+                                </div>
+
+                                <!-- Center Goalposts [ | | ] -->
+                                <div style="
+                                    position: absolute;
+                                    top: 0;
+                                    bottom: 0;
+                                    left: calc(50% - 15px);
+                                    width: 30px;
+                                    border-left: 2px dashed #10b981;
+                                    border-right: 2px dashed #10b981;
+                                    pointer-events: none;
+                                "></div>
+
+                                <!-- Center Zero Line -->
+                                <div style="
+                                    position: absolute;
+                                    top: 0;
+                                    bottom: 0;
+                                    left: 50%;
+                                    width: 2px;
+                                    background: #10b981;
+                                    transform: translateX(-50%);
+                                    pointer-events: none;
+                                "></div>
+
+                                <!-- Sliding Spirit Bubble Dot -->
+                                <div id="leveler-bubble-dot" style="
+                                    position: absolute;
+                                    top: 50%;
+                                    left: 50%;
+                                    width: 24px;
+                                    height: 24px;
+                                    background: radial-gradient(circle at 35% 35%, #86efac, #10b981 70%, #047857);
+                                    border: 2px solid white;
+                                    border-radius: 50%;
+                                    transform: translate(-50%, -50%);
+                                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                                    transition: left 0.15s ease-out, background 0.2s;
+                                ">
+                                    <div style="width: 6px; height: 6px; background: rgba(255,255,255,0.8); border-radius: 50%; margin: 3px 0 0 5px;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Leveler Tilt Readout -->
+                        <div id="leveler-status-pill" style="
+                            font-size: 16px;
+                            font-weight: 900;
+                            color: #10b981;
+                            font-family: 'Comic Sans MS', cursive;
+                            background: white;
+                            padding: 6px 16px;
+                            border: 2px solid #10b981;
+                            border-radius: 20px;
+                            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+                        ">
+                            0.0° LEVEL
+                        </div>
+
+                        <div id="leveler-pitch-roll-detail" style="
+                            margin-top: 8px;
+                            font-size: 12px;
+                            font-weight: bold;
+                            color: var(--doodle-text);
+                            font-family: 'Comic Sans MS', cursive;
+                        ">
+                            Tilt Angle: Roll: 0.0° | Pitch: 75.0°
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Information Panel -->
@@ -3638,53 +3833,74 @@ body.tool-view-open {
                     position: relative;
                 ">
                     <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px;">
-                        <span style="color: var(--doodle-secondary); font-weight: bold;">Information</span>
+                        <span style="color: var(--doodle-secondary); font-weight: bold;">Orientation & Axes</span>
                     </div>
                     
                     <!-- Direction Info -->
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-weight: bold; color: var(--doodle-text); margin-bottom: 5px; font-family: 'Comic Sans MS', cursive;">Direction:</div>
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: bold; color: var(--doodle-text); margin-bottom: 4px; font-family: 'Comic Sans MS', cursive; font-size: 13px;">Direction Heading:</div>
                         <div id="compass-direction-text" style="
-                            padding: 10px;
+                            padding: 8px 12px;
                             background: white;
                             border: 2px dashed var(--doodle-border);
                             border-radius: 8px;
-                            font-size: 18px;
+                            font-size: 16px;
                             font-weight: bold;
                             color: var(--doodle-primary);
                             text-align: center;
                             font-family: 'Comic Sans MS', cursive;
-                        ">North</div>
+                        ">North (0°)</div>
+                    </div>
+
+                    <!-- Axes Points (Front/Back/Left/Right) -->
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: bold; color: var(--doodle-text); margin-bottom: 4px; font-family: 'Comic Sans MS', cursive; font-size: 13px;">Plus Bar Points (+ Axes):</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                            <div style="padding: 6px; background: white; border: 1.5px solid #dc2626; border-radius: 6px; text-align: center; font-size: 11px; font-weight: bold; color: #dc2626;">
+                                ▲ FRONT: Top Edge
+                            </div>
+                            <div style="padding: 6px; background: white; border: 1.5px solid #475569; border-radius: 6px; text-align: center; font-size: 11px; font-weight: bold; color: #475569;">
+                                ▼ BACK: Bottom Edge
+                            </div>
+                            <div style="padding: 6px; background: white; border: 1.5px solid #2563eb; border-radius: 6px; text-align: center; font-size: 11px; font-weight: bold; color: #2563eb;">
+                                ◀ LEFT: Left Flank
+                            </div>
+                            <div style="padding: 6px; background: white; border: 1.5px solid #2563eb; border-radius: 6px; text-align: center; font-size: 11px; font-weight: bold; color: #2563eb;">
+                                RIGHT ▶: Right Flank
+                            </div>
+                        </div>
                     </div>
                     
-                    <!-- Level Info -->
-                    <div style="margin-bottom: 15px;">
-                        <div style="font-weight: bold; color: var(--doodle-text); margin-bottom: 5px; font-family: 'Comic Sans MS', cursive;">Level:</div>
+                    <!-- Level / Posture Info -->
+                    <div style="margin-bottom: 12px;">
+                        <div style="font-weight: bold; color: var(--doodle-text); margin-bottom: 4px; font-family: 'Comic Sans MS', cursive; font-size: 13px;">Posture & Tilt:</div>
                         <div id="compass-level-text" style="
-                            padding: 10px;
+                            padding: 8px 12px;
                             background: white;
                             border: 2px dashed var(--doodle-border);
                             border-radius: 8px;
-                            font-size: 14px;
+                            font-size: 13px;
+                            font-weight: bold;
                             color: var(--doodle-text);
                             text-align: center;
                             font-family: 'Comic Sans MS', cursive;
-                        ">Tilt: X: 0°, Y: 0°</div>
+                        ">Flat on Surface (Pitch: 0°, Roll: 0°)</div>
                     </div>
                     
                     <!-- Accuracy Info -->
                     <div>
-                        <div style="font-weight: bold; color: var(--doodle-text); margin-bottom: 5px; font-family: 'Comic Sans MS', cursive;">Accuracy:</div>
+                        <div style="font-weight: bold; color: var(--doodle-text); margin-bottom: 4px; font-family: 'Comic Sans MS', cursive; font-size: 13px;">Calibration & Accuracy:</div>
                         <div id="compass-accuracy" style="
-                            padding: 10px;
+                            padding: 8px 12px;
                             background: white;
                             border: 2px dashed var(--doodle-border);
                             border-radius: 8px;
-                            font-size: 14px;
+                            font-size: 12px;
+                            font-weight: bold;
                             color: var(--doodle-secondary);
                             text-align: center;
                             font-family: 'Comic Sans MS', cursive;
-                        ">Waiting for sensor...</div>
+                        ">Ready • High Precision Calibrated</div>
                     </div>
                 </div>
             </div>
@@ -3693,68 +3909,78 @@ body.tool-view-open {
             <div style="
                 background: var(--note-bg);
                 border: 3px dashed var(--doodle-border);
-                padding: 20px;
+                padding: 16px;
                 border-radius: 15px;
                 text-align: center;
                 position: relative;
             ">
                 <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: white; padding: 0 10px;">
-                    <span style="color: var(--doodle-primary); font-weight: bold;">Controls</span>
+                    <span style="color: var(--doodle-primary); font-weight: bold;">Controls & Calibrate</span>
                 </div>
                 
-                <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
+                <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                     <button id="compass-start-btn" onclick="app.compass.start()" style="
                         background: var(--doodle-primary);
                         color: white;
                         border: 2px solid var(--doodle-border);
-                        padding: 12px 24px;
+                        padding: 10px 20px;
                         border-radius: 25px;
                         cursor: pointer;
                         font-weight: bold;
                         transition: all 0.3s;
                         font-family: 'Comic Sans MS', cursive;
-                        position: relative;
-                        overflow: hidden;
                     "
-                    onmouseover="this.style.transform='scale(1.05)'; this.style.background='var(--doodle-secondary)'"
+                    onmouseover="this.style.transform='scale(1.04)'; this.style.background='var(--doodle-secondary)'"
                     onmouseout="this.style.transform='scale(1)'; this.style.background='var(--doodle-primary)'">
-                        Start Compass
+                        ▶ Start Sensor
                     </button>
                     
                     <button id="compass-stop-btn" onclick="app.compass.stop()" style="
                         background: #e74c3c;
                         color: white;
                         border: 2px solid var(--doodle-border);
-                        padding: 12px 24px;
+                        padding: 10px 20px;
                         border-radius: 25px;
                         cursor: pointer;
                         font-weight: bold;
                         transition: all 0.3s;
                         font-family: 'Comic Sans MS', cursive;
-                        position: relative;
-                        overflow: hidden;
                     "
-                    onmouseover="this.style.transform='scale(1.05)'; this.style.background='#c0392b'"
+                    onmouseover="this.style.transform='scale(1.04)'; this.style.background='#c0392b'"
                     onmouseout="this.style.transform='scale(1)'; this.style.background='#e74c3c'">
-                        Stop Compass
+                        ⏹ Stop Sensor
                     </button>
                     
                     <button onclick="app.compass.calibrate()" style="
                         background: var(--doodle-secondary);
                         color: white;
                         border: 2px solid var(--doodle-border);
-                        padding: 12px 24px;
+                        padding: 10px 20px;
                         border-radius: 25px;
                         cursor: pointer;
                         font-weight: bold;
                         transition: all 0.3s;
                         font-family: 'Comic Sans MS', cursive;
-                        position: relative;
-                        overflow: hidden;
                     "
-                    onmouseover="this.style.transform='scale(1.05)'; this.style.background='var(--doodle-primary)'"
+                    onmouseover="this.style.transform='scale(1.04)'; this.style.background='var(--doodle-primary)'"
                     onmouseout="this.style.transform='scale(1)'; this.style.background='var(--doodle-secondary)'">
-                        Calibrate
+                        🎯 Calibrate Zero
+                    </button>
+
+                    <button id="compass-lock-toggle-btn" onclick="app.compass.toggleLock()" style="
+                        background: #64748b;
+                        color: white;
+                        border: 2px solid var(--doodle-border);
+                        padding: 10px 20px;
+                        border-radius: 25px;
+                        cursor: pointer;
+                        font-weight: bold;
+                        transition: all 0.3s;
+                        font-family: 'Comic Sans MS', cursive;
+                    "
+                    onmouseover="this.style.transform='scale(1.04)'"
+                    onmouseout="this.style.transform='scale(1)'">
+                        🔒 Lock Mode
                     </button>
                 </div>
             </div>
@@ -3769,13 +3995,13 @@ body.tool-view-open {
                 position: relative;
             ">
                 <div style="position: absolute; top: -12px; left: 20px; background: white; padding: 0 10px;">
-                    <span style="color: var(--doodle-secondary); font-weight: bold;">Instructions</span>
+                    <span style="color: var(--doodle-secondary); font-weight: bold;">Instructions & Calibration</span>
                 </div>
                 <div style="color: var(--doodle-text); font-family: 'Comic Sans MS', cursive; font-size: 0.9em; margin-top: 10px;">
-                    <div style="margin-bottom: 8px;">• Click "Start Compass" to begin tracking device orientation</div>
-                    <div style="margin-bottom: 8px;">• Rotate your device to see the compass needle move</div>
-                    <div style="margin-bottom: 8px;">• Works best on mobile devices with gyroscope</div>
-                    <div>• Use "Calibrate" to reset compass accuracy</div>
+                    <div style="margin-bottom: 8px;">• <strong>Plus Bar (+)</strong>: Vertical line points Front (▲) and Back (▼); Horizontal line points Left (◀) and Right (▶). Center dot removed for clear reticle view.</div>
+                    <div style="margin-bottom: 8px;">• <strong>Auto Flat/Straight Switch</strong>: Hold phone <strong>flat</strong> to use the Compass. Hold phone <strong>straight/upright</strong> to automatically switch to the Spirit Leveler.</div>
+                    <div style="margin-bottom: 8px;">• <strong>Lock Controls</strong>: Use "Lock Compass" or "Lock Leveler" to freeze to a single tool, or stay in "Auto".</div>
+                    <div>• <strong>Calibrate Zero</strong>: Click "Calibrate Zero" while pointing in reference direction to reset magnetic offset.</div>
                 </div>
             </div>
         </div> </div>
@@ -8335,14 +8561,20 @@ Petabytes: ${(bytes / (1024 * 1024 * 1024 * 1024 * 1024)).toFixed(2)} PB`;
                 }
             },
             
-            compass: {
+compass: {
                 isActive: false,
-                watchId: null,
+                mode: 'auto', // 'auto', 'compass', 'leveler'
+                currentView: 'compass', // 'compass' or 'leveler'
                 calibrationOffset: 0,
                 lastHeading: 0,
-                
+                pitch: 0, // beta (front-back tilt)
+                roll: 0,  // gamma (left-right tilt)
+                filterAlpha: 0.25, // EMA smoothing factor for steady reading
+                smoothedHeading: 0,
+                boundOrientation: null,
+                boundMotion: null,
+
                 init() {
-                    // Check if device orientation is supported
                     if (window.DeviceOrientationEvent) {
                         console.log('Device orientation API available');
                     } else {
@@ -8350,215 +8582,284 @@ Petabytes: ${(bytes / (1024 * 1024 * 1024 * 1024 * 1024)).toFixed(2)} PB`;
                         this.updateStatus('Device orientation not supported');
                     }
                 },
-                
+
+                setMode(newMode) {
+                    this.mode = newMode;
+                    const autoBtn = document.getElementById('compass-mode-auto');
+                    const compassBtn = document.getElementById('compass-mode-compass');
+                    const levelerBtn = document.getElementById('compass-mode-leveler');
+                    const indicator = document.getElementById('compass-active-indicator');
+                    const lockBtn = document.getElementById('compass-lock-toggle-btn');
+
+                    if (autoBtn && compassBtn && levelerBtn) {
+                        autoBtn.style.background = (newMode === 'auto') ? 'var(--doodle-primary)' : 'transparent';
+                        autoBtn.style.color = (newMode === 'auto') ? 'white' : 'var(--doodle-text)';
+                        compassBtn.style.background = (newMode === 'compass') ? 'var(--doodle-primary)' : 'transparent';
+                        compassBtn.style.color = (newMode === 'compass') ? 'white' : 'var(--doodle-text)';
+                        levelerBtn.style.background = (newMode === 'leveler') ? 'var(--doodle-primary)' : 'transparent';
+                        levelerBtn.style.color = (newMode === 'leveler') ? 'white' : 'var(--doodle-text)';
+                    }
+
+                    if (lockBtn) {
+                        lockBtn.textContent = (newMode === 'auto') ? '🔒 Lock Mode' : '🔓 Unlock to Auto';
+                        lockBtn.style.background = (newMode === 'auto') ? '#64748b' : '#f59e0b';
+                    }
+
+                    if (newMode === 'compass') {
+                        if (indicator) indicator.textContent = '🧭 Locked to Compass Only';
+                        this.switchView('compass');
+                    } else if (newMode === 'leveler') {
+                        if (indicator) indicator.textContent = '⚖️ Locked to Leveler Only';
+                        this.switchView('leveler');
+                    } else {
+                        if (indicator) indicator.textContent = '🔄 Auto: Flat = Compass | Straight = Leveler';
+                        this.checkAutoSwitch();
+                    }
+                },
+
+                toggleLock() {
+                    if (this.mode === 'auto') {
+                        this.setMode(this.currentView === 'leveler' ? 'leveler' : 'compass');
+                    } else {
+                        this.setMode('auto');
+                    }
+                },
+
+                switchView(view) {
+                    this.currentView = view;
+                    const compassContainer = document.getElementById('compass-view-container');
+                    const levelerContainer = document.getElementById('leveler-view-container');
+                    const title = document.getElementById('instrument-title');
+
+                    if (view === 'leveler') {
+                        if (compassContainer) compassContainer.style.display = 'none';
+                        if (levelerContainer) levelerContainer.style.display = 'flex';
+                        if (title) title.textContent = '⚖️ Spirit Level (Straight/Upright Mode)';
+                    } else {
+                        if (compassContainer) compassContainer.style.display = 'flex';
+                        if (levelerContainer) levelerContainer.style.display = 'none';
+                        if (title) title.textContent = '🧭 Compass (Flat Mode)';
+                    }
+                },
+
+                checkAutoSwitch() {
+                    if (this.mode !== 'auto') return;
+                    // Upright threshold: when phone pitch/beta is greater than 28 degrees
+                    const isUpright = Math.abs(this.pitch) > 28;
+                    const targetView = isUpright ? 'leveler' : 'compass';
+                    if (targetView !== this.currentView) {
+                        this.switchView(targetView);
+                    }
+                },
+
                 async start() {
                     try {
                         const startBtn = document.getElementById('compass-start-btn');
                         const stopBtn = document.getElementById('compass-stop-btn');
-                        
                         if (startBtn) startBtn.disabled = true;
                         if (stopBtn) stopBtn.disabled = false;
                         
-                        this.updateStatus('Requesting permission...');
-                        
-                        // Request permission for iOS 13+
+                        this.updateStatus('Requesting sensor permission...');
                         if (typeof DeviceOrientationEvent !== 'undefined' && 
                             typeof DeviceOrientationEvent.requestPermission === 'function') {
-                            
                             const permission = await DeviceOrientationEvent.requestPermission();
-                            
                             if (permission === 'granted') {
                                 this.startTracking();
                             } else {
-                                this.updateStatus('Permission denied');
-                                this.showError('Compass permission was denied. Please enable in settings.');
+                                this.updateStatus('Sensor permission denied');
                             }
                         } else {
-                            // For other devices
                             this.startTracking();
                         }
-                        
                     } catch (error) {
                         console.error('Error starting compass:', error);
-                        this.updateStatus('Error starting compass');
-                        this.showError('Failed to start compass: ' + error.message);
+                        this.updateStatus('Error starting sensor: ' + error.message);
                     }
                 },
-                
+
                 startTracking() {
                     this.isActive = true;
-                    this.updateStatus('Compass active - Rotate device to see changes');
-                    
-                    // Add event listener for device orientation
-                    window.addEventListener('deviceorientation', this.handleOrientation.bind(this));
-                    
-                    // Also add device motion for better accuracy
+                    this.updateStatus('Sensor active • Flat for Compass, Straight for Leveler');
+                    this.boundOrientation = this.handleOrientation.bind(this);
+                    window.addEventListener('deviceorientation', this.boundOrientation);
                     if (window.DeviceMotionEvent) {
-                        window.addEventListener('devicemotion', this.handleMotion.bind(this));
+                        this.boundMotion = this.handleMotion.bind(this);
+                        window.addEventListener('devicemotion', this.boundMotion);
                     }
-                    
-                    // Start animation loop
-                    this.animateCompass();
-                    
-                    this.updateAccuracy('Good');
+                    this.updateAccuracy('High Precision Calibrated');
                 },
-                
+
                 stop() {
                     this.isActive = false;
-                    
                     const startBtn = document.getElementById('compass-start-btn');
                     const stopBtn = document.getElementById('compass-stop-btn');
-                    
                     if (startBtn) startBtn.disabled = false;
                     if (stopBtn) stopBtn.disabled = true;
-                    
-                    // Remove event listeners
-                    window.removeEventListener('deviceorientation', this.handleOrientation.bind(this));
-                    window.removeEventListener('devicemotion', this.handleMotion.bind(this));
-                    
-                    this.updateStatus('Compass stopped');
-                    this.updateAccuracy('Stopped');
+
+                    if (this.boundOrientation) {
+                        window.removeEventListener('deviceorientation', this.boundOrientation);
+                    }
+                    if (this.boundMotion) {
+                        window.removeEventListener('devicemotion', this.boundMotion);
+                    }
+
+                    this.updateStatus('Sensor paused');
+                    this.updateAccuracy('Paused');
                 },
-                
+
                 calibrate() {
                     this.calibrationOffset = this.lastHeading;
-                    this.updateStatus('Compass calibrated');
-                    this.showCalibrationAnimation();
+                    this.updateStatus('Compass zero calibrated to current reference');
+                    this.updateAccuracy('Calibrated (0° Reference Set)');
+                    const compass = document.getElementById('compass-display');
+                    if (compass) {
+                        compass.style.transition = 'transform 0.3s ease';
+                        compass.style.transform = 'scale(1.05)';
+                        setTimeout(() => { compass.style.transform = 'scale(1)'; }, 300);
+                    }
                 },
-                
+
                 handleOrientation(event) {
                     if (!this.isActive) return;
-                    
-                    let heading = 0;
-                    
-                    // Get heading from different sources
+
+                    let rawHeading = 0;
                     if (event.webkitCompassHeading !== undefined) {
-                        // iOS Safari
-                        heading = event.webkitCompassHeading;
+                        rawHeading = event.webkitCompassHeading;
                     } else if (event.alpha !== null) {
-                        // Standard Android
-                        heading = event.alpha;
-                    } else {
-                        this.updateStatus('No compass data available');
-                        return;
+                        rawHeading = (360 - event.alpha) % 360;
                     }
-                    
-                    // Apply calibration offset
-                    heading = (heading - this.calibrationOffset + 360) % 360;
+
+                    this.pitch = event.beta || 0; // Front-to-back tilt (-180 to 180)
+                    this.roll = event.gamma || 0;  // Left-to-right tilt (-90 to 90)
+
+                    // Auto switch between compass (flat) and leveler (upright)
+                    this.checkAutoSwitch();
+
+                    // Calibrated heading
+                    let heading = (rawHeading - this.calibrationOffset + 360) % 360;
                     this.lastHeading = heading;
-                    
-                    // Update compass display
-                    this.updateCompass(heading);
+
+                    // Exponential smoothing for steady jitter-free needle
+                    if (Math.abs(heading - this.smoothedHeading) > 180) {
+                        this.smoothedHeading = heading;
+                    } else {
+                        this.smoothedHeading += (heading - this.smoothedHeading) * this.filterAlpha;
+                    }
+
+                    if (this.currentView === 'compass') {
+                        this.updateCompass(this.smoothedHeading);
+                    } else {
+                        this.updateLeveler(this.pitch, this.roll);
+                    }
                 },
-                
+
                 handleMotion(event) {
-                    if (!this.isActive || !event.accelerationIncludingGravity) return;
-                    
-                    const acceleration = event.accelerationIncludingGravity;
-                    const beta = event.beta || 0; // Front-back tilt
-                    const gamma = event.gamma || 0; // Left-right tilt
-                    
-                    // Update level display
-                    this.updateLevel(beta, gamma);
+                    if (!this.isActive) return;
                 },
-                
+
                 updateCompass(heading) {
-                    // Update needle rotation with smooth animation
                     const needle = document.getElementById('compass-needle');
                     if (needle) {
                         needle.style.transform = `translate(-50%, -100%) rotate(${heading}deg)`;
                     }
-                    
-                    // Update degree display
+
+                    const directionName = this.getDirectionName(heading);
                     const degreeDisplay = document.getElementById('compass-degree');
                     if (degreeDisplay) {
-                        degreeDisplay.textContent = `${Math.round(heading)}°`;
+                        degreeDisplay.textContent = `${Math.round(heading)}° ${directionName.abbr}`;
                     }
-                    
-                    // Update direction text
-                    const directionText = this.getDirectionName(heading);
+                    const degreesDisplay = document.getElementById('compass-degrees');
+                    if (degreesDisplay) {
+                        degreesDisplay.textContent = `${Math.round(heading)}°`;
+                    }
+
                     const directionElement = document.getElementById('compass-direction-text');
                     if (directionElement) {
-                        directionElement.textContent = directionText;
+                        directionElement.textContent = `${directionName.name} (${Math.round(heading)}°)`;
                     }
-                },
-                
-                updateLevel(beta, gamma) {
+                    const directionAlt = document.getElementById('compass-direction');
+                    if (directionAlt) {
+                        directionAlt.textContent = directionName.name;
+                    }
+
                     const levelText = document.getElementById('compass-level-text');
                     if (levelText) {
-                        levelText.textContent = `Tilt: X: ${Math.round(gamma)}°, Y: ${Math.round(beta)}°`;
+                        const posture = Math.abs(this.pitch) < 15 ? 'Flat on Surface' : 'Slightly Tilted';
+                        levelText.textContent = `${posture} (Pitch: ${Math.round(this.pitch)}°, Roll: ${Math.round(this.roll)}°)`;
                     }
                 },
-                
+
+                updateLeveler(pitch, roll) {
+                    const bubble = document.getElementById('leveler-bubble-dot');
+                    const statusPill = document.getElementById('leveler-status-pill');
+                    const detail = document.getElementById('leveler-pitch-roll-detail');
+
+                    // Clamp roll to [-30, 30] for visual tube width
+                    const clampedRoll = Math.max(-30, Math.min(30, roll));
+                    const leftPercent = 50 + (clampedRoll / 30) * 35;
+
+                    if (bubble) {
+                        bubble.style.left = `${leftPercent}%`;
+                        const isLevel = Math.abs(roll) <= 1.0;
+                        bubble.style.background = isLevel 
+                            ? 'radial-gradient(circle at 35% 35%, #86efac, #10b981 70%, #047857)' 
+                            : 'radial-gradient(circle at 35% 35%, #fde047, #f59e0b 70%, #d97706)';
+                    }
+
+                    const isLevel = Math.abs(roll) <= 1.0;
+                    if (statusPill) {
+                        statusPill.textContent = isLevel 
+                            ? `🎯 ${Math.abs(roll).toFixed(1)}° PERFECT LEVEL` 
+                            : `⚖️ ${Math.abs(roll).toFixed(1)}° TILT (${roll > 0 ? 'Right' : 'Left'})`;
+                        statusPill.style.color = isLevel ? '#10b981' : '#f59e0b';
+                        statusPill.style.borderColor = isLevel ? '#10b981' : '#f59e0b';
+                    }
+
+                    if (detail) {
+                        detail.textContent = `Straight/Upright Level • Roll: ${roll.toFixed(1)}° | Pitch: ${pitch.toFixed(1)}°`;
+                    }
+
+                    const levelText = document.getElementById('compass-level-text');
+                    if (levelText) {
+                        levelText.textContent = `Upright Level Mode (Roll: ${roll.toFixed(1)}°, Pitch: ${pitch.toFixed(1)}°)`;
+                    }
+                },
+
                 getDirectionName(heading) {
                     const directions = [
-                        { name: 'North', min: 337.5, max: 22.5 },
-                        { name: 'Northeast', min: 22.5, max: 67.5 },
-                        { name: 'East', min: 67.5, max: 112.5 },
-                        { name: 'Southeast', min: 112.5, max: 157.5 },
-                        { name: 'South', min: 157.5, max: 202.5 },
-                        { name: 'Southwest', min: 202.5, max: 247.5 },
-                        { name: 'West', min: 247.5, max: 292.5 },
-                        { name: 'Northwest', min: 292.5, max: 337.5 }
+                        { name: 'North', abbr: 'N', min: 337.5, max: 22.5 },
+                        { name: 'Northeast', abbr: 'NE', min: 22.5, max: 67.5 },
+                        { name: 'East', abbr: 'E', min: 67.5, max: 112.5 },
+                        { name: 'Southeast', abbr: 'SE', min: 112.5, max: 157.5 },
+                        { name: 'South', abbr: 'S', min: 157.5, max: 202.5 },
+                        { name: 'Southwest', abbr: 'SW', min: 202.5, max: 247.5 },
+                        { name: 'West', abbr: 'W', min: 247.5, max: 292.5 },
+                        { name: 'Northwest', abbr: 'NW', min: 292.5, max: 337.5 }
                     ];
-                    
                     for (const dir of directions) {
                         if (dir.min > dir.max) {
-                            if (heading >= dir.min || heading < dir.max) {
-                                return dir.name;
-                            }
+                            if (heading >= dir.min || heading < dir.max) return dir;
                         } else {
-                            if (heading >= dir.min && heading < dir.max) {
-                                return dir.name;
-                            }
+                            if (heading >= dir.min && heading < dir.max) return dir;
                         }
                     }
-                    
-                    return 'North';
+                    return { name: 'North', abbr: 'N' };
                 },
-                
+
                 updateStatus(message) {
-                    const statusElement = document.getElementById('compass-status');
-                    if (statusElement) {
-                        statusElement.textContent = message;
-                    }
+                    const el = document.getElementById('compass-status');
+                    if (el) el.textContent = message;
                 },
-                
+
                 updateAccuracy(accuracy) {
-                    const accuracyElement = document.getElementById('compass-accuracy');
-                    if (accuracyElement) {
-                        accuracyElement.textContent = accuracy;
-                    }
+                    const el = document.getElementById('compass-accuracy');
+                    if (el) el.textContent = accuracy;
                 },
-                
-                showError(message) {
-                    this.updateStatus(message);
-                    console.error('Compass error:', message);
-                },
-                
-                showCalibrationAnimation() {
-                    const compass = document.getElementById('compass-display');
-                    if (compass) {
-                        compass.style.animation = 'pulse 0.5s ease-in-out 3';
-                        setTimeout(() => {
-                            compass.style.animation = '';
-                        }, 1500);
-                    }
-                },
-                
-                animateCompass() {
-                    if (!this.isActive) return;
-                    
-                    // Add subtle animation to compass
-                    const compass = document.getElementById('compass-display');
-                    if (compass) {
-                        const time = Date.now() / 1000;
-                        const wobble = Math.sin(time * 2) * 0.5;
-                        compass.style.transform = `rotate(${wobble}deg)`;
-                    }
-                    
-                    requestAnimationFrame(() => this.animateCompass());
-                }
+
+                // Aliases for sizer sub-tab compatibility
+                startCompass() { this.start(); },
+                stopCompass() { this.stop(); },
+                calibrateCompass() { this.calibrate(); }
             },
 
             passGen: {

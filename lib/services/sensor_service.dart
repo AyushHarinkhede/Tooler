@@ -16,6 +16,7 @@ class CompassReading {
   final double pitch; // Front/Back tilt in degrees
   final double roll; // Left/Right tilt in degrees
   final bool isLevel; // True if device is practically horizontal
+  final bool isUpright; // True if device is held upright / vertical (> 28° tilt)
   final double magneticStrength; // In microTesla (uT)
   final double gyroZ; // Angular velocity (deg/s) around Z axis
   final CompassAccuracy accuracy;
@@ -27,6 +28,7 @@ class CompassReading {
     required this.pitch,
     required this.roll,
     required this.isLevel,
+    required this.isUpright,
     required this.magneticStrength,
     required this.gyroZ,
     required this.accuracy,
@@ -39,6 +41,7 @@ class CompassReading {
     pitch: 0.0,
     roll: 0.0,
     isLevel: true,
+    isUpright: false,
     magneticStrength: 45.0,
     gyroZ: 0.0,
     accuracy: CompassAccuracy.medium,
@@ -65,6 +68,11 @@ class SensorService {
   double _mx = 0, _my = 30, _mz = -25;
   double _gz = 0; // Gyroscope Z rotation in rad/s
 
+  // Magnetometer calibration bounds (hard-iron compensation)
+  double _minMx = -35.0, _maxMx = 35.0;
+  double _minMy = -35.0, _maxMy = 35.0;
+  double _minMz = -45.0, _maxMz = 25.0;
+
   double _fusedHeading = 0.0;
   double _filteredPitch = 0.0;
   double _filteredRoll = 0.0;
@@ -73,6 +81,16 @@ class SensorService {
 
   bool _isListening = false;
   bool get isListening => _isListening;
+
+  void recalibrate() {
+    _minMx = _mx - 25.0;
+    _maxMx = _mx + 25.0;
+    _minMy = _my - 25.0;
+    _maxMy = _my + 25.0;
+    _minMz = _mz - 25.0;
+    _maxMz = _mz + 25.0;
+    _fusedHeading = 0.0;
+  }
 
   void start() {
     if (_isListening) return;
@@ -95,14 +113,27 @@ class SensorService {
         },
       );
 
-      // 2. Magnetometer stream (for magnetic vector)
+      // 2. Magnetometer stream (for magnetic vector with hard-iron calibration)
       _magSub = magnetometerEventStream(
         samplingPeriod: SensorInterval.uiInterval,
       ).listen(
         (event) {
-          _mx = event.x;
-          _my = event.y;
-          _mz = event.z;
+          // Dynamic hard-iron offset tracking
+          _minMx = math.min(_minMx, event.x);
+          _maxMx = math.max(_maxMx, event.x);
+          _minMy = math.min(_minMy, event.y);
+          _maxMy = math.max(_maxMy, event.y);
+          _minMz = math.min(_minMz, event.z);
+          _maxMz = math.max(_maxMz, event.z);
+
+          final double offX = (_maxMx + _minMx) / 2.0;
+          final double offY = (_maxMy + _minMy) / 2.0;
+          final double offZ = (_maxMz + _minMz) / 2.0;
+
+          _mx = event.x - offX;
+          _my = event.y - offY;
+          _mz = event.z - offZ;
+
           _hasReceivedHardwareEvent = true;
           _processSensorFusion();
         },
@@ -150,61 +181,69 @@ class SensorService {
     _lastTimestamp = now;
 
     // 1. Calculate Pitch and Roll from Accelerometer with low-pass filter
-    // Pitch: Rotation around X axis (nose up/down)
-    // Roll: Rotation around Y axis (bank left/right)
-    final double rawPitch = math.atan2(_ay, math.sqrt(_ax * _ax + _az * _az)) * (180.0 / math.pi);
-    final double rawRoll = math.atan2(-_ax, _az) * (180.0 / math.pi);
+    final double gNorm = math.sqrt(_ax * _ax + _ay * _ay + _az * _az);
+    final double gx = _ax / (gNorm > 0.001 ? gNorm : 9.8);
+    final double gy = _ay / (gNorm > 0.001 ? gNorm : 9.8);
+    final double gz = _az / (gNorm > 0.001 ? gNorm : 9.8);
 
-    // Exponential smoothing (alpha = 0.25)
-    _filteredPitch = _filteredPitch * 0.75 + rawPitch * 0.25;
-    _filteredRoll = _filteredRoll * 0.75 + rawRoll * 0.25;
+    final double pitchRad = math.asin((-gy).clamp(-1.0, 1.0));
+    final double rollRad = math.atan2(gx, gz);
 
-    final double pitchRad = _filteredPitch * (math.pi / 180.0);
-    final double rollRad = _filteredRoll * (math.pi / 180.0);
+    final double rawPitchDeg = pitchRad * (180.0 / math.pi);
+    final double rawRollDeg = rollRad * (180.0 / math.pi);
 
-    // 2. Tilt-Compensated Magnetic Field Components
-    // Xh = Mx * cos(pitch) + Mz * sin(pitch)
-    // Yh = Mx * sin(roll)*sin(pitch) + My * cos(roll) - Mz * sin(roll)*cos(pitch)
-    final double xh = _mx * math.cos(pitchRad) + _mz * math.sin(pitchRad);
-    final double yh = _mx * math.sin(rollRad) * math.sin(pitchRad) +
-        _my * math.cos(rollRad) -
-        _mz * math.sin(rollRad) * math.cos(pitchRad);
+    // Exponential smoothing
+    _filteredPitch = _filteredPitch * 0.70 + rawPitchDeg * 0.30;
+    _filteredRoll = _filteredRoll * 0.70 + rawRollDeg * 0.30;
+
+    final double pRad = _filteredPitch * (math.pi / 180.0);
+    final double rRad = _filteredRoll * (math.pi / 180.0);
+
+    // 2. Accurate Tilt-Compensated Magnetic Field Components
+    final double cosP = math.cos(pRad);
+    final double sinP = math.sin(pRad);
+    final double cosR = math.cos(rRad);
+    final double sinR = math.sin(rRad);
+
+    final double xh = _mx * cosR + _mz * sinR;
+    final double yh = _mx * sinP * sinR + _my * cosP - _mz * sinP * cosR;
 
     // Magnetic Azimuth in degrees [0, 360)
-    double rawMagHeading = math.atan2(-yh, xh) * (180.0 / math.pi);
+    double rawMagHeading = math.atan2(-xh, yh) * (180.0 / math.pi);
     if (rawMagHeading < 0) rawMagHeading += 360.0;
 
     // 3. Gyroscope + Magnetometer Complementary Filter
-    // Gyroscope delta: dt * gyroZ (in degrees)
     final double gyroDeltaDeg = -_gz * dt * (180.0 / math.pi);
 
     // Integrate gyro with previous fused heading
     double gyroHeading = _fusedHeading + gyroDeltaDeg;
     if (gyroHeading < 0) gyroHeading += 360.0;
-    if (gyroHeading >= 360) gyroHeading -= 360.0;
+    if (gyroHeading >= 360.0) gyroHeading -= 360.0;
 
-    // Complementary fusion: handle circular 360 wrap
+    // Shortest circular wrap distance
     double diff = rawMagHeading - gyroHeading;
     if (diff > 180.0) diff -= 360.0;
     if (diff < -180.0) diff += 360.0;
 
-    // Weight: 94% gyro (smooth, no noise) + 6% magnetometer (absolute drift correction)
-    _fusedHeading = gyroHeading + (diff * 0.08);
+    // Fused heading: 88% smooth gyro + 12% absolute magnetic anchor
+    _fusedHeading = gyroHeading + (diff * 0.12);
     if (_fusedHeading < 0) _fusedHeading += 360.0;
-    if (_fusedHeading >= 360) _fusedHeading -= 360.0;
+    if (_fusedHeading >= 360.0) _fusedHeading -= 360.0;
 
     // 4. Magnetic Field Strength (B = sqrt(x^2 + y^2 + z^2))
     final double magStrength = math.sqrt(_mx * _mx + _my * _my + _mz * _mz);
 
     // 5. Accuracy Assessment based on typical Earth field (25 to 65 uT)
     CompassAccuracy accuracy = CompassAccuracy.medium;
-    if (magStrength >= 28.0 && magStrength <= 68.0) {
+    if (magStrength >= 25.0 && magStrength <= 70.0) {
       accuracy = CompassAccuracy.high;
-    } else if (magStrength < 15.0 || magStrength > 110.0) {
+    } else if (magStrength < 12.0 || magStrength > 115.0) {
       accuracy = CompassAccuracy.low;
     }
 
-    final bool isLevel = _filteredPitch.abs() < 3.0 && _filteredRoll.abs() < 3.0;
+    // Phone is upright/straight if pitch is tilted more than 28° from flat
+    final bool isUpright = _filteredPitch.abs() > 28.0;
+    final bool isLevel = _filteredPitch.abs() < 2.0 && _filteredRoll.abs() < 2.0;
 
     final reading = CompassReading(
       heading: _fusedHeading,
@@ -212,6 +251,7 @@ class SensorService {
       pitch: _filteredPitch,
       roll: _filteredRoll,
       isLevel: isLevel,
+      isUpright: isUpright,
       magneticStrength: magStrength,
       gyroZ: _gz * (180.0 / math.pi),
       accuracy: accuracy,

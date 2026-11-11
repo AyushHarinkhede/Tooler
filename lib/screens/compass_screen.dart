@@ -8,6 +8,12 @@ import '../services/sound_service.dart';
 import '../services/sensor_service.dart';
 import '../widgets_3d/stationery_3d_modal.dart';
 
+enum CompassDisplayMode {
+  autoDetect,
+  lockCompass,
+  lockLeveler,
+}
+
 class CompassScreen extends StatefulWidget {
   final StationeryTheme theme;
   const CompassScreen({super.key, required this.theme});
@@ -21,9 +27,13 @@ class _CompassScreenState extends State<CompassScreen>
   StreamSubscription<CompassReading>? _sensorSub;
   CompassReading _reading = CompassReading.empty;
 
-  // Manual fallback mode if user wants to test without physical sensors
-  bool _manualOverride = false;
-  double _manualHeading = 45.0;
+  CompassDisplayMode _mode = CompassDisplayMode.autoDetect;
+
+  // Manual fallback mode if testing on emulator
+  final bool _manualOverride = false;
+  final double _manualHeading = 45.0;
+  final double _manualPitch = 0.0;
+  final double _manualRoll = 0.0;
 
   late AnimationController _pulseCtrl;
 
@@ -56,12 +66,32 @@ class _CompassScreenState extends State<CompassScreen>
     super.dispose();
   }
 
+  // Determines whether to display Compass or Leveler
+  bool get _shouldShowLeveler {
+    if (_mode == CompassDisplayMode.lockLeveler) return true;
+    if (_mode == CompassDisplayMode.lockCompass) return false;
+    // In Auto Mode: show Leveler when phone is straight/upright, Compass when flat
+    return _reading.isUpright;
+  }
+
+  void _recalibrateSensor() {
+    SoundService().playClick();
+    SensorService().recalibrate();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text("Sensors Zeroed & Re-calibrated! Wave phone in Figure-8."),
+        backgroundColor: widget.theme.primary,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   void _showCalibrationModal() {
     SoundService().playClick();
     Stationery3DModal.show(
       context: context,
       title: "Compass Sensor Calibration",
-      subtitle: "Calibrate magnetometer & gyroscope",
+      subtitle: "Calibrate magnetometer & accelerometer",
       theme: widget.theme,
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -87,7 +117,7 @@ class _CompassScreenState extends State<CompassScreen>
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  "This recalibrates the internal geomagnetic sensor against local electrical interference.",
+                  "This recalibrates the geomagnetic sensor against local electrical interference and locks true heading.",
                   textAlign: TextAlign.center,
                   style: widget.theme.fontDoodle(
                     fontSize: 12,
@@ -106,32 +136,27 @@ class _CompassScreenState extends State<CompassScreen>
                 val: "${_reading.magneticStrength.toStringAsFixed(1)} µT",
               ),
               _buildMetricChip(
-                label: "Accuracy",
+                label: "Sensor State",
                 val: _reading.accuracy.name.toUpperCase(),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          ElevatedButton(
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF10B981),
               foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
-                side: BorderSide(color: widget.theme.border, width: 2),
               ),
             ),
             onPressed: () {
               Navigator.pop(context);
-              SoundService().playSuccess();
+              _recalibrateSensor();
             },
-            child: Text(
-              "Done Calibrating",
-              style: widget.theme.fontDoodle(
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            icon: const Icon(Icons.check_circle_outline),
+            label: const Text("Zero & Re-Calibrate Now"),
           ),
         ],
       ),
@@ -140,7 +165,7 @@ class _CompassScreenState extends State<CompassScreen>
 
   Widget _buildMetricChip({required String label, required String val}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: widget.theme.cardBg,
         borderRadius: BorderRadius.circular(10),
@@ -148,22 +173,8 @@ class _CompassScreenState extends State<CompassScreen>
       ),
       child: Column(
         children: [
-          Text(
-            label,
-            style: widget.theme.fontMono(
-              fontSize: 10,
-              color: widget.theme.text.withValues(alpha: 0.6),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            val,
-            style: widget.theme.fontDisplay(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: widget.theme.primary,
-            ),
-          ),
+          Text(label, style: GoogleFonts.kalam(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.7))),
+          Text(val, style: GoogleFonts.robotoMono(fontSize: 13, fontWeight: FontWeight.bold)),
         ],
       ),
     );
@@ -171,12 +182,11 @@ class _CompassScreenState extends State<CompassScreen>
 
   @override
   Widget build(BuildContext context) {
-    final double activeHeading =
-        _manualOverride ? _manualHeading : _reading.heading;
-    final double headingRad = -activeHeading * math.pi / 180.0;
-    final String directionText = _manualOverride
-        ? _getDirectionName(_manualHeading)
-        : _reading.cardinal;
+    final double activeHeading = _manualOverride ? _manualHeading : _reading.heading;
+    final double headingRad = -activeHeading * (math.pi / 180.0);
+    final String directionText = _reading.cardinal;
+
+    final isLevelerActive = _shouldShowLeveler;
 
     return Scaffold(
       backgroundColor: widget.theme.bg,
@@ -188,16 +198,16 @@ class _CompassScreenState extends State<CompassScreen>
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          "Digital Compass",
+          isLevelerActive ? "Precision Spirit Level" : "Digital Precision Compass",
           style: GoogleFonts.architectsDaughter(
-            fontSize: 22,
+            fontSize: 21,
             fontWeight: FontWeight.bold,
             color: widget.theme.text,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.rotate_right),
+            icon: const Icon(Icons.refresh_rounded),
             tooltip: "Calibrate Sensors",
             onPressed: _showCalibrationModal,
           ),
@@ -215,27 +225,34 @@ class _CompassScreenState extends State<CompassScreen>
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
               child: Column(
                 children: [
-                  // 1. Hardware Sensor Status Badge
-                  _buildSensorStatusBadge(),
+                  // 1. Mode Selector Toolbar (Auto vs Lock Compass vs Lock Leveler)
+                  _buildModeSelectorToolbar(),
 
                   const SizedBox(height: 12),
 
-                  // 2. Heading Degree Readout Card
-                  _buildHeadingReadout(activeHeading, directionText),
+                  // 2. Dynamic Status Banner (Flat / Straight & Orientation)
+                  _buildOrientationStatusBanner(isLevelerActive),
+
+                  const SizedBox(height: 14),
+
+                  // 3. Primary Readout Card (Degrees, Direction, or Tilt Angle)
+                  _buildReadoutCard(activeHeading, directionText, isLevelerActive),
+
+                  const SizedBox(height: 18),
+
+                  // 4. MAIN CIRCLE INSTRUMENT:
+                  // Shows Compass with Plus Bar (+ Front/Back, Left/Right, NO DOT) when flat
+                  // Shows Spirit Level Line & Bubble Dot when straight/upright
+                  _buildMainInstrumentCircle(headingRad, isLevelerActive),
 
                   const SizedBox(height: 20),
 
-                  // 3. 3D Rotating Compass Dial with Spirit Bubble Level Center
-                  _buildCompassDialWithLevel(headingRad),
-
-                  const SizedBox(height: 20),
-
-                  // 4. Dual-Axis Spirit Level & Pitch/Roll Gauges
-                  _buildSpiritLevelGauges(),
+                  // 5. Navigation Direction Coordinates & Quick Controls
+                  _buildInstrumentCoordinatesBar(isLevelerActive),
 
                   const SizedBox(height: 16),
 
-                  // 5. Hardware Sensor Telemetry & Calibration Toolbar
+                  // 6. Sensor Fusion Telemetry Dashboard
                   _buildTelemetryDashboard(),
 
                   const SizedBox(height: 24),
@@ -248,41 +265,111 @@ class _CompassScreenState extends State<CompassScreen>
     );
   }
 
-  // --- HARDWARE SENSOR STATUS BADGE ---
-  Widget _buildSensorStatusBadge() {
-    final bool synced = _reading.isHardwareSynced && !_manualOverride;
-
+  // --- 1. MODE SELECTOR TOOLBAR ---
+  Widget _buildModeSelectorToolbar() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      padding: const EdgeInsets.all(6),
       decoration: BoxDecoration(
-        color: synced ? const Color(0xFFDCFCE7) : const Color(0xFFFEF3C7),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: synced ? const Color(0xFF16A34A) : const Color(0xFFD97706),
-          width: 1.5,
-        ),
+        color: widget.theme.cardBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: widget.theme.border, width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: widget.theme.border.withValues(alpha: 0.2),
+            offset: const Offset(2, 3),
+            blurRadius: 0,
+          ),
+        ],
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: synced ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+          _buildModeButton("🔄 Auto", CompassDisplayMode.autoDetect),
+          const SizedBox(width: 4),
+          _buildModeButton("🧭 Compass", CompassDisplayMode.lockCompass),
+          const SizedBox(width: 4),
+          _buildModeButton("⚖️ Leveler", CompassDisplayMode.lockLeveler),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModeButton(String label, CompassDisplayMode mode) {
+    final bool isSelected = (_mode == mode);
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          SoundService().playClick();
+          setState(() => _mode = mode);
+        },
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? widget.theme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+              color: isSelected ? Colors.white : widget.theme.text,
             ),
           ),
-          const SizedBox(width: 8),
+        ),
+      ),
+    );
+  }
+
+  // --- 2. ORIENTATION STATUS BANNER ---
+  Widget _buildOrientationStatusBanner(bool isLevelerActive) {
+    final bool isUpright = _reading.isUpright;
+    final String modeLabel = _mode == CompassDisplayMode.autoDetect
+        ? "Auto Detect: ${isUpright ? '📱 Straight/Upright' : '📱 Flat Horizontal'}"
+        : (_mode == CompassDisplayMode.lockCompass ? "🔒 Compass Locked" : "🔒 Leveler Locked");
+
+    final Color statusColor = isLevelerActive
+        ? (_reading.roll.abs() < 1.0 ? const Color(0xFF10B981) : const Color(0xFFF59E0B))
+        : const Color(0xFF3B82F6);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor.withValues(alpha: 0.4), width: 1.5),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isLevelerActive ? Icons.straighten_rounded : Icons.explore_outlined,
+                size: 16,
+                color: statusColor,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                modeLabel,
+                style: GoogleFonts.robotoMono(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: statusColor,
+                ),
+              ),
+            ],
+          ),
           Text(
-            synced
-                ? "HARDWARE SYNCED • GYRO + ACCEL + MAG"
-                : "MANUAL / SIMULATION MODE",
+            isLevelerActive
+                ? (_reading.roll.abs() < 1.0 ? "PERFECT LEVEL ✅" : "TILTED 📐")
+                : "TILT-COMPENSATED 🧭",
             style: GoogleFonts.robotoMono(
               fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: synced ? const Color(0xFF14532D) : const Color(0xFF78350F),
-              letterSpacing: 0.8,
+              fontWeight: FontWeight.w800,
+              color: statusColor,
             ),
           ),
         ],
@@ -290,85 +377,120 @@ class _CompassScreenState extends State<CompassScreen>
     );
   }
 
-  // --- HEADING DEGREE READOUT CARD ---
-  Widget _buildHeadingReadout(double heading, String directionText) {
+  // --- 3. DYNAMIC READOUT CARD ---
+  Widget _buildReadoutCard(double activeHeading, String directionText, bool isLevelerActive) {
+    if (isLevelerActive) {
+      final double rollAngle = _reading.roll;
+      final bool isBalanced = rollAngle.abs() < 0.6;
+
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: widget.theme.doodleCard(borderWidth: 2.5),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "HORIZON INCLINE",
+                  style: GoogleFonts.robotoMono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: widget.theme.text.withValues(alpha: 0.6),
+                  ),
+                ),
+                Text(
+                  isBalanced
+                      ? "0.0° Level"
+                      : "${rollAngle > 0 ? '+' : ''}${rollAngle.toStringAsFixed(1)}°",
+                  style: GoogleFonts.architectsDaughter(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: isBalanced ? const Color(0xFF10B981) : const Color(0xFFF97316),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: isBalanced ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                isBalanced
+                    ? "BALANCED"
+                    : (rollAngle < 0 ? "TILTED LEFT" : "TILTED RIGHT"),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Compass Readout
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      decoration: widget.theme.doodleCard(borderWidth: 2.2),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: widget.theme.doodleCard(borderWidth: 2.5),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                "${heading.round()}°",
-                style: GoogleFonts.architectsDaughter(
-                  fontSize: 36,
+                "HEADING (AZIMUTH)",
+                style: GoogleFonts.robotoMono(
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
-                  color: widget.theme.primary,
-                  height: 1.0,
+                  color: widget.theme.text.withValues(alpha: 0.6),
                 ),
               ),
-              const SizedBox(height: 2),
               Text(
-                directionText.toUpperCase(),
-                style: GoogleFonts.kalam(
-                  fontSize: 15,
+                "${activeHeading.toStringAsFixed(0)}°",
+                style: GoogleFonts.architectsDaughter(
+                  fontSize: 34,
                   fontWeight: FontWeight.bold,
-                  color: widget.theme.text,
+                  color: const Color(0xFFFF4757),
                 ),
               ),
             ],
           ),
-
-          // Level Status Indicator
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: _reading.isLevel
-                  ? const Color(0xFF22C55E).withValues(alpha: 0.15)
-                  : const Color(0xFFEF4444).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
-                color: _reading.isLevel
-                    ? const Color(0xFF16A34A)
-                    : const Color(0xFFDC2626),
-                width: 1.5,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                "CARDINAL POINT",
+                style: GoogleFonts.robotoMono(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  color: widget.theme.text.withValues(alpha: 0.6),
+                ),
               ),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  _reading.isLevel ? Icons.check_circle : Icons.screen_rotation,
-                  size: 16,
-                  color: _reading.isLevel
-                      ? const Color(0xFF16A34A)
-                      : const Color(0xFFDC2626),
+              Text(
+                directionText.toUpperCase(),
+                style: GoogleFonts.architectsDaughter(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: widget.theme.primary,
                 ),
-                const SizedBox(width: 4),
-                Text(
-                  _reading.isLevel ? "LEVEL" : "TILTED",
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: _reading.isLevel
-                        ? const Color(0xFF16A34A)
-                        : const Color(0xFFDC2626),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  // --- 3D ROTATING COMPASS DIAL WITH EMBEDDED SPIRIT LEVEL ---
-  Widget _buildCompassDialWithLevel(double headingRad) {
-    const double dialSize = 280.0;
+  // --- 4. MAIN CIRCLE INSTRUMENT ---
+  Widget _buildMainInstrumentCircle(double headingRad, bool isLevelerActive) {
+    const double dialSize = 290.0;
 
     return Center(
       child: Container(
@@ -377,204 +499,145 @@ class _CompassScreenState extends State<CompassScreen>
         decoration: BoxDecoration(
           color: widget.theme.cardBg,
           shape: BoxShape.circle,
-          border: Border.all(color: widget.theme.border, width: 4.0),
+          border: Border.all(
+            color: isLevelerActive && _reading.roll.abs() < 0.6
+                ? const Color(0xFF10B981)
+                : widget.theme.border,
+            width: 4.0,
+          ),
           boxShadow: [
             BoxShadow(
-              color: widget.theme.border.withValues(alpha: 0.35),
+              color: isLevelerActive && _reading.roll.abs() < 0.6
+                  ? const Color(0xFF10B981).withValues(alpha: 0.3)
+                  : widget.theme.border.withValues(alpha: 0.35),
               offset: const Offset(4, 7),
-              blurRadius: 0,
+              blurRadius: isLevelerActive && _reading.roll.abs() < 0.6 ? 12 : 0,
             ),
           ],
         ),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Rotating Compass Rose Dial
-            Transform.rotate(
-              angle: headingRad,
-              child: CustomPaint(
-                size: const Size(dialSize, dialSize),
-                painter: _CompassDialPainter(theme: widget.theme),
-              ),
-            ),
-
-            // Stationary North/South Needle (School Divider Needle)
-            CustomPaint(
-              size: const Size(dialSize, dialSize),
-              painter: _CompassNeedlePainter(theme: widget.theme),
-            ),
-
-            // Real-Time Spirit Bubble Level at Center Pivot
-            _buildCenterBubbleLevel(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // --- CENTER SPIRIT BUBBLE LEVEL ---
-  Widget _buildCenterBubbleLevel() {
-    const double levelSize = 64.0;
-    // Map pitch & roll [-20°, 20°] to bubble offset [-20px, 20px]
-    const double maxOffset = 18.0;
-    final double bubbleX =
-        (_reading.roll / 20.0).clamp(-1.0, 1.0) * maxOffset;
-    final double bubbleY =
-        (-_reading.pitch / 20.0).clamp(-1.0, 1.0) * maxOffset;
-
-    final bool isLevel = _reading.isLevel;
-
-    return Container(
-      width: levelSize,
-      height: levelSize,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: const Color(0xFFE2E8F0),
-        border: Border.all(
-          color: isLevel ? const Color(0xFF16A34A) : widget.theme.border,
-          width: 2.5,
-        ),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // Crosshairs
-          Container(width: levelSize, height: 1, color: const Color(0xFF94A3B8)),
-          Container(width: 1, height: levelSize, color: const Color(0xFF94A3B8)),
-          // Bullseye target circle
-          Container(
-            width: 20,
-            height: 20,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isLevel ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
-                width: 1.5,
-              ),
-            ),
-          ),
-          // Moving Spirit Bubble
-          Transform.translate(
-            offset: Offset(bubbleX, bubbleY),
-            child: Container(
-              width: 16,
-              height: 16,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isLevel ? const Color(0xFF22C55E) : const Color(0xFFF59E0B),
-                border: Border.all(color: Colors.white, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isLevel ? const Color(0xFF16A34A) : const Color(0xFFD97706))
-                        .withValues(alpha: 0.5),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- DUAL-AXIS SPIRIT LEVEL GAUGES ---
-  Widget _buildSpiritLevelGauges() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: widget.theme.doodleCard(borderWidth: 2.0),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                "DUAL-AXIS ACCELEROMETER TILT",
-                style: GoogleFonts.robotoMono(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: widget.theme.text.withValues(alpha: 0.6),
-                ),
-              ),
-              Text(
-                "P: ${_reading.pitch.toStringAsFixed(1)}° | R: ${_reading.roll.toStringAsFixed(1)}°",
-                style: GoogleFonts.robotoMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: widget.theme.primary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-
-          // Pitch bar gauge
-          _buildAxisBar("Pitch (Front/Back)", _reading.pitch / 45.0),
-          const SizedBox(height: 6),
-
-          // Roll bar gauge
-          _buildAxisBar("Roll (Left/Right)", _reading.roll / 45.0),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAxisBar(String label, double normalized) {
-    final clamped = normalized.clamp(-1.0, 1.0);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: GoogleFonts.kalam(fontSize: 11)),
-            Text(
-              "${(normalized * 45).toStringAsFixed(1)}°",
-              style: GoogleFonts.robotoMono(fontSize: 10, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
-        const SizedBox(height: 2),
-        Container(
-          height: 10,
-          decoration: BoxDecoration(
-            color: const Color(0xFFE2E8F0),
-            borderRadius: BorderRadius.circular(5),
-            border: Border.all(color: widget.theme.border, width: 1),
-          ),
+        child: ClipOval(
           child: Stack(
             alignment: Alignment.center,
             children: [
-              // Center divider
-              Container(width: 1.5, color: widget.theme.border),
-              // Indicator fill
-              FractionallySizedBox(
-                alignment: clamped < 0 ? Alignment.centerRight : Alignment.centerLeft,
-                widthFactor: (clamped.abs() / 2).clamp(0.0, 0.5),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: clamped.abs() < 0.08
-                        ? const Color(0xFF22C55E)
-                        : const Color(0xFFF97316),
-                    borderRadius: BorderRadius.circular(4),
+              if (isLevelerActive) ...[
+                // LEVELER VIEW (Spirit Horizon Line with Sliding Bubble Dot)
+                CustomPaint(
+                  size: const Size(dialSize, dialSize),
+                  painter: _SpiritLevelInstrumentPainter(
+                    roll: _manualOverride ? _manualRoll : _reading.roll,
+                    pitch: _manualOverride ? _manualPitch : _reading.pitch,
+                    theme: widget.theme,
                   ),
                 ),
-              ),
+              ] else ...[
+                // COMPASS VIEW: Rotating Dial with Degrees
+                Transform.rotate(
+                  angle: headingRad,
+                  child: CustomPaint(
+                    size: const Size(dialSize, dialSize),
+                    painter: _CompassDialPainter(theme: widget.theme),
+                  ),
+                ),
+
+                // FIXED PLUS BAR (+) - Vertical (Front/Back) & Horizontal (Left/Right) with End Points
+                // NO DOT AT CENTER!
+                CustomPaint(
+                  size: const Size(dialSize, dialSize),
+                  painter: _CompassPlusBarPainter(theme: widget.theme),
+                ),
+
+                // Stationery North/South Pointer Needle
+                Transform.rotate(
+                  angle: headingRad,
+                  child: CustomPaint(
+                    size: const Size(dialSize, dialSize),
+                    painter: _CompassNeedlePainter(theme: widget.theme),
+                  ),
+                ),
+              ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // --- 5. INSTRUMENT COORDINATES & STATUS BAR ---
+  Widget _buildInstrumentCoordinatesBar(bool isLevelerActive) {
+    if (isLevelerActive) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: widget.theme.doodleCard(borderWidth: 2.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: [
+            _buildAxisIndicator("Lateral Roll", _reading.roll, "°"),
+            Container(width: 1.5, height: 26, color: widget.theme.border),
+            _buildAxisIndicator("Plumb Pitch", _reading.pitch, "°"),
+          ],
+        ),
+      );
+    }
+
+    // Compass Axis Reference Points (Front, Back, Left, Right)
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: widget.theme.doodleCard(borderWidth: 2.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildDirBadge("▲ FRONT", "Heading Forward", const Color(0xFFFF4757)),
+          _buildDirBadge("◀ LEFT", "West 90° Port", widget.theme.primary),
+          _buildDirBadge("RIGHT ▶", "East 90° Stbd", widget.theme.secondary),
+          _buildDirBadge("▼ BACK", "Reverse Azimuth", const Color(0xFF1E293B)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDirBadge(String label, String sub, Color color) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.robotoMono(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+        Text(
+          sub,
+          style: TextStyle(
+            fontSize: 8.5,
+            color: widget.theme.text.withValues(alpha: 0.6),
           ),
         ),
       ],
     );
   }
 
-  // --- HARDWARE SENSOR TELEMETRY & CONTROLS ---
+  Widget _buildAxisIndicator(String label, double val, String unit) {
+    final bool nearZero = val.abs() < 1.0;
+    return Column(
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.robotoMono(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.7)),
+        ),
+        Text(
+          "${val > 0 ? '+' : ''}${val.toStringAsFixed(1)}$unit",
+          style: GoogleFonts.robotoMono(
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
+            color: nearZero ? const Color(0xFF10B981) : widget.theme.primary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // --- 6. TELEMETRY DASHBOARD ---
   Widget _buildTelemetryDashboard() {
     return Container(
       padding: const EdgeInsets.all(14),
@@ -586,10 +649,10 @@ class _CompassScreenState extends State<CompassScreen>
             children: [
               Row(
                 children: [
-                  const Icon(Icons.explore_rounded, size: 18, color: Color(0xFFD97706)),
+                  const Icon(Icons.tune_rounded, size: 18, color: Color(0xFFD97706)),
                   const SizedBox(width: 6),
                   Text(
-                    "Sensor Fusion Telemetry",
+                    "Sensor Fusion & Calibration",
                     style: GoogleFonts.kalam(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -598,146 +661,55 @@ class _CompassScreenState extends State<CompassScreen>
                   ),
                 ],
               ),
-
-              // Manual override toggle
               InkWell(
-                onTap: () {
-                  setState(() => _manualOverride = !_manualOverride);
-                  SoundService().playKey();
-                },
+                onTap: _recalibrateSensor,
+                borderRadius: BorderRadius.circular(8),
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: _manualOverride
-                        ? const Color(0xFFFEF08A)
-                        : const Color(0xFFF1F5F9),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: widget.theme.border, width: 1),
+                    color: widget.theme.primary.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: widget.theme.primary, width: 1.2),
                   ),
                   child: Text(
-                    _manualOverride ? "Manual Mode" : "Auto Sensor Fusion",
-                    style: GoogleFonts.robotoMono(
-                      fontSize: 10,
+                    "Re-Zero 🔄",
+                    style: TextStyle(
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E293B),
+                      color: widget.theme.primary,
                     ),
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-
-          // Real-time sensor stats grid
+          const SizedBox(height: 12),
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Expanded(
-                child: _buildTelemetryStat(
-                  title: "Magnetometer",
-                  val: "${_reading.magneticStrength.toStringAsFixed(1)} µT",
-                  sub: "Earth Field Norm",
-                ),
+              _buildMetricChip(
+                label: "Magnetic Vector",
+                val: "${_reading.magneticStrength.toStringAsFixed(1)} µT",
               ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: _buildTelemetryStat(
-                  title: "Gyroscope Z",
-                  val: "${_reading.gyroZ.toStringAsFixed(1)} °/s",
-                  sub: "Angular Turn Rate",
-                ),
+              _buildMetricChip(
+                label: "Gyro Z Speed",
+                val: "${_reading.gyroZ.toStringAsFixed(1)} °/s",
+              ),
+              _buildMetricChip(
+                label: "Accuracy",
+                val: _reading.accuracy.name.toUpperCase(),
               ),
             ],
           ),
-
-          if (_manualOverride) ...[
-            const SizedBox(height: 12),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  "Manual Dial Slider:",
-                  style: GoogleFonts.kalam(fontSize: 12),
-                ),
-                Text(
-                  "${_manualHeading.round()}°",
-                  style: GoogleFonts.robotoMono(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            Slider(
-              value: _manualHeading,
-              min: 0,
-              max: 360,
-              activeColor: widget.theme.primary,
-              onChanged: (v) => setState(() => _manualHeading = v),
-            ),
-          ],
         ],
       ),
     );
-  }
-
-  Widget _buildTelemetryStat({
-    required String title,
-    required String val,
-    required String sub,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFCBD5E1), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: GoogleFonts.robotoMono(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF64748B),
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            val,
-            style: GoogleFonts.architectsDaughter(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E293B),
-            ),
-          ),
-          Text(
-            sub,
-            style: GoogleFonts.kalam(
-              fontSize: 9,
-              color: const Color(0xFF94A3B8),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _getDirectionName(double heading) {
-    if (heading >= 337.5 || heading < 22.5) return 'North';
-    if (heading >= 22.5 && heading < 67.5) return 'Northeast';
-    if (heading >= 67.5 && heading < 112.5) return 'East';
-    if (heading >= 112.5 && heading < 157.5) return 'Southeast';
-    if (heading >= 157.5 && heading < 202.5) return 'South';
-    if (heading >= 202.5 && heading < 247.5) return 'Southwest';
-    if (heading >= 247.5 && heading < 292.5) return 'West';
-    return 'Northwest';
   }
 }
 
-// Custom Painter for Compass Rose Dial
+// =============================================================================
+// CUSTOM PAINTER: COMPASS DIAL (DEGREES & CARDINALS AROUND EDGE)
+// =============================================================================
 class _CompassDialPainter extends CustomPainter {
   final StationeryTheme theme;
   _CompassDialPainter({required this.theme});
@@ -745,15 +717,15 @@ class _CompassDialPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = (size.width / 2) - 16;
+    final double radius = (size.width / 2) - 14;
 
     final Paint tickPaint = Paint()
       ..color = theme.border.withValues(alpha: 0.35)
-      ..strokeWidth = 1.5;
+      ..strokeWidth = 1.2;
 
     final Paint majorPaint = Paint()
       ..color = theme.border
-      ..strokeWidth = 2.5;
+      ..strokeWidth = 2.2;
 
     final TextPainter tp = TextPainter(textDirection: TextDirection.ltr);
 
@@ -762,7 +734,7 @@ class _CompassDialPainter extends CustomPainter {
       final bool isCardinal = (deg % 90 == 0);
       final bool isMajor = (deg % 30 == 0);
 
-      final double tickLen = isCardinal ? 14 : (isMajor ? 10 : 5);
+      final double tickLen = isCardinal ? 14 : (isMajor ? 9 : 5);
 
       final Offset p1 = Offset(
         center.dx + (radius - tickLen) * math.sin(rad),
@@ -775,7 +747,7 @@ class _CompassDialPainter extends CustomPainter {
 
       canvas.drawLine(p1, p2, isMajor ? majorPaint : tickPaint);
 
-      // Draw Cardinal Letters (N, E, S, W)
+      // Cardinal Letters (N, E, S, W)
       if (isCardinal) {
         String label = 'N';
         Color color = const Color(0xFFFF4757);
@@ -796,13 +768,13 @@ class _CompassDialPainter extends CustomPainter {
           text: label,
           style: GoogleFonts.architectsDaughter(
             color: color,
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: FontWeight.bold,
           ),
         );
         tp.layout();
 
-        final double textRad = (radius - 28);
+        final double textRad = (radius - 24);
         final Offset tpPos = Offset(
           center.dx + textRad * math.sin(rad) - (tp.width / 2),
           center.dy - textRad * math.cos(rad) - (tp.height / 2),
@@ -816,7 +788,129 @@ class _CompassDialPainter extends CustomPainter {
   bool shouldRepaint(covariant _CompassDialPainter oldDelegate) => false;
 }
 
-// Custom Painter for Stationery Compass Pointer Needle
+// =============================================================================
+// CUSTOM PAINTER: PLUS BAR (+) CARRYING VERTICAL (FRONT-BACK) & HORIZONTAL (LEFT-RIGHT)
+// NO DOT AT CENTER!
+// =============================================================================
+class _CompassPlusBarPainter extends CustomPainter {
+  final StationeryTheme theme;
+  _CompassPlusBarPainter({required this.theme});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double radius = (size.width / 2) - 40;
+
+    // Crosshair axis paint
+    final Paint axisPaint = Paint()
+      ..color = theme.border.withValues(alpha: 0.50)
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.square;
+
+    final Paint accentFrontPaint = Paint()
+      ..color = const Color(0xFFFF4757)
+      ..strokeWidth = 3.0;
+
+    final Paint barEndPaint = Paint()
+      ..color = theme.border
+      ..strokeWidth = 3.5
+      ..strokeCap = StrokeCap.round;
+
+    // 1. VERTICAL LINE (FRONT - BACK)
+    // Top is Front (toward phone top), Bottom is Back
+    canvas.drawLine(
+      Offset(center.dx, center.dy - radius),
+      Offset(center.dx, center.dy + radius),
+      axisPaint,
+    );
+
+    // Front bar end point (crossbar on top)
+    canvas.drawLine(
+      Offset(center.dx - 12, center.dy - radius),
+      Offset(center.dx + 12, center.dy - radius),
+      accentFrontPaint,
+    );
+
+    // Back bar end point (crossbar on bottom)
+    canvas.drawLine(
+      Offset(center.dx - 12, center.dy + radius),
+      Offset(center.dx + 12, center.dy + radius),
+      barEndPaint,
+    );
+
+    // 2. HORIZONTAL LINE (LEFT - RIGHT)
+    // Left is Left (Port), Right is Right (Starboard)
+    canvas.drawLine(
+      Offset(center.dx - radius, center.dy),
+      Offset(center.dx + radius, center.dy),
+      axisPaint,
+    );
+
+    // Left bar end point (crossbar on left)
+    canvas.drawLine(
+      Offset(center.dx - radius, center.dy - 12),
+      Offset(center.dx - radius, center.dy + 12),
+      barEndPaint,
+    );
+
+    // Right bar end point (crossbar on right)
+    canvas.drawLine(
+      Offset(center.dx + radius, center.dy - 12),
+      Offset(center.dx + radius, center.dy + 12),
+      barEndPaint,
+    );
+
+    // 3. Tick marks along the Plus Bar (+)
+    final Paint tickPaint = Paint()
+      ..color = theme.border.withValues(alpha: 0.4)
+      ..strokeWidth = 1.5;
+
+    for (double step = 30; step < radius; step += 30) {
+      // Ticks on vertical line
+      canvas.drawLine(Offset(center.dx - 4, center.dy - step), Offset(center.dx + 4, center.dy - step), tickPaint);
+      canvas.drawLine(Offset(center.dx - 4, center.dy + step), Offset(center.dx + 4, center.dy + step), tickPaint);
+
+      // Ticks on horizontal line
+      canvas.drawLine(Offset(center.dx - step, center.dy - 4), Offset(center.dx - step, center.dy + 4), tickPaint);
+      canvas.drawLine(Offset(center.dx + step, center.dy - 4), Offset(center.dx + step, center.dy + 4), tickPaint);
+    }
+
+    // 4. Center Crosshair Reticle Ring (NO DOT! Clean open target ring)
+    final Paint ringPaint = Paint()
+      ..color = theme.border
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawCircle(center, 12, ringPaint);
+
+    // 5. Direction Labels painted directly onto the ends
+    final TextPainter tp = TextPainter(textDirection: TextDirection.ltr);
+
+    void drawLabel(String text, Offset pos, Color color) {
+      tp.text = TextSpan(
+        text: text,
+        style: GoogleFonts.robotoMono(
+          color: color,
+          fontSize: 9.5,
+          fontWeight: FontWeight.bold,
+        ),
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(pos.dx - (tp.width / 2), pos.dy - (tp.height / 2)));
+    }
+
+    drawLabel("▲ FRONT", Offset(center.dx, center.dy - radius - 12), const Color(0xFFFF4757));
+    drawLabel("▼ BACK", Offset(center.dx, center.dy + radius + 12), theme.text);
+    drawLabel("◀ LEFT", Offset(center.dx - radius - 18, center.dy), theme.text);
+    drawLabel("RIGHT ▶", Offset(center.dx + radius + 20, center.dy), theme.text);
+  }
+
+  @override
+  bool shouldRepaint(covariant _CompassPlusBarPainter oldDelegate) => false;
+}
+
+// =============================================================================
+// CUSTOM PAINTER: COMPASS POINTER NEEDLE
+// =============================================================================
 class _CompassNeedlePainter extends CustomPainter {
   final StationeryTheme theme;
   _CompassNeedlePainter({required this.theme});
@@ -824,22 +918,22 @@ class _CompassNeedlePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final Offset center = Offset(size.width / 2, size.height / 2);
-    final double halfLen = (size.width / 2) - 48;
+    final double halfLen = (size.width / 2) - 52;
 
-    // North Pointer (Red Coral Pencil Tip)
+    // North Pointer (Red Coral Needle Tip)
     final Path northPath = Path()
-      ..moveTo(center.dx - 9, center.dy)
+      ..moveTo(center.dx - 8, center.dy)
       ..lineTo(center.dx, center.dy - halfLen)
-      ..lineTo(center.dx + 9, center.dy)
+      ..lineTo(center.dx + 8, center.dy)
       ..close();
     final Paint northPaint = Paint()..color = const Color(0xFFFF4757);
     canvas.drawPath(northPath, northPaint);
 
     // South Pointer (Charcoal Lead Tip)
     final Path southPath = Path()
-      ..moveTo(center.dx - 9, center.dy)
+      ..moveTo(center.dx - 8, center.dy)
       ..lineTo(center.dx, center.dy + halfLen)
-      ..lineTo(center.dx + 9, center.dy)
+      ..lineTo(center.dx + 8, center.dy)
       ..close();
     final Paint southPaint = Paint()..color = const Color(0xFF1E293B);
     canvas.drawPath(southPath, southPaint);
@@ -855,4 +949,136 @@ class _CompassNeedlePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CompassNeedlePainter oldDelegate) => false;
+}
+
+// =============================================================================
+// CUSTOM PAINTER: PRECISION SPIRIT LEVEL INSTRUMENT (LEVELER)
+// Shows Horizon Line + Sliding Bubble Dot
+// =============================================================================
+class _SpiritLevelInstrumentPainter extends CustomPainter {
+  final double roll;
+  final double pitch;
+  final StationeryTheme theme;
+
+  _SpiritLevelInstrumentPainter({
+    required this.roll,
+    required this.pitch,
+    required this.theme,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double tubeWidth = size.width - 50;
+    const double tubeHeight = 36.0;
+
+    final bool isBalanced = roll.abs() < 0.6;
+    final Color activeColor = isBalanced ? const Color(0xFF10B981) : const Color(0xFFF59E0B);
+
+    // 1. Vertical Plumb Line (Pitch)
+    final Paint plumbPaint = Paint()
+      ..color = theme.border.withValues(alpha: 0.25)
+      ..strokeWidth = 1.5;
+    canvas.drawLine(
+      Offset(center.dx, 20),
+      Offset(center.dx, size.height - 20),
+      plumbPaint,
+    );
+
+    // 2. Horizon Level Spirit Tube (Background Bar)
+    final Rect tubeRect = Rect.fromCenter(
+      center: center,
+      width: tubeWidth,
+      height: tubeHeight,
+    );
+    final RRect tubeRRect = RRect.fromRectAndRadius(tubeRect, const Radius.circular(18));
+
+    // Tube background fill
+    final Paint tubeBgPaint = Paint()
+      ..color = activeColor.withValues(alpha: 0.12)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(tubeRRect, tubeBgPaint);
+
+    // Tube border
+    final Paint tubeBorderPaint = Paint()
+      ..color = activeColor.withValues(alpha: 0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5;
+    canvas.drawRRect(tubeRRect, tubeBorderPaint);
+
+    // Center Reference Goalposts (| |)
+    const double goalWidth = 26.0;
+    final Paint goalPaint = Paint()
+      ..color = activeColor
+      ..strokeWidth = 2.5;
+    canvas.drawLine(
+      Offset(center.dx - goalWidth / 2, center.dy - tubeHeight / 2),
+      Offset(center.dx - goalWidth / 2, center.dy + tubeHeight / 2),
+      goalPaint,
+    );
+    canvas.drawLine(
+      Offset(center.dx + goalWidth / 2, center.dy - tubeHeight / 2),
+      Offset(center.dx + goalWidth / 2, center.dy + tubeHeight / 2),
+      goalPaint,
+    );
+
+    // Graduation ticks along the tube
+    final Paint tickPaint = Paint()
+      ..color = theme.border.withValues(alpha: 0.4)
+      ..strokeWidth = 1.2;
+
+    for (int deg = -20; deg <= 20; deg += 5) {
+      if (deg == 0) continue;
+      final double xPos = center.dx + (deg / 20.0) * (tubeWidth / 2 - 20);
+      final double tickH = (deg % 10 == 0) ? 14 : 8;
+      canvas.drawLine(
+        Offset(xPos, center.dy - tickH / 2),
+        Offset(xPos, center.dy + tickH / 2),
+        tickPaint,
+      );
+    }
+
+    // 3. Sliding Spirit Bubble Dot
+    // Map roll angle [-25°, 25°] to tube horizontal range
+    final double maxBubbleTravel = (tubeWidth / 2) - 20;
+    final double normalizedRoll = (roll / 20.0).clamp(-1.0, 1.0);
+    final double bubbleX = center.dx + normalizedRoll * maxBubbleTravel;
+
+    // Bubble Glow & Shadow
+    canvas.drawCircle(
+      Offset(bubbleX, center.dy),
+      14,
+      Paint()..color = activeColor.withValues(alpha: 0.35),
+    );
+
+    // Bubble Body (Vibrant Dot)
+    final Paint bubblePaint = Paint()..color = activeColor;
+    canvas.drawCircle(Offset(bubbleX, center.dy), 11, bubblePaint);
+
+    // Bubble Inner Highlight
+    final Paint highlightPaint = Paint()..color = Colors.white.withValues(alpha: 0.85);
+    canvas.drawCircle(Offset(bubbleX - 3, center.dy - 3), 3.5, highlightPaint);
+
+    // 4. Degree readout badge below level line
+    final TextPainter tp = TextPainter(textDirection: TextDirection.ltr);
+    final String label = isBalanced
+        ? "0.0° LEVEL"
+        : "${roll > 0 ? '+' : ''}${roll.toStringAsFixed(1)}°";
+
+    tp.text = TextSpan(
+      text: label,
+      style: GoogleFonts.robotoMono(
+        color: activeColor,
+        fontSize: 16,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    tp.layout();
+    tp.paint(canvas, Offset(center.dx - (tp.width / 2), center.dy + 40));
+  }
+
+  @override
+  bool shouldRepaint(covariant _SpiritLevelInstrumentPainter oldDelegate) {
+    return oldDelegate.roll != roll || oldDelegate.pitch != pitch;
+  }
 }
