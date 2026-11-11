@@ -1,0 +1,147 @@
+<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <style>
+    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fill-dark { fill: #23233A; }
+    .fill-purple { fill: #9468E8; }
+    .fill-purple-light { fill: #ECE5FC; }
+    .fill-purple-mid { fill: #C9B4F8; }
+    .fill-white { fill: #FFFFFF; }
+    .fill-none { fill: none; }
+  </style>
+
+  <!-- Ambient accents -->
+  <circle cx="95" cy="115" r="3" fill="#9468E8" />
+  <circle cx="430" cy="120" r="2.5" fill="#23233A" />
+  <polygon points="360,240 366,248 354,248" class="thin-line fill-none" stroke="#9468E8" />
+
+  <!-- Floor baseline -->
+  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
+
+  <!-- UI Wireframe Board on Wall -->
+  <g id="ui-wireframe-board">
+    <rect x="290" y="75" width="75" height="95" rx="5" class="outline fill-purple-light" />
+    <rect x="296" y="81" width="63" height="83" rx="3" class="outline fill-white" />
+    <!-- Header / Navbar wireframe block -->
+    <rect x="302" y="88" width="51" height="8" rx="2" class="thin-line fill-purple-light" />
+    <!-- Grid items wireframe with crosses -->
+    <rect x="302" y="100" width="23" height="23" rx="2" class="thin-line fill-purple-light" />
+    <line x1="302" y1="100" x2="325" y2="123" class="thin-line" stroke="#9468E8" />
+    <line x1="325" y1="100" x2="302" y2="123" class="thin-line" stroke="#9468E8" />
+    
+    <rect x="330" y="100" width="23" height="23" rx="2" class="thin-line fill-purple-light" />
+    <line x1="330" y1="100" x2="353" y2="123" class="thin-line" stroke="#9468E8" />
+    <line x1="353" y1="100" x2="330" y2="123" class="thin-line" stroke="#9468E8" />
+
+    <!-- Content lines below -->
+    <line x1="302" y1="130" x2="345" y2="130" class="thin-line" stroke="#23233A" />
+    <line x1="302" y1="136" x2="335" y2="136" class="thin-line" stroke="#23233A" />
+    <line x1="302" y1="142" x2="325" y2="142" class="thin-line" stroke="#9468E8" />
+  </g>
+
+  <!-- Side Table with Coffee Cup on Left -->
+  <g id="side-table">
+    <ellipse cx="140" cy="350" rx="28" ry="6" class="outline fill-purple-light" />
+    <!-- Table legs -->
+    <line x1="125" y1="355" x2="110" y2="460" class="outline" stroke-width="3" />
+    <line x1="155" y1="355" x2="170" y2="460" class="outline" stroke-width="3" />
+    <line x1="140" y1="355" x2="140" y2="460" class="outline" stroke-width="2.5" />
+    <line x1="118" y1="410" x2="162" y2="410" class="thin-line" />
+
+    <!-- Coffee Cup & Steam -->
+    <ellipse cx="140" cy="344" rx="10" ry="3" class="outline fill-white" />
+    <path d="M 132 334 L 148 334 L 146 344 L 134 344 Z" class="outline fill-white" />
+    <path d="M 148 336 C 154 336 154 342 148 342" class="outline fill-none" />
+    <!-- Steam -->
+    <path d="M 138 328 Q 135 322 139 318" class="thin-line fill-none" stroke="#9468E8" />
+    <path d="M 143 330 Q 146 324 142 320" class="thin-line fill-none" stroke="#9468E8" />
+  </g>
+
+  <!-- Foliage / Plants at left corner -->
+  <g id="plant-left">
+    <path d="M 75 460 C 65 410 95 370 120 390 C 140 410 120 450 110 460 Z" class="outline fill-purple" />
+    <path d="M 105 460 C 110 410 140 400 155 420 C 165 440 145 460 135 460 Z" class="outline fill-purple-mid" />
+    <path d="M 65 460 C 55 430 70 415 80 425 C 90 440 80 455 75 460 Z" class="outline fill-purple-light" />
+  </g>
+
+  <!-- OFFICE CHAIR (Reclined high-back ergonomic) -->
+  <g id="chair">
+    <path d="M 370 190 C 375 160 395 140 418 140 C 438 140 448 160 442 190 L 432 330 C 432 345 412 350 398 345 Z" class="outline fill-purple-light" />
+    <path d="M 380 155 C 380 150 388 148 400 148 C 412 148 420 150 420 155 L 415 320 C 410 330 395 330 390 320 Z" class="outline fill-white" />
+    
+    <!-- Armrest -->
+    <path d="M 345 270 L 380 270 C 390 270 395 280 390 290 L 360 290" class="outline fill-none" />
+    <line x1="370" y1="290" x2="370" y2="340" class="outline" />
+
+    <!-- Seat cushion -->
+    <rect x="335" y="325" width="105" height="18" rx="8" class="outline fill-purple-light" />
+
+    <!-- Stem & 5-Star Base -->
+    <line x1="385" y1="343" x2="385" y2="410" class="outline" stroke-width="4" />
+    <path d="M 345 425 L 385 410 L 425 425" class="outline fill-none" stroke-width="3" />
+    <circle cx="342" cy="428" r="5" class="outline fill-dark" />
+    <circle cx="385" cy="426" r="4" class="outline fill-dark" />
+    <circle cx="428" cy="428" r="5" class="outline fill-dark" />
+  </g>
+
+  <!-- CHARACTER SITTING WITH STYLUS & TABLET -->
+  <g id="character-creative">
+    <!-- Legs (Crossed / kicked back) -->
+    <!-- Under leg -->
+    <path d="M 365 330 L 320 330 C 310 330 305 340 310 360 L 325 420 L 355 420 L 340 355 L 375 350 Z" class="outline fill-purple" />
+    <path d="M 320 420 L 355 420 L 360 445 L 315 445 Z" class="outline fill-white" />
+    <path d="M 312 445 L 362 445 L 362 451 L 312 451 Z" class="outline fill-dark" />
+
+    <!-- Crossed leg (Kicked up towards left) -->
+    <path d="M 360 315 C 335 305 300 295 270 310 C 245 322 225 345 190 375 L 210 395 C 240 365 255 350 275 340 C 295 330 325 335 355 335 Z" class="outline fill-purple" />
+    <line x1="280" y1="322" x2="268" y2="330" class="thin-line" />
+    <line x1="240" y1="352" x2="230" y2="362" class="thin-line" />
+
+    <!-- Angled shoe -->
+    <g transform="rotate(30, 200, 385)">
+      <path d="M 175 375 L 215 375 L 225 398 L 170 398 Z" class="outline fill-white" />
+      <path d="M 168 398 L 228 398 L 228 404 L 168 404 Z" class="outline fill-dark" />
+      <path d="M 192 382 Q 202 385 208 382" class="thin-line fill-none" />
+    </g>
+
+    <!-- Torso (Black sweater) -->
+    <path d="M 390 180 C 390 150 365 138 335 138 C 310 138 295 150 295 180 L 315 325 L 370 325 Z" class="outline fill-dark" />
+    <path d="M 335 220 Q 355 225 375 220" class="thin-line fill-none" stroke="#FFFFFF" />
+
+    <!-- Neck & Head -->
+    <path d="M 340 125 L 340 142 L 360 142 L 360 125 Z" class="outline fill-white" />
+    <!-- Head -->
+    <path d="M 332 82 C 332 62 345 50 365 50 C 385 50 398 64 398 84 C 398 105 380 122 362 122 C 340 122 332 102 332 82 Z" class="outline fill-white" />
+
+    <!-- Face features (Focused, creative smile) -->
+    <circle cx="352" cy="85" r="2.5" fill="#23233A" />
+    <path d="M 346 78 Q 352 75 358 79" class="thin-line fill-none" />
+    <path d="M 343 86 L 338 91 L 344 92" class="thin-line fill-none" />
+    <path d="M 346 100 Q 354 103 360 99" class="thin-line fill-none" />
+    <path d="M 378 82 C 382 82 382 90 378 93 C 375 93 374 88 377 85" class="thin-line fill-white" />
+
+    <!-- Hair -->
+    <path d="M 335 78 C 332 60 345 48 365 48 C 385 48 400 58 400 74 C 400 78 395 80 392 76 C 390 65 380 56 365 56 C 355 56 348 64 345 74 C 342 78 338 79 335 78 Z" class="outline fill-dark" />
+    <path d="M 365 56 C 355 62 348 72 348 80 C 354 72 362 66 370 63 Z" class="outline fill-dark" />
+    <path d="M 390 74 C 398 85 392 95 386 98 L 386 88 Z" class="outline fill-dark" />
+
+    <!-- Left Arm & Hand (Holding Drawing Tablet) -->
+    <path d="M 335 160 C 320 175 300 200 280 220 L 290 230 C 310 210 330 185 345 175 Z" class="outline fill-dark" />
+    <path d="M 285 218 C 278 216 272 220 270 226 C 272 232 278 232 284 228 Z" class="outline fill-white" />
+
+    <!-- DRAWING TABLET -->
+    <g transform="rotate(15, 265, 230)">
+      <rect x="240" y="195" width="48" height="64" rx="5" class="outline fill-dark" />
+      <rect x="245" y="200" width="38" height="54" rx="3" class="outline fill-purple-light" />
+      <!-- Drawing stroke on screen -->
+      <path d="M 252 215 Q 265 208 275 220 T 260 238" class="thin-line fill-none" stroke="#9468E8" stroke-width="2" />
+    </g>
+
+    <!-- Right Arm & Hand (Holding Stylus Drawing) -->
+    <path d="M 365 160 C 350 175 315 190 285 195 L 282 205 C 315 202 345 188 375 170 Z" class="outline fill-dark" />
+    <path d="M 285 195 C 280 195 276 198 276 202 C 278 206 284 206 288 203 Z" class="outline fill-white" />
+    <!-- Stylus Pen -->
+    <line x1="282" y1="195" x2="270" y2="215" class="outline" stroke-width="3" stroke="#23233A" />
+    <circle cx="270" cy="215" r="1.5" fill="#9468E8" />
+  </g>
+</svg>

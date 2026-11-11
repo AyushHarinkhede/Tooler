@@ -1,0 +1,148 @@
+<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <style>
+    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fill-dark { fill: #23233A; }
+    .fill-purple { fill: #9468E8; }
+    .fill-purple-light { fill: #ECE5FC; }
+    .fill-purple-mid { fill: #C9B4F8; }
+    .fill-white { fill: #FFFFFF; }
+    .fill-none { fill: none; }
+  </style>
+
+  <!-- Ambient accents -->
+  <circle cx="215" cy="70" r="3" fill="#9468E8" />
+  <circle cx="235" cy="90" r="2.5" fill="#23233A" />
+  <path d="M 125 105 L 131 111 M 131 105 L 125 111" class="thin-line" stroke="#9468E8" />
+  
+  <!-- Dot Grid -->
+  <g fill="#C9B4F8" transform="translate(390, 240)">
+    <circle cx="0" cy="0" r="2" />
+    <circle cx="8" cy="0" r="2" />
+    <circle cx="16" cy="0" r="2" />
+    <circle cx="0" cy="8" r="2" />
+    <circle cx="8" cy="8" r="2" />
+    <circle cx="16" cy="8" r="2" />
+    <circle cx="0" cy="16" r="2" />
+    <circle cx="8" cy="16" r="2" />
+    <circle cx="16" cy="16" r="2" />
+  </g>
+
+  <!-- Floor baseline -->
+  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
+
+  <!-- Foliage / Plants at left corner -->
+  <g id="plant-left">
+    <path d="M 45 460 C 40 415 65 385 80 405 C 95 425 80 455 75 460 Z" class="outline fill-purple-light" />
+    <path d="M 68 460 C 72 420 95 410 105 425 C 110 440 100 460 95 460 Z" class="outline fill-purple" />
+    <path d="M 75 458 Q 80 435 84 418" class="thin-line fill-none" stroke="#23233A" />
+  </g>
+
+  <!-- CHAIR BACKGROUND -->
+  <g id="chair-back">
+    <path d="M 205 190 C 200 150 220 140 240 140 C 260 140 270 150 265 190 L 255 330 C 255 345 235 350 220 345 Z" class="outline fill-purple-light" />
+    <rect x="195" y="335" width="85" height="16" rx="8" class="outline fill-purple-light" />
+    <line x1="235" y1="351" x2="235" y2="410" class="outline" stroke-width="4" />
+    <path d="M 205 425 L 235 410 L 265 425" class="outline fill-none" stroke-width="3" />
+    <circle cx="202" cy="428" r="4.5" class="outline fill-dark" />
+    <circle cx="268" cy="428" r="4.5" class="outline fill-dark" />
+  </g>
+
+  <!-- CHARACTER LEANING FORWARD WRITING -->
+  <g id="character-writing">
+    <!-- Legs (Purple Trousers, sitting facing desk) -->
+    <!-- Left Leg -->
+    <path d="M 200 260 L 205 380 L 235 380 L 230 260 Z" class="outline fill-purple" />
+    <!-- Right Leg -->
+    <path d="M 240 260 L 245 380 L 275 380 L 270 260 Z" class="outline fill-purple" />
+    <!-- Creases -->
+    <line x1="205" y1="320" x2="215" y2="324" class="thin-line" />
+    <line x1="250" y1="320" x2="260" y2="324" class="thin-line" />
+
+    <!-- Shoes (White sneakers with black sole) -->
+    <!-- Left Shoe -->
+    <path d="M 195 380 L 235 380 L 240 400 L 190 400 Z" class="outline fill-white" />
+    <path d="M 188 400 L 242 400 L 242 406 L 188 406 Z" class="outline fill-dark" />
+    <!-- Right Shoe -->
+    <path d="M 240 380 L 275 380 L 285 400 L 235 400 Z" class="outline fill-white" />
+    <path d="M 232 400 L 288 400 L 288 406 L 232 406 Z" class="outline fill-dark" />
+
+    <!-- Torso (Black sweater, leaning forward towards notebook) -->
+    <path d="M 195 160 C 195 135 220 120 245 120 C 270 120 285 135 285 160 L 275 270 L 200 270 Z" class="outline fill-dark" />
+    <path d="M 215 195 Q 235 200 255 195" class="thin-line fill-none" stroke="#FFFFFF" />
+
+    <!-- Neck & Head (Angled down towards desk) -->
+    <path d="M 230 110 L 230 125 L 250 125 L 250 110 Z" class="outline fill-white" />
+    <!-- Head -->
+    <path d="M 218 72 C 218 52 232 42 252 42 C 270 42 282 56 282 76 C 282 97 265 112 245 112 C 222 112 218 92 218 72 Z" class="outline fill-white" />
+
+    <!-- Face features (Looking down at paper intently) -->
+    <!-- Eyes looking down (slight curve) -->
+    <path d="M 232 78 Q 237 82 242 78" class="outline fill-none" />
+    <path d="M 230 72 Q 236 70 242 72" class="thin-line fill-none" />
+    <path d="M 245 80 L 248 85 L 242 86" class="thin-line fill-none" />
+    <path d="M 234 94 Q 240 97 246 94" class="thin-line fill-none" />
+    <path d="M 268 76 C 272 76 272 84 268 87 C 266 87 264 82 267 79" class="thin-line fill-white" />
+
+    <!-- Hair -->
+    <path d="M 220 70 C 218 52 230 40 252 40 C 272 40 285 50 285 66 C 285 70 280 72 277 68 C 275 56 265 48 252 48 C 240 48 232 56 228 68 C 225 72 221 72 220 70 Z" class="outline fill-dark" />
+    <path d="M 252 48 C 242 54 235 64 236 70 C 240 64 248 57 256 54 Z" class="outline fill-dark" />
+    <path d="M 275 66 C 282 77 278 88 272 90 L 272 80 Z" class="outline fill-dark" />
+
+    <!-- Arms & Hands Writing in Notebook -->
+    <!-- Left Arm (Resting on desk, holding page) -->
+    <path d="M 210 155 C 190 170 175 195 190 205 L 218 205 L 222 195 L 202 190 L 218 165 Z" class="outline fill-dark" />
+    <path d="M 216 200 C 222 200 226 203 226 206 C 224 209 218 209 214 206 Z" class="outline fill-white" />
+
+    <!-- Right Arm (Holding pen, writing) -->
+    <path d="M 270 155 C 285 170 295 195 280 205 L 250 205 L 246 195 L 268 190 L 258 165 Z" class="outline fill-dark" />
+    <!-- Right Hand with Pen -->
+    <path d="M 248 200 C 242 200 238 203 238 206 C 240 209 246 209 250 206 Z" class="outline fill-white" />
+    <!-- Pen -->
+    <rect x="238" y="190" width="4" height="20" rx="1" transform="rotate(30, 240, 200)" class="outline fill-purple" />
+    <polygon points="234,208 238,206 237,212" fill="#23233A" />
+  </g>
+
+  <!-- DESK & STUDY ACCESSORIES -->
+  <g id="desk-and-props">
+    <!-- Desk Surface -->
+    <rect x="65" y="200" width="370" height="14" rx="4" class="outline fill-purple-light" />
+    
+    <!-- Desk Legs -->
+    <rect x="80" y="214" width="10" height="246" class="outline fill-purple-light" />
+    <rect x="410" y="214" width="10" height="246" class="outline fill-purple-light" />
+    <line x1="85" y1="214" x2="85" y2="460" class="thin-line" stroke="#9468E8" />
+    <line x1="415" y1="214" x2="415" y2="460" class="thin-line" stroke="#9468E8" />
+
+    <!-- Open Notebook / Journal in Center -->
+    <path d="M 210 200 L 210 190 Q 235 192 240 188 Q 245 192 270 190 L 270 200 Q 245 202 240 198 Q 235 202 210 200 Z" class="outline fill-white" />
+    <!-- Notebook spine seam & text lines -->
+    <line x1="240" y1="188" x2="240" y2="198" class="thin-line" stroke="#9468E8" />
+    <line x1="216" y1="193" x2="234" y2="193" class="thin-line" stroke="#C9B4F8" />
+    <line x1="216" y1="196" x2="230" y2="196" class="thin-line" stroke="#C9B4F8" />
+    <line x1="246" y1="193" x2="264" y2="193" class="thin-line" stroke="#C9B4F8" />
+    <line x1="246" y1="196" x2="260" y2="196" class="thin-line" stroke="#C9B4F8" />
+
+    <!-- Book Stack & Binders on Left -->
+    <!-- Binder 1 (Standing vertical) -->
+    <rect x="98" y="160" width="12" height="40" rx="2" class="outline fill-purple" />
+    <circle cx="104" cy="188" r="2.5" fill="#FFFFFF" />
+    <!-- Binder 2 -->
+    <rect x="114" y="160" width="12" height="40" rx="2" class="outline fill-purple-mid" />
+    <circle cx="120" cy="188" r="2.5" fill="#23233A" />
+    <!-- Book stack (horizontal) -->
+    <rect x="135" y="190" width="45" height="10" rx="2" class="outline fill-purple-light" />
+    <rect x="138" y="180" width="40" height="10" rx="2" class="outline fill-white" />
+
+    <!-- Modern Desk Angle Lamp on Right -->
+    <path d="M 390 200 L 410 200 L 405 195 L 395 195 Z" class="outline fill-purple-mid" />
+    <!-- Lamp arm joints -->
+    <line x1="400" y1="195" x2="385" y2="140" class="outline" stroke-width="3" />
+    <line x1="385" y1="140" x2="355" y2="155" class="outline" stroke-width="3" />
+    <circle cx="385" cy="140" r="3.5" class="outline fill-purple" />
+    <!-- Lamp head / shade -->
+    <path d="M 358 145 L 340 162 L 352 172 L 370 155 Z" class="outline fill-purple" />
+    <!-- Light cone hint -->
+    <polygon points="340,165 315,200 365,200 350,170" fill="#ECE5FC" opacity="0.6" />
+  </g>
+</svg>

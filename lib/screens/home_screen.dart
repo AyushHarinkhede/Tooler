@@ -19,6 +19,7 @@ import 'browser_screen.dart';
 import 'compass_screen.dart';
 import 'password_generator_screen.dart';
 import 'sound_recorder_screen.dart';
+import 'character_illustrations_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -229,6 +230,16 @@ class _HomeScreenState extends State<HomeScreen> {
         'iconType': 'recorder',
         'isFeatured': false,
         'builder': (context) => SoundRecorderScreen(theme: widget.theme),
+      },
+      {
+        'id': 'illustrations',
+        'title': 'Character Studio',
+        'subtitle': '2D Flat vector characters & SVG code',
+        'category': 'Utilities',
+        'tag': 'Vector SVG',
+        'iconType': 'illustrations',
+        'isFeatured': true,
+        'builder': (context) => CharacterIllustrationsScreen(theme: widget.theme),
       },
     ];
   }

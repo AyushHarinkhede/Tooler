@@ -225,6 +225,10 @@ class _IllustrationPainter extends CustomPainter {
       case 'mic':
         _drawMic(canvas, w, h, p, fillAccent);
         break;
+      case 'illustrations':
+      case 'character':
+        _drawCharacterStudio(canvas, w, h, p, fillAccent);
+        break;
       case 'settings':
       default:
         _drawSettings(canvas, w, h, p, fillAccent);
@@ -474,6 +478,18 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawLine(Offset(w * 0.50, h * 0.60), Offset(w * 0.50, h * 0.72), p);
   }
 
+
+  void _drawCharacterStudio(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    canvas.drawCircle(Offset(w * 0.50, h * 0.32), w * 0.18, p);
+    final body = Path()
+      ..moveTo(w * 0.22, h * 0.82)
+      ..cubicTo(w * 0.24, h * 0.58, w * 0.38, h * 0.52, w * 0.50, h * 0.52)
+      ..cubicTo(w * 0.62, h * 0.52, w * 0.76, h * 0.58, w * 0.78, h * 0.82)
+      ..close();
+    canvas.drawPath(body, fill);
+    canvas.drawPath(body, p);
+    canvas.drawCircle(Offset(w * 0.72, h * 0.26), w * 0.08, fill);
+  }
   void _drawMic(Canvas canvas, double w, double h, Paint p, Paint fill) {
     // Microphone body capsule
     final capsule = RRect.fromRectAndRadius(

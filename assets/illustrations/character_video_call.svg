@@ -1,0 +1,140 @@
+<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <style>
+    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fill-dark { fill: #23233A; }
+    .fill-purple { fill: #9468E8; }
+    .fill-purple-light { fill: #ECE5FC; }
+    .fill-purple-mid { fill: #C9B4F8; }
+    .fill-white { fill: #FFFFFF; }
+    .fill-none { fill: none; }
+  </style>
+
+  <!-- Ambient accents -->
+  <circle cx="280" cy="65" r="3" fill="#9468E8" />
+  <circle cx="430" cy="115" r="2.5" fill="#23233A" />
+  <circle cx="445" cy="130" r="4" fill="#C9B4F8" />
+  <g fill="#C9B4F8" transform="translate(420, 240)">
+    <circle cx="0" cy="0" r="2" />
+    <circle cx="8" cy="0" r="2" />
+    <circle cx="16" cy="0" r="2" />
+    <circle cx="0" cy="8" r="2" />
+    <circle cx="8" cy="8" r="2" />
+    <circle cx="16" cy="8" r="2" />
+    <circle cx="0" cy="16" r="2" />
+    <circle cx="8" cy="16" r="2" />
+    <circle cx="16" cy="16" r="2" />
+  </g>
+
+  <!-- Floor baseline -->
+  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
+
+  <!-- Floating Video Call Badge & Chat Bubble -->
+  <g id="call-badges">
+    <!-- Speech bubble -->
+    <rect x="365" y="55" width="55" height="34" rx="8" class="outline fill-purple-light" />
+    <path d="M 375 89 L 370 98 L 382 89 Z" class="outline fill-purple-light" />
+    <line x1="375" y1="67" x2="408" y2="67" class="thin-line" stroke="#23233A" />
+    <line x1="375" y1="74" x2="398" y2="74" class="thin-line" stroke="#9468E8" />
+
+    <!-- Video Camera Icon Badge -->
+    <rect x="400" y="92" width="26" height="18" rx="4" class="outline fill-purple" />
+    <polygon points="426,98 434,94 434,108 426,104" class="outline fill-purple" />
+    <circle cx="413" cy="101" r="3.5" fill="#FFFFFF" />
+  </g>
+
+  <!-- CHAIR BACKGROUND -->
+  <g id="chair-back">
+    <path d="M 120 185 C 115 140 135 125 158 125 C 180 125 195 140 190 185 L 180 320 C 180 335 160 340 145 335 Z" class="outline fill-purple-light" />
+    <rect x="125" y="325" width="85" height="16" rx="8" class="outline fill-purple-light" />
+    <line x1="165" y1="341" x2="165" y2="400" class="outline" stroke-width="4" />
+    <path d="M 135 415 L 165 400 L 195 415" class="outline fill-none" stroke-width="3" />
+    <circle cx="132" cy="418" r="4.5" class="outline fill-dark" />
+    <circle cx="198" cy="418" r="4.5" class="outline fill-dark" />
+  </g>
+
+  <!-- CHARACTER SITTING -->
+  <g id="character-video">
+    <!-- Legs (Purple Trousers) -->
+    <!-- Back Leg -->
+    <path d="M 175 250 L 225 250 C 235 250 240 260 238 280 L 228 375 L 198 375 L 205 285 L 175 285 Z" class="outline fill-purple" />
+    <path d="M 195 375 L 228 375 L 238 395 L 190 395 Z" class="outline fill-white" />
+    <path d="M 188 395 L 240 395 L 240 401 L 188 401 Z" class="outline fill-dark" />
+
+    <!-- Front Leg -->
+    <path d="M 185 245 L 250 245 C 265 245 270 255 268 275 L 258 405 L 226 405 L 236 280 L 185 275 Z" class="outline fill-purple" />
+    <!-- Creases -->
+    <line x1="228" y1="315" x2="236" y2="319" class="thin-line" />
+    <line x1="225" y1="365" x2="235" y2="368" class="thin-line" />
+
+    <!-- Front Shoe -->
+    <path d="M 224 405 L 258 405 L 275 425 L 220 425 Z" class="outline fill-white" />
+    <path d="M 218 425 L 278 425 L 278 431 L 218 431 Z" class="outline fill-dark" />
+    <path d="M 240 410 Q 250 413 256 410" class="thin-line fill-none" />
+
+    <!-- Torso (Black sweater) -->
+    <path d="M 145 160 C 145 130 170 120 198 120 C 220 120 235 130 235 160 L 228 260 L 158 260 Z" class="outline fill-dark" />
+    <path d="M 170 195 Q 190 200 205 195" class="thin-line fill-none" stroke="#FFFFFF" />
+
+    <!-- Neck & Head -->
+    <path d="M 185 105 L 185 125 L 205 125 L 205 105 Z" class="outline fill-white" />
+    <!-- Head -->
+    <path d="M 178 68 C 178 48 192 40 212 40 C 230 40 242 54 242 74 C 242 95 224 110 204 110 C 182 110 178 90 178 68 Z" class="outline fill-white" />
+
+    <!-- Face features (Happy, smiling at screen) -->
+    <circle cx="218" cy="74" r="2.5" fill="#23233A" />
+    <path d="M 214 67 Q 220 64 225 67" class="thin-line fill-none" />
+    <path d="M 226 77 L 230 82 L 224 83" class="thin-line fill-none" />
+    <path d="M 216 90 Q 225 96 230 89" class="thin-line fill-none" />
+    <path d="M 188 72 C 184 72 184 80 188 83 C 190 83 192 78 189 75" class="thin-line fill-white" />
+
+    <!-- Hair -->
+    <path d="M 180 66 C 178 48 190 38 212 38 C 232 38 245 48 245 64 C 245 68 240 70 237 66 C 235 54 225 46 212 46 C 200 46 192 54 188 66 C 185 70 181 70 180 66 Z" class="outline fill-dark" />
+    <path d="M 212 46 C 202 52 195 62 196 68 C 200 62 208 55 216 52 Z" class="outline fill-dark" />
+    <path d="M 235 64 C 242 75 238 86 232 88 L 232 78 Z" class="outline fill-dark" />
+
+    <!-- Left Arm & Hand (Resting on desk) -->
+    <path d="M 195 150 C 210 160 235 180 255 195 L 290 195 L 285 205 L 245 205 L 188 165 Z" class="outline fill-dark" />
+    <path d="M 290 193 C 298 193 302 196 304 200 C 300 204 292 204 286 202 Z" class="outline fill-white" />
+
+    <!-- Right Arm & Hand (WAVING AT SCREEN) -->
+    <path d="M 210 145 C 228 135 245 110 252 85 L 265 90 C 258 118 240 145 218 160 Z" class="outline fill-dark" />
+    <!-- Waving Hand -->
+    <g transform="rotate(10, 260, 75)">
+      <path d="M 252 82 C 252 75 258 68 266 70 C 274 72 276 80 274 88 L 262 88 Z" class="outline fill-white" />
+      <!-- Extended Fingers -->
+      <path d="M 260 70 L 260 58 C 260 55 264 55 264 58 L 264 70" class="thin-line fill-white" />
+      <path d="M 265 70 L 267 55 C 267 52 271 52 271 55 L 269 70" class="thin-line fill-white" />
+      <path d="M 270 72 L 274 58 C 274 55 278 55 278 58 L 274 74" class="thin-line fill-white" />
+      <path d="M 273 76 L 280 66 C 281 64 284 65 283 68 L 275 80" class="thin-line fill-white" />
+    </g>
+  </g>
+
+  <!-- DESK & LAPTOP -->
+  <g id="desk-and-laptop">
+    <!-- Desk Surface -->
+    <rect x="75" y="200" width="370" height="14" rx="4" class="outline fill-purple-light" />
+    
+    <!-- Desk Legs -->
+    <rect x="90" y="214" width="10" height="246" class="outline fill-purple-light" />
+    <rect x="420" y="214" width="10" height="246" class="outline fill-purple-light" />
+    <line x1="95" y1="214" x2="95" y2="460" class="thin-line" stroke="#9468E8" />
+    <line x1="425" y1="214" x2="425" y2="460" class="thin-line" stroke="#9468E8" />
+
+    <!-- Coffee Mug on desk -->
+    <rect x="390" y="178" width="16" height="22" rx="3" class="outline fill-white" />
+    <path d="M 406 183 C 412 183 412 193 406 193" class="outline fill-none" />
+
+    <!-- Open Laptop facing user -->
+    <path d="M 285 200 L 360 200 L 355 195 L 290 195 Z" class="outline fill-dark" />
+    <!-- Laptop screen (tilted towards character) -->
+    <path d="M 345 195 L 315 135 L 365 135 L 355 195 Z" class="outline fill-dark" />
+    <path d="M 342 192 L 318 138 L 360 138 L 352 192 Z" class="outline fill-white" />
+    <!-- Webcam dot -->
+    <circle cx="340" cy="141" r="1.5" fill="#9468E8" />
+    <!-- Caller video window on screen -->
+    <rect x="325" y="148" width="28" height="22" rx="2" class="thin-line fill-purple-light" />
+    <circle cx="339" cy="156" r="3" fill="#9468E8" />
+    <path d="M 333 167 C 333 162 345 162 345 167 Z" fill="#9468E8" />
+  </g>
+</svg>

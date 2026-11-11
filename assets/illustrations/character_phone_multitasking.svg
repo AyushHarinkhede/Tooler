@@ -1,0 +1,131 @@
+<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <style>
+    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fill-dark { fill: #23233A; }
+    .fill-purple { fill: #9468E8; }
+    .fill-purple-light { fill: #ECE5FC; }
+    .fill-purple-mid { fill: #C9B4F8; }
+    .fill-white { fill: #FFFFFF; }
+    .fill-none { fill: none; }
+  </style>
+
+  <!-- Ambient accents -->
+  <circle cx="95" cy="115" r="3" fill="#9468E8" />
+  <circle cx="430" cy="120" r="2.5" fill="#23233A" />
+  <path d="M 90 270 L 98 270 M 94 266 L 94 274" class="thin-line" stroke="#9468E8" />
+  
+  <!-- Dot Grid -->
+  <g fill="#C9B4F8" transform="translate(370, 75)">
+    <circle cx="0" cy="0" r="2" />
+    <circle cx="8" cy="0" r="2" />
+    <circle cx="16" cy="0" r="2" />
+    <circle cx="0" cy="8" r="2" />
+    <circle cx="8" cy="8" r="2" />
+    <circle cx="16" cy="8" r="2" />
+    <circle cx="0" cy="16" r="2" />
+    <circle cx="8" cy="16" r="2" />
+    <circle cx="16" cy="16" r="2" />
+  </g>
+
+  <!-- Floor baseline -->
+  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
+
+  <!-- Floating Document / Contract on Left -->
+  <g id="floating-doc">
+    <rect x="300" y="85" width="46" height="58" rx="4" class="outline fill-white" />
+    <line x1="308" y1="96" x2="338" y2="96" class="thin-line" stroke="#23233A" />
+    <line x1="308" y1="104" x2="334" y2="104" class="thin-line" stroke="#23233A" />
+    <line x1="308" y1="112" x2="328" y2="112" class="thin-line" stroke="#9468E8" />
+    <!-- Official stamp / seal -->
+    <circle cx="332" cy="126" r="7" class="outline fill-purple-light" />
+    <circle cx="332" cy="126" r="4" fill="#9468E8" />
+  </g>
+
+  <!-- Foliage / Plants at left corner -->
+  <g id="plant-left">
+    <path d="M 45 460 C 40 415 65 385 80 405 C 95 425 80 455 75 460 Z" class="outline fill-purple-light" />
+    <path d="M 68 460 C 72 420 95 410 105 425 C 110 440 100 460 95 460 Z" class="outline fill-purple" />
+    <path d="M 75 458 Q 80 435 84 418" class="thin-line fill-none" stroke="#23233A" />
+  </g>
+
+  <!-- CHAIR BACKGROUND -->
+  <g id="chair-back">
+    <path d="M 380 200 C 385 160 405 150 420 150 C 435 150 445 160 440 200 L 430 330 C 430 345 410 350 395 345 Z" class="outline fill-purple-light" />
+    <rect x="360" y="335" width="85" height="16" rx="8" class="outline fill-purple-light" />
+    <line x1="400" y1="351" x2="400" y2="410" class="outline" stroke-width="4" />
+    <path d="M 370 425 L 400 410 L 430 425" class="outline fill-none" stroke-width="3" />
+    <circle cx="368" cy="428" r="4.5" class="outline fill-dark" />
+    <circle cx="432" cy="428" r="4.5" class="outline fill-dark" />
+  </g>
+
+  <!-- CHARACTER ON PHONE & POINTING -->
+  <g id="character-phone">
+    <!-- Legs (Purple Trousers) -->
+    <!-- Back Leg -->
+    <path d="M 365 260 L 320 260 C 310 260 305 270 308 290 L 320 380 L 350 380 L 342 295 L 365 295 Z" class="outline fill-purple" />
+    <path d="M 320 380 L 350 380 L 345 400 L 310 400 Z" class="outline fill-white" />
+    <path d="M 308 400 L 352 400 L 352 406 L 308 406 Z" class="outline fill-dark" />
+
+    <!-- Front Leg -->
+    <path d="M 360 255 L 295 255 C 280 255 275 265 278 285 L 295 415 L 328 415 L 312 290 L 360 285 Z" class="outline fill-purple" />
+    <line x1="318" y1="325" x2="310" y2="330" class="thin-line" />
+    <line x1="320" y1="375" x2="312" y2="380" class="thin-line" />
+
+    <!-- Front Shoe -->
+    <path d="M 280 435 L 328 415 L 332 435 L 285 435 Z" class="outline fill-white" />
+    <path d="M 276 435 L 335 435 L 335 441 L 276 441 Z" class="outline fill-dark" />
+    <path d="M 295 425 Q 305 423 312 425" class="thin-line fill-none" />
+
+    <!-- Torso (Black sweater) -->
+    <path d="M 385 165 C 385 135 365 125 338 125 C 318 125 305 135 305 165 L 310 270 L 380 270 Z" class="outline fill-dark" />
+    <path d="M 330 198 Q 350 203 365 198" class="thin-line fill-none" stroke="#FFFFFF" />
+
+    <!-- Neck & Head -->
+    <path d="M 335 110 L 335 130 L 355 130 L 355 110 Z" class="outline fill-white" />
+    <!-- Head -->
+    <path d="M 328 72 C 328 52 342 42 362 42 C 380 42 392 56 392 76 C 392 97 375 114 355 114 C 332 114 328 94 328 72 Z" class="outline fill-white" />
+
+    <!-- Face features (Speaking on phone) -->
+    <circle cx="344" cy="76" r="2.5" fill="#23233A" />
+    <path d="M 340 68 Q 346 65 352 68" class="thin-line fill-none" />
+    <path d="M 336 78 L 332 83 L 338 84" class="thin-line fill-none" />
+    <path d="M 340 92 Q 348 97 354 92" class="thin-line fill-none" />
+
+    <!-- Hair -->
+    <path d="M 330 70 C 328 52 340 40 362 40 C 382 40 395 50 395 66 C 395 70 390 72 387 68 C 385 56 375 48 362 48 C 350 48 342 56 338 68 C 335 72 331 72 330 70 Z" class="outline fill-dark" />
+    <path d="M 362 48 C 352 54 345 64 346 70 C 350 64 358 57 366 54 Z" class="outline fill-dark" />
+    <path d="M 385 66 C 392 77 388 88 382 90 L 382 80 Z" class="outline fill-dark" />
+
+    <!-- Right Arm & Hand (Holding Phone to Ear) -->
+    <path d="M 370 145 C 385 140 405 115 395 85 L 382 85 C 388 110 375 125 360 135 Z" class="outline fill-dark" />
+    <!-- Mobile Smartphone & Hand -->
+    <rect x="375" y="70" width="10" height="22" rx="3" class="outline fill-dark" />
+    <!-- Hand cradling phone -->
+    <path d="M 376 80 C 374 85 380 92 386 90 C 390 88 390 82 386 78 Z" class="outline fill-white" />
+
+    <!-- Left Arm & Hand (Pointing at floating document) -->
+    <path d="M 340 155 C 320 165 290 150 250 140 L 246 152 C 285 162 310 178 348 170 Z" class="outline fill-dark" />
+    <!-- Left Hand with pointing finger -->
+    <path d="M 248 140 C 240 140 236 138 232 138 C 230 140 231 144 236 146 L 244 148 Z" class="outline fill-white" />
+    <path d="M 240 138 L 230 138 C 227 138 227 142 230 142 L 240 142" class="thin-line fill-white" />
+  </g>
+
+  <!-- DESK & LAPTOP -->
+  <g id="desk-and-laptop">
+    <rect x="65" y="205" width="370" height="14" rx="4" class="outline fill-purple-light" />
+    <rect x="80" y="219" width="10" height="241" class="outline fill-purple-light" />
+    <rect x="410" y="219" width="10" height="241" class="outline fill-purple-light" />
+    <line x1="85" y1="219" x2="85" y2="460" class="thin-line" stroke="#9468E8" />
+    <line x1="415" y1="219" x2="415" y2="460" class="thin-line" stroke="#9468E8" />
+
+    <!-- Open Laptop on Desk -->
+    <path d="M 220 205 L 295 205 L 290 200 L 225 200 Z" class="outline fill-dark" />
+    <path d="M 235 200 L 200 140 L 250 140 L 245 200 Z" class="outline fill-dark" />
+    <path d="M 233 197 L 204 143 L 246 143 L 242 197 Z" class="outline fill-white" />
+    <!-- Screen lines -->
+    <line x1="210" y1="155" x2="238" y2="155" class="thin-line" stroke="#9468E8" />
+    <line x1="210" y1="163" x2="232" y2="163" class="thin-line" stroke="#9468E8" />
+    <line x1="210" y1="171" x2="242" y2="171" class="thin-line" stroke="#C9B4F8" />
+  </g>
+</svg>

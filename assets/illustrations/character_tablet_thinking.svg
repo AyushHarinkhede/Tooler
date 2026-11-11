@@ -1,0 +1,135 @@
+<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <style>
+    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fill-dark { fill: #23233A; }
+    .fill-purple { fill: #9468E8; }
+    .fill-purple-light { fill: #ECE5FC; }
+    .fill-purple-mid { fill: #C9B4F8; }
+    .fill-white { fill: #FFFFFF; }
+    .fill-none { fill: none; }
+  </style>
+
+  <!-- Ambient accents -->
+  <circle cx="90" cy="180" r="3" fill="#9468E8" />
+  <circle cx="380" cy="190" r="2.5" fill="#23233A" />
+  <circle cx="395" cy="205" r="4" fill="#C9B4F8" />
+  <polygon points="360,240 366,248 354,248" class="thin-line fill-none" stroke="#9468E8" />
+  <path d="M 60 320 Q 65 315 70 320 T 80 320" class="thin-line fill-none" stroke="#9468E8" />
+
+  <!-- Floor baseline -->
+  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
+
+  <!-- Floating Thought / Message Bubble -->
+  <g id="thought-bubble">
+    <rect x="260" y="70" width="75" height="42" rx="8" class="outline fill-purple-light" />
+    <path d="M 270 112 L 265 125 L 280 112 Z" class="outline fill-purple-light" />
+    <line x1="272" y1="84" x2="320" y2="84" class="thin-line" stroke="#23233A" />
+    <line x1="272" y1="92" x2="310" y2="92" class="thin-line" stroke="#23233A" />
+    <line x1="272" y1="100" x2="295" y2="100" class="thin-line" stroke="#9468E8" />
+  </g>
+
+  <!-- Foliage / Plant on right -->
+  <g id="plant-right">
+    <path d="M 370 460 C 360 410 390 370 415 390 C 435 410 415 450 405 460 Z" class="outline fill-purple" />
+    <path d="M 400 460 C 405 410 435 400 450 420 C 460 440 440 460 430 460 Z" class="outline fill-purple-mid" />
+    <path d="M 360 460 C 350 430 365 415 375 425 C 385 440 375 455 370 460 Z" class="outline fill-purple-light" />
+  </g>
+
+  <!-- OFFICE CHAIR (High-back ergonomic) -->
+  <g id="chair">
+    <!-- Backrest frame -->
+    <path d="M 90 190 C 85 160 100 140 125 140 C 145 140 155 160 150 190 L 140 330 C 140 345 120 350 105 345 Z" class="outline fill-purple-light" />
+    <path d="M 100 155 C 100 150 108 148 120 148 C 132 148 140 150 140 155 L 135 320 C 130 330 115 330 110 320 Z" class="outline fill-white" />
+    
+    <!-- Armrest -->
+    <path d="M 115 260 L 150 260 C 160 260 165 270 160 280 L 130 280" class="outline fill-none" />
+    <line x1="140" y1="280" x2="140" y2="330" class="outline" />
+
+    <!-- Seat cushion -->
+    <rect x="95" y="325" width="105" height="18" rx="8" class="outline fill-purple-light" />
+
+    <!-- Chair stem, hydraulic lever, and base -->
+    <line x1="145" y1="343" x2="145" y2="410" class="outline" stroke-width="4" />
+    <line x1="120" y1="365" x2="145" y2="360" class="outline" />
+    <circle cx="118" cy="365" r="3" class="outline fill-dark" />
+
+    <!-- 5-Star Caster Base -->
+    <path d="M 95 425 L 145 410 L 195 425" class="outline fill-none" stroke-width="3" />
+    <circle cx="92" cy="428" r="5" class="outline fill-dark" />
+    <circle cx="145" cy="426" r="4" class="outline fill-dark" />
+    <circle cx="198" cy="428" r="5" class="outline fill-dark" />
+  </g>
+
+  <!-- CHARACTER SITTING WITH TABLET -->
+  <g id="character-thinking">
+    <!-- Legs (Crossed posture - relaxed) -->
+    <!-- Under leg (Foot on ground) -->
+    <path d="M 155 330 L 210 330 C 220 330 225 340 220 360 L 205 420 L 175 420 L 190 355 L 155 350 Z" class="outline fill-purple" />
+    <!-- Under leg shoe -->
+    <path d="M 172 420 L 205 420 L 212 445 L 168 445 Z" class="outline fill-white" />
+    <path d="M 166 445 L 215 445 L 215 451 L 166 451 Z" class="outline fill-dark" />
+
+    <!-- Crossed leg (Over the top, knee pointing forward/up) -->
+    <path d="M 150 315 C 175 305 210 295 240 310 C 265 322 285 345 320 375 L 300 395 C 270 365 255 350 235 340 C 215 330 185 335 155 335 Z" class="outline fill-purple" />
+    <line x1="230" y1="322" x2="242" y2="330" class="thin-line" />
+    <line x1="270" y1="352" x2="280" y2="362" class="thin-line" />
+
+    <!-- Crossed leg shoe (elevated / angled) -->
+    <g transform="rotate(-30, 310, 385)">
+      <path d="M 295 375 L 335 375 L 345 398 L 290 398 Z" class="outline fill-white" />
+      <path d="M 288 398 L 348 398 L 348 404 L 288 404 Z" class="outline fill-dark" />
+      <path d="M 312 382 Q 322 385 328 382" class="thin-line fill-none" />
+    </g>
+
+    <!-- Torso (Black sweater, leaning back comfortably) -->
+    <path d="M 120 180 C 120 150 145 138 175 138 C 200 138 215 150 215 180 L 195 325 L 140 325 Z" class="outline fill-dark" />
+    <path d="M 145 220 Q 165 225 185 220" class="thin-line fill-none" stroke="#FFFFFF" />
+    <path d="M 150 270 Q 170 275 185 270" class="thin-line fill-none" stroke="#FFFFFF" />
+
+    <!-- Neck & Head -->
+    <path d="M 160 125 L 160 142 L 180 142 L 180 125 Z" class="outline fill-white" />
+    <!-- Head -->
+    <path d="M 152 82 C 152 62 165 50 185 50 C 205 50 218 64 218 84 C 218 105 200 122 182 122 C 160 122 152 102 152 82 Z" class="outline fill-white" />
+
+    <!-- Face features (Thinking expression) -->
+    <!-- Eye (reflective/focused) -->
+    <circle cx="188" cy="85" r="2.5" fill="#23233A" />
+    <!-- Eyebrow (slight inquisitive angle) -->
+    <path d="M 184 78 Q 190 75 196 79" class="thin-line fill-none" />
+    <!-- Nose -->
+    <path d="M 197 86 L 202 91 L 196 92" class="thin-line fill-none" />
+    <!-- Smile (gentle) -->
+    <path d="M 188 100 Q 194 103 198 99" class="thin-line fill-none" />
+    <!-- Ear -->
+    <path d="M 162 82 C 158 82 158 90 162 93 C 165 93 166 88 163 85" class="thin-line fill-white" />
+
+    <!-- Hair -->
+    <path d="M 155 78 C 152 60 165 48 185 48 C 205 48 220 58 220 74 C 220 78 215 80 212 76 C 210 65 200 56 185 56 C 175 56 168 64 165 74 C 162 78 158 79 155 78 Z" class="outline fill-dark" />
+    <path d="M 185 56 C 175 62 168 72 168 80 C 174 72 182 66 190 63 Z" class="outline fill-dark" />
+    <path d="M 210 74 C 218 85 212 95 206 98 L 206 88 Z" class="outline fill-dark" />
+
+    <!-- Left Arm & Hand (Holding Tablet) -->
+    <path d="M 185 160 C 200 175 220 200 240 220 L 230 230 C 210 210 190 185 175 175 Z" class="outline fill-dark" />
+    <!-- Left Hand grasping tablet -->
+    <path d="M 235 218 C 242 216 248 220 250 226 C 248 232 242 232 236 228 Z" class="outline fill-white" />
+
+    <!-- TABLET -->
+    <g transform="rotate(-15, 255, 230)">
+      <rect x="230" y="195" width="48" height="64" rx="5" class="outline fill-dark" />
+      <rect x="235" y="200" width="38" height="54" rx="3" class="outline fill-purple-light" />
+      <!-- Content lines on tablet -->
+      <line x1="240" y1="210" x2="265" y2="210" class="thin-line" stroke="#9468E8" />
+      <line x1="240" y1="218" x2="260" y2="218" class="thin-line" stroke="#9468E8" />
+      <line x1="240" y1="226" x2="252" y2="226" class="thin-line" stroke="#C9B4F8" />
+      <circle cx="254" cy="245" r="3" fill="#9468E8" />
+    </g>
+
+    <!-- Right Arm & Hand (Thinking pose - Hand on chin) -->
+    <path d="M 135 175 C 130 205 145 235 175 225 C 185 205 185 155 185 125 L 172 125 C 172 150 170 190 162 205 C 145 208 142 190 145 175 Z" class="outline fill-dark" />
+    <!-- Right Hand resting gently under chin -->
+    <path d="M 175 118 C 172 110 182 105 188 108 C 192 114 186 122 178 122 Z" class="outline fill-white" />
+    <!-- Finger pointing up to cheek -->
+    <path d="M 185 106 L 188 95 C 190 95 192 97 190 102 L 188 108" class="thin-line fill-white" />
+  </g>
+</svg>

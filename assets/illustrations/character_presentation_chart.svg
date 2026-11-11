@@ -1,0 +1,135 @@
+<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <style>
+    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+    .fill-dark { fill: #23233A; }
+    .fill-purple { fill: #9468E8; }
+    .fill-purple-light { fill: #ECE5FC; }
+    .fill-purple-mid { fill: #C9B4F8; }
+    .fill-white { fill: #FFFFFF; }
+    .fill-none { fill: none; }
+  </style>
+
+  <!-- Ambient accents -->
+  <circle cx="370" cy="85" r="2.5" fill="#9468E8" />
+  <circle cx="340" cy="240" r="3" fill="#C9B4F8" />
+  <circle cx="50" cy="205" r="2.5" fill="#23233A" />
+  <polygon points="425,215 431,223 419,223" class="thin-line fill-none" stroke="#9468E8" />
+
+  <!-- Floor baseline -->
+  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
+
+  <!-- PRESENTATION EASEL & FLIPCHART -->
+  <g id="presentation-easel">
+    <!-- Easel Tripod Legs -->
+    <!-- Back Leg -->
+    <line x1="160" y1="180" x2="195" y2="460" class="outline" stroke-width="3" />
+    <!-- Left Front Leg -->
+    <line x1="110" y1="170" x2="68" y2="460" class="outline" stroke-width="4" />
+    <!-- Right Front Leg -->
+    <line x1="170" y1="170" x2="160" y2="460" class="outline" stroke-width="4" />
+
+    <!-- Chart Ledge / Tray -->
+    <rect x="70" y="315" width="108" height="8" rx="2" class="outline fill-purple-light" />
+
+    <!-- Main Chart Board Body -->
+    <rect x="80" y="150" width="88" height="165" rx="5" class="outline fill-purple-light" />
+    <rect x="85" y="160" width="78" height="150" rx="3" class="outline fill-white" />
+
+    <!-- Paper Roll at Top -->
+    <rect x="82" y="142" width="84" height="12" rx="5" class="outline fill-purple-mid" />
+    <line x1="90" y1="172" x2="120" y2="172" class="thin-line" stroke="#23233A" />
+
+    <!-- Growth Line Chart -->
+    <rect x="92" y="180" width="64" height="48" rx="2" class="thin-line fill-purple-light" />
+    <!-- Line curve (Exponential growth) -->
+    <path d="M 94 218 Q 110 216 120 205 T 145 186" class="outline fill-none" stroke="#9468E8" stroke-width="2.5" />
+    <!-- Data points -->
+    <circle cx="95" cy="218" r="2.5" fill="#9468E8" />
+    <circle cx="120" cy="205" r="2.5" fill="#9468E8" />
+    <circle cx="145" cy="186" r="3" fill="#23233A" />
+
+    <!-- Pie Chart & Stats Below -->
+    <!-- Pie chart circle -->
+    <circle cx="125" cy="255" r="14" class="outline fill-purple-mid" />
+    <!-- Slices -->
+    <path d="M 125 255 L 125 241 A 14 14 0 0 1 139 255 Z" class="outline fill-purple" />
+    <path d="M 125 255 L 139 255 A 14 14 0 0 1 125 269 Z" class="outline fill-white" />
+
+    <!-- Metric indicator lines on chart -->
+    <line x1="92" y1="285" x2="135" y2="285" class="thin-line" stroke="#23233A" />
+    <line x1="92" y1="292" x2="120" y2="292" class="thin-line" stroke="#9468E8" />
+  </g>
+
+  <!-- Foliage / Plants at Bottom Right -->
+  <g id="plant-right">
+    <path d="M 420 460 C 410 415 435 385 450 405 C 465 425 450 455 445 460 Z" class="outline fill-purple-light" />
+    <path d="M 435 460 C 440 425 460 415 470 430 C 475 445 465 460 460 460 Z" class="outline fill-purple" />
+    <path d="M 445 458 Q 450 430 455 410" class="thin-line fill-none" stroke="#23233A" />
+  </g>
+
+  <!-- CHARACTER PRESENTING -->
+  <g id="character-presenter">
+    <!-- Legs (Purple Trousers) -->
+    <!-- Left Leg -->
+    <path d="M 235 275 L 235 425 L 262 425 L 260 275 Z" class="outline fill-purple" />
+    <!-- Right Leg -->
+    <path d="M 268 275 L 270 425 L 296 425 L 294 275 Z" class="outline fill-purple" />
+    <!-- Pelvis / Hip join -->
+    <path d="M 230 265 L 298 265 L 294 285 L 265 285 L 232 285 Z" class="outline fill-purple" />
+    <!-- Pants crease marks -->
+    <line x1="237" y1="340" x2="246" y2="344" class="thin-line" />
+    <line x1="285" y1="355" x2="293" y2="351" class="thin-line" />
+
+    <!-- Shoes (White sneakers with black sole) -->
+    <!-- Left Shoe -->
+    <path d="M 226 445 L 265 445 L 262 425 L 235 425 Z" class="outline fill-white" />
+    <path d="M 224 445 L 267 445 L 267 451 L 224 451 Z" class="outline fill-dark" />
+    <path d="M 238 433 Q 248 436 254 433" class="thin-line fill-none" />
+
+    <!-- Right Shoe -->
+    <path d="M 268 425 L 270 445 L 306 445 L 296 425 Z" class="outline fill-white" />
+    <path d="M 268 445 L 309 445 L 309 451 L 268 451 Z" class="outline fill-dark" />
+    <path d="M 280 433 Q 290 436 296 433" class="thin-line fill-none" />
+
+    <!-- Torso (Dark crewneck sweater) -->
+    <path d="M 225 160 C 225 140 248 130 268 130 C 288 130 305 140 305 160 L 300 270 L 230 270 Z" class="outline fill-dark" />
+    <path d="M 245 195 Q 265 200 282 195" class="thin-line fill-none" stroke="#FFFFFF" />
+    <path d="M 248 235 Q 268 240 285 235" class="thin-line fill-none" stroke="#FFFFFF" />
+
+    <!-- Neck & Head -->
+    <path d="M 255 120 L 255 135 L 275 135 L 275 120 Z" class="outline fill-white" />
+    <!-- Head -->
+    <path d="M 245 80 C 245 60 258 50 275 50 C 292 50 305 64 305 84 C 305 104 290 120 272 120 C 252 120 245 100 245 80 Z" class="outline fill-white" />
+
+    <!-- Face features (Looking left toward chart with confident smile) -->
+    <!-- Eye -->
+    <circle cx="262" cy="82" r="2.5" fill="#23233A" />
+    <!-- Eyebrow -->
+    <path d="M 258 75 Q 264 72 268 75" class="thin-line fill-none" />
+    <!-- Nose -->
+    <path d="M 255 84 L 250 89 L 255 90" class="thin-line fill-none" />
+    <!-- Smile -->
+    <path d="M 258 98 Q 266 102 272 97" class="thin-line fill-none" />
+    <!-- Ear -->
+    <path d="M 290 80 C 294 80 294 88 290 91 C 288 91 286 85 289 82" class="thin-line fill-white" />
+
+    <!-- Hair -->
+    <path d="M 248 76 C 245 58 258 48 275 48 C 295 48 308 58 308 74 C 308 78 303 80 300 76 C 298 64 288 56 275 56 C 265 56 258 64 256 74 C 253 78 250 78 248 76 Z" class="outline fill-dark" />
+    <!-- Fringe / wave -->
+    <path d="M 275 56 C 265 62 258 72 258 78 C 262 72 270 65 278 62 Z" class="outline fill-dark" />
+    <path d="M 298 74 C 305 86 300 96 295 98 L 294 88 Z" class="outline fill-dark" />
+
+    <!-- Left Arm & Hand (Outstretched pointing at chart peak) -->
+    <path d="M 235 160 C 215 168 185 178 155 188 L 152 200 C 180 192 210 184 230 180 Z" class="outline fill-dark" />
+    <!-- Left Hand with pointing finger -->
+    <path d="M 152 188 C 145 188 140 186 136 186 C 134 188 135 192 140 194 L 148 196 Z" class="outline fill-white" />
+    <!-- Pointing index finger -->
+    <path d="M 144 186 L 135 186 C 132 186 132 190 135 190 L 144 190" class="thin-line fill-white" />
+
+    <!-- Right Arm (Hand in pocket) -->
+    <path d="M 300 162 C 315 175 315 210 300 245 L 290 240 C 302 210 300 180 290 170 Z" class="outline fill-dark" />
+    <!-- Hand tucked into pocket seam -->
+    <path d="M 292 240 C 290 245 285 248 280 248" class="outline fill-white" />
+  </g>
+</svg>
