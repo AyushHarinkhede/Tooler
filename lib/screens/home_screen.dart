@@ -18,6 +18,7 @@ import 'games_screen.dart';
 import 'browser_screen.dart';
 import 'compass_screen.dart';
 import 'password_generator_screen.dart';
+import 'sound_recorder_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -218,6 +219,16 @@ class _HomeScreenState extends State<HomeScreen> {
         'iconType': 'games',
         'isFeatured': false,
         'builder': (context) => GamesScreen(theme: widget.theme),
+      },
+      {
+        'id': 'recorder',
+        'title': 'Sound Recorder',
+        'subtitle': 'Live waveform, audio captions & memos',
+        'category': 'Utilities',
+        'tag': 'Audio Note',
+        'iconType': 'recorder',
+        'isFeatured': false,
+        'builder': (context) => SoundRecorderScreen(theme: widget.theme),
       },
     ];
   }

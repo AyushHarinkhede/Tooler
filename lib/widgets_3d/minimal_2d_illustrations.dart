@@ -221,6 +221,10 @@ class _IllustrationPainter extends CustomPainter {
       case 'password':
         _drawPassword(canvas, w, h, p, fillAccent);
         break;
+      case 'recorder':
+      case 'mic':
+        _drawMic(canvas, w, h, p, fillAccent);
+        break;
       case 'settings':
       default:
         _drawSettings(canvas, w, h, p, fillAccent);
@@ -468,6 +472,33 @@ class _IllustrationPainter extends CustomPainter {
     // Keyhole
     canvas.drawCircle(Offset(w * 0.50, h * 0.60), w * 0.06, fill);
     canvas.drawLine(Offset(w * 0.50, h * 0.60), Offset(w * 0.50, h * 0.72), p);
+  }
+
+  void _drawMic(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    // Microphone body capsule
+    final capsule = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.38, h * 0.16, w * 0.24, h * 0.42),
+      Radius.circular(w * 0.12),
+    );
+    canvas.drawRRect(capsule, p);
+
+    // Sound wave U-bracket cradle
+    final cradle = Path()
+      ..moveTo(w * 0.26, h * 0.38)
+      ..arcToPoint(
+        Offset(w * 0.74, h * 0.38),
+        radius: Radius.circular(w * 0.24),
+        clockwise: false,
+      );
+    canvas.drawPath(cradle, p);
+
+    // Stand pole
+    canvas.drawLine(Offset(w * 0.50, h * 0.62), Offset(w * 0.50, h * 0.80), p);
+    // Base line
+    canvas.drawLine(Offset(w * 0.32, h * 0.80), Offset(w * 0.68, h * 0.80), p);
+
+    // Live acoustic accent dot in center
+    canvas.drawCircle(Offset(w * 0.50, h * 0.30), w * 0.045, fill);
   }
 
   void _drawSettings(Canvas canvas, double w, double h, Paint p, Paint fill) {
