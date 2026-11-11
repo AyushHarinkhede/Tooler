@@ -17,6 +17,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
   final DateTime _targetDate = DateTime.now();
   String _gender = 'male'; // 'male', 'female', 'other'
   final TextEditingController _ageController = TextEditingController();
+  bool _isDirectAgeEditing = false;
 
   Map<String, dynamic>? _results;
 
@@ -81,7 +82,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
         'nextBdayDayOfWeek': nextBdayDayOfWeek,
         'bornDayOfWeek': bornDayOfWeek,
       };
-      if (_ageController.text != '$years') {
+      if (!_isDirectAgeEditing && _ageController.text != '$years') {
         _ageController.text = '$years';
       }
     });
@@ -91,10 +92,12 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
     final parsed = int.tryParse(val);
     if (parsed != null && parsed >= 0 && parsed <= 130) {
       final now = DateTime.now();
+      _isDirectAgeEditing = true;
       setState(() {
         _selectedDate = DateTime(now.year - parsed, now.month, now.day);
         _calculateAge();
       });
+      _isDirectAgeEditing = false;
     }
   }
 
@@ -234,7 +237,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                                 "Or enter age directly (years):",
                                 style: widget.theme.fontMono(
                                   fontSize: 12,
-                                  color: widget.theme.text.withOpacity(0.8),
+                                  color: widget.theme.text.withValues(alpha: 0.8),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -299,11 +302,11 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                         const SizedBox(height: 10),
                         Row(
                           children: [
-                            _buildGenderOption("male", "Male ♂"),
+                            _buildGenderOption("male", "Male"),
                             const SizedBox(width: 8),
-                            _buildGenderOption("female", "Female ♀"),
+                            _buildGenderOption("female", "Female"),
                             const SizedBox(width: 8),
-                            _buildGenderOption("other", "Other ⚧"),
+                            _buildGenderOption("other", "Other"),
                           ],
                         ),
                       ],
@@ -318,7 +321,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: widget.theme.doodleCard(
-                        color: widget.theme.accent.withOpacity(0.2),
+                        color: widget.theme.accent.withValues(alpha: 0.2),
                         borderWidth: 3.0,
                       ),
                       child: Column(
@@ -328,7 +331,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                             style: widget.theme.fontMono(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: widget.theme.text.withOpacity(0.8),
+                              color: widget.theme.text.withValues(alpha: 0.8),
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -357,8 +360,8 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                             decoration: BoxDecoration(
                               color: isAdult
-                                  ? const Color(0xFF27AE60).withOpacity(0.15)
-                                  : const Color(0xFFE67E22).withOpacity(0.15),
+                                  ? const Color(0xFF27AE60).withValues(alpha: 0.15)
+                                  : const Color(0xFFE67E22).withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(
                                 color: isAdult ? const Color(0xFF27AE60) : const Color(0xFFE67E22),
@@ -377,8 +380,8 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                                 Flexible(
                                   child: Text(
                                     isAdult
-                                        ? "🎉 18+ Adult (Major) • Full Legal Adulthood"
-                                        : "👶 Minor (Under 18) • $adultDiff year${adultDiff > 1 ? 's' : ''} to adulthood",
+                                        ? "18+ Adult (Major) • Full Legal Adulthood"
+                                        : "Minor (Under 18) • $adultDiff year${adultDiff > 1 ? 's' : ''} to adulthood",
                                     style: widget.theme.fontDisplay(
                                       fontSize: 14,
                                       fontWeight: FontWeight.bold,
@@ -454,10 +457,10 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                     // 4. Marriage Card
                     _buildEligibilityCard(
                       title: "Marriage (${_gender.toUpperCase()})",
-                      requirement: "Legal Age: $marriageMinAge+ years (${_gender})",
+                      requirement: "Legal Age: $marriageMinAge+ years ($_gender)",
                       description: canMarry
-                          ? "✓ You meet the legal marriage age requirement ($marriageMinAge+ for ${_gender})."
-                          : "✗ Legal marriage age for ${_gender} is $marriageMinAge+. $marriageDiff more year${marriageDiff > 1 ? 's' : ''} remaining.",
+                          ? "✓ You meet the legal marriage age requirement ($marriageMinAge+ for $_gender)."
+                          : "✗ Legal marriage age for $_gender is $marriageMinAge+. $marriageDiff more year${marriageDiff > 1 ? 's' : ''} remaining.",
                       isEligible: canMarry,
                       currentYears: years,
                       minAge: marriageMinAge,
@@ -488,7 +491,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                           Container(
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: widget.theme.secondary.withOpacity(0.2),
+                              color: widget.theme.secondary.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: const Icon(Icons.celebration, color: Color(0xFF4ECDC4), size: 30),
@@ -671,7 +674,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                       requirement,
                       style: widget.theme.fontMono(
                         fontSize: 11,
-                        color: widget.theme.text.withOpacity(0.7),
+                        color: widget.theme.text.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -680,7 +683,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.12),
+                  color: statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: statusColor, width: 1.5),
                 ),
@@ -711,7 +714,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
             description,
             style: widget.theme.fontDoodle(
               fontSize: 13,
-              color: widget.theme.text.withOpacity(0.9),
+              color: widget.theme.text.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: 8),
@@ -720,7 +723,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 6,
-              backgroundColor: widget.theme.border.withOpacity(0.15),
+              backgroundColor: widget.theme.border.withValues(alpha: 0.15),
               valueColor: AlwaysStoppedAnimation<Color>(
                 isEligible ? const Color(0xFF27AE60) : widget.theme.primary,
               ),
@@ -743,7 +746,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
             border: Border.all(color: widget.theme.border, width: 2.5),
             boxShadow: [
               BoxShadow(
-                color: widget.theme.border.withOpacity(0.3),
+                color: widget.theme.border.withValues(alpha: 0.3),
                 offset: const Offset(3, 4),
                 blurRadius: 0,
               ),
@@ -787,7 +790,7 @@ class _AgeCalculatorScreenState extends State<AgeCalculatorScreen> {
                 title,
                 style: widget.theme.fontMono(
                   fontSize: 11,
-                  color: widget.theme.text.withOpacity(0.7),
+                  color: widget.theme.text.withValues(alpha: 0.7),
                 ),
               ),
             ],
@@ -843,7 +846,7 @@ class _AdultPainter extends CustomPainter {
       const Radius.circular(5),
     );
     final fillPaint = Paint()
-      ..color = color.withOpacity(0.15)
+      ..color = color.withValues(alpha: 0.15)
       ..style = PaintingStyle.fill;
     canvas.drawRRect(badgeRect, fillPaint);
     canvas.drawRRect(badgeRect, paint);

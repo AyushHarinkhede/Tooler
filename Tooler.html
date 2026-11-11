@@ -2464,19 +2464,19 @@ body.tool-view-open {
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 14px;">
                 <div class="input-group" style="margin-bottom: 0;">
-                    <label for="dob">📅 Date of Birth:</label>
+                    <label for="dob">Date of Birth:</label>
                     <input type="date" id="dob" onchange="app.ageCalc.onDobChange()">
                 </div>
                 <div class="input-group" style="margin-bottom: 0;">
-                    <label for="direct-age">✏️ Or Enter Age (Years):</label>
+                    <label for="direct-age">Or Enter Age (Years):</label>
                     <input type="number" id="direct-age" min="0" max="130" placeholder="e.g. 19" oninput="app.ageCalc.onDirectAgeInput()">
                 </div>
                 <div class="input-group" style="margin-bottom: 0;">
-                    <label for="gender">👤 Gender:</label>
+                    <label for="gender">Gender:</label>
                     <select id="gender" onchange="app.ageCalc.calculate()">
-                        <option value="male">Male ♂</option>
-                        <option value="female">Female ♀</option>
-                        <option value="other">Other ⚧</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
                     </select>
                 </div>
             </div>
@@ -4818,6 +4818,7 @@ body.tool-view-open {
                  this.currentTool = toolId;
                 document.getElementById(toolId).classList.add('active');
                 if (toolId === 'games' && this.games && typeof this.games.init === 'function') { this.games.init(); }
+                if (toolId === 'age-calculator' && this.ageCalc && typeof this.ageCalc.init === 'function') { this.ageCalc.init(); }
               document.getElementById(toolId).scrollIntoView({ behavior: 'smooth', block: 'nearest' });
             },
 
@@ -5055,10 +5056,27 @@ body.tool-view-open {
                     cross: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`
                 },
 
+                init() {
+                    const dob = document.getElementById('dob');
+                    const directAge = document.getElementById('direct-age');
+                    if (dob && directAge) {
+                        if (!dob.value && !directAge.value) {
+                            directAge.value = 18;
+                            const today = new Date();
+                            const approxDob = new Date(today.getFullYear() - 18, today.getMonth(), today.getDate());
+                            const yyyy = approxDob.getFullYear();
+                            const mm = String(approxDob.getMonth() + 1).padStart(2, '0');
+                            const dd = String(approxDob.getDate()).padStart(2, '0');
+                            dob.value = `${yyyy}-${mm}-${dd}`;
+                        }
+                        this.calculate(false);
+                    }
+                },
+
                 onDobChange() {
-                    const dobVal = document.getElementById('dob').value;
-                    if (dobVal) {
-                        const dob = new Date(dobVal);
+                    const dobInput = document.getElementById('dob');
+                    if (dobInput && dobInput.value) {
+                        const dob = new Date(dobInput.value);
                         const today = new Date();
                         let yrs = today.getFullYear() - dob.getFullYear();
                         const m = today.getMonth() - dob.getMonth();
@@ -5066,40 +5084,52 @@ body.tool-view-open {
                             yrs--;
                         }
                         if (yrs >= 0) {
-                            document.getElementById('direct-age').value = yrs;
+                            const directAge = document.getElementById('direct-age');
+                            if (directAge) directAge.value = yrs;
                         }
                     }
-                    this.calculate();
+                    this.calculate(true);
                 },
 
                 onDirectAgeInput() {
-                    const ageVal = parseInt(document.getElementById('direct-age').value, 10);
+                    const directAge = document.getElementById('direct-age');
+                    if (!directAge) return;
+                    const ageVal = parseInt(directAge.value, 10);
                     if (!isNaN(ageVal) && ageVal >= 0 && ageVal <= 130) {
                         const today = new Date();
                         const approxDob = new Date(today.getFullYear() - ageVal, today.getMonth(), today.getDate());
                         const yyyy = approxDob.getFullYear();
                         const mm = String(approxDob.getMonth() + 1).padStart(2, '0');
                         const dd = String(approxDob.getDate()).padStart(2, '0');
-                        document.getElementById('dob').value = `${yyyy}-${mm}-${dd}`;
-                        this.calculate();
+                        const dobInput = document.getElementById('dob');
+                        if (dobInput) dobInput.value = `${yyyy}-${mm}-${dd}`;
+                        this.calculate(true);
                     }
                 },
 
                 reset() {
-                    document.getElementById('dob').value = '';
-                    document.getElementById('direct-age').value = '';
-                    document.getElementById('age-result').style.display = 'none';
-                    const dynamicContent = document.getElementById('age-dynamic-content');
-                    if (dynamicContent) dynamicContent.innerHTML = '';
+                    const dob = document.getElementById('dob');
+                    const directAge = document.getElementById('direct-age');
+                    const res = document.getElementById('age-result');
+                    const dyn = document.getElementById('age-dynamic-content');
+                    if (dob) dob.value = '';
+                    if (directAge) directAge.value = '';
+                    if (res) res.style.display = 'none';
+                    if (dyn) dyn.innerHTML = '';
                 },
 
-                calculate() {
-                    const dobInput = document.getElementById('dob').value;
-                    const directAgeInput = document.getElementById('direct-age').value;
-                    const gender = document.getElementById('gender').value || 'male';
+                calculate(playSound = true) {
+                    const dobEl = document.getElementById('dob');
+                    const directAgeEl = document.getElementById('direct-age');
+                    const genderEl = document.getElementById('gender');
+
+                    const dobInput = dobEl ? dobEl.value : '';
+                    const directAgeInput = directAgeEl ? directAgeEl.value : '';
+                    const gender = (genderEl ? genderEl.value : '') || 'male';
 
                     if (!dobInput && !directAgeInput) {
-                        alert('Please enter your date of birth or your age.');
+                        const res = document.getElementById('age-result');
+                        if (res) res.style.display = 'none';
                         return;
                     }
 
@@ -5109,7 +5139,6 @@ body.tool-view-open {
                     if (dobInput) {
                         const dob = new Date(dobInput);
                         if (dob > today) {
-                            alert('Date of birth cannot be in the future!');
                             return;
                         }
                         years = today.getFullYear() - dob.getFullYear();
@@ -5136,8 +5165,8 @@ body.tool-view-open {
                         nextBdayDayOfWeek = daysOfWeek[nextBday.getDay()];
                         bornDayOfWeek = daysOfWeek[dob.getDay()];
 
-                        if (!directAgeInput || parseInt(directAgeInput, 10) !== years) {
-                            document.getElementById('direct-age').value = years;
+                        if (directAgeEl && (!directAgeInput || parseInt(directAgeInput, 10) !== years)) {
+                            directAgeEl.value = years;
                         }
                     } else {
                         years = parseInt(directAgeInput, 10) || 0;
@@ -5254,16 +5283,16 @@ body.tool-view-open {
                                 </div>
                             </div>
                             <div class="age-extra-chips">
-                                <span class="age-chip">☀️ Total Days: <b>${totalDays.toLocaleString()}</b></span>
-                                ${daysToNextBday > 0 ? `<span class="age-chip">🎂 Next Birthday: <b>${daysToNextBday} days</b> (${nextBdayDayOfWeek})</span>` : ''}
-                                ${bornDayOfWeek ? `<span class="age-chip">👶 Born on: <b>${bornDayOfWeek}</b></span>` : ''}
-                                <span class="age-chip">👤 Gender: <b>${gender.toUpperCase()}</b></span>
+                                <span class="age-chip">Total Days: <b>${totalDays.toLocaleString()}</b></span>
+                                ${daysToNextBday > 0 ? `<span class="age-chip">Next Birthday: <b>${daysToNextBday} days</b> (${nextBdayDayOfWeek})</span>` : ''}
+                                ${bornDayOfWeek ? `<span class="age-chip">Born on: <b>${bornDayOfWeek}</b></span>` : ''}
+                                <span class="age-chip">Gender: <b>${gender.toUpperCase()}</b></span>
                             </div>
 
                             <div class="age-adult-status-banner ${isAdult ? 'is-adult' : 'is-minor'}">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     ${isAdult ? this.icons.check : this.icons.cross}
-                                    <span>${isAdult ? '🎉 18+ Adult (Major)' : `👶 Minor (Under 18) • ${adultDiff} year${adultDiff > 1 ? 's' : ''} to adulthood`}</span>
+                                    <span>${isAdult ? '18+ Adult (Major)' : `Minor (Under 18) • ${adultDiff} year${adultDiff > 1 ? 's' : ''} to adulthood`}</span>
                                 </div>
                                 <span style="font-size: 0.85em; opacity: 0.85;">${isAdult ? 'Full Legal Adulthood' : 'Under Legal Guardianship'}</span>
                             </div>
@@ -5312,9 +5341,10 @@ body.tool-view-open {
                     if (dynamicContainer) {
                         dynamicContainer.innerHTML = html;
                     }
-                    document.getElementById('age-result').style.display = 'block';
+                    const res = document.getElementById('age-result');
+                    if (res) res.style.display = 'block';
 
-                    if (app && app.sound && typeof app.sound.playSound === 'function') {
+                    if (playSound && app && app.sound && typeof app.sound.playSound === 'function') {
                         app.sound.playSound('click');
                     }
                 }
