@@ -1,136 +1,64 @@
-<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-  <style>
-    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .fill-dark { fill: #23233A; }
-    .fill-purple { fill: #9468E8; }
-    .fill-purple-light { fill: #ECE5FC; }
-    .fill-purple-mid { fill: #C9B4F8; }
-    .fill-white { fill: #FFFFFF; }
-    .fill-none { fill: none; }
-  </style>
-
-  <!-- Ambient accents -->
-  <circle cx="340" cy="55" r="2.5" fill="#23233A" />
-  <circle cx="430" cy="180" r="3" fill="#9468E8" />
-  <polygon points="440,230 446,238 434,238" class="thin-line fill-none" stroke="#9468E8" />
-
-  <!-- Floor baseline -->
-  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
-
-  <!-- GANTT ROADMAP SCHEDULE BOARD -->
-  <g id="roadmap-board">
-    <rect x="50" y="80" width="310" height="200" rx="8" class="outline fill-purple-light" />
-    <rect x="58" y="88" width="294" height="184" rx="4" class="outline fill-white" />
-
-    <!-- Table Grid Columns (Days / Weeks) -->
-    <!-- Column headers -->
-    <line x1="110" y1="88" x2="110" y2="272" class="thin-line" stroke="#ECE5FC" />
-    <line x1="160" y1="88" x2="160" y2="272" class="thin-line" stroke="#ECE5FC" />
-    <line x1="210" y1="88" x2="210" y2="272" class="thin-line" stroke="#ECE5FC" />
-    <line x1="260" y1="88" x2="260" y2="272" class="thin-line" stroke="#ECE5FC" />
-    <line x1="310" y1="88" x2="310" y2="272" class="thin-line" stroke="#ECE5FC" />
-
-    <!-- Row dividing lines -->
-    <line x1="58" y1="120" x2="352" y2="120" class="thin-line" stroke="#23233A" />
-    <line x1="58" y1="155" x2="352" y2="155" class="thin-line" stroke="#ECE5FC" />
-    <line x1="58" y1="190" x2="352" y2="190" class="thin-line" stroke="#ECE5FC" />
-    <line x1="58" y1="225" x2="352" y2="225" class="thin-line" stroke="#ECE5FC" />
-
-    <!-- Header label indicators -->
-    <rect x="70" y="98" width="25" height="8" rx="2" class="thin-line fill-purple-light" />
-    <rect x="125" y="98" width="22" height="8" rx="2" class="thin-line fill-purple-light" />
-    <rect x="175" y="98" width="22" height="8" rx="2" class="thin-line fill-purple-light" />
-    <rect x="225" y="98" width="22" height="8" rx="2" class="thin-line fill-purple-light" />
-    <rect x="275" y="98" width="22" height="8" rx="2" class="thin-line fill-purple-light" />
-
-    <!-- Task list names on left -->
-    <line x1="68" y1="138" x2="98" y2="138" class="thin-line" stroke="#23233A" />
-    <line x1="68" y1="172" x2="95" y2="172" class="thin-line" stroke="#23233A" />
-    <line x1="68" y1="208" x2="102" y2="208" class="thin-line" stroke="#23233A" />
-    <line x1="68" y1="242" x2="92" y2="242" class="thin-line" stroke="#23233A" />
-
-    <!-- GANTT TIMELINE BARS -->
-    <!-- Bar 1 (Row 1) -->
-    <rect x="115" y="132" width="75" height="12" rx="4" class="outline fill-purple-mid" />
-    <!-- Bar 2 (Row 2) -->
-    <rect x="165" y="166" width="60" height="12" rx="4" class="outline fill-purple" />
-    <!-- Bar 3 (Row 3) -->
-    <rect x="225" y="202" width="80" height="12" rx="4" class="outline fill-purple-mid" />
-    <!-- Bar 4 (Row 4) -->
-    <rect x="210" y="238" width="105" height="12" rx="4" class="outline fill-purple-light" />
-
-    <!-- Dependency connection lines -->
-    <path d="M 190 144 L 200 144 L 200 166" class="thin-line fill-none" stroke="#9468E8" />
-    <path d="M 225 178 L 240 178 L 240 202" class="thin-line fill-none" stroke="#9468E8" />
-  </g>
-
-  <!-- Foliage / Plants at Base of Board -->
-  <g id="plants-base">
-    <path d="M 50 460 C 45 420 70 395 90 410 C 110 425 105 455 100 460 Z" class="outline fill-purple-light" />
-    <path d="M 80 460 C 85 410 115 400 130 420 C 140 440 120 460 115 460 Z" class="outline fill-purple-mid" />
-    <path d="M 405 460 C 400 415 425 385 445 405 C 465 425 450 455 440 460 Z" class="outline fill-purple-light" />
-    <path d="M 425 460 C 430 425 450 415 460 430 C 465 445 455 460 450 460 Z" class="outline fill-purple" />
-  </g>
-
-  <!-- CHARACTER STANDING WITH CLIPBOARD -->
-  <g id="character-roadmap">
-    <!-- Legs (Purple Trousers) -->
-    <!-- Left Leg -->
-    <path d="M 335 270 L 330 425 L 358 425 L 362 270 Z" class="outline fill-purple" />
-    <!-- Right Leg -->
-    <path d="M 370 270 L 372 425 L 400 425 L 395 270 Z" class="outline fill-purple" />
-    <path d="M 328 260 L 402 260 L 398 280 L 366 280 L 332 280 Z" class="outline fill-purple" />
-    <line x1="334" y1="340" x2="345" y2="344" class="thin-line" />
-    <line x1="388" y1="350" x2="398" y2="346" class="thin-line" />
-
-    <!-- Shoes (White sneakers with black sole) -->
-    <!-- Left Shoe -->
-    <path d="M 322 445 L 360 445 L 360 425 L 330 425 Z" class="outline fill-white" />
-    <path d="M 320 445 L 363 445 L 363 451 L 320 451 Z" class="outline fill-dark" />
-    <!-- Right Shoe -->
-    <path d="M 370 425 L 372 445 L 410 445 L 400 425 Z" class="outline fill-white" />
-    <path d="M 368 445 L 413 445 L 413 451 L 368 451 Z" class="outline fill-dark" />
-
-    <!-- Torso (Dark crewneck sweater) -->
-    <path d="M 325 155 C 325 135 348 125 365 125 C 382 125 405 135 405 155 L 402 268 L 328 268 Z" class="outline fill-dark" />
-    <path d="M 345 195 Q 365 200 380 195" class="thin-line fill-none" stroke="#FFFFFF" />
-
-    <!-- Neck & Head -->
-    <path d="M 355 115 L 355 130 L 375 130 L 375 115 Z" class="outline fill-white" />
-    <!-- Head -->
-    <path d="M 345 75 C 345 55 358 45 375 45 C 392 45 405 58 405 78 C 405 98 390 115 372 115 C 352 115 345 95 345 75 Z" class="outline fill-white" />
-
-    <!-- Face features (Looking at schedule board) -->
-    <circle cx="363" cy="76" r="2.5" fill="#23233A" />
-    <path d="M 358 70 Q 364 67 368 70" class="thin-line fill-none" />
-    <path d="M 354 78 L 350 83 L 355 84" class="thin-line fill-none" />
-    <path d="M 358 92 Q 365 96 370 91" class="thin-line fill-none" />
-
-    <!-- Hair -->
-    <path d="M 350 72 C 348 55 358 42 375 42 C 395 42 408 52 408 68 C 408 72 403 74 400 70 C 398 58 388 50 375 50 C 365 50 358 58 356 68 C 353 72 350 73 350 72 Z" class="outline fill-dark" />
-    <path d="M 372 50 C 362 55 355 65 356 72 C 360 65 368 58 375 56 Z" class="outline fill-dark" />
-    <path d="M 398 68 C 405 80 400 90 395 92 L 394 82 Z" class="outline fill-dark" />
-
-    <!-- Left Arm & Hand (Holding Pen Pointing to Milestone) -->
-    <path d="M 335 150 C 315 155 270 160 240 168 L 235 180 C 265 175 305 185 330 185 Z" class="outline fill-dark" />
-    <path d="M 235 168 C 228 168 224 172 224 176 C 226 180 232 180 236 176 Z" class="outline fill-white" />
-    <!-- Pen pointing -->
-    <line x1="224" y1="174" x2="200" y2="170" class="outline" stroke-width="3" stroke="#23233A" />
-    <polygon points="196,169 202,166 202,174" fill="#9468E8" />
-
-    <!-- Right Arm & Hand (Cradling Clipboard against body) -->
-    <path d="M 398 155 C 410 165 405 210 390 235 L 360 235 C 375 215 385 185 388 165 Z" class="outline fill-dark" />
-    <!-- CLIPBOARD -->
-    <g transform="rotate(-10, 355, 230)">
-      <rect x="330" y="195" width="38" height="52" rx="4" class="outline fill-purple-mid" />
-      <rect x="334" y="202" width="30" height="42" rx="2" class="outline fill-white" />
-      <rect x="342" y="192" width="14" height="6" rx="2" class="outline fill-dark" />
-      <line x1="338" y1="212" x2="360" y2="212" class="thin-line" stroke="#23233A" />
-      <line x1="338" y1="220" x2="356" y2="220" class="thin-line" stroke="#9468E8" />
-      <line x1="338" y1="228" x2="352" y2="228" class="thin-line" stroke="#23233A" />
-      <!-- Hand holding clipboard -->
-      <path d="M 334 235 C 328 235 324 238 325 242 C 328 245 334 244 338 240 Z" class="outline fill-white" />
-    </g>
-  </g>
+<svg viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <defs><style>
+    .outline { stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .thin-line { stroke: #181829; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .hair-dark { fill: #181829; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .sweater-dark { fill: #181829; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .skin-white { fill: #FFFFFF; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .pants-purple { fill: #9468E8; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .pants-purple-back { fill: #7C3AED; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .accent-light { fill: #EDE9FE; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .accent-mid { fill: #C4B5FD; }
+    .shoe-white { fill: #FFFFFF; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-light { fill: #DDD6FE; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-mid { fill: #C4B5FD; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-dark { fill: #9468E8; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+</style></defs>
+  <circle cx="35" cy="110" r="3" class="accent-mid" />
+  <circle cx="345" cy="55" r="3.5" fill="#9468E8" />
+  <line x1="20" y1="290" x2="380" y2="290" class="outline" stroke-width="2.6" />
+  <!-- Large Gantt Roadmap Schedule Board -->
+  <rect x="45" y="55" width="220" height="145" rx="6" class="accent-light" stroke-width="3" />
+  <!-- Calendar column headers -->
+  <line x1="90" y1="55" x2="90" y2="200" class="thin-line" />
+  <line x1="135" y1="55" x2="135" y2="200" class="thin-line" />
+  <line x1="180" y1="55" x2="180" y2="200" class="thin-line" />
+  <line x1="225" y1="55" x2="225" y2="200" class="thin-line" />
+  <line x1="45" y1="80" x2="265" y2="80" class="thin-line" />
+  <!-- Timeline task bars -->
+  <rect x="95" y="92" width="60" height="14" rx="3" class="pants-purple" />
+  <rect x="140" y="118" width="55" height="14" rx="3" class="accent-mid outline" />
+  <rect x="185" y="145" width="50" height="14" rx="3" class="pants-purple" />
+  <path d="M 155 106 L 155 118" class="thin-line" />
+  <path d="M 195 132 L 195 145" class="thin-line" />
+  <!-- Foliage bushes at floor base -->
+  <path d="M 40 290 Q 55 250 85 265 Q 110 240 135 270 Q 155 250 175 290 Z" class="foliage-light" />
+  <!-- Character standing with clipboard & marker -->
+  <path d="M 285 175 L 298 275 L 314 275 L 305 175 Z" class="pants-purple" />
+  <path d="M 305 175 L 322 275 L 338 275 L 322 175 Z" class="pants-purple" />
+  <path d="M 292 275 L 314 275 L 324 288 L 285 288 Z" class="shoe-white" />
+  <path d="M 318 275 L 338 275 L 348 288 L 312 288 Z" class="shoe-white" />
+  <path d="M 280 115 L 275 175 L 328 175 L 322 115 Z" class="sweater-dark" />
+  <!-- Right hand with marker on board -->
+  <path d="M 288 120 L 235 110 L 238 102 L 292 115 Z" class="sweater-dark" />
+  <circle cx="232" cy="106" r="4.5" class="skin-white" />
+  <!-- Left hand holding clipboard -->
+  <path d="M 315 120 L 305 155 L 295 155 Z" class="sweater-dark" />
+  <rect x="290" y="145" width="22" height="30" rx="2" class="skin-white" />
+  <rect x="296" y="142" width="10" height="4" rx="1" fill="#181829" />
+  
+      <!-- Neck -->
+      <path d="M 297 104 L 297 118 L 313 118 L 313 104 Z" class="skin-white" />
+      <path d="M 295 116 Q 305 122 315 116" class="skin-white" stroke-width="2" />
+      <!-- Head Skin -->
+      <path d="M 311 98 C 317 94 317 82 311 74 C 305 66 291 62 283 66 C 275 70 273 82 275 92 C 277 100 285 106 295 106 C 303 106 309 102 311 98 Z" class="skin-white" />
+      <!-- Facial Features -->
+      <path d="M 290 77 Q 285 75 281 77" class="outline" stroke-width="1.8" />
+      <circle cx="285" cy="81" r="1.6" fill="#181829" />
+      <path d="M 281 84 L 278 87 L 282 88" class="thin-line" />
+      <path d="M 287 93 Q 283 96 280 93" class="thin-line" />
+      <path d="M 307 86 C 309 83 309 91 305 92" class="thin-line" />
+      <!-- Hair (Black Side-Parting facing left) -->
+      <path d="M 313 86 C 317 76 313 64 301 58 C 289 52 273 56 269 66 C 266 74 271 80 276 80 C 281 80 282 76 289 74 C 297 72 303 76 305 84 C 308 90 311 90 313 86 Z" class="hair-dark" />
+    
 </svg>

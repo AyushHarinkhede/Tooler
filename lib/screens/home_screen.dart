@@ -466,7 +466,12 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 8),
               // 2D Line Artwork (Person at desk + soft accent bubble)
-              const Minimal2DHeroDesk(width: 110, height: 85),
+              Minimal2DHeroDesk(
+                width: 120,
+                height: 95,
+                accentColor: theme.primary,
+                isDark: isDark,
+              ),
             ],
           ),
 

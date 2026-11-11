@@ -1,149 +1,77 @@
-<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-  <style>
-    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .fill-dark { fill: #23233A; }
-    .fill-purple { fill: #9468E8; }
-    .fill-purple-light { fill: #ECE5FC; }
-    .fill-purple-mid { fill: #C9B4F8; }
-    .fill-white { fill: #FFFFFF; }
-    .fill-none { fill: none; }
-  </style>
-
-  <!-- Ambient background elements -->
-  <circle cx="340" cy="55" r="2.5" fill="#23233A" />
-  <circle cx="430" cy="180" r="3" fill="#9468E8" />
-  <circle cx="270" cy="220" r="2" fill="#C9B4F8" />
-  <path d="M 445 140 L 452 140 M 448.5 136.5 L 448.5 143.5" class="thin-line" stroke="#9468E8" />
-
-  <!-- Floor baseline -->
-  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
-
-  <!-- WHITEBOARD -->
-  <g id="whiteboard">
-    <!-- Frame shadow / backing ledge -->
-    <rect x="55" y="70" width="310" height="210" rx="8" class="outline fill-purple-light" />
-    <rect x="65" y="80" width="290" height="190" rx="4" class="outline fill-white" />
-    <!-- Whiteboard bottom marker tray -->
-    <rect x="45" y="278" width="330" height="8" rx="3" class="outline fill-purple-light" />
-    <rect x="180" y="274" width="25" height="5" rx="2" class="outline fill-dark" />
-
-    <!-- Sticky Notes & Diagram on Whiteboard -->
-    <!-- Note 1 (Top Left) -->
-    <rect x="80" y="100" width="35" height="30" rx="3" class="outline fill-purple-mid" />
-    <line x1="86" y1="108" x2="108" y2="108" class="thin-line" stroke="#23233A" />
-    <line x1="86" y1="115" x2="104" y2="115" class="thin-line" stroke="#23233A" />
-
-    <!-- Note 2 (Center) -->
-    <rect x="145" y="130" width="38" height="32" rx="3" class="outline fill-purple-light" />
-    <line x1="152" y1="139" x2="175" y2="139" class="thin-line" stroke="#23233A" />
-    <line x1="152" y1="146" x2="170" y2="146" class="thin-line" stroke="#23233A" />
-
-    <!-- Note 3 (Top Right) -->
-    <rect x="230" y="95" width="40" height="28" rx="3" class="outline fill-white" />
-    <line x1="236" y1="104" x2="262" y2="104" class="thin-line" stroke="#23233A" />
-    <line x1="236" y1="110" x2="255" y2="110" class="thin-line" stroke="#23233A" />
-
-    <!-- Note 4 (Bottom Left) -->
-    <rect x="90" y="170" width="32" height="32" rx="3" class="outline fill-purple" />
-    <line x1="96" y1="178" x2="114" y2="178" class="thin-line" stroke="#FFFFFF" />
-    <line x1="96" y1="184" x2="110" y2="184" class="thin-line" stroke="#FFFFFF" />
-
-    <!-- Note 5 (Bottom Center/Right) -->
-    <rect x="195" y="185" width="30" height="25" rx="3" class="outline fill-purple-mid" />
-    <line x1="200" y1="193" x2="218" y2="193" class="thin-line" stroke="#23233A" />
-
-    <!-- Connector arrows / workflow lines -->
-    <!-- Arrow 1 -> 2 -->
-    <path d="M 115 120 Q 130 125 145 138" class="thin-line fill-none" />
-    <polygon points="144,133 147,140 140,139" fill="#23233A" />
-
-    <!-- Arrow 2 -> 3 -->
-    <path d="M 183 140 Q 205 130 230 118" class="thin-line fill-none" />
-    <polygon points="228,123 232,117 225,116" fill="#23233A" />
-
-    <!-- Arrow 2 -> 4 -->
-    <path d="M 155 162 L 140 180 L 122 182" class="thin-line fill-none" />
-
-    <!-- Arrow 2 -> 5 -->
-    <path d="M 175 162 Q 185 175 195 188" class="thin-line fill-none" />
-    <polygon points="191,187 197,190 196,183" fill="#23233A" />
-  </g>
-
-  <!-- Foliage / Plants at Base of Board -->
-  <g id="plants-base">
-    <path d="M 50 460 C 45 420 70 395 90 410 C 110 425 105 455 100 460 Z" class="outline fill-purple-light" />
-    <path d="M 80 460 C 85 410 115 400 130 420 C 140 440 120 460 115 460 Z" class="outline fill-purple-mid" />
-    <path d="M 405 460 C 400 415 425 385 445 405 C 465 425 450 455 440 460 Z" class="outline fill-purple-light" />
-    <path d="M 425 460 C 430 425 450 415 460 430 C 465 445 455 460 450 460 Z" class="outline fill-purple" />
-    <!-- Plant stem lines -->
-    <path d="M 85 458 Q 90 435 90 415" class="thin-line fill-none" stroke="#23233A" />
-    <path d="M 435 458 Q 440 430 445 410" class="thin-line fill-none" stroke="#23233A" />
-  </g>
-
+<svg viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <defs><style>
+    .outline { stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .thin-line { stroke: #181829; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .hair-dark { fill: #181829; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .sweater-dark { fill: #181829; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .skin-white { fill: #FFFFFF; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .pants-purple { fill: #9468E8; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .pants-purple-back { fill: #7C3AED; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .accent-light { fill: #EDE9FE; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .accent-mid { fill: #C4B5FD; }
+    .shoe-white { fill: #FFFFFF; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-light { fill: #DDD6FE; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-mid { fill: #C4B5FD; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-dark { fill: #9468E8; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+</style></defs>
+  <circle cx="310" cy="40" r="3" fill="#181829" />
+  <circle cx="370" cy="55" r="4" fill="#C4B5FD" />
+  <circle cx="225" cy="275" r="3.5" fill="#C4B5FD" />
+  <line x1="20" y1="290" x2="380" y2="290" class="outline" stroke-width="2.6" />
+  <!-- Whiteboard on wall -->
+  <rect x="45" y="45" width="225" height="150" rx="6" class="accent-light" stroke-width="3" />
+  <line x1="40" y1="195" x2="275" y2="195" class="outline" stroke-width="3.5" />
+  <!-- Sticky notes on board -->
+  <rect x="65" y="65" width="28" height="24" rx="2" class="pants-purple" />
+  <line x1="68" y1="72" x2="88" y2="72" class="thin-line" stroke="#FFFFFF" />
+  <line x1="68" y1="77" x2="84" y2="77" class="thin-line" stroke="#FFFFFF" />
+  <rect x="110" y="95" width="26" height="22" rx="2" class="accent-mid outline" />
+  <rect x="75" y="135" width="26" height="24" rx="2" class="pants-purple" />
+  <rect x="145" y="145" width="24" height="20" rx="2" class="accent-light" />
+  <rect x="175" y="70" width="28" height="18" rx="2" class="accent-mid outline" />
+  <!-- Connecting arrows -->
+  <path d="M 93 77 L 110 98" class="thin-line" />
+  <path d="M 115 117 L 95 135" class="thin-line" />
+  <path d="M 125 117 L 145 145" class="thin-line" />
+  <path d="M 136 100 L 175 80" class="thin-line" />
+  <!-- Foliage / Bushes at bottom of board -->
+  <path d="M 40 290 Q 55 250 85 265 Q 110 240 135 270 Q 155 250 175 290 Z" class="foliage-light" />
+  <path d="M 60 290 Q 75 260 100 275 Q 120 255 140 290 Z" class="foliage-mid" />
+  <!-- Botanical stem -->
+  <path d="M 155 290 Q 160 250 152 235" class="outline" />
+  <circle cx="147" cy="245" r="4" class="foliage-dark" />
+  <circle cx="158" cy="240" r="4" class="foliage-dark" />
   <!-- CHARACTER STANDING -->
-  <g id="character-standing">
-    <!-- Legs (Purple Trousers) -->
-    <!-- Left Leg -->
-    <path d="M 335 270 L 330 425 L 358 425 L 362 270 Z" class="outline fill-purple" />
-    <!-- Right Leg -->
-    <path d="M 370 270 L 372 425 L 400 425 L 395 270 Z" class="outline fill-purple" />
-    <!-- Crotch & hip join -->
-    <path d="M 328 260 L 402 260 L 398 280 L 366 280 L 332 280 Z" class="outline fill-purple" />
-    <!-- Pants creases -->
-    <line x1="334" y1="340" x2="345" y2="344" class="thin-line" />
-    <line x1="388" y1="350" x2="398" y2="346" class="thin-line" />
-
-    <!-- Shoes (White sneakers with black sole) -->
-    <!-- Left Shoe -->
-    <path d="M 322 445 L 360 445 L 360 425 L 330 425 Z" class="outline fill-white" />
-    <path d="M 320 445 L 363 445 L 363 451 L 320 451 Z" class="outline fill-dark" />
-    <path d="M 335 433 Q 345 436 352 433" class="thin-line fill-none" />
-
-    <!-- Right Shoe -->
-    <path d="M 370 425 L 372 445 L 410 445 L 400 425 Z" class="outline fill-white" />
-    <path d="M 368 445 L 413 445 L 413 451 L 368 451 Z" class="outline fill-dark" />
-    <path d="M 380 433 Q 392 436 398 433" class="thin-line fill-none" />
-
-    <!-- Torso (Dark crewneck sweater) -->
-    <path d="M 325 155 C 325 135 348 125 365 125 C 382 125 405 135 405 155 L 402 268 L 328 268 Z" class="outline fill-dark" />
-    <path d="M 345 195 Q 365 200 380 195" class="thin-line fill-none" stroke="#FFFFFF" />
-    <path d="M 350 230 Q 368 235 385 230" class="thin-line fill-none" stroke="#FFFFFF" />
-
-    <!-- Neck & Head -->
-    <path d="M 355 115 L 355 130 L 375 130 L 375 115 Z" class="outline fill-white" />
-    <!-- Head -->
-    <path d="M 345 75 C 345 55 358 45 375 45 C 392 45 405 58 405 78 C 405 98 390 115 372 115 C 352 115 345 95 345 75 Z" class="outline fill-white" />
-
-    <!-- Face features (profile / 3/4 looking left at board) -->
-    <!-- Eye -->
-    <circle cx="363" cy="76" r="2.5" fill="#23233A" />
-    <!-- Eyebrow -->
-    <path d="M 358 70 Q 364 67 368 70" class="thin-line fill-none" />
-    <!-- Nose -->
-    <path d="M 354 78 L 350 83 L 355 84" class="thin-line fill-none" />
-    <!-- Smile -->
-    <path d="M 358 92 Q 365 96 370 91" class="thin-line fill-none" />
-    <!-- Ear -->
-    <path d="M 390 75 C 394 75 394 83 390 86 C 388 86 386 80 389 77" class="thin-line fill-white" />
-
-    <!-- Hair -->
-    <path d="M 350 72 C 348 55 358 42 375 42 C 395 42 408 52 408 68 C 408 72 403 74 400 70 C 398 58 388 50 375 50 C 365 50 358 58 356 68 C 353 72 350 73 350 72 Z" class="outline fill-dark" />
-    <!-- Hair fringe / wave -->
-    <path d="M 372 50 C 362 55 355 65 356 72 C 360 65 368 58 375 56 Z" class="outline fill-dark" />
-    <path d="M 398 68 C 405 80 400 90 395 92 L 394 82 Z" class="outline fill-dark" />
-
-    <!-- Left Arm (Pointing / drawing on whiteboard) -->
-    <path d="M 335 150 C 320 155 285 140 250 148 L 245 160 C 275 155 310 170 330 175 Z" class="outline fill-dark" />
-    <!-- Left Hand holding pen/marker -->
-    <path d="M 245 148 C 238 148 232 153 232 158 C 235 162 242 162 246 158 Z" class="outline fill-white" />
-    <!-- Marker pen -->
-    <rect x="220" y="142" width="22" height="6" rx="2" transform="rotate(-15, 230, 145)" class="outline fill-purple" />
-    <polygon points="214,142 220,140 220,146" fill="#23233A" />
-
-    <!-- Right Arm (Relaxed at side / slightly bent) -->
-    <path d="M 398 155 C 410 165 412 200 408 230 L 396 230 C 398 205 396 175 388 165 Z" class="outline fill-dark" />
-    <!-- Right Hand -->
-    <path d="M 408 230 C 412 236 410 244 405 246 C 400 246 396 240 396 232 Z" class="outline fill-white" />
-  </g>
+  <!-- Legs (Purple) -->
+  <path d="M 285 175 L 298 275 L 314 275 L 305 175 Z" class="pants-purple" />
+  <path d="M 305 175 L 322 275 L 338 275 L 322 175 Z" class="pants-purple" />
+  <!-- Shoes -->
+  <path d="M 292 275 L 314 275 L 324 288 L 285 288 Z" class="shoe-white" />
+  <line x1="285" y1="286" x2="324" y2="286" class="outline" />
+  <path d="M 318 275 L 338 275 L 348 288 L 312 288 Z" class="shoe-white" />
+  <line x1="312" y1="286" x2="348" y2="286" class="outline" />
+  <!-- Torso (Black sweater) -->
+  <path d="M 280 115 L 275 175 L 328 175 L 322 115 Z" class="sweater-dark" />
+  <!-- Left arm holding marker pointing at board -->
+  <path d="M 288 120 L 235 105 L 238 98 L 292 112 Z" class="sweater-dark" />
+  <circle cx="232" cy="102" r="5" class="skin-white" />
+  <rect x="222" y="99" width="10" height="4" rx="1" fill="#181829" />
+  <!-- Right arm down at side -->
+  <path d="M 320 120 L 325 160 L 318 160 L 314 120 Z" class="sweater-dark" />
+  <circle cx="323" cy="164" r="4" class="skin-white" />
+  
+      <!-- Neck -->
+      <path d="M 297 104 L 297 118 L 313 118 L 313 104 Z" class="skin-white" />
+      <path d="M 295 116 Q 305 122 315 116" class="skin-white" stroke-width="2" />
+      <!-- Head Skin -->
+      <path d="M 311 98 C 317 94 317 82 311 74 C 305 66 291 62 283 66 C 275 70 273 82 275 92 C 277 100 285 106 295 106 C 303 106 309 102 311 98 Z" class="skin-white" />
+      <!-- Facial Features -->
+      <path d="M 290 77 Q 285 75 281 77" class="outline" stroke-width="1.8" />
+      <circle cx="285" cy="81" r="1.6" fill="#181829" />
+      <path d="M 281 84 L 278 87 L 282 88" class="thin-line" />
+      <path d="M 287 93 Q 283 96 280 93" class="thin-line" />
+      <path d="M 307 86 C 309 83 309 91 305 92" class="thin-line" />
+      <!-- Hair (Black Side-Parting facing left) -->
+      <path d="M 313 86 C 317 76 313 64 301 58 C 289 52 273 56 269 66 C 266 74 271 80 276 80 C 281 80 282 76 289 74 C 297 72 303 76 305 84 C 308 90 311 90 313 86 Z" class="hair-dark" />
+    
 </svg>

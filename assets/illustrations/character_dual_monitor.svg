@@ -1,157 +1,62 @@
-<svg viewBox="0 0 500 550" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
-  <style>
-    .outline { stroke: #23233A; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-    .thin-line { stroke: #23233A; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
-    .fill-dark { fill: #23233A; }
-    .fill-purple { fill: #9468E8; }
-    .fill-purple-light { fill: #ECE5FC; }
-    .fill-purple-mid { fill: #C9B4F8; }
-    .fill-white { fill: #FFFFFF; }
-    .fill-none { fill: none; }
-  </style>
-
-  <!-- Ambient accents -->
-  <circle cx="215" cy="70" r="3" fill="#9468E8" />
-  <circle cx="430" cy="180" r="2.5" fill="#23233A" />
-  <polygon points="425,240 431,248 419,248" class="thin-line fill-none" stroke="#9468E8" />
-
-  <!-- Floor baseline -->
-  <line x1="40" y1="460" x2="460" y2="460" class="outline" />
-
-  <!-- Floating Documents above Workstation -->
-  <g id="floating-docs">
-    <rect x="180" y="70" width="38" height="48" rx="3" class="outline fill-white" />
-    <line x1="186" y1="78" x2="210" y2="78" class="thin-line" stroke="#23233A" />
-    <line x1="186" y1="84" x2="206" y2="84" class="thin-line" stroke="#23233A" />
-    <circle cx="204" cy="102" r="5" class="outline fill-purple-light" />
+<svg viewBox="0 0 400 320" xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+  <defs><style>
+    .outline { stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .thin-line { stroke: #181829; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; fill: none; }
+    .hair-dark { fill: #181829; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .sweater-dark { fill: #181829; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .skin-white { fill: #FFFFFF; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .pants-purple { fill: #9468E8; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .pants-purple-back { fill: #7C3AED; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .accent-light { fill: #EDE9FE; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .accent-mid { fill: #C4B5FD; }
+    .shoe-white { fill: #FFFFFF; stroke: #181829; stroke-width: 2.6; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-light { fill: #DDD6FE; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-mid { fill: #C4B5FD; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .foliage-dark { fill: #9468E8; stroke: #181829; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+</style></defs>
+  <circle cx="45" cy="90" r="3.5" class="accent-mid" />
+  <circle cx="340" cy="70" r="3" fill="#181829" />
+  <line x1="25" y1="285" x2="375" y2="285" class="outline" stroke-width="2.6" />
+  <!-- Potted plant on floor left -->
+  <rect x="42" y="260" width="22" height="25" rx="3" fill="#181829" />
+  <path d="M 45 260 Q 30 220 52 235 Q 65 210 58 260 Z" class="foliage-light" />
+  <!-- Wide Desk -->
+  <rect x="48" y="170" width="265" height="12" rx="4" class="accent-light" />
+  <line x1="65" y1="182" x2="65" y2="285" class="outline" stroke-width="3" />
+  <line x1="295" y1="182" x2="295" y2="285" class="outline" stroke-width="3" />
+  <!-- Two Large Monitors -->
+  <rect x="58" y="105" width="75" height="52" rx="4" class="sweater-dark" />
+  <line x1="95" y1="157" x2="95" y2="170" class="outline" stroke-width="4" />
+  <rect x="140" y="105" width="75" height="52" rx="4" class="sweater-dark" />
+  <line x1="178" y1="157" x2="178" y2="170" class="outline" stroke-width="4" />
+  <!-- Floating document pages with wax seals -->
+  <rect x="135" y="45" width="30" height="38" rx="2" class="skin-white" />
+  <circle cx="158" cy="74" r="4" class="accent-mid" />
+  <rect x="170" y="40" width="32" height="40" rx="2" class="skin-white" />
+  <circle cx="194" cy="70" r="4.5" class="pants-purple" />
+  <!-- Character holding document -->
+  <rect x="235" y="185" width="10" height="35" rx="5" class="accent-light" />
+  <rect x="230" y="215" width="55" height="12" rx="6" class="accent-light" />
+  <line x1="250" y1="227" x2="250" y2="285" class="outline" stroke-width="3" />
+  <path d="M 235 205 L 185 205 L 180 265 L 205 265 L 210 218 L 245 218 Z" class="pants-purple" />
+  <path d="M 180 265 L 205 265 L 220 285 L 175 285 Z" class="shoe-white" />
+  <path d="M 215 155 L 210 205 L 255 205 L 250 155 Z" class="sweater-dark" />
+  <!-- Arms holding paper -->
+  <path d="M 220 160 L 205 185 L 195 180 Z" class="sweater-dark" />
+  <rect x="185" y="165" width="22" height="28" rx="2" class="skin-white" />
+  
+      <!-- Neck -->
+      <path d="M 227 144 L 227 158 L 243 158 L 243 144 Z" class="skin-white" />
+      <path d="M 225 156 Q 235 162 245 156" class="skin-white" stroke-width="2" />
+      <!-- Head Skin -->
+      <path d="M 241 138 C 247 134 247 122 241 114 C 235 106 221 102 213 106 C 205 110 203 122 205 132 C 207 140 215 146 225 146 C 233 146 239 142 241 138 Z" class="skin-white" />
+      <!-- Facial Features -->
+      <path d="M 220 117 Q 215 115 211 117" class="outline" stroke-width="1.8" />
+      <circle cx="215" cy="121" r="1.6" fill="#181829" />
+      <path d="M 211 124 L 208 127 L 212 128" class="thin-line" />
+      <path d="M 217 133 Q 213 136 210 133" class="thin-line" />
+      <path d="M 237 126 C 239 123 239 131 235 132" class="thin-line" />
+      <!-- Hair (Black Side-Parting facing left) -->
+      <path d="M 243 126 C 247 116 243 104 231 98 C 219 92 203 96 199 106 C 196 114 201 120 206 120 C 211 120 212 116 219 114 C 227 112 233 116 235 124 C 238 130 241 130 243 126 Z" class="hair-dark" />
     
-    <!-- Doc 2 overlapping -->
-    <rect x="205" y="60" width="40" height="50" rx="3" class="outline fill-purple-light" />
-    <line x1="212" y1="70" x2="238" y2="70" class="thin-line" stroke="#23233A" />
-    <line x1="212" y1="76" x2="232" y2="76" class="thin-line" stroke="#9468E8" />
-    <circle cx="232" cy="94" r="5" class="outline fill-purple-mid" />
-  </g>
-
-  <!-- Foliage / Plants at left corner -->
-  <g id="plant-left">
-    <path d="M 45 460 C 40 415 65 385 80 405 C 95 425 80 455 75 460 Z" class="outline fill-purple-light" />
-    <path d="M 68 460 C 72 420 95 410 105 425 C 110 440 100 460 95 460 Z" class="outline fill-purple" />
-    <path d="M 75 458 Q 80 435 84 418" class="thin-line fill-none" stroke="#23233A" />
-    <!-- Small Plant Pot -->
-    <path d="M 52 460 L 78 460 L 75 440 L 55 440 Z" class="outline fill-dark" />
-  </g>
-
-  <!-- WORKSTATION DESK WITH CABINET PEDESTAL -->
-  <g id="workstation-desk">
-    <!-- Desktop Tabletop -->
-    <rect x="65" y="215" width="370" height="14" rx="4" class="outline fill-purple-light" />
-    
-    <!-- Pedestal Cabinet on Left -->
-    <rect x="80" y="229" width="75" height="231" class="outline fill-purple-light" />
-    <!-- Drawer Dividers -->
-    <line x1="80" y1="290" x2="155" y2="290" class="thin-line" />
-    <line x1="80" y1="360" x2="155" y2="360" class="thin-line" />
-    <!-- Drawer Handles -->
-    <rect x="110" y="255" width="15" height="4" rx="1.5" class="outline fill-purple" />
-    <rect x="110" y="320" width="15" height="4" rx="1.5" class="outline fill-purple" />
-    <rect x="110" y="400" width="15" height="4" rx="1.5" class="outline fill-purple" />
-
-    <!-- Right Desk Leg -->
-    <rect x="410" y="229" width="10" height="231" class="outline fill-purple-light" />
-    <line x1="415" y1="229" x2="415" y2="460" class="thin-line" stroke="#9468E8" />
-    <!-- Crossbar -->
-    <line x1="155" y1="245" x2="415" y2="245" class="thin-line" />
-
-    <!-- DUAL MONITORS -->
-    <!-- Monitor 1 (Left) -->
-    <rect x="95" y="145" width="80" height="58" rx="4" class="outline fill-dark" />
-    <rect x="100" y="150" width="70" height="48" rx="2" class="outline fill-white" />
-    <!-- Content lines on screen 1 -->
-    <line x1="106" y1="160" x2="140" y2="160" class="thin-line" stroke="#9468E8" />
-    <line x1="106" y1="168" x2="158" y2="168" class="thin-line" stroke="#C9B4F8" />
-    <line x1="106" y1="176" x2="148" y2="176" class="thin-line" stroke="#C9B4F8" />
-    <line x1="106" y1="184" x2="135" y2="184" class="thin-line" stroke="#9468E8" />
-    <!-- Stand for Monitor 1 -->
-    <rect x="130" y="203" width="10" height="12" class="outline fill-dark" />
-    <path d="M 120 215 L 150 215 L 146 211 L 124 211 Z" class="outline fill-dark" />
-
-    <!-- Monitor 2 (Right) -->
-    <rect x="180" y="145" width="80" height="58" rx="4" class="outline fill-dark" />
-    <rect x="185" y="150" width="70" height="48" rx="2" class="outline fill-purple-light" />
-    <!-- Graph chart on screen 2 -->
-    <path d="M 192 186 Q 205 170 218 178 T 245 160" class="thin-line fill-none" stroke="#9468E8" stroke-width="2" />
-    <circle cx="245" cy="160" r="2.5" fill="#9468E8" />
-    <!-- Stand for Monitor 2 -->
-    <rect x="215" y="203" width="10" height="12" class="outline fill-dark" />
-    <path d="M 205 215 L 235 215 L 231 211 L 209 211 Z" class="outline fill-dark" />
-  </g>
-
-  <!-- CHAIR BACKGROUND -->
-  <g id="chair-back">
-    <path d="M 375 210 C 380 170 400 160 415 160 C 430 160 440 170 435 210 L 425 340 C 425 355 405 360 390 355 Z" class="outline fill-purple-light" />
-    <rect x="355" y="345" width="85" height="16" rx="8" class="outline fill-purple-light" />
-    <line x1="395" y1="361" x2="395" y2="420" class="outline" stroke-width="4" />
-    <path d="M 365 435 L 395 420 L 425 435" class="outline fill-none" stroke-width="3" />
-    <circle cx="362" cy="438" r="4.5" class="outline fill-dark" />
-    <circle cx="428" cy="438" r="4.5" class="outline fill-dark" />
-  </g>
-
-  <!-- CHARACTER AT WORKSTATION -->
-  <g id="character-workstation">
-    <!-- Legs (Purple Trousers) -->
-    <!-- Back Leg -->
-    <path d="M 360 270 L 315 270 C 305 270 300 280 302 300 L 315 390 L 345 390 L 338 305 L 360 305 Z" class="outline fill-purple" />
-    <path d="M 315 390 L 345 390 L 340 410 L 305 410 Z" class="outline fill-white" />
-    <path d="M 302 410 L 348 410 L 348 416 L 302 416 Z" class="outline fill-dark" />
-
-    <!-- Front Leg -->
-    <path d="M 355 265 L 290 265 C 275 265 270 275 272 295 L 290 425 L 322 425 L 308 300 L 355 295 Z" class="outline fill-purple" />
-    <line x1="312" y1="335" x2="305" y2="340" class="thin-line" />
-    <line x1="315" y1="385" x2="308" y2="390" class="thin-line" />
-
-    <!-- Front Shoe -->
-    <path d="M 275 445 L 322 425 L 325 445 L 280 445 Z" class="outline fill-white" />
-    <path d="M 272 445 L 330 445 L 330 451 L 272 451 Z" class="outline fill-dark" />
-    <path d="M 290 435 Q 300 433 308 435" class="thin-line fill-none" />
-
-    <!-- Torso (Black sweater) -->
-    <path d="M 380 175 C 380 145 360 135 332 135 C 312 135 300 145 300 175 L 305 280 L 375 280 Z" class="outline fill-dark" />
-    <path d="M 325 208 Q 345 213 360 208" class="thin-line fill-none" stroke="#FFFFFF" />
-
-    <!-- Neck & Head -->
-    <path d="M 330 120 L 330 140 L 350 140 L 350 120 Z" class="outline fill-white" />
-    <!-- Head -->
-    <path d="M 322 82 C 322 62 336 52 356 52 C 374 52 386 66 386 86 C 386 107 368 124 348 124 C 326 124 322 104 322 82 Z" class="outline fill-white" />
-
-    <!-- Face features (Focused on documents & screens) -->
-    <circle cx="338" cy="86" r="2.5" fill="#23233A" />
-    <path d="M 334 78 Q 340 75 346 78" class="thin-line fill-none" />
-    <path d="M 330 88 L 326 93 L 332 94" class="thin-line fill-none" />
-    <path d="M 334 102 Q 342 106 348 102" class="thin-line fill-none" />
-
-    <!-- Hair -->
-    <path d="M 324 80 C 322 62 334 50 356 50 C 376 50 389 60 389 76 C 389 80 384 82 381 78 C 379 66 369 58 356 58 C 344 58 336 66 332 78 C 329 82 325 82 324 80 Z" class="outline fill-dark" />
-    <path d="M 356 58 C 346 64 339 74 340 80 C 344 74 352 67 360 64 Z" class="outline fill-dark" />
-    <path d="M 378 76 C 385 87 382 98 376 100 L 376 90 Z" class="outline fill-dark" />
-
-    <!-- Left Arm & Hand (Holding paper sheet) -->
-    <path d="M 335 165 C 315 175 285 195 270 215 L 260 210 C 275 190 305 170 330 160 Z" class="outline fill-dark" />
-    <!-- Paper Sheet held in hand -->
-    <g transform="rotate(15, 275, 220)">
-      <rect x="250" y="200" width="30" height="42" rx="3" class="outline fill-white" />
-      <line x1="256" y1="208" x2="274" y2="208" class="thin-line" stroke="#23233A" />
-      <line x1="256" y1="216" x2="272" y2="216" class="thin-line" stroke="#9468E8" />
-      <line x1="256" y1="224" x2="270" y2="224" class="thin-line" stroke="#23233A" />
-      <!-- Hand thumb holding paper -->
-      <path d="M 276 220 C 282 220 285 225 283 230 C 278 232 274 228 274 222 Z" class="outline fill-white" />
-    </g>
-
-    <!-- Right Arm & Hand (Operating mouse / on desk) -->
-    <path d="M 345 165 C 330 178 305 195 280 212 L 245 212 L 248 222 L 290 222 L 355 175 Z" class="outline fill-dark" />
-    <!-- Right Hand on Mouse -->
-    <path d="M 240 210 C 234 210 230 213 228 217 C 232 221 240 221 246 219 Z" class="outline fill-white" />
-    <!-- Computer Mouse -->
-    <rect x="220" y="214" width="16" height="10" rx="4" class="outline fill-purple-mid" />
-    <line x1="228" y1="214" x2="228" y2="219" class="thin-line" />
-  </g>
 </svg>
