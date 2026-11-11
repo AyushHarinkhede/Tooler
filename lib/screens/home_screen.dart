@@ -240,6 +240,8 @@ class _HomeScreenState extends State<HomeScreen> {
   /// Opens any tool in the sleek Pop-up Hover Page (Screen 3 style)
   void _openTool(Map<String, dynamic> tool) {
     SoundService().playClick();
+    _searchFocusNode.unfocus();
+    FocusScope.of(context).unfocus();
     ToolerHoverSheet.show(
       context: context,
       title: tool['title'],
@@ -247,11 +249,18 @@ class _HomeScreenState extends State<HomeScreen> {
       tag: tool['tag'],
       theme: widget.theme,
       child: (tool['builder'] as WidgetBuilder)(context),
-    );
+    ).then((_) {
+      if (mounted) {
+        _searchFocusNode.unfocus();
+        FocusScope.of(context).unfocus();
+      }
+    });
   }
 
   void _openSettings() {
     SoundService().playClick();
+    _searchFocusNode.unfocus();
+    FocusScope.of(context).unfocus();
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -260,7 +269,12 @@ class _HomeScreenState extends State<HomeScreen> {
           onThemeChanged: widget.onThemeChanged,
         ),
       ),
-    );
+    ).then((_) {
+      if (mounted) {
+        _searchFocusNode.unfocus();
+        FocusScope.of(context).unfocus();
+      }
+    });
   }
 
   @override
@@ -268,21 +282,30 @@ class _HomeScreenState extends State<HomeScreen> {
     final theme = widget.theme;
     final isDark = theme.isDark;
 
-    return Scaffold(
-      backgroundColor: theme.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 1. Top Bar with Logo & Settings Button
-            _buildTopBar(isDark),
+    return GestureDetector(
+      onTap: () {
+        if (_searchFocusNode.hasFocus) {
+          _searchFocusNode.unfocus();
+        }
+        FocusScope.of(context).unfocus();
+      },
+      behavior: HitTestBehavior.translucent,
+      child: Scaffold(
+        backgroundColor: theme.bg,
+        body: SafeArea(
+          child: Column(
+            children: [
+              // 1. Top Bar with Logo & Settings Button
+              _buildTopBar(isDark),
 
-            // 2. Main Scrollable Content (No bottom nav bar!)
-            Expanded(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Column(
+              // 2. Main Scrollable Content (No bottom nav bar!)
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                  physics: const BouncingScrollPhysics(),
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // A. Hero Banner Card with 2D Artwork (Lamp & Desk)
@@ -316,6 +339,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -474,6 +498,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: TextField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
+                    textInputAction: TextInputAction.search,
+                    onTapOutside: (_) {
+                      _searchFocusNode.unfocus();
+                    },
+                    onSubmitted: (_) {
+                      _searchFocusNode.unfocus();
+                      FocusScope.of(context).unfocus();
+                    },
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -497,6 +529,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       SoundService().playClick();
                       _searchController.clear();
                       _searchFocusNode.unfocus();
+                      FocusScope.of(context).unfocus();
                     },
                     child: Icon(
                       Icons.cancel_rounded,
@@ -554,6 +587,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: InkWell(
                   onTap: () {
                     SoundService().playClick();
+                    _searchFocusNode.unfocus();
+                    FocusScope.of(context).unfocus();
                     setState(() => _selectedCategory = cat);
                   },
                   borderRadius: BorderRadius.circular(20),
