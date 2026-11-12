@@ -277,7 +277,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'iconType': 'sizer',
         'isFeatured': false,
         'features': [
-          {'name': 'Ring Sizer Circle', 'desc': 'Place physical ring on screen circle (14.0–24.5mm); numbers outside circle; tape formula C = D × 3.1416'},
+          {'name': 'Ring Sizer Graph', 'desc': '1:1 precision millimeter coordinate graph, clean micro-stepper adjustment, cm size selector & international standards'},
           {'name': 'Bangle Sizer Circle', 'desc': 'Place bangle on screen circle (sizes 2-2 to 3-0); knuckle tape formula D = Knuckle / 3.1416'},
           {'name': 'Watch Strap Caliper', 'desc': 'Vector leather strap visualizer with stitching & buckle; 12–26mm lug width caliper'},
           {'name': 'Flush Screen Edge Ruler', 'desc': 'True 1:1 ruler flush with physical phone device edge for quick measurements'},
