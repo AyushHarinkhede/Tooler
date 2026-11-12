@@ -21,6 +21,14 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   GameType _activeGame = GameType.tictactoe;
   bool _isOptionsExpanded = false;
 
+  late AnimationController _ludoHopController;
+  double _ludoHopProgress = 0.0;
+  int _ludoAnimFromStep = -1;
+  int _ludoAnimToStep = 0;
+
+  String? _unoBotPlayToast;
+  Timer? _unoToastTimer;
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +38,14 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       vsync: this,
       duration: const Duration(milliseconds: 380),
     );
+    _ludoHopController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 170),
+    )..addListener(() {
+        setState(() {
+          _ludoHopProgress = _ludoHopController.value;
+        });
+      });
   }
 
   @override
@@ -40,7 +56,9 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     _ludoStepTimer?.cancel();
     _snlBotTimer?.cancel();
     _unoBotTimer?.cancel();
+    _unoToastTimer?.cancel();
     _unoFlyController?.dispose();
+    _ludoHopController.dispose();
     super.dispose();
   }
 
@@ -541,6 +559,9 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       _ludoIsAnimatingMove = false;
       _animatingLudoPlayer = null;
       _animatingLudoToken = null;
+      _ludoHopProgress = 0.0;
+      _ludoAnimFromStep = -1;
+      _ludoAnimToStep = 0;
       _ludoWinner = null;
     });
 
@@ -655,20 +676,9 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   void _moveLudoToken(int pIdx, int tIdx) {
     if (!_ludoHasRolled || _ludoIsAnimatingMove) return;
 
-    SoundService().playKey();
     final currentStep = _ludoTokens[pIdx][tIdx];
+    final targetStep = currentStep == -1 ? 0 : (currentStep + _ludoDiceVal);
 
-    if (currentStep == -1) {
-      // Step out of base to step 0
-      setState(() {
-        _ludoTokens[pIdx][tIdx] = 0;
-        _ludoHasRolled = false;
-      });
-      _finalizeLudoTurn(pIdx, tIdx, 0, bonusOnSix: true);
-      return;
-    }
-
-    final targetStep = currentStep + _ludoDiceVal;
     setState(() {
       _ludoIsAnimatingMove = true;
       _animatingLudoPlayer = pIdx;
@@ -676,26 +686,35 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       _ludoHasRolled = false;
     });
 
-    _ludoStepTimer?.cancel();
-    _ludoStepTimer = Timer.periodic(const Duration(milliseconds: 140), (timer) {
-      if (!mounted) {
-        timer.cancel();
-        return;
-      }
+    _animateLudoSingleHop(pIdx, tIdx, currentStep, targetStep);
+  }
 
+  void _animateLudoSingleHop(int pIdx, int tIdx, int step, int finalTargetStep) {
+    if (step >= finalTargetStep) {
       setState(() {
-        _ludoTokens[pIdx][tIdx]++;
-        SoundService().playKey();
-
-        if (_ludoTokens[pIdx][tIdx] >= targetStep) {
-          timer.cancel();
-          _ludoTokens[pIdx][tIdx] = targetStep;
-          _ludoIsAnimatingMove = false;
-          _animatingLudoPlayer = null;
-          _animatingLudoToken = null;
-          _finalizeLudoTurn(pIdx, tIdx, targetStep, bonusOnSix: true);
-        }
+        _ludoTokens[pIdx][tIdx] = finalTargetStep;
+        _ludoIsAnimatingMove = false;
+        _animatingLudoPlayer = null;
+        _animatingLudoToken = null;
+        _ludoHopProgress = 0.0;
       });
+      _finalizeLudoTurn(pIdx, tIdx, finalTargetStep, bonusOnSix: true);
+      return;
+    }
+
+    final nextStep = (step == -1) ? 0 : (step + 1);
+    _ludoAnimFromStep = step;
+    _ludoAnimToStep = nextStep;
+    _ludoHopProgress = 0.0;
+    _ludoHopController.reset();
+
+    SoundService().playKey();
+    _ludoHopController.forward().then((_) {
+      if (!mounted) return;
+      setState(() {
+        _ludoTokens[pIdx][tIdx] = nextStep;
+      });
+      _animateLudoSingleHop(pIdx, tIdx, nextStep, finalTargetStep);
     });
   }
 
@@ -777,10 +796,10 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     4: 14, 9: 31, 20: 38, 28: 84, 40: 59, 51: 67, 63: 81, 71: 91
   };
   static const List<Map<String, dynamic>> _snlPawns = [
-    {'name': 'Pencil', 'icon': '✏️', 'color': Color(0xFFE74C3C)},
-    {'name': 'Ruler', 'icon': '📏', 'color': Color(0xFF2980B9)},
-    {'name': 'Eraser', 'icon': '🧼', 'color': Color(0xFF27AE60)},
-    {'name': 'Compass', 'icon': '🧭', 'color': Color(0xFF8E44AD)},
+    {'name': 'Pencil', 'icon': Icons.edit_rounded, 'color': Color(0xFFE74C3C)},
+    {'name': 'Ruler', 'icon': Icons.straighten_rounded, 'color': Color(0xFF2980B9)},
+    {'name': 'Eraser', 'icon': Icons.cleaning_services_rounded, 'color': Color(0xFF27AE60)},
+    {'name': 'Compass', 'icon': Icons.explore_rounded, 'color': Color(0xFF8E44AD)},
   ];
 
   int _snlPlayerPawn = 0; // 0=Pencil, 1=Ruler, 2=Eraser, 3=Compass
@@ -914,7 +933,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   bool _unoSaidUno = false;
   String _unoStatusMsg = 'Your Turn! Play a matching card or draw.';
   Timer? _unoBotTimer;
-  String _unoPlayerAvatar = '🎓 Scholar';
+  String _unoPlayerAvatar = 'Scholar';
   String _unoDifficulty = 'normal';
   AnimationController? _unoFlyController;
   Animation<Offset>? _unoFlyOffsetAnimation;
@@ -931,7 +950,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     _unoBotHand = _unoDeck.sublist(7, 14);
     _unoDeck.removeRange(0, 14);
 
-    int startIdx = _unoDeck.indexWhere((c) => c['color'] != 'wild' && !['🚫', '🔄', '+2'].contains(c['value']));
+    int startIdx = _unoDeck.indexWhere((c) => c['color'] != 'wild' && !['SKIP', 'REVERSE', '+2'].contains(c['value']));
     if (startIdx == -1) startIdx = 0;
     _unoTopCard = _unoDeck.removeAt(startIdx);
     _unoActiveColor = _unoTopCard['color']!;
@@ -944,19 +963,19 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     const colors = ['red', 'blue', 'green', 'yellow'];
     final deck = <Map<String, String>>[];
     for (final c in colors) {
-      deck.add({'color': c, 'value': '0', 'symbol': '0'});
+      deck.add({'color': c, 'value': '0'});
       for (int i = 1; i <= 9; i++) {
-        deck.add({'color': c, 'value': '$i', 'symbol': '$i'});
-        deck.add({'color': c, 'value': '$i', 'symbol': '$i'});
+        deck.add({'color': c, 'value': '$i'});
+        deck.add({'color': c, 'value': '$i'});
       }
-      for (final action in ['🚫', '🔄', '+2']) {
-        deck.add({'color': c, 'value': action, 'symbol': action});
-        deck.add({'color': c, 'value': action, 'symbol': action});
+      for (final action in ['SKIP', 'REVERSE', '+2']) {
+        deck.add({'color': c, 'value': action});
+        deck.add({'color': c, 'value': action});
       }
     }
     for (int i = 0; i < 4; i++) {
-      deck.add({'color': 'wild', 'value': 'WILD', 'symbol': '🌈'});
-      deck.add({'color': 'wild', 'value': '+4', 'symbol': '+4'});
+      deck.add({'color': 'wild', 'value': 'WILD'});
+      deck.add({'color': 'wild', 'value': '+4'});
     }
     return deck;
   }
@@ -1081,7 +1100,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
             });
           }
           return;
-        } else if (val == '🚫' || val == '🔄') {
+        } else if (val == 'SKIP' || val == 'REVERSE') {
           _unoStatusMsg = '${isPlayer ? "You" : "Bot"} played $val! Opponent turn skipped!';
           if (!isPlayer) {
             _unoBotTimer = Timer(const Duration(milliseconds: 1000), () {
@@ -1180,6 +1199,18 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     });
   }
 
+  void _triggerUnoBotPlayToast(Map<String, String> card, String chosenColor) {
+    final val = card['value'] ?? '';
+    final colorStr = chosenColor.toUpperCase();
+    setState(() {
+      _unoBotPlayToast = 'Opponent played $colorStr $val!';
+    });
+    _unoToastTimer?.cancel();
+    _unoToastTimer = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) setState(() => _unoBotPlayToast = null);
+    });
+  }
+
   void _executeUnoBotMove() {
     if (_unoCurrentTurn != 'bot') return;
 
@@ -1193,6 +1224,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       final drawn = _unoBotHand.last;
       if (_isUnoCardPlayable(drawn)) {
         final chosenColor = drawn['color'] == 'wild' ? _getBotBestColor() : drawn['color']!;
+        _triggerUnoBotPlayToast(drawn, chosenColor);
         _executeUnoPlay(_unoBotHand.length - 1, chosenColor, isPlayer: false);
       } else {
         setState(() {
@@ -1203,13 +1235,14 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     } else {
       int chosen = playable.first;
       for (final idx in playable) {
-        if (['+2', '+4', '🚫'].contains(_unoBotHand[idx]['value'])) {
+        if (['+2', '+4', 'SKIP'].contains(_unoBotHand[idx]['value'])) {
           chosen = idx;
           break;
         }
       }
       final card = _unoBotHand[chosen];
       final chosenColor = card['color'] == 'wild' ? _getBotBestColor() : card['color']!;
+      _triggerUnoBotPlayToast(card, chosenColor);
       _executeUnoPlay(chosen, chosenColor, isPlayer: false);
     }
   }
@@ -1713,12 +1746,12 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   Widget _buildGameTabBar() {
     final games = [
-      {'type': GameType.tictactoe, 'label': 'Tic-Tac-Toe', 'icon': '❌⭕'},
-      {'type': GameType.snake, 'label': 'Snake Pro', 'icon': '🐍'},
-      {'type': GameType.ludo, 'label': 'Real Ludo', 'icon': '🎲'},
-      {'type': GameType.snakesAndLadders, 'label': 'Snake & Ladder', 'icon': '🪜'},
-      {'type': GameType.uno, 'label': 'UNO Cards', 'icon': '🎴'},
-      {'type': GameType.tetris, 'label': 'Tetris', 'icon': '🧱'},
+      {'type': GameType.tictactoe, 'label': 'Tic-Tac-Toe', 'icon': Icons.grid_3x3_rounded},
+      {'type': GameType.snake, 'label': 'Snake Pro', 'icon': Icons.gesture_rounded},
+      {'type': GameType.ludo, 'label': 'Real Ludo', 'icon': Icons.casino_rounded},
+      {'type': GameType.snakesAndLadders, 'label': 'Snake & Ladder', 'icon': Icons.stairs_rounded},
+      {'type': GameType.uno, 'label': 'UNO Cards', 'icon': Icons.style_rounded},
+      {'type': GameType.tetris, 'label': 'Tetris', 'icon': Icons.view_quilt_rounded},
     ];
 
     return Container(
@@ -1765,7 +1798,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(g['icon'] as String, style: const TextStyle(fontSize: 14)),
+                  Icon(
+                    g['icon'] as IconData,
+                    size: 16,
+                    color: isSelected ? Colors.white : widget.theme.primary,
+                  ),
                   const SizedBox(width: 6),
                   Text(
                     g['label'] as String,
@@ -1784,8 +1821,26 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     );
   }
 
+  String _getGameOptionsSummary() {
+    switch (_activeGame) {
+      case GameType.tictactoe:
+        return 'Playing as $_playerSymbol | ${_vsComputer ? "vs AI (${_aiDifficulty.toUpperCase()})" : "2 Players"}';
+      case GameType.snake:
+        return 'Skin: $_snakeSkin | Speed: $_snakeDifficulty';
+      case GameType.ludo:
+        return 'Color: ${_ludoPlayerNames[_ludoHumanPlayer]} | Pace: ${_ludoBotSpeedMs}ms';
+      case GameType.snakesAndLadders:
+        return 'Pawn: ${_snlPawns[_snlPlayerPawn]["name"]} | ${_snlFirstTurn == 1 ? "You first" : "Bot first"}';
+      case GameType.uno:
+        return 'Persona: $_unoPlayerAvatar | Bot: $_unoDifficulty';
+      case GameType.tetris:
+        return 'Palette: $_tetrisPalette | Level: $_tetrisStartLevel';
+    }
+  }
+
   /// Collapsible Options Header Bar for EVERY game
   Widget _buildGameOptionsHeader() {
+    final summary = _getGameOptionsSummary();
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -1798,7 +1853,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               });
             },
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               decoration: BoxDecoration(
                 color: widget.theme.cardBg,
                 borderRadius: BorderRadius.circular(14),
@@ -1815,47 +1870,72 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                 ],
               ),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        _isOptionsExpanded ? Icons.tune : Icons.settings_outlined,
-                        size: 18,
-                        color: widget.theme.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _isOptionsExpanded ? 'Hide Options & Settings' : 'Game Options & Player Settings',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: widget.theme.text,
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: widget.theme.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _isOptionsExpanded ? Icons.tune_rounded : Icons.settings_rounded,
+                      size: 16,
+                      color: widget.theme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _isOptionsExpanded ? 'Hide Options & Settings' : 'Game Options & Player Settings',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: widget.theme.text,
+                          ),
                         ),
-                      ),
-                    ],
+                        if (!_isOptionsExpanded) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            summary,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: widget.theme.textSecondary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: widget.theme.primary.withValues(alpha: _isOptionsExpanded ? 0.15 : 0.08),
+                      color: _isOptionsExpanded
+                          ? widget.theme.primary
+                          : widget.theme.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
                           _isOptionsExpanded ? 'Hide' : 'Options',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
-                            color: widget.theme.primary,
+                            color: _isOptionsExpanded ? Colors.white : widget.theme.primary,
                           ),
                         ),
-                        const SizedBox(width: 2),
+                        const SizedBox(width: 3),
                         Icon(
-                          _isOptionsExpanded ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                          _isOptionsExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                           size: 16,
-                          color: widget.theme.primary,
+                          color: _isOptionsExpanded ? Colors.white : widget.theme.primary,
                         ),
                       ],
                     ),
@@ -1962,7 +2042,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               setState(() => _tttSymbolStyle = 'classic');
             }),
             const SizedBox(width: 8),
-            _buildChoiceChip('Stationery (✏️ / 🧼)', _tttSymbolStyle == 'stationery', () {
+            _buildChoiceChip('Stationery (Pencil / Eraser)', _tttSymbolStyle == 'stationery', () {
               setState(() => _tttSymbolStyle = 'stationery');
             }),
           ],
@@ -2017,10 +2097,10 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   Widget _buildSnakeOptions() {
     final skins = [
       {'id': 'theme', 'name': 'Theme Accent'},
-      {'id': 'green', 'name': 'Emerald Viper 🐍'},
-      {'id': 'cyan', 'name': 'Neon Cyan ⚡'},
-      {'id': 'gold', 'name': 'Golden Python 👑'},
-      {'id': 'pink', 'name': 'Coral Pink 🌸'},
+      {'id': 'green', 'name': 'Emerald Viper'},
+      {'id': 'cyan', 'name': 'Neon Cyan'},
+      {'id': 'gold', 'name': 'Golden Python'},
+      {'id': 'pink', 'name': 'Coral Pink'},
     ];
 
     return Column(
@@ -2089,10 +2169,10 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   // --- LUDO OPTIONS ---
   Widget _buildLudoOptions() {
     final colors = [
-      {'idx': 0, 'label': '🔴 Red (You)', 'color': const Color(0xFFE74C3C)},
-      {'idx': 1, 'label': '🟢 Green (You)', 'color': const Color(0xFF27AE60)},
-      {'idx': 2, 'label': '🟡 Yellow (You)', 'color': const Color(0xFFF39C12)},
-      {'idx': 3, 'label': '🔵 Blue (You)', 'color': const Color(0xFF2980B9)},
+      {'idx': 0, 'label': 'Red (You)', 'color': const Color(0xFFE74C3C)},
+      {'idx': 1, 'label': 'Green (You)', 'color': const Color(0xFF27AE60)},
+      {'idx': 2, 'label': 'Yellow (You)', 'color': const Color(0xFFF39C12)},
+      {'idx': 3, 'label': 'Blue (You)', 'color': const Color(0xFF2980B9)},
     ];
 
     return Column(
@@ -2199,7 +2279,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(p['icon'] as String, style: const TextStyle(fontSize: 14)),
+                    Icon(p['icon'] as IconData, size: 16, color: isSelected ? (p['color'] as Color) : widget.theme.text),
                     const SizedBox(width: 6),
                     Text(
                       p['name'] as String,
@@ -2251,7 +2331,12 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   // --- UNO OPTIONS ---
   Widget _buildUnoOptions() {
-    final avatars = ['🎓 Scholar', '🎨 Artist', '⚡ Speedster', '🌟 Champion'];
+    final avatars = [
+      {'name': 'Scholar', 'icon': Icons.school_rounded},
+      {'name': 'Artist', 'icon': Icons.palette_rounded},
+      {'name': 'Speedster', 'icon': Icons.bolt_rounded},
+      {'name': 'Champion', 'icon': Icons.emoji_events_rounded},
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2259,13 +2344,45 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         const Text('Choose Your Player Persona:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
         const SizedBox(height: 6),
         Wrap(
-          spacing: 6,
+          spacing: 8,
           runSpacing: 6,
           children: avatars.map((a) {
-            return _buildChoiceChip(
-              a,
-              _unoPlayerAvatar == a,
-              () => setState(() => _unoPlayerAvatar = a),
+            final isChosen = _unoPlayerAvatar == a['name'];
+            return GestureDetector(
+              onTap: () {
+                SoundService().playClick();
+                setState(() => _unoPlayerAvatar = a['name'] as String);
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: isChosen ? widget.theme.primary : widget.theme.cardBg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: isChosen ? widget.theme.primary : widget.theme.border,
+                    width: 1.5,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      a['icon'] as IconData,
+                      size: 15,
+                      color: isChosen ? Colors.white : widget.theme.primary,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      a['name'] as String,
+                      style: TextStyle(
+                        color: isChosen ? Colors.white : widget.theme.text,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             );
           }).toList(),
         ),
@@ -2297,8 +2414,8 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   Widget _buildTetrisOptions() {
     final palettes = [
       {'id': 'theme', 'name': 'Theme Accent'},
-      {'id': 'neon', 'name': 'Arcade Neon ⚡'},
-      {'id': 'pastel', 'name': 'Pastel Modern 🎨'},
+      {'id': 'neon', 'name': 'Arcade Neon'},
+      {'id': 'pastel', 'name': 'Pastel Modern'},
     ];
 
     return Column(
@@ -2432,10 +2549,24 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
             ),
             itemBuilder: (ctx, i) {
               final rawVal = _tttBoard[i];
-              String displayVal = rawVal;
-              if (_tttSymbolStyle == 'stationery') {
-                if (rawVal == 'X') displayVal = '✏️';
-                if (rawVal == 'O') displayVal = '🧼';
+              Widget cellContent;
+              if (rawVal.isEmpty) {
+                cellContent = const SizedBox.shrink();
+              } else if (_tttSymbolStyle == 'stationery') {
+                cellContent = Icon(
+                  rawVal == 'X' ? Icons.edit_rounded : Icons.cleaning_services_rounded,
+                  size: 34,
+                  color: rawVal == 'X' ? const Color(0xFFE74C3C) : const Color(0xFF3498DB),
+                );
+              } else {
+                cellContent = Text(
+                  rawVal,
+                  style: TextStyle(
+                    fontSize: 38,
+                    fontWeight: FontWeight.w900,
+                    color: rawVal == 'X' ? const Color(0xFFE74C3C) : const Color(0xFF3498DB),
+                  ),
+                );
               }
               final isWinCell = _tttWinningCombo != null && _tttWinningCombo!.contains(i);
               return GestureDetector(
@@ -2450,14 +2581,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                     ),
                   ),
                   child: Center(
-                    child: Text(
-                      displayVal,
-                      style: TextStyle(
-                        fontSize: _tttSymbolStyle == 'stationery' ? 32 : 38,
-                        fontWeight: FontWeight.w900,
-                        color: rawVal == 'X' ? const Color(0xFFE74C3C) : const Color(0xFF3498DB),
-                      ),
-                    ),
+                    child: cellContent,
                   ),
                 ),
               );
@@ -2652,6 +2776,9 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
               humanPlayer: _ludoHumanPlayer,
               animatingPlayer: _animatingLudoPlayer,
               animatingToken: _animatingLudoToken,
+              hopProgress: _ludoHopProgress,
+              animFromStep: _ludoAnimFromStep,
+              animToStep: _ludoAnimToStep,
             ),
           ),
         ),
@@ -2689,25 +2816,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 54,
-              height: 54,
-              decoration: BoxDecoration(
-                color: widget.theme.cardBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: widget.theme.border, width: 2),
-                boxShadow: const [BoxShadow(color: Colors.black12, offset: Offset(2, 2))],
-              ),
-              child: Center(
-                child: Text(
-                  ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][_ludoDiceVal],
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    color: _ludoPlayerColors[_ludoCurrentTurn],
-                  ),
-                ),
-              ),
+            _TactileDiceWidget(
+              value: _ludoDiceVal,
+              isRolling: _ludoIsRolling,
+              size: 54,
+              dotColor: _ludoPlayerColors[_ludoCurrentTurn],
             ),
             const SizedBox(width: 14),
             ElevatedButton(
@@ -2744,9 +2857,16 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('You (${pawn['icon']}): Sq $_snlP1Pos', style: TextStyle(fontWeight: FontWeight.bold, color: pawn['color'] as Color, fontSize: 13)),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(pawn['icon'] as IconData, size: 15, color: pawn['color'] as Color),
+                  const SizedBox(width: 4),
+                  Text('You (${pawn['name']}): Sq $_snlP1Pos', style: TextStyle(fontWeight: FontWeight.bold, color: pawn['color'] as Color, fontSize: 13)),
+                ],
+              ),
               Text(_snlTurn == 1 ? 'Your Turn' : 'Bot Turn', style: TextStyle(fontWeight: FontWeight.bold, color: widget.theme.primary, fontSize: 13)),
-              const Text('Bot: Sq ', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2980B9), fontSize: 13)),
+              Text('Bot: Sq $_snlP2Pos', style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF2980B9), fontSize: 13)),
             ],
           ),
         ),
@@ -2777,20 +2897,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: widget.theme.cardBg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: widget.theme.border, width: 2),
-              ),
-              child: Center(
-                child: Text(
-                  ['', '⚀', '⚁', '⚂', '⚃', '⚄', '⚅'][_snlDice],
-                  style: const TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
-                ),
-              ),
+            _TactileDiceWidget(
+              value: _snlDice,
+              isRolling: _snlIsRolling,
+              size: 50,
+              dotColor: widget.theme.primary,
             ),
             const SizedBox(width: 14),
             ElevatedButton(
@@ -2845,6 +2956,32 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
             ],
           ),
         ),
+        if (_unoBotPlayToast != null) ...[
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: _getUnoColorValue(_unoActiveColor).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _getUnoColorValue(_unoActiveColor), width: 1.5),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.smart_toy_rounded, size: 16, color: _getUnoColorValue(_unoActiveColor)),
+                const SizedBox(width: 6),
+                Text(
+                  _unoBotPlayToast!,
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: _getUnoColorValue(_unoActiveColor),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -2954,7 +3091,56 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   Widget _buildUnoCardWidget(Map<String, String> card, {required bool isLarge}) {
     final c = _getUnoColorValue(card['color'] ?? 'red');
     final val = card['value'] ?? '0';
-    final sym = card['symbol'] ?? val;
+
+    Widget centerContent;
+    if (val == 'SKIP') {
+      centerContent = Icon(
+        Icons.block_rounded,
+        size: isLarge ? 28 : 22,
+        color: c == const Color(0xFF2C3E50) ? Colors.black87 : c,
+      );
+    } else if (val == 'REVERSE') {
+      centerContent = Icon(
+        Icons.sync_rounded,
+        size: isLarge ? 28 : 22,
+        color: c == const Color(0xFF2C3E50) ? Colors.black87 : c,
+      );
+    } else if (val == 'WILD') {
+      centerContent = SizedBox(
+        width: isLarge ? 30 : 24,
+        height: isLarge ? 30 : 24,
+        child: CustomPaint(painter: _UnoWildBadgePainter()),
+      );
+    } else if (val == '+4') {
+      centerContent = Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: isLarge ? 22 : 18,
+            height: isLarge ? 22 : 18,
+            child: CustomPaint(painter: _UnoWildBadgePainter()),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '+4',
+            style: TextStyle(
+              fontSize: isLarge ? 15 : 12,
+              fontWeight: FontWeight.w900,
+              color: Colors.black,
+            ),
+          ),
+        ],
+      );
+    } else {
+      centerContent = Text(
+        val,
+        style: TextStyle(
+          color: c == const Color(0xFF2C3E50) ? Colors.black : c,
+          fontSize: isLarge ? 22 : 18,
+          fontWeight: FontWeight.w900,
+        ),
+      );
+    }
 
     return Container(
       width: isLarge ? 68 : 58,
@@ -2974,14 +3160,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
             borderRadius: BorderRadius.circular(8),
           ),
           child: Center(
-            child: Text(
-              sym,
-              style: TextStyle(
-                color: c == const Color(0xFF2C3E50) ? Colors.black : c,
-                fontSize: isLarge ? 22 : 18,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
+            child: centerContent,
           ),
         ),
       ),
@@ -3467,6 +3646,9 @@ class _LudoBoardPainter extends CustomPainter {
   final int humanPlayer;
   final int? animatingPlayer;
   final int? animatingToken;
+  final double hopProgress;
+  final int animFromStep;
+  final int animToStep;
 
   _LudoBoardPainter({
     required this.tokens,
@@ -3476,7 +3658,40 @@ class _LudoBoardPainter extends CustomPainter {
     required this.humanPlayer,
     this.animatingPlayer,
     this.animatingToken,
+    this.hopProgress = 0.0,
+    this.animFromStep = -1,
+    this.animToStep = 0,
   });
+
+  Offset _getLudoTokenPosition(int p, int step, int t, double cell) {
+    final baseSlots = [
+      [Offset(cell * 2, cell * 2), Offset(cell * 4, cell * 2), Offset(cell * 2, cell * 4), Offset(cell * 4, cell * 4)],
+      [Offset(cell * 11, cell * 2), Offset(cell * 13, cell * 2), Offset(cell * 11, cell * 4), Offset(cell * 13, cell * 4)],
+      [Offset(cell * 11, cell * 11), Offset(cell * 13, cell * 11), Offset(cell * 11, cell * 13), Offset(cell * 13, cell * 13)],
+      [Offset(cell * 2, cell * 11), Offset(cell * 4, cell * 11), Offset(cell * 2, cell * 13), Offset(cell * 4, cell * 13)],
+    ];
+    final track = _buildLudoTrackCoords(cell);
+
+    if (step == -1) {
+      return baseSlots[p][t];
+    } else if (step == 56) {
+      return Offset(cell * 7.5, cell * 7.5);
+    } else if (step > 50) {
+      final offset = (step - 50).toDouble();
+      if (p == 0) {
+        return Offset(cell * (offset + 0.5), cell * 7.5);
+      } else if (p == 1) {
+        return Offset(cell * 7.5, cell * (offset + 0.5));
+      } else if (p == 2) {
+        return Offset(cell * (14.5 - offset), cell * 7.5);
+      } else {
+        return Offset(cell * 7.5, cell * (14.5 - offset));
+      }
+    } else {
+      final trackIdx = ((p == 0 ? 0 : p == 1 ? 13 : p == 2 ? 26 : 39) + step) % 52;
+      return track[trackIdx];
+    }
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -3519,15 +3734,6 @@ class _LudoBoardPainter extends CustomPainter {
       canvas.drawLine(Offset(0, i * cell), Offset(size.width, i * cell), borderPaint);
     }
 
-    final baseSlots = [
-      [Offset(cell * 2, cell * 2), Offset(cell * 4, cell * 2), Offset(cell * 2, cell * 4), Offset(cell * 4, cell * 4)],
-      [Offset(cell * 11, cell * 2), Offset(cell * 13, cell * 2), Offset(cell * 11, cell * 4), Offset(cell * 13, cell * 4)],
-      [Offset(cell * 11, cell * 11), Offset(cell * 13, cell * 11), Offset(cell * 11, cell * 13), Offset(cell * 13, cell * 13)],
-      [Offset(cell * 2, cell * 11), Offset(cell * 4, cell * 11), Offset(cell * 2, cell * 13), Offset(cell * 4, cell * 13)],
-    ];
-
-    final track = _buildLudoTrackCoords(cell);
-
     final tokenColors = [
       const Color(0xFFE74C3C),
       const Color(0xFF27AE60),
@@ -3538,46 +3744,68 @@ class _LudoBoardPainter extends CustomPainter {
     for (int p = 0; p < 4; p++) {
       for (int t = 0; t < 4; t++) {
         final step = tokens[p][t];
-        Offset pos;
-        if (step == -1) {
-          pos = baseSlots[p][t];
-        } else if (step == 56) {
-          pos = Offset(cell * 7.5, cell * 7.5);
-        } else if (step > 50) {
-          final offset = (step - 50).toDouble();
-          if (p == 0) {
-            pos = Offset(cell * (offset + 0.5), cell * 7.5);
-          } else if (p == 1) {
-            pos = Offset(cell * 7.5, cell * (offset + 0.5));
-          } else if (p == 2) {
-            pos = Offset(cell * (14.5 - offset), cell * 7.5);
-          } else {
-            pos = Offset(cell * 7.5, cell * (14.5 - offset));
+        final isAnimating = (p == animatingPlayer && t == animatingToken);
+
+        Offset drawPos;
+        double scale = 1.0;
+
+        if (isAnimating) {
+          final startPos = _getLudoTokenPosition(p, animFromStep, t, cell);
+          final endPos = _getLudoTokenPosition(p, animToStep, t, cell);
+          final groundPos = Offset.lerp(startPos, endPos, hopProgress)!;
+          final jumpArc = -math.sin(hopProgress * math.pi) * (cell * 0.72);
+          drawPos = Offset(groundPos.dx, groundPos.dy + jumpArc);
+          scale = 1.0 + math.sin(hopProgress * math.pi) * 0.35;
+
+          // Realistic dynamic drop shadow on the board surface
+          final shadowW = cell * 0.65 * (1.0 - math.sin(hopProgress * math.pi) * 0.22);
+          final shadowH = cell * 0.26 * (1.0 - math.sin(hopProgress * math.pi) * 0.22);
+          canvas.drawOval(
+            Rect.fromCenter(center: groundPos, width: shadowW, height: shadowH),
+            Paint()..color = Colors.black.withValues(alpha: 0.28 - math.sin(hopProgress * math.pi) * 0.12),
+          );
+
+          // Landing impact ripple
+          if (hopProgress > 0.85) {
+            final ripFrac = (hopProgress - 0.85) / 0.15;
+            canvas.drawCircle(
+              endPos,
+              cell * 0.52 * ripFrac,
+              Paint()
+                ..color = tokenColors[p].withValues(alpha: 0.5 * (1.0 - ripFrac))
+                ..style = PaintingStyle.stroke
+                ..strokeWidth = 2,
+            );
           }
         } else {
-          final trackIdx = ((p == 0 ? 0 : p == 1 ? 13 : p == 2 ? 26 : 39) + step) % 52;
-          pos = track[trackIdx];
+          drawPos = _getLudoTokenPosition(p, step, t, cell);
         }
-
-        final isAnimating = (p == animatingPlayer && t == animatingToken);
-        final drawPos = isAnimating ? Offset(pos.dx, pos.dy - 6.0) : pos;
 
         final tPaint = Paint()..color = tokenColors[p];
         final canMove = p == currentTurn && hasRolled && canMoveFunc(p, t);
 
         if (isAnimating) {
           final jumpHalo = Paint()
-            ..color = const Color(0xFFF1C40F).withValues(alpha: 0.6)
+            ..color = const Color(0xFFF1C40F).withValues(alpha: 0.7)
             ..style = PaintingStyle.stroke
             ..strokeWidth = 4;
-          canvas.drawCircle(drawPos, cell * 0.48, jumpHalo);
+          canvas.drawCircle(drawPos, cell * 0.46 * scale, jumpHalo);
         } else if (canMove) {
-          final haloPaint = Paint()..color = Colors.white..style = PaintingStyle.stroke..strokeWidth = 3;
+          final haloPaint = Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 3;
           canvas.drawCircle(drawPos, cell * 0.44, haloPaint);
         }
 
-        canvas.drawCircle(drawPos, cell * (isAnimating ? 0.40 : 0.36), tPaint);
-        canvas.drawCircle(drawPos, cell * 0.16, Paint()..color = p == humanPlayer ? const Color(0xFFF1C40F) : Colors.white);
+        // Token Body
+        canvas.drawCircle(drawPos, cell * 0.36 * scale, tPaint);
+        // Center Core Indicator
+        canvas.drawCircle(
+          drawPos,
+          cell * 0.16 * scale,
+          Paint()..color = p == humanPlayer ? const Color(0xFFF1C40F) : Colors.white,
+        );
       }
     }
   }
@@ -3674,8 +3902,8 @@ class _SnakesAndLaddersPainter extends CustomPainter {
     });
 
     // 4. Draw Player Pawns
-    _drawPawn(canvas, p1Pos, cell, p1Color, -3);
-    _drawPawn(canvas, p2Pos, cell, const Color(0xFF2980B9), 3);
+    _drawPawn(canvas, p1Pos, cell, p1Color, -3.5);
+    _drawPawn(canvas, p2Pos, cell, const Color(0xFF2980B9), 3.5);
   }
 
   void _drawRealLadder(Canvas canvas, Offset b, Offset t, double cell) {
@@ -3694,22 +3922,29 @@ class _SnakesAndLaddersPainter extends CustomPainter {
     final p3 = Offset(b.dx + nx * halfW, b.dy + ny * halfW);
     final p4 = Offset(t.dx + nx * halfW, t.dy + ny * halfW);
 
-    // Drop shadow
-    final shadowPaint = Paint()
-      ..color = Colors.black.withValues(alpha: 0.2)
-      ..strokeWidth = 3.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(p1.dx + 1.5, p1.dy + 2), Offset(p2.dx + 1.5, p2.dy + 2), shadowPaint);
-    canvas.drawLine(Offset(p3.dx + 1.5, p3.dy + 2), Offset(p4.dx + 1.5, p4.dy + 2), shadowPaint);
+    // 1. Ladder Start Base Anchor Ring on Start Square
+    final baseAnchorRing = Paint()
+      ..color = const Color(0xFF27AE60).withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8;
+    canvas.drawCircle(b, cell * 0.32, baseAnchorRing);
 
-    // Wood rails
+    // 2. Drop Shadows for Rails
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: 0.22)
+      ..strokeWidth = 3.8
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(p1.dx + 2, p1.dy + 2.5), Offset(p2.dx + 2, p2.dy + 2.5), shadowPaint);
+    canvas.drawLine(Offset(p3.dx + 2, p3.dy + 2.5), Offset(p4.dx + 2, p4.dy + 2.5), shadowPaint);
+
+    // 3. Sturdy Wood Rails
     final railPaint = Paint()
-      ..color = const Color(0xFF6D4C41)
-      ..strokeWidth = 3.2
+      ..color = const Color(0xFF5D4037)
+      ..strokeWidth = 3.6
       ..strokeCap = StrokeCap.round;
     final railHighlight = Paint()
-      ..color = const Color(0xFFA1887F)
-      ..strokeWidth = 1.4
+      ..color = const Color(0xFF8D6E63)
+      ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round;
 
     canvas.drawLine(p1, p2, railPaint);
@@ -3717,24 +3952,40 @@ class _SnakesAndLaddersPainter extends CustomPainter {
     canvas.drawLine(p1, p2, railHighlight);
     canvas.drawLine(p3, p4, railHighlight);
 
-    // Rungs
-    final rungCount = (len / (cell * 0.45)).clamp(3, 14).round();
+    // 4. Sturdy Rungs with Shadows
+    final rungCount = (len / (cell * 0.42)).clamp(3, 15).round();
     final rungPaint = Paint()
       ..color = const Color(0xFFD7CCC8)
-      ..strokeWidth = 2.4
+      ..strokeWidth = 2.6
       ..strokeCap = StrokeCap.round;
     final rungShadow = Paint()
-      ..color = const Color(0xFF4E342E)
-      ..strokeWidth = 2.4
+      ..color = const Color(0xFF3E2723)
+      ..strokeWidth = 2.6
       ..strokeCap = StrokeCap.round;
 
     for (int i = 1; i <= rungCount; i++) {
       final frac = i / (rungCount + 1);
       final r1 = Offset(p1.dx + (p2.dx - p1.dx) * frac, p1.dy + (p2.dy - p1.dy) * frac);
       final r2 = Offset(p3.dx + (p4.dx - p3.dx) * frac, p3.dy + (p4.dy - p3.dy) * frac);
-      canvas.drawLine(Offset(r1.dx + 0.5, r1.dy + 1.0), Offset(r2.dx + 0.5, r2.dy + 1.0), rungShadow);
+      canvas.drawLine(Offset(r1.dx + 0.6, r1.dy + 1.2), Offset(r2.dx + 0.6, r2.dy + 1.2), rungShadow);
       canvas.drawLine(r1, r2, rungPaint);
     }
+
+    // 5. Golden Climbing Hooks at Top Destination Square
+    final hookPaint = Paint()
+      ..color = const Color(0xFFF1C40F)
+      ..strokeWidth = 2.4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(Rect.fromCenter(center: p2, width: 7, height: 7), 0, math.pi, false, hookPaint);
+    canvas.drawArc(Rect.fromCenter(center: p4, width: 7, height: 7), 0, math.pi, false, hookPaint);
+
+    // Destination climb target ring
+    final topRing = Paint()
+      ..color = const Color(0xFFF1C40F).withValues(alpha: 0.60)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawCircle(t, cell * 0.32, topRing);
   }
 
   void _drawRealSnake(Canvas canvas, Offset h, Offset t, double cell, int seed) {
@@ -3746,74 +3997,118 @@ class _SnakesAndLaddersPainter extends CustomPainter {
     final nx = -dy / dist;
     final ny = dx / dist;
     final sign = (seed % 2 == 0) ? 1.0 : -1.0;
-    final waveAmp = cell * 0.42 * sign;
+    final waveAmp = cell * 0.45 * sign;
 
     final mid1 = Offset(h.dx + dx * 0.33 + nx * waveAmp, h.dy + dy * 0.33 + ny * waveAmp);
-    final mid2 = Offset(h.dx + dx * 0.66 - nx * waveAmp * 0.8, h.dy + dy * 0.66 - ny * waveAmp * 0.8);
+    final mid2 = Offset(h.dx + dx * 0.66 - nx * waveAmp * 0.85, h.dy + dy * 0.66 - ny * waveAmp * 0.85);
 
     final snakePath = Path();
     snakePath.moveTo(h.dx, h.dy);
     snakePath.cubicTo(mid1.dx, mid1.dy, mid2.dx, mid2.dy, t.dx, t.dy);
 
-    // 1. Dark Outline
-    final outlinePaint = Paint()
-      ..color = const Color(0xFF0F381E)
+    // 1. Start Square Hazard Danger Ring (Snake Mouth Biting Location)
+    final bitePulse = Paint()
+      ..color = const Color(0xFFE74C3C).withValues(alpha: 0.30)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 7.5
+      ..strokeWidth = 2.5;
+    canvas.drawCircle(h, cell * 0.44, bitePulse);
+    final biteRing = Paint()
+      ..color = const Color(0xFFE74C3C).withValues(alpha: 0.75)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawCircle(h, cell * 0.34, biteRing);
+
+    // 2. Heavy Drop Shadow / Dark Outline
+    final outlinePaint = Paint()
+      ..color = const Color(0xFF0A2912)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8.5
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(snakePath, outlinePaint);
 
-    // 2. Emerald Green Body
+    // 3. Vibrant Emerald Green Serpentine Body
     final bodyPaint = Paint()
       ..color = const Color(0xFF27AE60)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 5.2
+      ..strokeWidth = 6.0
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
     canvas.drawPath(snakePath, bodyPaint);
 
-    // 3. Golden Dorsal Spine / Pattern
+    // 4. Golden Dorsal Diamond Scales / Pattern Spine
     final spinePaint = Paint()
       ..color = const Color(0xFFF1C40F)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
+      ..strokeWidth = 2.0
       ..strokeCap = StrokeCap.round;
     canvas.drawPath(snakePath, spinePaint);
 
-    // 4. Snake Head at h (Mouth & Eyes)
+    // 5. Cobra Head at h (Mouth & Fangs precisely biting the Start Square)
     final headAngle = math.atan2(mid1.dy - h.dy, mid1.dx - h.dx) + math.pi;
     canvas.save();
     canvas.translate(h.dx, h.dy);
     canvas.rotate(headAngle);
 
-    // Red Forked Tongue
+    // Red Forked Tongue flicking forward
     final tonguePaint = Paint()
       ..color = const Color(0xFFE74C3C)
-      ..strokeWidth = 1.4
-      ..style = PaintingStyle.stroke;
-    canvas.drawLine(const Offset(6, 0), const Offset(12, 0), tonguePaint);
-    canvas.drawLine(const Offset(12, 0), const Offset(15, -2.5), tonguePaint);
-    canvas.drawLine(const Offset(12, 0), const Offset(15, 2.5), tonguePaint);
+      ..strokeWidth = 1.6
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(const Offset(6, 0), const Offset(13, 0), tonguePaint);
+    canvas.drawLine(const Offset(13, 0), const Offset(16.5, -3.0), tonguePaint);
+    canvas.drawLine(const Offset(13, 0), const Offset(16.5, 3.0), tonguePaint);
 
-    // Oval Cobra Head
-    final headRect = Rect.fromCenter(center: const Offset(1, 0), width: cell * 0.46, height: cell * 0.34);
-    canvas.drawOval(headRect, Paint()..color = const Color(0xFF0F381E));
-    canvas.drawOval(headRect.deflate(1.2), Paint()..color = const Color(0xFF2ECC71));
+    // Flared Cobra Hood & Head
+    final hoodPath = Path();
+    hoodPath.moveTo(-6, -8);
+    hoodPath.quadraticBezierTo(4, -10, 8, 0);
+    hoodPath.quadraticBezierTo(4, 10, -6, 8);
+    hoodPath.quadraticBezierTo(-2, 0, -6, -8);
+    hoodPath.close();
+    canvas.drawPath(hoodPath, Paint()..color = const Color(0xFF0F381E));
+    canvas.drawPath(hoodPath, Paint()..color = const Color(0xFF2ECC71)..style = PaintingStyle.fill);
 
-    // Eyes
-    final eyePaint = Paint()..color = const Color(0xFFF1C40F);
-    canvas.drawCircle(const Offset(3, -4), 2.2, eyePaint);
-    canvas.drawCircle(const Offset(3, 4), 2.2, eyePaint);
+    // Open mouth & White Venom Fangs
+    final fangPaint = Paint()..color = Colors.white;
+    canvas.drawCircle(const Offset(6, -2.5), 1.2, fangPaint);
+    canvas.drawCircle(const Offset(6, 2.5), 1.2, fangPaint);
+
+    // Fierce Golden Eyes with Vertical Slit Pupils
+    final eyePaint = Paint()..color = const Color(0xFFF39C12);
+    canvas.drawCircle(const Offset(2.5, -4.5), 2.2, eyePaint);
+    canvas.drawCircle(const Offset(2.5, 4.5), 2.2, eyePaint);
     final pupilPaint = Paint()..color = Colors.black;
-    canvas.drawRect(const Rect.fromLTWH(3.2, -5, 0.8, 2), pupilPaint);
-    canvas.drawRect(const Rect.fromLTWH(3.2, 3, 0.8, 2), pupilPaint);
+    canvas.drawRect(const Rect.fromLTWH(2.6, -5.5, 0.8, 2.2), pupilPaint);
+    canvas.drawRect(const Rect.fromLTWH(2.6, 3.3, 0.8, 2.2), pupilPaint);
 
     canvas.restore();
 
-    // 5. Tail Tip at t
-    final tailPaint = Paint()..color = const Color(0xFFF1C40F);
-    canvas.drawCircle(t, 2.2, tailPaint);
+    // 6. Tail Tip at t (Destination Landing Square)
+    final dropRing = Paint()
+      ..color = const Color(0xFFF39C12).withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8;
+    canvas.drawCircle(t, cell * 0.32, dropRing);
+
+    // Concentric Rattle rings (3 golden beads)
+    final rattleAngle = math.atan2(t.dy - mid2.dy, t.dx - mid2.dx);
+    for (int r = 0; r < 3; r++) {
+      final rPos = Offset(
+        t.dx - math.cos(rattleAngle) * (r * 3.5),
+        t.dy - math.sin(rattleAngle) * (r * 3.5),
+      );
+      canvas.drawCircle(rPos, (3.2 - r * 0.7).clamp(1.4, 3.2), Paint()..color = const Color(0xFFF1C40F));
+      canvas.drawCircle(
+        rPos,
+        (3.2 - r * 0.7).clamp(1.4, 3.2),
+        Paint()
+          ..color = const Color(0xFFB7950B)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8,
+      );
+    }
   }
 
   void _drawPawn(Canvas canvas, int num, double cell, Color col, double shift) {
@@ -3822,12 +4117,173 @@ class _SnakesAndLaddersPainter extends CustomPainter {
     final x = pos.dx + shift;
     final y = pos.dy;
 
+    // Drop shadow on ground
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(x + 1, y + cell * 0.22), width: cell * 0.46, height: cell * 0.18),
+      Paint()..color = Colors.black26,
+    );
+
+    // Outer colored circular pawn base
     canvas.drawCircle(Offset(x, y), cell * 0.28, Paint()..color = col);
-    canvas.drawCircle(Offset(x, y), cell * 0.12, Paint()..color = Colors.white);
+    canvas.drawCircle(
+      Offset(x, y),
+      cell * 0.28,
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+
+    // Inner disc
+    canvas.drawCircle(Offset(x, y), cell * 0.16, Paint()..color = Colors.white);
+    canvas.drawCircle(Offset(x, y), cell * 0.08, Paint()..color = col);
   }
 
   @override
   bool shouldRepaint(covariant _SnakesAndLaddersPainter old) => true;
+}
+
+class _TactileDiceWidget extends StatelessWidget {
+  final int value;
+  final bool isRolling;
+  final double size;
+  final Color dotColor;
+
+  const _TactileDiceWidget({
+    required this.value,
+    this.isRolling = false,
+    this.size = 52,
+    this.dotColor = const Color(0xFF2C3E50),
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(size * 0.22),
+        border: Border.all(color: const Color(0xFFCBD5E1), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            offset: const Offset(2, 3),
+            blurRadius: 4,
+          ),
+        ],
+      ),
+      child: CustomPaint(
+        painter: _DicePainter(
+          value: value.clamp(1, 6),
+          isRolling: isRolling,
+          dotColor: dotColor,
+        ),
+      ),
+    );
+  }
+}
+
+class _DicePainter extends CustomPainter {
+  final int value;
+  final bool isRolling;
+  final Color dotColor;
+
+  _DicePainter({required this.value, required this.isRolling, required this.dotColor});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final r = w * 0.085; // pip radius
+
+    final pipPaint = Paint()..color = dotColor;
+    final centerRedPaint = Paint()..color = const Color(0xFFE74C3C);
+
+    if (isRolling) {
+      // Draw rolling motion pips
+      final p1 = Offset(w * 0.3, h * 0.3);
+      final p2 = Offset(w * 0.5, h * 0.5);
+      final p3 = Offset(w * 0.7, h * 0.7);
+      canvas.drawCircle(p1, r, Paint()..color = dotColor.withValues(alpha: 0.5));
+      canvas.drawCircle(p2, r * 1.2, centerRedPaint);
+      canvas.drawCircle(p3, r, Paint()..color = dotColor.withValues(alpha: 0.5));
+      return;
+    }
+
+    final pTopLeft = Offset(w * 0.28, h * 0.28);
+    final pTopRight = Offset(w * 0.72, h * 0.28);
+    final pCenter = Offset(w * 0.5, h * 0.5);
+    final pBottomLeft = Offset(w * 0.28, h * 0.72);
+    final pBottomRight = Offset(w * 0.72, h * 0.72);
+    final pMidLeft = Offset(w * 0.28, h * 0.5);
+    final pMidRight = Offset(w * 0.72, h * 0.5);
+
+    switch (value) {
+      case 1:
+        canvas.drawCircle(pCenter, r * 1.5, centerRedPaint);
+        break;
+      case 2:
+        canvas.drawCircle(pTopLeft, r, pipPaint);
+        canvas.drawCircle(pBottomRight, r, pipPaint);
+        break;
+      case 3:
+        canvas.drawCircle(pTopLeft, r, pipPaint);
+        canvas.drawCircle(pCenter, r * 1.1, centerRedPaint);
+        canvas.drawCircle(pBottomRight, r, pipPaint);
+        break;
+      case 4:
+        canvas.drawCircle(pTopLeft, r, pipPaint);
+        canvas.drawCircle(pTopRight, r, pipPaint);
+        canvas.drawCircle(pBottomLeft, r, pipPaint);
+        canvas.drawCircle(pBottomRight, r, pipPaint);
+        break;
+      case 5:
+        canvas.drawCircle(pTopLeft, r, pipPaint);
+        canvas.drawCircle(pTopRight, r, pipPaint);
+        canvas.drawCircle(pCenter, r * 1.1, centerRedPaint);
+        canvas.drawCircle(pBottomLeft, r, pipPaint);
+        canvas.drawCircle(pBottomRight, r, pipPaint);
+        break;
+      case 6:
+        canvas.drawCircle(pTopLeft, r, pipPaint);
+        canvas.drawCircle(pTopRight, r, pipPaint);
+        canvas.drawCircle(pMidLeft, r, pipPaint);
+        canvas.drawCircle(pMidRight, r, pipPaint);
+        canvas.drawCircle(pBottomLeft, r, pipPaint);
+        canvas.drawCircle(pBottomRight, r, pipPaint);
+        break;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DicePainter old) =>
+      old.value != value || old.isRolling != isRolling || old.dotColor != dotColor;
+}
+
+class _UnoWildBadgePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final rect = Rect.fromLTWH(0, 0, w, h);
+
+    final pRed = Paint()..color = const Color(0xFFE74C3C);
+    final pBlue = Paint()..color = const Color(0xFF2980B9);
+    final pYellow = Paint()..color = const Color(0xFFF1C40F);
+    final pGreen = Paint()..color = const Color(0xFF27AE60);
+
+    canvas.drawArc(rect, -math.pi, math.pi / 2, true, pRed);
+    canvas.drawArc(rect, -math.pi / 2, math.pi / 2, true, pBlue);
+    canvas.drawArc(rect, 0, math.pi / 2, true, pYellow);
+    canvas.drawArc(rect, math.pi / 2, math.pi / 2, true, pGreen);
+
+    // Center disc
+    canvas.drawCircle(Offset(w / 2, h / 2), w * 0.22, Paint()..color = Colors.white);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _TetrisBoardPainter extends CustomPainter {
