@@ -682,7 +682,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onChanged: (val) {
                           setState(() {
                             _soundOn = val;
-                            SoundService().soundEnabled = val;
+                            SoundService().setSound(val);
                           });
                           SoundService().playClick();
                         },
@@ -713,7 +713,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onChanged: (val) {
                           setState(() {
                             _hapticsOn = val;
-                            SoundService().hapticsEnabled = val;
+                            SoundService().setHaptics(val);
                           });
                           SoundService().playClick();
                         },

@@ -52,6 +52,26 @@ class StorageService {
     SecurityService().tamperProtectionEnabled = enabled;
   }
 
+  Future<bool> loadSoundEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keySoundEnabled) ?? true;
+  }
+
+  Future<void> saveSoundEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keySoundEnabled, enabled);
+  }
+
+  Future<bool> loadHapticsEnabled() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keyHapticsEnabled) ?? true;
+  }
+
+  Future<void> saveHapticsEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyHapticsEnabled, enabled);
+  }
+
   Future<List<TaskItem>> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString(keyTasks);

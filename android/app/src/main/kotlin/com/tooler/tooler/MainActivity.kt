@@ -1,30 +1,77 @@
 package com.tooler.tooler
 
 import android.content.Context
+import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
+import android.media.SoundPool
 import android.os.Build
+import io.flutter.FlutterInjector
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import java.io.File
+import java.io.FileOutputStream
 import kotlin.concurrent.thread
 
 class MainActivity : FlutterActivity() {
-    private val CHANNEL = "com.tooler.tooler/audio_loopback"
+    private val LOOPBACK_CHANNEL = "com.tooler.tooler/audio_loopback"
+    private val SOUND_CHANNEL = "com.tooler.tooler/native_sound"
+
+    // Audio loopback monitor state
     private var isLoopbackRunning = false
     private var audioRecord: AudioRecord? = null
     private var audioTrack: AudioTrack? = null
     private var loopbackThread: Thread? = null
     private var monitorGain: Float = 1.0f
 
+    // Native Sound Engine (SoundPool) for instant, zero-latency physical feedback
+    private var soundPool: SoundPool? = null
+    private val soundMap = HashMap<String, Int>()
+    private var isSoundEnabled = true
+    private var activeAlarmStreamId: Int = 0
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        initNativeSoundPool(flutterEngine)
+
+        // Native Sound Channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, SOUND_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "play" -> {
+                    val name = call.argument<String>("name") ?: "click"
+                    val volume = (call.argument<Double>("volume") ?: 1.0).toFloat()
+                    playNativeSound(name, volume)
+                    result.success(true)
+                }
+                "playAlarm" -> {
+                    playNativeAlarm()
+                    result.success(true)
+                }
+                "stopAlarm" -> {
+                    stopNativeAlarm()
+                    result.success(true)
+                }
+                "setSoundEnabled" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: true
+                    isSoundEnabled = enabled
+                    if (!enabled) stopNativeAlarm()
+                    result.success(true)
+                }
+                "ping" -> {
+                    result.success("pong")
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Loopback Channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LOOPBACK_CHANNEL).setMethodCallHandler { call, result ->
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             when (call.method) {
                 "isBluetoothConnected" -> {
@@ -49,6 +96,75 @@ class MainActivity : FlutterActivity() {
                 }
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun initNativeSoundPool(flutterEngine: FlutterEngine) {
+        try {
+            val audioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
+            soundPool = SoundPool.Builder()
+                .setMaxStreams(10)
+                .setAudioAttributes(audioAttributes)
+                .build()
+
+            val loader = FlutterInjector.instance().flutterLoader()
+            val soundNames = listOf("click", "key", "tap", "success", "alert", "alarm")
+            val soundsDir = File(cacheDir, "tooler_sounds")
+            if (!soundsDir.exists()) {
+                soundsDir.mkdirs()
+            }
+
+            for (soundName in soundNames) {
+                try {
+                    val assetKey = loader.getLookupKeyForAsset("assets/sounds/$soundName.wav")
+                    val cacheFile = File(soundsDir, "$soundName.wav")
+                    context.assets.open(assetKey).use { input ->
+                        FileOutputStream(cacheFile).use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    if (cacheFile.exists() && cacheFile.length() > 0) {
+                        val soundId = soundPool?.load(cacheFile.absolutePath, 1) ?: 0
+                        if (soundId != 0) {
+                            soundMap[soundName] = soundId
+                        }
+                    }
+                } catch (e: Exception) {
+                    // Fallback synthesis handled gracefully
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun playNativeSound(name: String, volume: Float = 1.0f) {
+        if (!isSoundEnabled) return
+        val soundId = soundMap[name]
+        if (soundId != null && soundId != 0) {
+            soundPool?.play(soundId, volume, volume, 1, 0, 1.0f)
+        }
+    }
+
+    private fun playNativeAlarm() {
+        if (!isSoundEnabled) return
+        stopNativeAlarm()
+        val alarmId = soundMap["alarm"] ?: soundMap["alert"]
+        if (alarmId != null && alarmId != 0) {
+            activeAlarmStreamId = soundPool?.play(alarmId, 1.0f, 1.0f, 2, 7, 1.0f) ?: 0
+        }
+    }
+
+    private fun stopNativeAlarm() {
+        if (activeAlarmStreamId != 0) {
+            try {
+                soundPool?.stop(activeAlarmStreamId)
+            } catch (_: Exception) {}
+            activeAlarmStreamId = 0
         }
     }
 
@@ -163,6 +279,11 @@ class MainActivity : FlutterActivity() {
 
     override fun onDestroy() {
         stopAudioLoopback()
+        stopNativeAlarm()
+        try {
+            soundPool?.release()
+            soundPool = null
+        } catch (_: Exception) {}
         super.onDestroy()
     }
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'theme/stationery_theme.dart';
 import 'services/storage_service.dart';
 import 'services/notification_service.dart';
+import 'services/sound_service.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
@@ -10,6 +11,9 @@ void main() async {
 
   // Initialize notifications service for background timer, stopwatch & tasks
   await NotificationService().init();
+
+  // Initialize native sound effects and load preferences
+  await SoundService().init();
 
   // Set system navigation and status bar style
   SystemChrome.setSystemUIOverlayStyle(
