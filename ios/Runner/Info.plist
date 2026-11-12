@@ -40,5 +40,11 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Tooler requires microphone access strictly to record local audio memos on your device.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Tooler requires magnetic heading sensors to orient the digital compass.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>

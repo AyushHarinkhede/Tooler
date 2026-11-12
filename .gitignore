@@ -12,6 +12,7 @@ migrate_working_dir/
 
 # IntelliJ related
 *.iml
+!tooler.iml
 *.ipr
 *.iws
 .idea/
@@ -30,7 +31,9 @@ migrate_working_dir/
 .pub/
 # APK and build artifacts
 *.apk
-/build/
+build/
+/android/build/
+.gradle/
 
 # Symbol processing related
 app.*.symbols

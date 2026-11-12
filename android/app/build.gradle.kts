@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -22,9 +25,26 @@ android {
         versionName = flutter.versionName
     }
 
+    val keystorePropertiesFile = rootProject.file("key.properties")
+    val keystoreProperties = Properties()
+    if (keystorePropertiesFile.exists()) {
+        keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    }
+    val releaseStoreFile = file(keystoreProperties.getProperty("storeFile") ?: "tooler-release.jks")
+    val hasReleaseKeystore = releaseStoreFile.exists()
+
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties.getProperty("keyAlias") ?: "tooler"
+            keyPassword = keystoreProperties.getProperty("keyPassword") ?: "tooler2026"
+            storeFile = releaseStoreFile
+            storePassword = keystoreProperties.getProperty("storePassword") ?: "tooler2026"
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 

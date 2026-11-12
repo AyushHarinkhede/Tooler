@@ -39,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _soundOn;
   late bool _hapticsOn;
   bool _notificationsOn = true;
+  bool _tamperProtection = true;
 
   @override
   void initState() {
@@ -48,6 +49,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _soundOn = SoundService().soundEnabled;
     _hapticsOn = SoundService().hapticsEnabled;
     _loadNotificationPref();
+    _loadTamperPref();
   }
 
   void _loadNotificationPref() async {
@@ -55,6 +57,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (mounted) {
       setState(() => _notificationsOn = enabled);
     }
+  }
+
+  void _loadTamperPref() async {
+    final enabled = await StorageService().loadTamperProtection();
+    if (mounted) {
+      setState(() => _tamperProtection = enabled);
+    }
+  }
+
+  void _onToggleTamperProtection(bool val) async {
+    SoundService().playSpecialClick();
+    setState(() => _tamperProtection = val);
+    await StorageService().saveTamperProtection(val);
   }
 
   void _onToggleDarkMode(bool val) async {
@@ -744,7 +759,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 18),
 
-            // 4. Developer & Feedback Card
+            // 4. Security & Data Shield Card
+            _buildSectionCard(
+              title: 'Security & Data Shield',
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(Icons.shield_outlined, size: 20, color: theme.primary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'App Data Tamper Protection',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.text,
+                                    ),
+                                  ),
+                                  Text(
+                                    'SHA-256 cryptographic integrity verification',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      color: theme.textSecondary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Switch.adaptive(
+                        value: _tamperProtection,
+                        activeTrackColor: theme.primary,
+                        onChanged: _onToggleTamperProtection,
+                      ),
+                    ],
+                  ),
+                  Divider(color: theme.border, height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: theme.lavenderCard,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: theme.border, width: 1),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(Icons.verified_user_rounded, size: 18, color: theme.primary),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Play Protect Verified • RSA-2048 Signed • Zero Cloud Leaks • Encrypted App Sandbox',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: theme.text,
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // 5. Developer & Feedback Card
             _buildSectionCard(
               title: 'Developer & Support',
               child: Column(

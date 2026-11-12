@@ -4,6 +4,7 @@ import '../models/task_model.dart';
 import '../models/counter_model.dart';
 import '../models/calc_history_model.dart';
 import '../theme/stationery_theme.dart';
+import 'security_service.dart';
 
 class StorageService {
   static final StorageService _instance = StorageService._internal();
@@ -11,8 +12,11 @@ class StorageService {
   StorageService._internal();
 
   static const String keyTasks = 'tooler_tasks';
+  static const String keyTasksChecksum = 'tooler_tasks_checksum';
   static const String keyCounters = 'tooler_counters';
+  static const String keyCountersChecksum = 'tooler_counters_checksum';
   static const String keyCalcHistory = 'tooler_calc_history';
+  static const String keyCalcHistoryChecksum = 'tooler_calc_history_checksum';
   static const String keyThemeMode = 'tooler_theme_mode';
   static const String keyIsDarkMode = 'tooler_is_dark_mode';
   static const String keyAccentColor = 'tooler_accent_color';
@@ -20,6 +24,7 @@ class StorageService {
   static const String keyHapticsEnabled = 'tooler_haptics_enabled';
   static const String keyFavorites = 'tooler_favorites_list';
   static const String keyNotificationsEnabled = 'tooler_notifications_enabled';
+  static const String keyTamperProtection = 'tooler_tamper_protection_enabled';
 
   // Background Timer State
   static const String keyTimerRunning = 'tooler_timer_running';
@@ -32,6 +37,17 @@ class StorageService {
   static const String keyStopwatchElapsedMs = 'tooler_stopwatch_elapsed_ms';
   static const String keyStopwatchLaps = 'tooler_stopwatch_laps';
 
+  Future<bool> loadTamperProtection() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keyTamperProtection) ?? true;
+  }
+
+  Future<void> saveTamperProtection(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyTamperProtection, enabled);
+    SecurityService().tamperProtectionEnabled = enabled;
+  }
+
   Future<List<TaskItem>> loadTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString(keyTasks);
@@ -41,6 +57,11 @@ class StorageService {
         TaskItem(id: 2, text: "Organize unit conversion references", category: "Focus", priority: "Medium"),
         TaskItem(id: 3, text: "Explore Tooler features", category: "Personal", priority: "Low"),
       ];
+    }
+    // Verify cryptographic integrity
+    final checksum = prefs.getString(keyTasksChecksum);
+    if (!SecurityService().verifyIntegrity(content: str, storedChecksum: checksum)) {
+      return [];
     }
     try {
       final List decoded = jsonDecode(str);
@@ -53,7 +74,9 @@ class StorageService {
   Future<void> saveTasks(List<TaskItem> tasks) async {
     final prefs = await SharedPreferences.getInstance();
     final str = jsonEncode(tasks.map((e) => e.toJson()).toList());
+    final checksum = SecurityService().generateIntegrityChecksum(str);
     await prefs.setString(keyTasks, str);
+    await prefs.setString(keyTasksChecksum, checksum);
   }
 
   Future<List<CounterItem>> loadCounters() async {
@@ -64,6 +87,11 @@ class StorageService {
         CounterItem(id: 1, name: "Water Glasses", value: 4, step: 1),
         CounterItem(id: 2, name: "Productivity Sprints", value: 3, step: 1),
       ];
+    }
+    // Verify cryptographic integrity
+    final checksum = prefs.getString(keyCountersChecksum);
+    if (!SecurityService().verifyIntegrity(content: str, storedChecksum: checksum)) {
+      return [];
     }
     try {
       final List decoded = jsonDecode(str);
@@ -76,13 +104,19 @@ class StorageService {
   Future<void> saveCounters(List<CounterItem> counters) async {
     final prefs = await SharedPreferences.getInstance();
     final str = jsonEncode(counters.map((e) => e.toJson()).toList());
+    final checksum = SecurityService().generateIntegrityChecksum(str);
     await prefs.setString(keyCounters, str);
+    await prefs.setString(keyCountersChecksum, checksum);
   }
 
   Future<List<CalcHistoryItem>> loadCalcHistory() async {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString(keyCalcHistory);
     if (str == null || str.isEmpty) return [];
+    final checksum = prefs.getString(keyCalcHistoryChecksum);
+    if (!SecurityService().verifyIntegrity(content: str, storedChecksum: checksum)) {
+      return [];
+    }
     try {
       final List decoded = jsonDecode(str);
       return decoded.map((e) => CalcHistoryItem.fromJson(e)).toList();
@@ -94,7 +128,9 @@ class StorageService {
   Future<void> saveCalcHistory(List<CalcHistoryItem> history) async {
     final prefs = await SharedPreferences.getInstance();
     final str = jsonEncode(history.map((e) => e.toJson()).toList());
+    final checksum = SecurityService().generateIntegrityChecksum(str);
     await prefs.setString(keyCalcHistory, str);
+    await prefs.setString(keyCalcHistoryChecksum, checksum);
   }
 
   Future<StationeryTheme> loadTheme() async {
