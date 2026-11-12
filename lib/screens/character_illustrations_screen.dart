@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
 
 /// ---------------------------------------------------------------------------
 /// CHARACTER ILLUSTRATIONS SCREEN (2D Flat Vector Studio)
-/// Faithful vector characters in purple (#9468E8), dark black (#23233A),
-/// and white (#FFFFFF) inspired by the reference character poses.
+/// Faithful vector characters dynamically themed with user-selected theme color
+/// (Mint, Rose, Lilac, Sky, Amber), white outlines in dark mode, and pure SVG.
 /// ---------------------------------------------------------------------------
 
 class CharacterPoseItem {
@@ -152,13 +153,37 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
         final svgString = await rootBundle.loadString(pose.assetPath);
         _svgCache[pose.id] = svgString;
       } catch (e) {
-        // Fallback placeholder
         _svgCache[pose.id] = '<!-- ${pose.title} SVG asset: ${pose.assetPath} -->';
       }
     }
     if (mounted) {
       setState(() => _isLoading = false);
     }
+  }
+
+  String _getThemedSvg(String rawSvg) {
+    final hexPrimary = '#${(widget.theme.primary.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+    final hexLight = '#${(widget.theme.primary.withValues(alpha: 0.25).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+    final isDark = widget.theme.isDark;
+
+    var svg = rawSvg
+        .replaceAll('#9468E8', hexPrimary)
+        .replaceAll('#A855F7', hexPrimary)
+        .replaceAll('var(--char-accent, #9468E8)', hexPrimary)
+        .replaceAll('#C8B6FA', hexLight)
+        .replaceAll('#EDE9FE', hexLight);
+
+    if (isDark) {
+      svg = svg
+          .replaceAll('#1D2436', '#F4F4F5')
+          .replaceAll('#23233A', '#F4F4F5')
+          .replaceAll('#181829', '#F4F4F5')
+          .replaceAll('#18181B', '#F4F4F5')
+          .replaceAll('#F4F1F8', 'transparent');
+    } else {
+      svg = svg.replaceAll('#F4F1F8', 'transparent');
+    }
+    return svg;
   }
 
   List<CharacterPoseItem> get _filteredPoses {
@@ -168,15 +193,16 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
 
   void _copySvgCode(CharacterPoseItem pose) {
     SoundService().playClick();
-    final svgCode = _svgCache[pose.id] ?? '';
+    final rawCode = _svgCache[pose.id] ?? '';
+    final svgCode = _getThemedSvg(rawCode);
     Clipboard.setData(ClipboardData(text: svgCode));
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          "Copied '${pose.title}' SVG code to clipboard!",
+          "Copied '${pose.title}' Themed SVG code to clipboard!",
           style: widget.theme.fontDoodle(color: Colors.white, fontSize: 13),
         ),
-        backgroundColor: const Color(0xFF9468E8),
+        backgroundColor: widget.theme.primary,
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -186,7 +212,8 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
 
   void _showSvgModal(CharacterPoseItem pose) {
     SoundService().playClick();
-    final svgCode = _svgCache[pose.id] ?? '';
+    final rawCode = _svgCache[pose.id] ?? '';
+    final svgCode = _getThemedSvg(rawCode);
 
     showModalBottomSheet(
       context: context,
@@ -194,7 +221,7 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
       backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
-          height: MediaQuery.of(context).size.height * 0.85,
+          height: MediaQuery.of(context).size.height * 0.88,
           decoration: BoxDecoration(
             color: widget.theme.bg,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -220,10 +247,32 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 pose.description,
                 style: widget.theme.fontDoodle(fontSize: 13, color: widget.theme.text.withValues(alpha: 0.8)),
+              ),
+              const SizedBox(height: 12),
+
+              // Themed Preview Box
+              Container(
+                height: 190,
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: widget.theme.isDark ? const Color(0xFF1E1E24) : widget.theme.lavenderCard,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: widget.theme.isDark
+                        ? widget.theme.primary.withValues(alpha: 0.25)
+                        : widget.theme.lavenderBubble,
+                    width: 1.5,
+                  ),
+                ),
+                child: SvgPicture.string(
+                  svgCode,
+                  fit: BoxFit.contain,
+                ),
               ),
               const SizedBox(height: 12),
 
@@ -232,13 +281,16 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                 spacing: 8,
                 runSpacing: 6,
                 children: [
-                  _buildColorChip("Purple Primary", const Color(0xFF9468E8)),
-                  _buildColorChip("Charcoal Black", const Color(0xFF23233A)),
-                  _buildColorChip("Lavender Light", const Color(0xFFECE5FC)),
+                  _buildColorChip("Theme Accent", widget.theme.primary),
+                  _buildColorChip(
+                    widget.theme.isDark ? "Inverted White Lines" : "Charcoal Lines",
+                    widget.theme.isDark ? const Color(0xFFF4F4F5) : const Color(0xFF23233A),
+                  ),
+                  _buildColorChip("Light Tint", widget.theme.primary.withValues(alpha: 0.25)),
                   _buildColorChip("Pure White", const Color(0xFFFFFFFF)),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               // Code Viewer Box
               Expanded(
@@ -257,19 +309,19 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               // Copy Button
               ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF9468E8),
+                  backgroundColor: widget.theme.primary,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 icon: const Icon(Icons.copy, size: 20),
                 label: Text(
-                  "Copy Full SVG Code",
+                  "Copy Themed SVG Code",
                   style: widget.theme.fontDisplay(fontSize: 15, fontWeight: FontWeight.bold),
                 ),
                 onPressed: () {
@@ -340,16 +392,19 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                   margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFECE5FC),
+                    color: widget.theme.isDark ? const Color(0xFF1E1E24) : widget.theme.lavenderCard,
                     borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: const Color(0xFF9468E8), width: 2),
+                    border: Border.all(
+                      color: widget.theme.isDark ? widget.theme.primary.withValues(alpha: 0.3) : widget.theme.primary,
+                      width: 2,
+                    ),
                   ),
                   child: Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF9468E8),
+                          color: widget.theme.primary,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.palette_outlined, color: Colors.white, size: 26),
@@ -361,12 +416,12 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                           children: [
                             Text(
                               "2D Flat Vector Character Pack",
-                              style: widget.theme.fontDisplay(fontSize: 15, fontWeight: FontWeight.bold, color: const Color(0xFF23233A)),
+                              style: widget.theme.fontDisplay(fontSize: 15, fontWeight: FontWeight.bold, color: widget.theme.text),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              "Purple (#9468E8) • Charcoal (#23233A) • Pure Vector SVG",
-                              style: widget.theme.fontMono(fontSize: 11, color: const Color(0xFF23233A).withValues(alpha: 0.7)),
+                              "Dynamic Theme Accent • White Outlines in Dark Mode • Vector SVG",
+                              style: widget.theme.fontMono(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.7)),
                             ),
                           ],
                         ),
@@ -392,12 +447,14 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                   ),
                 ),
 
-                // Poses List
+                const SizedBox(height: 6),
+
+                // Main Character List
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
+                      ? const Center(child: CircularProgressIndicator.adaptive())
                       : ListView.builder(
-                          padding: const EdgeInsets.all(16),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                           itemCount: _filteredPoses.length,
                           itemBuilder: (context, index) {
                             final pose = _filteredPoses[index];
@@ -424,10 +481,10 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF9468E8) : widget.theme.cardBg,
+          color: isSelected ? widget.theme.primary : widget.theme.cardBg,
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
-            color: isSelected ? const Color(0xFF9468E8) : widget.theme.border,
+            color: isSelected ? widget.theme.primary : widget.theme.border,
             width: 2,
           ),
         ),
@@ -444,6 +501,9 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
   }
 
   Widget _buildPoseCard(CharacterPoseItem pose) {
+    final rawSvg = _svgCache[pose.id];
+    final themedSvg = rawSvg != null ? _getThemedSvg(rawSvg) : null;
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: widget.theme.doodleCard(borderWidth: 2.2),
@@ -454,15 +514,17 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
           Row(
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFECE5FC),
+                  color: widget.theme.isDark
+                      ? widget.theme.primary.withValues(alpha: 0.18)
+                      : widget.theme.lavenderBubble,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF9468E8), width: 2),
+                  border: Border.all(color: widget.theme.primary, width: 2),
                 ),
                 alignment: Alignment.center,
-                child: const Icon(Icons.person, color: Color(0xFF9468E8), size: 28),
+                child: Icon(Icons.palette_outlined, color: widget.theme.primary, size: 24),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -478,7 +540,7 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                       pose.category,
                       style: widget.theme.fontMono(
                         fontSize: 11,
-                        color: const Color(0xFF9468E8),
+                        color: widget.theme.primary,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -499,7 +561,31 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
               ),
             ],
           ),
-          const SizedBox(height: 10),
+
+          // Dynamic Vector Character Preview
+          Container(
+            height: 190,
+            width: double.infinity,
+            margin: const EdgeInsets.only(top: 12, bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: widget.theme.isDark ? const Color(0xFF1E1E24) : widget.theme.lavenderCard,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: widget.theme.isDark
+                    ? widget.theme.primary.withValues(alpha: 0.25)
+                    : widget.theme.lavenderBubble,
+                width: 1.5,
+              ),
+            ),
+            child: themedSvg != null
+                ? SvgPicture.string(
+                    themedSvg,
+                    fit: BoxFit.contain,
+                  )
+                : const Center(child: CircularProgressIndicator.adaptive()),
+          ),
+
           Text(
             pose.description,
             style: widget.theme.fontDoodle(
@@ -517,7 +603,9 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
               return Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFECE5FC),
+                  color: widget.theme.isDark
+                      ? widget.theme.primary.withValues(alpha: 0.16)
+                      : widget.theme.lavenderBubble,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -525,7 +613,7 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                   style: widget.theme.fontMono(
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
-                    color: const Color(0xFF9468E8),
+                    color: widget.theme.primary,
                   ),
                 ),
               );
@@ -552,7 +640,7 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
               Expanded(
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF9468E8),
+                    backgroundColor: widget.theme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

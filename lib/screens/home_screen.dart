@@ -732,6 +732,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildQuickCard(Map<String, dynamic> tool, double width) {
     final theme = widget.theme;
+    final isDark = theme.isDark;
 
     return InkWell(
       onTap: () => _openTool(tool),
@@ -759,6 +760,8 @@ class _HomeScreenState extends State<HomeScreen> {
               type: tool['iconType'],
               size: 44,
               bubbleColor: theme.lavenderBubble,
+              accentColor: theme.primary,
+              isDark: isDark,
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -854,7 +857,7 @@ class _HomeScreenState extends State<HomeScreen> {
         alignment: Alignment.center,
         child: Column(
           children: [
-            Minimal2DIcon(type: 'settings', size: 54, color: theme.textSecondary),
+            Minimal2DIcon(type: 'settings', size: 54, color: theme.textSecondary, accentColor: theme.primary, bubbleColor: theme.lavenderBubble, isDark: isDark),
             const SizedBox(height: 12),
             Text(
               'No utility tools found',
@@ -897,6 +900,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     type: tool['iconType'],
                     size: 46,
                     bubbleColor: theme.lavenderBubble,
+                    accentColor: theme.primary,
+                    isDark: isDark,
                   ),
                   const SizedBox(width: 14),
                   // Tool Info

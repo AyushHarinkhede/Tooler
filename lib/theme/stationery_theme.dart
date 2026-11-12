@@ -156,7 +156,7 @@ class StationeryTheme {
 
   // Soft Tinted Hero & Card Background
   Color get lavenderCard {
-    if (isDark) return const Color(0xFF27272A);
+    if (isDark) return const Color(0xFF1E1E24);
     switch (accentPalette) {
       case ToolerAccent.lilac:
         return const Color(0xFFF5F3FF);
@@ -173,7 +173,7 @@ class StationeryTheme {
 
   // 2D Backdrop Bubble Accent
   Color get lavenderBubble {
-    if (isDark) return const Color(0xFF3F3F46);
+    if (isDark) return primary.withValues(alpha: 0.18);
     switch (accentPalette) {
       case ToolerAccent.lilac:
         return const Color(0xFFEDE9FE);

@@ -72,7 +72,7 @@ class _HeroDeskPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final skinFill = Paint()
-      ..color = Colors.white
+      ..color = isDark ? const Color(0xFF1E1E24) : Colors.white
       ..style = PaintingStyle.fill;
 
     final pantsFill = Paint()
@@ -80,16 +80,25 @@ class _HeroDeskPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     final pantsBackFill = Paint()
-      ..color = accentColor.withValues(alpha: 0.8)
+      ..color = accentColor.withValues(alpha: isDark ? 0.85 : 0.75)
       ..style = PaintingStyle.fill;
 
     final lightAccentFill = Paint()
-      ..color = accentColor.withValues(alpha: isDark ? 0.25 : 0.15)
+      ..color = accentColor.withValues(alpha: isDark ? 0.22 : 0.14)
       ..style = PaintingStyle.fill;
 
     final midAccentFill = Paint()
       ..color = accentColor.withValues(alpha: isDark ? 0.45 : 0.35)
       ..style = PaintingStyle.fill;
+
+    // 0. Soft Ambient Background Glow (seamless, no harsh clipping)
+    final ambientGlow = Paint()
+      ..color = accentColor.withValues(alpha: isDark ? 0.12 : 0.08)
+      ..style = PaintingStyle.fill;
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(200, 180), width: 320, height: 210),
+      ambientGlow,
+    );
 
     // 1. Ambient Floating Accents
     canvas.drawCircle(const Offset(45, 85), 4.5, pantsFill);
@@ -423,12 +432,14 @@ class _HeroDeskPainter extends CustomPainter {
       oldDelegate.accentColor != accentColor || oldDelegate.isDark != isDark;
 }
 
-/// Generic 2D Line Illustration with Lavender Accent Bubble
+/// Generic 2D Line Illustration with Adaptive Theme Accent Bubble & Dynamic Inversion
 class Minimal2DIcon extends StatelessWidget {
   final String type;
   final double size;
   final Color? color;
   final Color? bubbleColor;
+  final Color? accentColor;
+  final bool isDark;
 
   const Minimal2DIcon({
     super.key,
@@ -436,18 +447,27 @@ class Minimal2DIcon extends StatelessWidget {
     this.size = 44,
     this.color,
     this.bubbleColor,
+    this.accentColor,
+    this.isDark = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final effectiveStroke = color ?? (isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B));
+    final effectiveAccent = accentColor ?? const Color(0xFF10B981);
+    final effectiveBubble = bubbleColor ??
+        (isDark ? effectiveAccent.withValues(alpha: 0.16) : effectiveAccent.withValues(alpha: 0.12));
+
     return SizedBox(
       width: size,
       height: size,
       child: CustomPaint(
         painter: _IllustrationPainter(
           type: type,
-          strokeColor: color ?? const Color(0xFF18181B),
-          bubbleColor: bubbleColor ?? const Color(0xFFEDE9FE),
+          strokeColor: effectiveStroke,
+          bubbleColor: effectiveBubble,
+          accentColor: effectiveAccent,
+          isDark: isDark,
         ),
       ),
     );
@@ -458,11 +478,15 @@ class _IllustrationPainter extends CustomPainter {
   final String type;
   final Color strokeColor;
   final Color bubbleColor;
+  final Color accentColor;
+  final bool isDark;
 
   _IllustrationPainter({
     required this.type,
     required this.strokeColor,
     required this.bubbleColor,
+    required this.accentColor,
+    this.isDark = false,
   });
 
   @override
@@ -470,22 +494,22 @@ class _IllustrationPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // 1. Soft Lilac Offset Bubble Backdrop (from reference image cards)
+    // 1. Soft Dynamic Accent Bubble Backdrop (centered subtle glow)
     final bubble = Paint()
       ..color = bubbleColor
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(w * 0.65, h * 0.38), w * 0.32, bubble);
+    canvas.drawCircle(Offset(w * 0.58, h * 0.44), w * 0.36, bubble);
 
-    // 2. Line Paint
+    // 2. Line Paint (Inverted in dark mode: white #F4F4F5, black #18181B in light mode)
     final p = Paint()
       ..color = strokeColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
+      ..strokeWidth = 1.7
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
     final fillAccent = Paint()
-      ..color = const Color(0xFFA855F7)
+      ..color = accentColor
       ..style = PaintingStyle.fill;
 
     switch (type) {
@@ -610,7 +634,10 @@ class _IllustrationPainter extends CustomPainter {
       ..lineTo(w * 0.44, h * 0.5)
       ..close();
     canvas.drawPath(south, p);
-    canvas.drawCircle(center, w * 0.04, Paint()..color = Colors.white..style = PaintingStyle.fill);
+    final pinBg = Paint()
+      ..color = isDark ? const Color(0xFF1E1E24) : Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, w * 0.04, pinBg);
     canvas.drawCircle(center, w * 0.04, p);
   }
 
@@ -722,7 +749,10 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawCircle(Offset(w * 0.62, h * 0.44), w * 0.24, fill);
     // Front coin
     final frontCenter = Offset(w * 0.42, h * 0.56);
-    canvas.drawCircle(frontCenter, w * 0.24, Paint()..color = Colors.white..style = PaintingStyle.fill);
+    final coinBg = Paint()
+      ..color = isDark ? const Color(0xFF1E1E24) : Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(frontCenter, w * 0.24, coinBg);
     canvas.drawCircle(frontCenter, w * 0.24, p);
     // Symbol cross
     canvas.drawLine(Offset(w * 0.42, h * 0.42), Offset(w * 0.42, h * 0.70), p);
@@ -837,5 +867,7 @@ class _IllustrationPainter extends CustomPainter {
   bool shouldRepaint(covariant _IllustrationPainter oldDelegate) =>
       oldDelegate.type != type ||
       oldDelegate.strokeColor != strokeColor ||
-      oldDelegate.bubbleColor != bubbleColor;
+      oldDelegate.bubbleColor != bubbleColor ||
+      oldDelegate.accentColor != accentColor ||
+      oldDelegate.isDark != isDark;
 }
