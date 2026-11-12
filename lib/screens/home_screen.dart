@@ -223,10 +223,10 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       {
         'id': 'recorder',
-        'title': 'Sound Recorder',
-        'subtitle': 'Live waveform, audio captions & memos',
+        'title': 'Noise Meter & Recorder',
+        'subtitle': 'Live dB gauge, noise safety & audio capture',
         'category': 'Utilities',
-        'tag': 'Audio Note',
+        'tag': 'Acoustic dB',
         'iconType': 'recorder',
         'isFeatured': false,
         'builder': (context) => SoundRecorderScreen(theme: widget.theme),
