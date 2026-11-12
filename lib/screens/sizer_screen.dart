@@ -816,128 +816,410 @@ class _SizerScreenState extends State<SizerScreen> {
   // 2. BANGLE SIZER VIEW
   // =========================================================================
   Widget _buildBangleSizer() {
-    final double pixelDiameter = _bangleDiameterMm * (_pixelsPerMm * 0.7);
     final bangleInfo = _getBangleSizeInfo(_bangleDiameterMm);
     final innerCircumferenceCm = (_bangleDiameterMm * math.pi) / 10.0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Instructions
+        // 1. Full Precision Millimeter Coordinate Graph Container (Reaching Screen Edges)
         Container(
-          padding: const EdgeInsets.all(12),
-          decoration: widget.theme.doodleCard(borderWidth: 1.8),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline_rounded, color: Color(0xFFF39C12), size: 22),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  "Place your physical bangle over the circle below to match inner diameter, or measure knuckles with tape.",
-                  style: widget.theme.fontDoodle(fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 14),
-
-        // Interactive Bangle Hollow Circle (NO numbers inside circle)
-        Container(
-          height: 270,
+          height: 330,
           width: double.infinity,
+          clipBehavior: Clip.antiAlias,
           decoration: widget.theme.doodleCard(
-            color: widget.theme.bg,
+            color: widget.theme.cardBg,
             borderWidth: 2.2,
           ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Stack(
             children: [
-              // Top label outside circle
-              Text(
-                "Bangle Size: ${bangleInfo['name']} (${bangleInfo['inches']}) • ${bangleInfo['label']}",
-                style: widget.theme.fontDisplay(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFFD35400),
-                ),
-              ),
-              const SizedBox(height: 8),
-
-              // The Hollow Bangle Circle
-              SizedBox(
-                width: pixelDiameter,
-                height: pixelDiameter,
+              // Full Precision Coordinate Graph
+              Positioned.fill(
                 child: CustomPaint(
-                  painter: _HollowBanglePainter(
-                    strokeColor: const Color(0xFFE67E22),
+                  painter: _BangleGraphContainerPainter(
+                    bangleDiameterMm: _bangleDiameterMm,
+                    pixelsPerMm: _pixelsPerMm,
+                    primaryColor: const Color(0xFFD35400),
+                    accentColor: const Color(0xFFF1C40F),
+                    gridColor: widget.theme.border,
                   ),
                 ),
               ),
 
-              const SizedBox(height: 8),
-              // Bottom measurement outside circle
-              Text(
-                "Inner Diameter: ${_bangleDiameterMm.toStringAsFixed(1)} mm  •  Circumference: ${innerCircumferenceCm.toStringAsFixed(1)} cm",
-                style: widget.theme.fontMono(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: widget.theme.text,
+              // Calibration Shortcut Button (Top Right)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: BouncyTap(
+                  onTap: _showCalibrationDialog,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: widget.theme.bg.withValues(alpha: 0.9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: widget.theme.border, width: 1.2),
+                    ),
+                    child: const Icon(Icons.tune_rounded, size: 16, color: Color(0xFFD35400)),
+                  ),
+                ),
+              ),
+
+              // Top Live Dimension Badge
+              Positioned(
+                top: 10,
+                left: 12,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: widget.theme.bg.withValues(alpha: 0.92),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFD35400).withValues(alpha: 0.4), width: 1.2),
+                  ),
+                  child: Text(
+                    "Bangle: ${bangleInfo['name']} (${bangleInfo['inches']}) • ⌀ ${_bangleDiameterMm.toStringAsFixed(1)} mm",
+                    style: widget.theme.fontMono(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFFD35400),
+                    ),
+                  ),
+                ),
+              ),
+
+              // Bottom Live Circumference Metric
+              Positioned(
+                bottom: 10,
+                left: 12,
+                right: 12,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: widget.theme.bg.withValues(alpha: 0.92),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: widget.theme.border, width: 1.2),
+                      ),
+                      child: Text(
+                        "Inner Diameter: ${_bangleDiameterMm.toStringAsFixed(1)} mm  •  Circumference: ${innerCircumferenceCm.toStringAsFixed(2)} cm",
+                        style: widget.theme.fontMono(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: widget.theme.text,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
-        // Standard Bangle Quick Size Chips (2-2 to 3-0)
+        // 2. Adjust Bar (ONLY Minus Icon, Slider, Plus Icon - NO text or words)
         Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: widget.theme.doodleCard(borderWidth: 2.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Text(
-                "Standard Indian / International Sizes:",
-                style: widget.theme.fontMono(fontSize: 11, fontWeight: FontWeight.bold),
+              BouncyTap(
+                onTap: () {
+                  if (_bangleDiameterMm > 50.0) {
+                    setState(() {
+                      _bangleDiameterMm = (_bangleDiameterMm - 0.5).clamp(50.0, 80.0);
+                      _updateKnuckleTextFromBangleDiameter();
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: widget.theme.bg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: widget.theme.border, width: 1.5),
+                  ),
+                  child: const Icon(Icons.remove_rounded, size: 22, color: Color(0xFFD35400)),
+                ),
               ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  _buildBangleChip("2-2 (54 mm)", 54.0),
-                  _buildBangleChip("2-4 (57.2 mm)", 57.2),
-                  _buildBangleChip("2-6 (60.3 mm)", 60.3),
-                  _buildBangleChip("2-8 (63.5 mm)", 63.5),
-                  _buildBangleChip("2-10 (66.7 mm)", 66.7),
-                  _buildBangleChip("2-12 (69.8 mm)", 69.8),
-                  _buildBangleChip("2-14 (73.0 mm)", 73.0),
-                  _buildBangleChip("3-0 (76.2 mm)", 76.2),
-                ],
+              Expanded(
+                child: SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 4.0,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 9.0),
+                    overlayShape: const RoundSliderOverlayShape(overlayRadius: 18.0),
+                  ),
+                  child: Slider(
+                    value: _bangleDiameterMm.clamp(50.0, 80.0),
+                    min: 50.0,
+                    max: 80.0,
+                    divisions: 60,
+                    activeColor: const Color(0xFFD35400),
+                    inactiveColor: widget.theme.border,
+                    onChanged: (val) {
+                      setState(() {
+                        _bangleDiameterMm = val;
+                        _updateKnuckleTextFromBangleDiameter();
+                      });
+                    },
+                  ),
+                ),
+              ),
+              BouncyTap(
+                onTap: () {
+                  if (_bangleDiameterMm < 80.0) {
+                    setState(() {
+                      _bangleDiameterMm = (_bangleDiameterMm + 0.5).clamp(50.0, 80.0);
+                      _updateKnuckleTextFromBangleDiameter();
+                    });
+                  }
+                },
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: widget.theme.bg,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: widget.theme.border, width: 1.5),
+                  ),
+                  child: const Icon(Icons.add_rounded, size: 22, color: Color(0xFFD35400)),
+                ),
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 14),
+        const SizedBox(height: 12),
 
-        // Hand Knuckle Measuring Tape Formula
+        // 3. Number Select Bar in cm (Direct typing & stepping, max 26.0 cm, millimeter precision)
         Container(
-          padding: const EdgeInsets.all(14),
-          decoration: widget.theme.doodleCard(borderWidth: 1.8),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: widget.theme.doodleCard(
+            color: widget.theme.cardBg,
+            borderWidth: 2.0,
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.front_hand_rounded, color: Color(0xFFE67E22), size: 20),
+                  BouncyTap(
+                    onTap: () {
+                      final currentCm = (_bangleDiameterMm * math.pi) / 10.0;
+                      if (currentCm > 15.0) {
+                        final newCm = (currentCm - 0.1).clamp(15.0, 26.0);
+                        setState(() {
+                          _bangleDiameterMm = ((newCm * 10.0) / math.pi).clamp(50.0, 80.0);
+                          _updateKnuckleTextFromBangleDiameter();
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: widget.theme.bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: widget.theme.border, width: 1.5),
+                      ),
+                      child: Text(
+                        "-0.1",
+                        style: widget.theme.fontMono(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFFD35400)),
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 8),
+
+                  Expanded(
+                    child: Container(
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: widget.theme.bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFD35400).withValues(alpha: 0.5), width: 1.8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 65,
+                            child: TextField(
+                              controller: _bangleKnuckleCtrl,
+                              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                              textAlign: TextAlign.center,
+                              decoration: const InputDecoration(
+                                isDense: true,
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.zero,
+                              ),
+                              style: widget.theme.fontDisplay(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: const Color(0xFFD35400),
+                              ),
+                              onChanged: _onBangleKnuckleInput,
+                            ),
+                          ),
+                          Text(
+                            "cm",
+                            style: widget.theme.fontMono(
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                              color: widget.theme.text.withValues(alpha: 0.7),
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            "(${_bangleDiameterMm.toStringAsFixed(1)} mm)",
+                            style: widget.theme.fontMono(
+                              fontSize: 11,
+                              color: widget.theme.text.withValues(alpha: 0.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+
+                  BouncyTap(
+                    onTap: () {
+                      final currentCm = (_bangleDiameterMm * math.pi) / 10.0;
+                      if (currentCm < 26.0) {
+                        final newCm = (currentCm + 0.1).clamp(15.0, 26.0);
+                        setState(() {
+                          _bangleDiameterMm = ((newCm * 10.0) / math.pi).clamp(50.0, 80.0);
+                          _updateKnuckleTextFromBangleDiameter();
+                        });
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: widget.theme.bg,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: widget.theme.border, width: 1.5),
+                      ),
+                      child: Text(
+                        "+0.1",
+                        style: widget.theme.fontMono(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFFD35400)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 10),
+
+              // Quick Standard Bangle Size Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    {'name': '2-2', 'mm': 54.0, 'cm': '5.4 cm'},
+                    {'name': '2-4', 'mm': 57.2, 'cm': '5.7 cm'},
+                    {'name': '2-6', 'mm': 60.3, 'cm': '6.0 cm'},
+                    {'name': '2-8', 'mm': 63.5, 'cm': '6.4 cm'},
+                    {'name': '2-10', 'mm': 66.7, 'cm': '6.7 cm'},
+                    {'name': '2-12', 'mm': 69.8, 'cm': '7.0 cm'},
+                    {'name': '2-14', 'mm': 73.0, 'cm': '7.3 cm'},
+                    {'name': '3-0', 'mm': 76.2, 'cm': '7.6 cm'},
+                  ].map((item) {
+                    final mm = item['mm'] as double;
+                    final isSelected = (_bangleDiameterMm - mm).abs() < 1.2;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: BouncyTap(
+                        onTap: () {
+                          SoundService().playClick();
+                          setState(() {
+                            _bangleDiameterMm = mm;
+                            _updateKnuckleTextFromBangleDiameter();
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: isSelected ? const Color(0xFFD35400) : widget.theme.bg,
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                              color: isSelected ? const Color(0xFFD35400) : widget.theme.border,
+                              width: 1.2,
+                            ),
+                          ),
+                          child: Text(
+                            "${item['name']} (${item['cm']})",
+                            style: widget.theme.fontMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: isSelected ? Colors.white : widget.theme.text,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // 4. Redesigned Standard Bangle Sizes Grid
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: widget.theme.doodleCard(borderWidth: 2.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   Text(
-                    "Hand Knuckle Tape Formula",
+                    "Standard Bangle Chart",
                     style: widget.theme.fontDisplay(fontSize: 14, fontWeight: FontWeight.bold),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD35400).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFD35400).withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      "Indian / Global",
+                      style: widget.theme.fontMono(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFFD35400),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildModernBangleCard(
+                      size: "2-2",
+                      inches: "2.125\"",
+                      diameter: "54.0 mm",
+                      label: "Extra Small",
+                      mmVal: 54.0,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildModernBangleCard(
+                      size: "2-4",
+                      inches: "2.25\"",
+                      diameter: "57.2 mm",
+                      label: "Small",
+                      mmVal: 57.2,
+                    ),
                   ),
                 ],
               ),
@@ -945,43 +1227,73 @@ class _SizerScreenState extends State<SizerScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(
-                      "Knuckle circumference tape reading:",
-                      style: widget.theme.fontMono(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.8)),
+                    child: _buildModernBangleCard(
+                      size: "2-6",
+                      inches: "2.375\"",
+                      diameter: "60.3 mm",
+                      label: "Medium (Std)",
+                      mmVal: 60.3,
                     ),
                   ),
-                  SizedBox(
-                    width: 90,
-                    height: 38,
-                    child: TextField(
-                      controller: _bangleKnuckleCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      textAlign: TextAlign.center,
-                      decoration: InputDecoration(
-                        suffixText: "cm",
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                        fillColor: widget.theme.bg,
-                        filled: true,
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      style: widget.theme.fontMono(fontSize: 13, fontWeight: FontWeight.bold),
-                      onChanged: _onBangleKnuckleInput,
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildModernBangleCard(
+                      size: "2-8",
+                      inches: "2.50\"",
+                      diameter: "63.5 mm",
+                      label: "Medium-Large",
+                      mmVal: 63.5,
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: widget.theme.bg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: widget.theme.border),
-                ),
-                child: Text(
-                  "📐 Bangle Formula: Inner Diameter = Knuckle Circumference / 3.1416\nBring thumb and pinky together (as if wearing a bangle), measure around the widest knuckle line with tape.",
-                  style: widget.theme.fontMono(fontSize: 10, color: widget.theme.text.withValues(alpha: 0.85)),
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildModernBangleCard(
+                      size: "2-10",
+                      inches: "2.625\"",
+                      diameter: "66.7 mm",
+                      label: "Large",
+                      mmVal: 66.7,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildModernBangleCard(
+                      size: "2-12",
+                      inches: "2.75\"",
+                      diameter: "69.8 mm",
+                      label: "Extra Large",
+                      mmVal: 69.8,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildModernBangleCard(
+                      size: "2-14",
+                      inches: "2.875\"",
+                      diameter: "73.0 mm",
+                      label: "2X Large",
+                      mmVal: 73.0,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildModernBangleCard(
+                      size: "3-0",
+                      inches: "3.00\"",
+                      diameter: "76.2 mm",
+                      label: "3X Large",
+                      mmVal: 76.2,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -990,28 +1302,88 @@ class _SizerScreenState extends State<SizerScreen> {
     );
   }
 
-  Widget _buildBangleChip(String label, double mm) {
-    final isSel = ((_bangleDiameterMm - mm).abs() < 1.0);
-    return ActionChip(
-      label: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: isSel ? Colors.white : widget.theme.text,
-        ),
-      ),
-      backgroundColor: isSel ? const Color(0xFFE67E22) : widget.theme.cardBg,
-      side: BorderSide(
-        color: isSel ? const Color(0xFFE67E22) : widget.theme.border,
-      ),
-      onPressed: () {
+  Widget _buildModernBangleCard({
+    required String size,
+    required String inches,
+    required String diameter,
+    required String label,
+    required double mmVal,
+  }) {
+    final isSelected = (_bangleDiameterMm - mmVal).abs() < 1.2;
+    return BouncyTap(
+      onTap: () {
         SoundService().playClick();
         setState(() {
-          _bangleDiameterMm = mm;
+          _bangleDiameterMm = mmVal;
           _updateKnuckleTextFromBangleDiameter();
         });
       },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFD35400).withValues(alpha: 0.12) : widget.theme.cardBg,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFD35400) : widget.theme.border,
+            width: isSelected ? 2.0 : 1.5,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: isSelected ? const Color(0xFFD35400).withValues(alpha: 0.25) : widget.theme.border.withValues(alpha: 0.2),
+              offset: const Offset(1, 2),
+              blurRadius: 0,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  "Size $size",
+                  style: widget.theme.fontDisplay(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isSelected ? const Color(0xFFD35400) : widget.theme.text,
+                  ),
+                ),
+                Text(
+                  inches,
+                  style: widget.theme.fontMono(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFFD35400),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  diameter,
+                  style: widget.theme.fontMono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: widget.theme.text.withValues(alpha: 0.8),
+                  ),
+                ),
+                Text(
+                  label,
+                  style: widget.theme.fontMono(
+                    fontSize: 9,
+                    color: widget.theme.text.withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1635,40 +2007,136 @@ class _RingGraphContainerPainter extends CustomPainter {
 
 
 
-/// Hollow Bangle Circle
-class _HollowBanglePainter extends CustomPainter {
-  final Color strokeColor;
-  _HollowBanglePainter({required this.strokeColor});
+/// Full Precision Graph Container with Live Bangle Circle & Millimeter Coordinate Grid
+class _BangleGraphContainerPainter extends CustomPainter {
+  final double bangleDiameterMm;
+  final double pixelsPerMm;
+  final Color primaryColor;
+  final Color accentColor;
+  final Color gridColor;
+
+  _BangleGraphContainerPainter({
+    required this.bangleDiameterMm,
+    required this.pixelsPerMm,
+    required this.primaryColor,
+    required this.accentColor,
+    required this.gridColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
 
-    // Crosshairs
-    final crossPaint = Paint()
-      ..color = strokeColor.withValues(alpha: 0.25)
+    // 1. Millimeter Coordinate Grid
+    final step2mm = 2.0 * pixelsPerMm;
+    final step10mm = 10.0 * pixelsPerMm;
+
+    final majorGridPaint = Paint()
+      ..color = gridColor.withValues(alpha: 0.22)
       ..strokeWidth = 1.0;
-    canvas.drawLine(Offset(center.dx - radius, center.dy), Offset(center.dx + radius, center.dy), crossPaint);
-    canvas.drawLine(Offset(center.dx, center.dy - radius), Offset(center.dx, center.dy + radius), crossPaint);
+    final minorGridPaint = Paint()
+      ..color = gridColor.withValues(alpha: 0.08)
+      ..strokeWidth = 0.5;
 
-    // Outer Bangle rim
-    final banglePaint = Paint()
-      ..color = strokeColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.5;
-    canvas.drawCircle(center, radius, banglePaint);
+    // Vertical lines
+    for (double x = center.dx; x < size.width; x += step2mm) {
+      final isMajor = ((x - center.dx) % step10mm).abs() < (step2mm * 0.4);
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), isMajor ? majorGridPaint : minorGridPaint);
+    }
+    for (double x = center.dx - step2mm; x > 0; x -= step2mm) {
+      final isMajor = ((center.dx - x) % step10mm).abs() < (step2mm * 0.4);
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), isMajor ? majorGridPaint : minorGridPaint);
+    }
 
-    // Inner brass/gold gleam
-    final gleamPaint = Paint()
-      ..color = const Color(0xFFF1C40F).withValues(alpha: 0.8)
+    // Horizontal lines
+    for (double y = center.dy; y < size.height; y += step2mm) {
+      final isMajor = ((y - center.dy) % step10mm).abs() < (step2mm * 0.4);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), isMajor ? majorGridPaint : minorGridPaint);
+    }
+    for (double y = center.dy - step2mm; y > 0; y -= step2mm) {
+      final isMajor = ((center.dy - y) % step10mm).abs() < (step2mm * 0.4);
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), isMajor ? majorGridPaint : minorGridPaint);
+    }
+
+    // 2. Central Primary Coordinate Axes with Millimeter Tick Marks
+    final axisPaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.38)
+      ..strokeWidth = 1.4;
+    canvas.drawLine(Offset(0, center.dy), Offset(size.width, center.dy), axisPaint);
+    canvas.drawLine(Offset(center.dx, 0), Offset(center.dx, size.height), axisPaint);
+
+    final tickPaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.55)
+      ..strokeWidth = 1.0;
+    for (int mm = -60; mm <= 60; mm += 2) {
+      if (mm == 0) continue;
+      final px = center.dx + (mm * pixelsPerMm);
+      if (px > 0 && px < size.width) {
+        final tickLen = (mm % 10 == 0) ? 7.0 : (mm % 5 == 0 ? 5.0 : 2.5);
+        canvas.drawLine(Offset(px, center.dy - tickLen), Offset(px, center.dy + tickLen), tickPaint);
+      }
+      final py = center.dy + (mm * pixelsPerMm);
+      if (py > 0 && py < size.height) {
+        final tickLen = (mm % 10 == 0) ? 7.0 : (mm % 5 == 0 ? 5.0 : 2.5);
+        canvas.drawLine(Offset(center.dx - tickLen, py), Offset(center.dx + tickLen, py), tickPaint);
+      }
+    }
+
+    // 3. Concentric Reference Circles for Standard Indian Bangle Sizes
+    final refCirclePaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.12)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6;
-    canvas.drawCircle(center, radius - 1.8, gleamPaint);
+      ..strokeWidth = 0.8;
+    for (final d in [54.0, 57.2, 60.3, 63.5, 66.7, 69.8, 76.2]) {
+      final r = (d * pixelsPerMm) / 2.0;
+      canvas.drawCircle(center, r, refCirclePaint);
+    }
+
+    // 4. Center Reticle indicator
+    final reticlePaint = Paint()
+      ..color = accentColor.withValues(alpha: 0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawCircle(center, 5.0, reticlePaint);
+    canvas.drawCircle(center, 1.5, Paint()..color = accentColor);
+
+    // 5. LIVE DYNAMIC PHYSICAL BANGLE CIRCLE (ACCURATE 1:1 SCALE EXTENDING TO EDGES)
+    final bangleRadius = (bangleDiameterMm * pixelsPerMm) / 2.0;
+
+    // Glowing rim
+    final glowPaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.22)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 8.0
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    canvas.drawCircle(center, bangleRadius, glowPaint);
+
+    // Metallic Outer Bangle Rim
+    final bangleRimPaint = Paint()
+      ..color = primaryColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.8;
+    canvas.drawCircle(center, bangleRadius, bangleRimPaint);
+
+    // Golden Precision Inner Edge Ring
+    final goldInnerPaint = Paint()
+      ..color = accentColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+    canvas.drawCircle(center, bangleRadius - 1.4, goldInnerPaint);
+
+    // Subtle clear center fill tint
+    final innerClearPaint = Paint()
+      ..color = primaryColor.withValues(alpha: 0.02)
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(center, bangleRadius - 2.5, innerClearPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _HollowBanglePainter old) => true;
+  bool shouldRepaint(covariant _BangleGraphContainerPainter old) =>
+      old.bangleDiameterMm != bangleDiameterMm ||
+      old.pixelsPerMm != pixelsPerMm ||
+      old.primaryColor != primaryColor;
 }
 
 /// Vector Long Watch Strap Painter (Leather texturing, stitches, buckle, pin holes)
