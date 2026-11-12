@@ -41,10 +41,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   ProgWordSize _progWordSize = ProgWordSize.qword64;
   BigInt _progValue = BigInt.zero;
 
-  // Clock Mode on holding 'C' / 'AC' for 2-3 sec
+  // Clock Mode on holding 'C' for at least 3 sec
   bool _isClockMode = false;
-  String _clockTimeStr = '';
-  String _clockDateStr = '';
+  String _clockHourMin = '';
+  String _clockSec = '';
+  String _clockAmPm = '';
+  String _clockDateDay = '';
   Timer? _clockTimer;
 
   final ScrollController _displayScrollController = ScrollController();
@@ -83,25 +85,31 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     });
   }
 
-  // --- Real-Time Clock Mode on Holding 'C' ---
+  // --- Real-Time Clock Mode on Holding 'C' for 3 seconds ---
   void _activateLiveClock() {
     SoundService().playSuccess();
     HapticFeedback.heavyImpact();
     _clockTimer?.cancel();
+    final now = DateTime.now();
     setState(() {
       _isClockMode = true;
-      _clockTimeStr = DateFormat('hh:mm:ss a').format(DateTime.now());
-      _clockDateStr = DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now());
+      _clockHourMin = DateFormat('hh:mm').format(now);
+      _clockSec = DateFormat('ss').format(now);
+      _clockAmPm = DateFormat('a').format(now);
+      _clockDateDay = DateFormat('EEEE, dd MMMM yyyy').format(now);
     });
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted && _isClockMode) {
+        final t = DateTime.now();
         setState(() {
-          _clockTimeStr = DateFormat('hh:mm:ss a').format(DateTime.now());
-          _clockDateStr = DateFormat('EEEE, dd MMMM yyyy').format(DateTime.now());
+          _clockHourMin = DateFormat('hh:mm').format(t);
+          _clockSec = DateFormat('ss').format(t);
+          _clockAmPm = DateFormat('a').format(t);
+          _clockDateDay = DateFormat('EEEE, dd MMMM yyyy').format(t);
         });
       }
     });
-    _showToast("🕒 Real-Time Clock Mode (Tap any key to exit)");
+    // Notification toast removed as requested
   }
 
   void _deactivateLiveClock() {
@@ -434,8 +442,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       final parsed = BigInt.tryParse(lastToken, radix: radix);
       if (parsed != null) {
         _progValue = parsed & _getWordMask();
-        _easterEggText = _detectProgEasterEgg(_progValue);
       }
+      _easterEggText = null;
     } catch (_) {}
   }
 
@@ -446,7 +454,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       _progBase = newBase;
       final radix = newBase == ProgBase.hex ? 16 : newBase == ProgBase.oct ? 8 : newBase == ProgBase.bin ? 2 : 10;
       _expression = _progValue.toRadixString(radix).toUpperCase();
-      _easterEggText = _detectProgEasterEgg(_progValue);
+      _easterEggText = null;
     });
   }
 
@@ -514,65 +522,47 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _progValue = res;
         _expression = res.toRadixString(radix).toUpperCase();
         _previewResult = '';
-        _easterEggText = _detectProgEasterEgg(res);
+        _easterEggText = null;
         SoundService().playSuccess();
         HapticFeedback.mediumImpact();
       } else if (tokens.length == 1) {
         _progValue = BigInt.parse(tokens[0], radix: radix) & _getWordMask();
         _expression = _progValue.toRadixString(radix).toUpperCase();
-        _easterEggText = _detectProgEasterEgg(_progValue);
+        _easterEggText = null;
       }
     } catch (e) {
+      _lastEquation = '$_expression =';
       _expression = 'Error';
-      _easterEggText = "Ask your ChatBot! 🤖 (Division / Syntax Error)";
+      _easterEggText = null;
       HapticFeedback.heavyImpact();
     }
-  }
-
-  String? _detectProgEasterEgg(BigInt val) {
-    final hex = val.toRadixString(16).toUpperCase();
-    final bin = val.toRadixString(2);
-    final intVal = val.toInt();
-
-    if (hex == 'DEADBEEF') return "Dead Beef 🥩 (Classic Memory Marker)";
-    if (hex == 'CAFEBABE') return "Cafe Babe ☕ (Java Class Magic Header)";
-    if (hex == 'BADA55') return "Badass Hex 🕶️ (Dev Culture)";
-    if (hex == 'C001') return "Cool Hex 😎 (Leet System)";
-    if (hex == '1337') return "Elite 👾 (Leet Code 1337)";
-    if (intVal == 42 || hex == '2A' || bin == '101010') return "42 • Answer to Life, Universe & Everything 🌌";
-    if (intVal == 127 || hex == '7F') return "Max Signed 8-bit Int (0x7F) 🔢";
-    if (intVal == 255 || hex == 'FF') return "Full Byte 255 (0xFF) 💾";
-    if (intVal == 65535 || hex == 'FFFF') return "Max 16-bit Int (65535) 🌐";
-    if (intVal == 404 || hex == '194') return "HTTP 404 Not Found 🔍";
-    if (intVal == 0) return "Null / Zero Pointer ⚪";
-
-    return null;
   }
 
   void _computePreview() {
     try {
       final clean = _expression.trim();
 
+      // Specifically for 0÷0: "pre ans me bhi nahi"
       if (clean == '0÷0' || clean == '0/0') {
-        _previewResult = '= Ask your ChatBot! 🤖';
-        _easterEggText = "0÷0 is mathematically indeterminate!";
+        _previewResult = '';
+        _easterEggText = null;
         return;
       }
 
       if (clean == '1+') {
-        _previewResult = '= Never Settle 🔴';
-        _easterEggText = "OnePlus • Never Settle";
+        _previewResult = '';
+        _easterEggText = null;
         return;
       }
 
       final res = _evaluateExpression(_expression);
       if (res != null && res != 'Error' && !res.startsWith('Cannot') && res != _expression) {
         _previewResult = '= $res';
-        _easterEggText = _detectEasterEgg(_expression, res);
       } else {
         _previewResult = '';
-        _easterEggText = _detectEasterEgg(_expression, _expression);
       }
+      // Never show easter egg while typing (only on '=' button press)
+      _easterEggText = null;
     } catch (_) {
       _previewResult = '';
       _easterEggText = null;
@@ -582,21 +572,22 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
   void _evaluateFinal() {
     final clean = _expression.trim();
 
+    // Specific exception: "0 divided 0 me Ask Your Chat Bot Ans me hi likhkar aayega usme niche alag se show nahi hoga sidha main Ans me hoga"
     if (clean == '0÷0' || clean == '0/0') {
       _lastEquation = '0 ÷ 0 =';
-      _expression = 'Ask your ChatBot! 🤖';
+      _expression = 'Ask Your Chat Bot';
       _previewResult = '';
-      _easterEggText = "0÷0 is indeterminate. Ask your AI ChatBot!";
-      SoundService().playSuccess();
+      _easterEggText = null;
+      SoundService().playKey();
       HapticFeedback.mediumImpact();
       return;
     }
 
     if (clean == '1+' || clean == '1+ ' || clean == '1+0') {
       _lastEquation = '1+ =';
-      _expression = 'Never Settle 🔴';
+      _expression = '1';
       _previewResult = '';
-      _easterEggText = "OnePlus Flagship Spirit: Never Settle!";
+      _easterEggText = _calcMode == CalcMode.basic ? "Never Settle" : null;
       SoundService().playSuccess();
       HapticFeedback.mediumImpact();
       return;
@@ -605,10 +596,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
     try {
       final res = _evaluateExpression(_expression);
       if (res != null) {
+        // "jisme Error show ho ans me niche me Ask your Chat Bot likhkar aaye naaki ans me ans me Error hi likhkar aayega"
         if (res == 'Error' || res.startsWith('Cannot')) {
-          _expression = res;
+          _lastEquation = '$_expression =';
+          _expression = 'Error';
           _previewResult = '';
-          _easterEggText = "Ask your ChatBot! 🤖";
+          _easterEggText = _calcMode == CalcMode.basic ? "Ask your Chat Bot" : null;
           HapticFeedback.heavyImpact();
           return;
         }
@@ -622,87 +615,91 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         _history.insert(0, item);
         StorageService().saveCalcHistory(_history);
 
-        _easterEggText = _detectEasterEgg(_expression, res);
+        // "then jo bhin ans hai wo show hona hi chahiye"
         _expression = res;
         _previewResult = '';
+
+        // "ester egg only basic calculator me show hona"
+        if (_calcMode == CalcMode.basic) {
+          _easterEggText = _detectEasterEgg(_lastEquation, res);
+        } else {
+          _easterEggText = null;
+        }
+
         SoundService().playSuccess();
         HapticFeedback.mediumImpact();
       } else {
+        _lastEquation = '$_expression =';
         _expression = 'Error';
-        _easterEggText = "Ask your ChatBot! 🤖";
+        _previewResult = '';
+        _easterEggText = _calcMode == CalcMode.basic ? "Ask your Chat Bot" : null;
       }
     } catch (_) {
+      _lastEquation = '$_expression =';
       _expression = 'Error';
-      _easterEggText = "Ask your ChatBot! 🤖";
+      _previewResult = '';
+      _easterEggText = _calcMode == CalcMode.basic ? "Ask your Chat Bot" : null;
     }
   }
 
   String? _detectEasterEgg(String expr, String result) {
-    if (_isErrorState()) {
-      return "Ask your ChatBot! 🤖";
-    }
+    if (_calcMode != CalcMode.basic) return null;
 
     final cleanRes = result.replaceAll('=', '').trim();
     final cleanExpr = expr.replaceAll(' ', '');
 
     if (cleanExpr == '0÷0' || cleanExpr == '0/0') {
-      return "Ask your ChatBot! 🤖 (Indeterminate)";
+      return null;
     }
 
-    if (cleanExpr == '1+' || cleanExpr == '1+=' || cleanRes == 'Never Settle 🔴') {
-      return "Never Settle 🔴 (OnePlus)";
-    }
-
-    if (cleanRes == '0' || cleanRes == '0.0' || cleanExpr == '0') {
-      return "Nothing ⚪";
+    if (cleanExpr.startsWith('1+') || cleanRes == 'Never Settle') {
+      return "Never Settle";
     }
 
     if (cleanRes == '7') {
-      return "Thala for a reason! 🦁 #7";
-    }
-    if (cleanRes == '67') {
-      return "Six Seven 🤙 (Prime & Iconic)";
-    }
-    if (cleanRes == '911') {
-      return "Emergency Call 🚨 911";
+      return "Thala for a reason";
     }
     if (cleanRes == '13') {
-      return "Triskaidekaphobia (Unlucky 13 in West) 🐈‍⬛";
+      return "Unlucky";
     }
     if (cleanRes == '4') {
-      return "Tetraphobia (Unlucky 4 in East Asia) 🏮";
+      return "Unlucky";
+    }
+    if (cleanRes == '0' || cleanRes == '0.0' || cleanExpr == '0' || cleanExpr == '0=') {
+      return "Nothing";
+    }
+    if (cleanRes == '67') {
+      return "Six Seven";
+    }
+    if (cleanRes == '911') {
+      return "Emergency Call";
     }
     if (cleanRes == '42') {
-      return "Answer to Ultimate Question of Life 🌌";
+      return "Answer to Life";
     }
     if (cleanRes == '69') {
-      return "Nice! 😏";
+      return "Nice";
     }
     if (cleanRes == '100') {
-      return "Century! 💯";
+      return "Century";
     }
     if (cleanRes == '360') {
-      return "Full Circle 🔄 (360°)";
+      return "Full Circle";
     }
     if (cleanRes == '404') {
-      return "Error 404: Not Found 🔍";
+      return "Error 404 Not Found";
     }
     if (cleanRes == '777') {
-      return "Lucky 777 Jackpot 🎰";
+      return "Lucky 777";
     }
     if (cleanRes == '3000') {
-      return "I love you 3000 💖";
+      return "I love you 3000";
     }
     if (cleanRes == '2026') {
-      return "Current Era 🚀 2026";
+      return "Current Era 2026";
     }
     if (cleanRes == '3.14' || cleanRes == '3.14159' || cleanRes.startsWith('3.14159')) {
-      return "Pi Day 🥧 (3.14159...)";
-    }
-
-    final parsed = double.tryParse(cleanRes);
-    if (parsed != null && parsed > 0 && parsed <= 10 && parsed == parsed.roundToDouble()) {
-      return "It's easy! 😉 (Quick Math)";
+      return "Pi Day";
     }
 
     return null;
@@ -1068,56 +1065,41 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
                                   _calcMode = CalcMode.basic;
                                   _expression = '0';
                                   _previewResult = '';
+                                  _easterEggText = null;
                                 });
                               }),
-                              _buildModeTab("Sci", _calcMode == CalcMode.scientific, () {
-                                setState(() {
-                                  _calcMode = CalcMode.scientific;
-                                  _expression = '0';
-                                  _previewResult = '';
-                                });
-                              }),
-                              _buildModeTab("Prog", _calcMode == CalcMode.programmer, () {
-                                setState(() {
-                                  _calcMode = CalcMode.programmer;
-                                  _expression = '0';
-                                  _previewResult = '';
-                                  _updateProgValue();
-                                });
-                              }),
+                              _buildModeTab(
+                                _calcMode == CalcMode.scientific ? "Scientific" : "Sci",
+                                _calcMode == CalcMode.scientific,
+                                () {
+                                  setState(() {
+                                    _calcMode = CalcMode.scientific;
+                                    _expression = '0';
+                                    _previewResult = '';
+                                    _easterEggText = null;
+                                  });
+                                },
+                              ),
+                              _buildModeTab(
+                                _calcMode == CalcMode.programmer ? "Programming" : "Prog",
+                                _calcMode == CalcMode.programmer,
+                                () {
+                                  setState(() {
+                                    _calcMode = CalcMode.programmer;
+                                    _expression = '0';
+                                    _previewResult = '';
+                                    _easterEggText = null;
+                                    _updateProgValue();
+                                  });
+                                },
+                              ),
                             ],
                           ),
                         ),
-                        Row(
-                          children: [
-                            Tooltip(
-                              message: "Physical Keyboard Supported: Numbers, + - * / Enter, ESC, Backspace",
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: widget.theme.border.withValues(alpha: 0.3),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.keyboard_outlined, size: 14, color: widget.theme.textSecondary),
-                                    const SizedBox(width: 3),
-                                    Text(
-                                      "KB Ready",
-                                      style: widget.theme.fontMono(fontSize: 10, color: widget.theme.textSecondary),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
-                              tooltip: "Tape History",
-                              onPressed: _showHistoryModal,
-                            ),
-                          ],
+                        IconButton(
+                          icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
+                          tooltip: "Tape History",
+                          onPressed: _showHistoryModal,
                         ),
                       ],
                     ),
@@ -1166,18 +1148,24 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         HapticFeedback.selectionClick();
         onTap();
       },
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        curve: Curves.easeOutCubic,
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
         decoration: BoxDecoration(
           color: isSelected ? widget.theme.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(16),
         ),
-        child: Text(
-          label,
-          style: widget.theme.fontDisplay(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: isSelected ? Colors.white : widget.theme.textSecondary,
+        child: AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeOutCubic,
+          child: Text(
+            label,
+            style: widget.theme.fontDisplay(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.white : widget.theme.textSecondary,
+            ),
           ),
         ),
       ),
@@ -1195,12 +1183,12 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
         color: widget.theme.cardBg,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: _isClockMode ? const Color(0xFFF39C12) : widget.theme.border,
+          color: widget.theme.border,
           width: 2.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: (_isClockMode ? const Color(0xFFF39C12) : widget.theme.border).withValues(alpha: 0.25),
+            color: widget.theme.border.withValues(alpha: 0.25),
             offset: const Offset(0, 4),
             blurRadius: 10,
           ),
@@ -1209,64 +1197,96 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // If Live Clock Mode is active (triggered by holding 'C' for 2-3 sec)
+          // If Live Clock Mode is active (triggered by holding 'C' for at least 3 sec)
           if (_isClockMode) ...[
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _deactivateLiveClock,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.access_time_filled_rounded, size: 16, color: Color(0xFFF39C12)),
-                    const SizedBox(width: 5),
+                    // Time with animated numbers & vertical swipe on seconds
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        // Hours & Minutes with smooth fade transition
+                        AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 250),
+                          transitionBuilder: (child, anim) {
+                            return FadeTransition(opacity: anim, child: child);
+                          },
+                          child: Text(
+                            "$_clockHourMin:",
+                            key: ValueKey<String>(_clockHourMin),
+                            style: widget.theme.fontDisplay(
+                              fontSize: 38,
+                              fontWeight: FontWeight.w900,
+                              color: widget.theme.primary,
+                            ),
+                          ),
+                        ),
+
+                        // Seconds with vertical swipe transition
+                        ClipRect(
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 320),
+                            transitionBuilder: (child, anim) {
+                              return SlideTransition(
+                                position: Tween<Offset>(
+                                  begin: const Offset(0.0, -0.7),
+                                  end: Offset.zero,
+                                ).animate(CurvedAnimation(
+                                  parent: anim,
+                                  curve: Curves.easeOutBack,
+                                )),
+                                child: FadeTransition(
+                                  opacity: anim,
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: Text(
+                              _clockSec,
+                              key: ValueKey<String>(_clockSec),
+                              style: widget.theme.fontDisplay(
+                                fontSize: 38,
+                                fontWeight: FontWeight.w900,
+                                color: widget.theme.primary,
+                              ),
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // AM/PM Period
+                        Text(
+                          _clockAmPm,
+                          style: widget.theme.fontMono(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: widget.theme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 6),
+
+                    // Date & Day (e.g. Thursday, 12 November 2026)
                     Text(
-                      "LIVE REAL-TIME CLOCK",
+                      _clockDateDay,
                       style: widget.theme.fontMono(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFFF39C12),
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: widget.theme.textSecondary,
                       ),
                     ),
                   ],
-                ),
-                InkWell(
-                  onTap: _deactivateLiveClock,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: widget.theme.border.withValues(alpha: 0.3),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      "Exit Clock",
-                      style: widget.theme.fontMono(fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            Center(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                child: Text(
-                  _clockTimeStr,
-                  key: ValueKey<String>(_clockTimeStr),
-                  style: widget.theme.fontDisplay(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    color: widget.theme.primary,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 4),
-            Center(
-              child: Text(
-                _clockDateStr,
-                style: widget.theme.fontMono(
-                  fontSize: 12,
-                  color: widget.theme.textSecondary,
-                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
@@ -1324,26 +1344,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               ),
             ),
 
-            // Easter Egg Row for Programmer Mode
-            if (_easterEggText != null) ...[
-              const SizedBox(height: 6),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: widget.theme.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: widget.theme.primary.withValues(alpha: 0.4)),
-                  ),
-                  child: Text(
-                    _easterEggText!,
-                    style: widget.theme.fontMono(fontSize: 11, fontWeight: FontWeight.bold, color: widget.theme.primary),
-                  ),
-                ),
-              ),
-            ],
-          ] else ...[
             // Normal Basic & Scientific Calculator Display Row
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1481,28 +1481,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Easter Egg chip / badge (left/center)
-                  if (_easterEggText != null)
+                  // Easter Egg text without BG or border (simply UI colour text, NO emoji, NO explanations)
+                  if (_easterEggText != null && _calcMode == CalcMode.basic)
                     Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: widget.theme.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: widget.theme.primary.withValues(alpha: 0.4),
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          _easterEggText!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: widget.theme.fontMono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: widget.theme.primary,
-                          ),
+                      child: Text(
+                        _easterEggText!,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: widget.theme.fontDisplay(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: widget.theme.primary,
                         ),
                       ),
                     )
@@ -1701,21 +1690,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           theme: widget.theme,
           isEnabled: isAllowed,
           onTap: isAllowed ? () => _onKeyPress(key) : () {},
-          onLongPress: isClear
-              ? _activateLiveClock
-              : key == '⌫'
-                  ? () {
-                      HapticFeedback.heavyImpact();
-                      SoundService().playKey();
-                      setState(() {
-                        _expression = '0';
-                        _previewResult = '';
-                        _progValue = BigInt.zero;
-                        _easterEggText = null;
-                      });
-                      _showToast("All cleared");
-                    }
-                  : null,
+          onThreeSecondHold: isClear ? _activateLiveClock : null,
+          onLongPress: key == '⌫'
+              ? () {
+                  HapticFeedback.heavyImpact();
+                  SoundService().playKey();
+                  setState(() {
+                    _expression = '0';
+                    _previewResult = '';
+                    _progValue = BigInt.zero;
+                    _easterEggText = null;
+                  });
+                  _showToast("All cleared");
+                }
+              : null,
         ),
       ),
     );
@@ -1876,20 +1864,19 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
           isEquals: isEquals,
           theme: widget.theme,
           onTap: () => _onKeyPress(key),
-          onLongPress: isClear
-              ? _activateLiveClock
-              : key == '⌫'
-                  ? () {
-                      HapticFeedback.heavyImpact();
-                      SoundService().playKey();
-                      setState(() {
-                        _expression = '0';
-                        _previewResult = '';
-                        _easterEggText = null;
-                      });
-                      _showToast("All cleared");
-                    }
-                  : null,
+          onThreeSecondHold: isClear ? _activateLiveClock : null,
+          onLongPress: key == '⌫'
+              ? () {
+                  HapticFeedback.heavyImpact();
+                  SoundService().playKey();
+                  setState(() {
+                    _expression = '0';
+                    _previewResult = '';
+                    _easterEggText = null;
+                  });
+                  _showToast("All cleared");
+                }
+              : null,
         ),
       ),
     );
@@ -1911,6 +1898,7 @@ class _AnimatedCalcButton extends StatefulWidget {
   final bool isEnabled;
   final VoidCallback onTap;
   final VoidCallback? onLongPress;
+  final VoidCallback? onThreeSecondHold;
 
   const _AnimatedCalcButton({
     required this.label,
@@ -1923,6 +1911,7 @@ class _AnimatedCalcButton extends StatefulWidget {
     this.isEnabled = true,
     required this.onTap,
     this.onLongPress,
+    this.onThreeSecondHold,
   });
 
   @override
@@ -1931,6 +1920,32 @@ class _AnimatedCalcButton extends StatefulWidget {
 
 class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> {
   bool _isPressed = false;
+  Timer? _holdTimer;
+  bool _didTriggerHold = false;
+
+  void _startHoldTimer() {
+    _holdTimer?.cancel();
+    _didTriggerHold = false;
+    if (widget.onThreeSecondHold != null) {
+      _holdTimer = Timer(const Duration(milliseconds: 3000), () {
+        if (mounted && _isPressed) {
+          _didTriggerHold = true;
+          widget.onThreeSecondHold!();
+        }
+      });
+    }
+  }
+
+  void _cancelHoldTimer() {
+    _holdTimer?.cancel();
+    _holdTimer = null;
+  }
+
+  @override
+  void dispose() {
+    _cancelHoldTimer();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1954,12 +1969,23 @@ class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> {
     }
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
-        setState(() => _isPressed = false);
-        widget.onTap();
+      onTapDown: (_) {
+        setState(() => _isPressed = true);
+        _startHoldTimer();
       },
-      onTapCancel: () => setState(() => _isPressed = false),
+      onTapUp: (_) {
+        _cancelHoldTimer();
+        setState(() => _isPressed = false);
+        if (!_didTriggerHold) {
+          widget.onTap();
+        }
+        _didTriggerHold = false;
+      },
+      onTapCancel: () {
+        _cancelHoldTimer();
+        setState(() => _isPressed = false);
+        _didTriggerHold = false;
+      },
       onLongPress: widget.onLongPress,
       child: AnimatedScale(
         scale: _isPressed ? 0.91 : 1.0,

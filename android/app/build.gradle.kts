@@ -19,8 +19,8 @@ android {
 
     defaultConfig {
         applicationId = "com.tooler.tooler"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 24
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -46,7 +46,7 @@ android {
 
     buildTypes {
         release {
-            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
