@@ -75,7 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
     'Calculate',
     'Convert',
     'Time & Tasks',
-    'Utilities',
   ];
 
   @override
@@ -179,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'id': 'compass',
         'title': 'Compass',
         'subtitle': 'Real-time gyro, magnetic heading & spirit level',
-        'category': 'Utilities',
+        'category': 'Convert',
         'tag': 'Live Sensor',
         'iconType': 'compass',
         'isFeatured': true,
@@ -388,7 +387,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'id': 'password',
         'title': 'Password Generator',
         'subtitle': 'Cryptographic entropy & custom rules',
-        'category': 'Utilities',
+        'category': 'Time & Tasks',
         'tag': 'Security',
         'iconType': 'password',
         'isFeatured': false,
@@ -410,7 +409,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'id': 'browser',
         'title': 'Browser',
         'subtitle': 'Fast web search, built-in VPN, full-screen & zero history',
-        'category': 'Utilities',
+        'category': 'Time & Tasks',
         'tag': 'Web Utility',
         'iconType': 'browser',
         'isFeatured': false,
@@ -434,7 +433,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'id': 'games',
         'title': 'Game',
         'subtitle': 'Ludo, UNO, Snake & Ladder, Tic-Tac-Toe, Tetris & Snake',
-        'category': 'Utilities',
+        'category': 'Time & Tasks',
         'tag': 'Arcade & Board',
         'iconType': 'games',
         'isFeatured': false,
@@ -461,7 +460,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'id': 'recorder',
         'title': 'Noise Meter & Recorder',
         'subtitle': 'Live dB gauge, noise safety & audio capture',
-        'category': 'Utilities',
+        'category': 'Time & Tasks',
         'tag': 'Acoustic dB',
         'iconType': 'recorder',
         'isFeatured': false,
@@ -484,7 +483,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'id': 'illustrations',
         'title': 'Character Studio',
         'subtitle': '2D Flat vector characters & SVG code',
-        'category': 'Utilities',
+        'category': 'Time & Tasks',
         'tag': 'Vector SVG',
         'iconType': 'illustrations',
         'isFeatured': true,
@@ -1282,66 +1281,32 @@ class _HomeScreenState extends State<HomeScreen> {
                         isDark: isDark,
                       ),
                       const SizedBox(width: 14),
-                      // Tool Info
+                      // Tool Info - Clean Single Title (No tags, no extra clutter words)
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             Text(
                               tool['title'] as String,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: GoogleFonts.plusJakartaSans(
-                                fontSize: 15,
+                                fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: theme.text,
                               ),
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              tool['subtitle'] as String,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                                color: theme.textSecondary,
-                              ),
-                            ),
                             if (_searchQuery.isNotEmpty && highlight != null) ...[
-                              const SizedBox(height: 5),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: theme.primary.withValues(alpha: 0.08),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: theme.primary.withValues(alpha: 0.25),
-                                    width: 0.8,
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.auto_awesome_rounded,
-                                      size: 11,
-                                      color: theme.primary,
-                                    ),
-                                    const SizedBox(width: 4),
-                                    Flexible(
-                                      child: Text(
-                                        highlight,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: GoogleFonts.plusJakartaSans(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: theme.primaryDark,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                              const SizedBox(height: 4),
+                              Text(
+                                highlight,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.primary,
                                 ),
                               ),
                             ],
@@ -1349,11 +1314,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      // Trailing morph: favorite heart when favorited, chevron arrow when normal
+                      // Trailing morph: favorite heart when favorited, arrow when normal
                       AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 240),
-                        switchInCurve: Curves.easeOutCubic,
-                        switchOutCurve: Curves.easeInCubic,
+                        duration: const Duration(milliseconds: 260),
+                        switchInCurve: Curves.easeOutBack,
+                        switchOutCurve: Curves.easeIn,
                         transitionBuilder: (child, anim) => ScaleTransition(
                           scale: anim,
                           child: FadeTransition(opacity: anim, child: child),
@@ -1361,8 +1326,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: _favoriteToolTitles.contains(tool['title'])
                             ? Container(
                                 key: const ValueKey('fav_active'),
-                                width: 34,
-                                height: 34,
+                                width: 36,
+                                height: 36,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   color: theme.lavenderBubble,
@@ -1375,24 +1340,28 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ],
                                 ),
-                                child: Icon(
-                                  Icons.favorite_rounded,
-                                  size: 18,
-                                  color: theme.primary,
+                                child: const Center(
+                                  child: Icon(
+                                    Icons.favorite_rounded,
+                                    size: 18,
+                                    color: Color(0xFFFF4757),
+                                  ),
                                 ),
                               )
                             : Container(
                                 key: const ValueKey('fav_inactive'),
-                                width: 34,
-                                height: 34,
+                                width: 36,
+                                height: 36,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   border: Border.all(color: theme.border, width: 1.2),
                                 ),
-                                child: Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 20,
-                                  color: theme.textSecondary,
+                                child: Center(
+                                  child: Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 14,
+                                    color: theme.textSecondary,
+                                  ),
                                 ),
                               ),
                       ),
