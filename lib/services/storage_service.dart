@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/task_model.dart';
 import '../models/counter_model.dart';
 import '../models/calc_history_model.dart';
+import '../models/calendar_event_model.dart';
 import '../theme/stationery_theme.dart';
 import 'security_service.dart';
 
@@ -13,6 +14,9 @@ class StorageService {
 
   static const String keyTasks = 'tooler_tasks';
   static const String keyTasksChecksum = 'tooler_tasks_checksum';
+  static const String keyCalendarEvents = 'tooler_calendar_events';
+  static const String keyCalendarEventsChecksum = 'tooler_calendar_events_checksum';
+  static const String keyCalendarIntlNotifications = 'tooler_calendar_intl_notifications';
   static const String keyCounters = 'tooler_counters';
   static const String keyCountersChecksum = 'tooler_counters_checksum';
   static const String keyCalcHistory = 'tooler_calc_history';
@@ -77,6 +81,42 @@ class StorageService {
     final checksum = SecurityService().generateIntegrityChecksum(str);
     await prefs.setString(keyTasks, str);
     await prefs.setString(keyTasksChecksum, checksum);
+  }
+
+  Future<bool> loadCalendarIntlNotifications() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(keyCalendarIntlNotifications) ?? true;
+  }
+
+  Future<void> saveCalendarIntlNotifications(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyCalendarIntlNotifications, enabled);
+  }
+
+  Future<List<CalendarEventModel>> loadCalendarEvents() async {
+    final prefs = await SharedPreferences.getInstance();
+    final str = prefs.getString(keyCalendarEvents);
+    if (str == null || str.isEmpty) {
+      return [];
+    }
+    final checksum = prefs.getString(keyCalendarEventsChecksum);
+    if (!SecurityService().verifyIntegrity(content: str, storedChecksum: checksum)) {
+      return [];
+    }
+    try {
+      final List decoded = jsonDecode(str);
+      return decoded.map((e) => CalendarEventModel.fromJson(e)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveCalendarEvents(List<CalendarEventModel> events) async {
+    final prefs = await SharedPreferences.getInstance();
+    final str = jsonEncode(events.map((e) => e.toJson()).toList());
+    final checksum = SecurityService().generateIntegrityChecksum(str);
+    await prefs.setString(keyCalendarEvents, str);
+    await prefs.setString(keyCalendarEventsChecksum, checksum);
   }
 
   Future<List<CounterItem>> loadCounters() async {

@@ -30,7 +30,7 @@ class Stationery3DModal extends StatefulWidget {
       context: context,
       barrierDismissible: true,
       barrierLabel: 'Dismiss Modal',
-      barrierColor: Colors.black.withOpacity(0.55),
+      barrierColor: Colors.black.withValues(alpha: 0.55),
       transitionDuration: const Duration(milliseconds: 380),
       pageBuilder: (context, anim1, anim2) {
         return Stationery3DModal(
@@ -49,7 +49,7 @@ class Stationery3DModal extends StatefulWidget {
           alignment: Alignment.center,
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.001)
-            ..scale(curvedValue)
+            ..scaleByDouble(curvedValue, curvedValue, 1.0, 1.0)
             ..rotateX(rotationValue),
           child: Opacity(
             opacity: anim.value.clamp(0.0, 1.0),
@@ -95,7 +95,7 @@ class _Stationery3DModalState extends State<Stationery3DModal> {
                     Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: widget.theme.primary.withOpacity(0.15),
+                        color: widget.theme.primary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
@@ -121,7 +121,7 @@ class _Stationery3DModalState extends State<Stationery3DModal> {
                               widget.subtitle!,
                               style: widget.theme.fontDoodle(
                                 fontSize: 13,
-                                color: widget.theme.text.withOpacity(0.7),
+                                color: widget.theme.text.withValues(alpha: 0.7),
                               ),
                             ),
                         ],

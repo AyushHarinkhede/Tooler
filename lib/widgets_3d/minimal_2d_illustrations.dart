@@ -549,6 +549,9 @@ class _IllustrationPainter extends CustomPainter {
       case 'browser':
         _drawBrowser(canvas, w, h, p, fillAccent);
         break;
+      case 'calendar':
+        _drawCalendar(canvas, w, h, p, fillAccent);
+        break;
       case 'password':
         _drawPassword(canvas, w, h, p, fillAccent);
         break;
@@ -861,6 +864,34 @@ class _IllustrationPainter extends CustomPainter {
 
     canvas.drawLine(Offset(w * 0.22, h * 0.64), Offset(w * 0.78, h * 0.64), p);
     canvas.drawCircle(Offset(w * 0.62, h * 0.64), w * 0.06, p);
+  }
+
+  void _drawCalendar(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    // Outer rounded calendar box
+    final calRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.22, h * 0.22, w * 0.56, h * 0.58),
+      Radius.circular(w * 0.10),
+    );
+    canvas.drawRRect(calRect, p);
+
+    // Top header banner line
+    canvas.drawLine(Offset(w * 0.22, h * 0.38), Offset(w * 0.78, h * 0.38), p);
+
+    // Two top hanging binder rings
+    canvas.drawLine(Offset(w * 0.36, h * 0.14), Offset(w * 0.36, h * 0.26), p);
+    canvas.drawLine(Offset(w * 0.64, h * 0.14), Offset(w * 0.64, h * 0.26), p);
+
+    // Calendar date grid pips
+    final r = w * 0.035;
+    // Row 1
+    canvas.drawCircle(Offset(w * 0.36, h * 0.48), r, p);
+    canvas.drawCircle(Offset(w * 0.50, h * 0.48), r, p);
+    canvas.drawCircle(Offset(w * 0.64, h * 0.48), r, p);
+
+    // Row 2 (with accent event marker)
+    canvas.drawCircle(Offset(w * 0.36, h * 0.62), r, p);
+    canvas.drawCircle(Offset(w * 0.50, h * 0.62), r * 1.3, fill);
+    canvas.drawCircle(Offset(w * 0.64, h * 0.62), r, p);
   }
 
   @override

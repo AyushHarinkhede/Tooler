@@ -82,7 +82,7 @@ class _PaperCrumpleTransition extends StatelessWidget {
         // 4. Transform Matrix
         final Matrix4 matrix = Matrix4.identity()
           ..setEntry(3, 2, 0.0012)
-          ..scale(scale, scale, 1.0)
+          ..scaleByDouble(scale, scale, 1.0, 1.0)
           ..rotateZ(rotation)
           ..rotateX((1.0 - t) * 0.15)
           ..rotateY((1.0 - t) * -0.15);

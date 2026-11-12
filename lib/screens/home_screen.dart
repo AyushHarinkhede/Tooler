@@ -14,6 +14,7 @@ import 'timer_screen.dart';
 import 'sizer_screen.dart';
 import 'counters_screen.dart';
 import 'tasks_screen.dart';
+import 'calendar_screen.dart';
 import 'currency_screen.dart';
 import 'games_screen.dart';
 import 'browser_screen.dart';
@@ -315,6 +316,31 @@ class _HomeScreenState extends State<HomeScreen> {
           'productivity', 'planner', 'reminders', 'suchi', 'kaam',
         ],
         'builder': (context) => TasksScreen(theme: widget.theme),
+      },
+      {
+        'id': 'calendar',
+        'title': 'Calendar & Observances',
+        'subtitle': 'International days, swipe navigation & reminders',
+        'category': 'Time & Tasks',
+        'tag': 'Global & Personal',
+        'iconType': 'calendar',
+        'isFeatured': true,
+        'features': [
+          {'name': 'Horizontal Month Swipe', 'desc': 'Slide smoothly between months with exact mathematical weekday alignment'},
+          {'name': 'Pure Red Sundays', 'desc': 'All Sunday dates rendered in striking pure red typography matching calendar conventions'},
+          {'name': 'Universal Celebration Days', 'desc': 'Fixed annual worldwide international days with vector icons & themed containers'},
+          {'name': 'Personal Event & Note Reminders', 'desc': 'Add birthdays, anniversaries, meetings with alarm notifications and repeat cycles'},
+          {'name': 'Annual & Monthly Recurrence', 'desc': 'Configurable repeat rules (yearly, monthly, weekly) for recurring events'},
+          {'name': 'Tasks Checklist Synchronization', 'desc': 'Personal calendar events automatically sync with your Tasks & Notes checklist'},
+        ],
+        'keywords': [
+          'calendar', 'calender', 'date', 'month', 'year', 'swipe calendar', 'horizontal swipe',
+          'sunday', 'pure red sunday', 'red sunday', 'international days', 'world days', 'un days',
+          'celebration', 'observance', 'birthday', 'anniversary', 'reminder', 'personal note',
+          'instruction', 'repeat', 'annual reminder', 'monthly reminder', 'task sync', 'schedule',
+          'panchang', 'tarikh', 'mahina', 'sal', 'din', 'event reminder',
+        ],
+        'builder': (context) => CalendarScreen(theme: widget.theme),
       },
       {
         'id': 'currency',

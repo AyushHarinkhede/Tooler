@@ -154,4 +154,48 @@ class NotificationService {
       await _notifications.cancel(taskId);
     } catch (_) {}
   }
+
+  Future<void> scheduleCalendarReminder({
+    required int id,
+    required String title,
+    required String note,
+    required DateTime dueDateTime,
+  }) async {
+    if (!await isEnabled) return;
+    await init();
+
+    if (dueDateTime.isBefore(DateTime.now())) return;
+
+    try {
+      final scheduledTz = tz.TZDateTime.from(dueDateTime, tz.local);
+
+      const androidDetails = AndroidNotificationDetails(
+        'tooler_calendar_channel',
+        'Calendar Reminders',
+        channelDescription: 'Event and celebration alerts for Calendar',
+        importance: Importance.high,
+        priority: Priority.high,
+        playSound: true,
+        enableVibration: true,
+      );
+
+      const details = NotificationDetails(android: androidDetails);
+
+      await _notifications.zonedSchedule(
+        id,
+        title,
+        note.isNotEmpty ? note : "Tooler Calendar Event Reminder",
+        scheduledTz,
+        details,
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> cancelCalendarReminder(int id) async {
+    try {
+      await _notifications.cancel(id);
+    } catch (_) {}
+  }
 }
