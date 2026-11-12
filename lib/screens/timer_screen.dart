@@ -7,6 +7,7 @@ import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/tooler_character.dart';
 
 class TimerScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -277,14 +278,23 @@ class _TimerScreenState extends State<TimerScreen>
           ),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              ToolerCharacter.celebrating(
+                theme: widget.theme,
+                width: 140,
+                height: 110,
+                animate: true,
+              ),
+              const SizedBox(height: 12),
               Text(
                 "Your countdown timer (${_formatTimerDisplay(_initialSeconds)}) has completed.",
+                textAlign: TextAlign.center,
                 style: widget.theme.fontDoodle(fontSize: 15),
               ),
               const SizedBox(height: 12),
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.music_note_rounded, size: 16, color: Color(0xFF2ED573)),
                   const SizedBox(width: 6),
@@ -622,7 +632,56 @@ class _TimerScreenState extends State<TimerScreen>
                       ],
                     ),
                   ),
-                  const SizedBox(height: 20),
+
+                  // Focus Mode Mascot Companion Card
+                  Container(
+                    margin: const EdgeInsets.only(top: 8, bottom: 20),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: widget.theme.cardBg,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: widget.theme.border.withValues(alpha: 0.6)),
+                    ),
+                    child: Row(
+                      children: [
+                        ToolerCharacter(
+                          pose: _isRunning ? ToolerCharacterPose.workingLaptop : ToolerCharacterPose.studyWriting,
+                          theme: widget.theme,
+                          width: 80,
+                          height: 70,
+                          animate: _isRunning,
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _isRunning ? "Focus Session in Progress" : "Ready for Deep Work",
+                                style: widget.theme.fontDisplay(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: widget.theme.text,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _isRunning
+                                    ? "Stay in flow. Background alerts will notify you when done."
+                                    : "Pick a duration or custom timer to start your focus sprint.",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: widget.theme.textSecondary,
+                                  height: 1.3,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                 ],
               ),
             ),

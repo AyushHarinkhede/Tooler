@@ -4,6 +4,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
+import '../widgets_3d/tooler_character.dart';
 import '../widgets_3d/tooler_hover_sheet.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import 'calculator_screen.dart';
@@ -56,6 +57,14 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedCategory = 'All';
   String _searchQuery = '';
   bool _isSearchFocused = false;
+  ToolerCharacterPose _heroPose = ToolerCharacterPose.workingLaptop;
+
+  void _cycleHeroPose() {
+    final nextIdx = (_heroPose.index + 1) % ToolerCharacterPose.values.length;
+    setState(() {
+      _heroPose = ToolerCharacterPose.values[nextIdx];
+    });
+  }
 
   late final List<Map<String, dynamic>> _tools;
 
@@ -818,12 +827,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // 2D Line Artwork (Person at desk + soft accent bubble)
-              Minimal2DHeroDesk(
-                width: 120,
-                height: 95,
-                accentColor: theme.primary,
-                isDark: isDark,
+              // Interactive Themed Vector Character (Tap to Cycle Poses!)
+              ToolerCharacter(
+                pose: _heroPose,
+                width: 125,
+                height: 100,
+                theme: theme,
+                animate: true,
+                onTap: _cycleHeroPose,
               ),
             ],
           ),
@@ -1225,7 +1236,12 @@ class _HomeScreenState extends State<HomeScreen> {
         alignment: Alignment.center,
         child: Column(
           children: [
-            Minimal2DIcon(type: 'settings', size: 54, color: theme.textSecondary, accentColor: theme.primary, bubbleColor: theme.lavenderBubble, isDark: isDark),
+            ToolerCharacter.thinking(
+              theme: theme,
+              width: 150,
+              height: 130,
+              animate: true,
+            ),
             const SizedBox(height: 12),
             Text(
               'No utility tools found',
@@ -1233,6 +1249,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
                 color: theme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Try searching with different keywords',
+              style: TextStyle(
+                fontSize: 12,
+                color: theme.textSecondary.withValues(alpha: 0.7),
               ),
             ),
           ],

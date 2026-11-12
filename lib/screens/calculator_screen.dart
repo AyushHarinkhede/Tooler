@@ -9,6 +9,7 @@ import '../models/calc_history_model.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../widgets_3d/stationery_3d_modal.dart';
+import '../widgets_3d/tooler_character.dart';
 
 enum CalcMode { basic, scientific, programmer }
 enum ProgBase { hex, dec, oct, bin }
@@ -911,14 +912,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> {
       theme: widget.theme,
       content: _history.isEmpty
           ? Padding(
-              padding: const EdgeInsets.symmetric(vertical: 32),
+              padding: const EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Column(
                   children: [
-                    Icon(
-                      Icons.history_toggle_off_rounded,
-                      size: 48,
-                      color: widget.theme.textSecondary.withValues(alpha: 0.5),
+                    ToolerCharacter.thinking(
+                      theme: widget.theme,
+                      width: 140,
+                      height: 110,
+                      animate: true,
                     ),
                     const SizedBox(height: 12),
                     Text(

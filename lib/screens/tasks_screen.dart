@@ -7,6 +7,7 @@ import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/tooler_character.dart';
 
 class TasksScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -384,12 +385,29 @@ class _TasksScreenState extends State<TasksScreen> {
                 Expanded(
                   child: _filteredTasks.isEmpty
                       ? Center(
-                          child: Text(
-                            "No tasks found!\nEnjoy your free time!",
-                            textAlign: TextAlign.center,
-                            style: widget.theme.fontDoodle(
-                              fontSize: 18,
-                              color: widget.theme.text.withValues(alpha: 0.6),
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ToolerCharacter.celebrating(
+                                  theme: widget.theme,
+                                  width: 170,
+                                  height: 150,
+                                  animate: true,
+                                ),
+                                const SizedBox(height: 12),
+                                Text(
+                                  _filter == 'Done'
+                                      ? "No completed tasks yet!\nCheck off a task to celebrate!"
+                                      : "All tasks done!\nEnjoy your free time!",
+                                  textAlign: TextAlign.center,
+                                  style: widget.theme.fontDoodle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: widget.theme.text.withValues(alpha: 0.75),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         )

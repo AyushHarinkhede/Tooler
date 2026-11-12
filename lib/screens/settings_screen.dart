@@ -7,6 +7,7 @@ import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/tooler_character.dart';
 
 /// ---------------------------------------------------------------------------
 /// REDESIGNED MINIMAL SETTINGS SCREEN
@@ -354,13 +355,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(height: 14),
+              const SizedBox(height: 10),
+              ToolerCharacter.designing(
+                theme: theme,
+                width: 140,
+                height: 105,
+                animate: true,
+              ),
+              const SizedBox(height: 12),
               ToolerLogo(
-                height: 44,
+                height: 40,
                 color: theme.text,
                 accentColor: theme.primary,
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
               Text(
                 'A clean, aesthetic, minimal multi-utility application offering precision calculators, unit converters, geometric sizers, live compass sensors, and productivity tools with zero clutter.',
                 textAlign: TextAlign.center,

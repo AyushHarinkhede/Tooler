@@ -5,6 +5,7 @@ import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
+import '../widgets_3d/tooler_character.dart';
 
 class StopwatchScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -383,17 +384,27 @@ class _StopwatchScreenState extends State<StopwatchScreen>
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.timer_outlined,
-                                size: 36,
-                                color: widget.theme.textSecondary.withValues(alpha: 0.5),
+                              ToolerCharacter(
+                                pose: ToolerCharacterPose.dualMonitor,
+                                theme: widget.theme,
+                                width: 140,
+                                height: 110,
+                                animate: _isRunning,
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 10),
                               Text(
                                 "No laps recorded yet",
                                 style: widget.theme.fontDoodle(
                                   fontSize: 15,
                                   color: widget.theme.textSecondary,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                "Tap 'Lap' while running to track split records",
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: widget.theme.textSecondary.withValues(alpha: 0.8),
                                 ),
                               ),
                             ],

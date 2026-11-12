@@ -163,25 +163,29 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
 
   String _getThemedSvg(String rawSvg) {
     final hexPrimary = '#${(widget.theme.primary.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
-    final hexLight = '#${(widget.theme.primary.withValues(alpha: 0.25).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+    final hexLight = '#${(widget.theme.primary.withValues(alpha: 0.22).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+    final hexPantsBack = '#${(widget.theme.primary.withValues(alpha: 0.78).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
     final isDark = widget.theme.isDark;
 
     var svg = rawSvg
+        .replaceAll('var(--char-accent, #9468E8)', hexPrimary)
         .replaceAll('#9468E8', hexPrimary)
         .replaceAll('#A855F7', hexPrimary)
-        .replaceAll('var(--char-accent, #9468E8)', hexPrimary)
+        .replaceAll('#7E4EE0', hexPantsBack)
+        .replaceAll('#EDE9FE', hexLight)
         .replaceAll('#C8B6FA', hexLight)
-        .replaceAll('#EDE9FE', hexLight);
+        .replaceAll('#DDD6FE', hexLight);
 
     if (isDark) {
       svg = svg
+          .replaceAll('#1E2235', '#F4F4F5')
           .replaceAll('#1D2436', '#F4F4F5')
           .replaceAll('#23233A', '#F4F4F5')
           .replaceAll('#181829', '#F4F4F5')
           .replaceAll('#18181B', '#F4F4F5')
-          .replaceAll('#F4F1F8', 'transparent');
-    } else {
-      svg = svg.replaceAll('#F4F1F8', 'transparent');
+          .replaceAll('#F8F7FC', '#27272A')
+          .replaceAll('#F4F1F8', '#27272A')
+          .replaceAll('#FEE8DE', '#2C2B36');
     }
     return svg;
   }

@@ -5,6 +5,7 @@ import '../models/counter_model.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/tooler_character.dart';
 
 class CountersScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -139,13 +140,26 @@ class _CountersScreenState extends State<CountersScreen> {
                 Expanded(
                   child: _counters.isEmpty
                       ? Center(
-                          child: Text(
-                            "No counters yet.\nAdd one above!",
-                            textAlign: TextAlign.center,
-                            style: widget.theme.fontDoodle(
-                              fontSize: 18,
-                              color: widget.theme.text.withValues(alpha: 0.6),
-                            ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              ToolerCharacter(
+                                pose: ToolerCharacterPose.phoneMultitasking,
+                                theme: widget.theme,
+                                width: 140,
+                                height: 110,
+                                animate: true,
+                              ),
+                              const SizedBox(height: 12),
+                              Text(
+                                "No counters yet.\nAdd one above!",
+                                textAlign: TextAlign.center,
+                                style: widget.theme.fontDoodle(
+                                  fontSize: 16,
+                                  color: widget.theme.text.withValues(alpha: 0.7),
+                                ),
+                              ),
+                            ],
                           ),
                         )
                       : ListView.builder(

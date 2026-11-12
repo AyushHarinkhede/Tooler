@@ -8,6 +8,7 @@ import '../services/storage_service.dart';
 import '../services/sound_service.dart';
 import '../services/notification_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/tooler_character.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER CALENDAR & OBSERVANCES SCREEN
@@ -1247,18 +1248,28 @@ class _CalendarScreenState extends State<CalendarScreen> {
             if (intlDay == null)
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 14),
                 decoration: BoxDecoration(
                   color: theme.bg,
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: theme.border.withValues(alpha: 0.6)),
                 ),
-                child: Center(
-                  child: Text(
-                    'No personal notes or reminders for this date.\nTap "+ Add Note" to set Birthday, Anniversary or Tasks.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 11, color: theme.textSecondary, height: 1.4),
-                  ),
+                child: Column(
+                  children: [
+                    ToolerCharacter(
+                      pose: ToolerCharacterPose.projectRoadmap,
+                      theme: theme,
+                      width: 140,
+                      height: 105,
+                      animate: true,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'No personal notes or reminders for this date.\nTap "+ Add Note" to plan Birthdays, Anniversaries or Tasks.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 11, color: theme.textSecondary, height: 1.4),
+                    ),
+                  ],
                 ),
               ),
           ] else ...[

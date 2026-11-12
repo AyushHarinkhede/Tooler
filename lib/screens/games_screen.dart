@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
+import '../widgets_3d/tooler_character.dart';
 
 enum GameType { tictactoe, snake, ludo, snakesAndLadders, uno, tetris }
 enum GameOutcome { win, lose, draw }
@@ -1586,9 +1587,21 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox(
+                ToolerCharacter(
+                  pose: outcome == GameOutcome.win
+                      ? ToolerCharacterPose.celebratingSuccess
+                      : (outcome == GameOutcome.lose
+                          ? ToolerCharacterPose.tabletThinking
+                          : ToolerCharacterPose.brainstormStickyWall),
+                  theme: widget.theme,
                   width: 140,
-                  height: 100,
+                  height: 105,
+                  animate: true,
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: 130,
+                  height: 70,
                   child: CustomPaint(painter: painter),
                 ),
                 const SizedBox(height: 10),
