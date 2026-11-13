@@ -803,6 +803,18 @@ open class MainActivity : FlutterActivity() {
                         call.argument<String>("favToolId")?.let {
                             editor.putString(ToolerWidgetRenderer.KEY_FAV_TOOL_ID, it)
                         }
+                        call.argument<Number>("counterId")?.let {
+                            editor.putInt(ToolerWidgetRenderer.KEY_COUNTER_ID, it.toInt())
+                        }
+                        call.argument<String>("counterName")?.let {
+                            editor.putString(ToolerWidgetRenderer.KEY_COUNTER_NAME, it)
+                        }
+                        call.argument<Number>("counterValue")?.let {
+                            editor.putInt(ToolerWidgetRenderer.KEY_COUNTER_VALUE, it.toInt())
+                        }
+                        call.argument<Number>("counterStep")?.let {
+                            editor.putInt(ToolerWidgetRenderer.KEY_COUNTER_STEP, it.toInt())
+                        }
                         call.argument<Number>("appCardBg")?.let {
                             editor.putInt(ToolerWidgetRenderer.KEY_APP_CARD_BG, it.toInt())
                         }
@@ -825,6 +837,7 @@ open class MainActivity : FlutterActivity() {
 
                         ToolerQuickBarWidgetProvider.updateAllWidgets(applicationContext)
                         ToolerFavWidgetProvider.updateAllWidgets(applicationContext)
+                        ToolerCounterWidgetProvider.updateAllWidgets(applicationContext)
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("WIDGET_SAVE_ERROR", e.message, null)
@@ -836,10 +849,10 @@ open class MainActivity : FlutterActivity() {
                         try {
                             val appWidgetManager = AppWidgetManager.getInstance(this)
                             if (appWidgetManager.isRequestPinAppWidgetSupported) {
-                                val provider = if (ratio == "1x1") {
-                                    ComponentName(this, ToolerFavWidgetProvider::class.java)
-                                } else {
-                                    ComponentName(this, ToolerQuickBarWidgetProvider::class.java)
+                                val provider = when (ratio) {
+                                    "1x1" -> ComponentName(this, ToolerFavWidgetProvider::class.java)
+                                    "2x2" -> ComponentName(this, ToolerCounterWidgetProvider::class.java)
+                                    else -> ComponentName(this, ToolerQuickBarWidgetProvider::class.java)
                                 }
                                 val pinned = appWidgetManager.requestPinAppWidget(provider, null, null)
                                 result.success(pinned)

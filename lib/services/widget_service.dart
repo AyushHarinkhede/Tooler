@@ -32,15 +32,27 @@ class WidgetService {
 
   static const String _keyColorMode = 'tooler_widget_color_mode'; // 'app' or 'system'
   static const String _keyFavToolId = 'tooler_widget_fav_tool_id';
-  static const String _keySelectedRatio = 'tooler_widget_selected_ratio'; // '4x1' or '1x1'
+  static const String _keySelectedRatio = 'tooler_widget_selected_ratio'; // '4x1', '2x2', or '1x1'
+  static const String _keyCounterId = 'tooler_widget_counter_id';
+  static const String _keyCounterName = 'tooler_widget_counter_name';
+  static const String _keyCounterValue = 'tooler_widget_counter_value';
+  static const String _keyCounterStep = 'tooler_widget_counter_step';
 
   String _colorMode = 'app';
   String _favToolId = 'calc';
   String _selectedRatio = '4x1';
+  int? _counterId;
+  String _counterName = 'Tally Counter';
+  int _counterValue = 0;
+  int _counterStep = 1;
 
   String get colorMode => _colorMode;
   String get favToolId => _favToolId;
   String get selectedRatio => _selectedRatio;
+  int? get counterId => _counterId;
+  String get counterName => _counterName;
+  int get counterValue => _counterValue;
+  int get counterStep => _counterStep;
 
   void Function(String toolId)? _onLaunchCallback;
 
@@ -85,7 +97,34 @@ class WidgetService {
       _colorMode = prefs.getString(_keyColorMode) ?? 'app';
       _favToolId = prefs.getString(_keyFavToolId) ?? 'calc';
       _selectedRatio = prefs.getString(_keySelectedRatio) ?? '4x1';
+      _counterId = prefs.getInt(_keyCounterId);
+      _counterName = prefs.getString(_keyCounterName) ?? 'Tally Counter';
+      _counterValue = prefs.getInt(_keyCounterValue) ?? 0;
+      _counterStep = prefs.getInt(_keyCounterStep) ?? 1;
     } catch (_) {}
+  }
+
+  Future<void> syncCounterToNative({
+    required int id,
+    required String name,
+    required int value,
+    required int step,
+    required StationeryTheme theme,
+  }) async {
+    _counterId = id;
+    _counterName = name;
+    _counterValue = value;
+    _counterStep = step;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt(_keyCounterId, id);
+      await prefs.setString(_keyCounterName, name);
+      await prefs.setInt(_keyCounterValue, value);
+      await prefs.setInt(_keyCounterStep, step);
+    } catch (_) {}
+
+    await syncToNative(theme);
   }
 
   Future<void> saveConfig({
@@ -114,6 +153,10 @@ class WidgetService {
       await _channel.invokeMethod('saveAndRefreshWidgets', {
         'colorMode': _colorMode,
         'favToolId': _favToolId,
+        'counterId': _counterId ?? 0,
+        'counterName': _counterName,
+        'counterValue': _counterValue,
+        'counterStep': _counterStep,
         'appCardBg': theme.cardBg.toARGB32(),
         'appBubble': theme.lavenderBubble.toARGB32(),
         'appPrimary': theme.primary.toARGB32(),

@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
+import '../models/counter_model.dart';
 import '../services/sound_service.dart';
+import '../services/storage_service.dart';
 import '../services/widget_service.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
 import '../widgets_3d/bouncy_tap.dart';
@@ -20,11 +22,17 @@ class WidgetSettingsScreen extends StatefulWidget {
 }
 
 class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
-  String _selectedRatio = '4x1'; // '4x1' or '1x1'
+  String _selectedRatio = '4x1'; // '4x1', '2x2', or '1x1'
   String _colorMode = 'app';     // 'app' or 'system'
   String _favToolId = 'calc';
   WidgetSystemColors? _systemColors;
   bool _isPinning = false;
+
+  int? _counterId;
+  String _counterName = 'Tally Counter';
+  int _counterValue = 0;
+  int _counterStep = 1;
+  List<CounterItem> _userCounters = [];
 
   static const List<Map<String, String>> _allSections = [
     {'id': 'calc', 'title': 'Calculator', 'iconType': 'calc'},
@@ -58,6 +66,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
 
   Future<void> _loadInitial() async {
     await WidgetService().loadPrefs();
+    final counters = await StorageService().loadCounters();
     final sys = await WidgetService().getSystemColors(widget.theme);
     if (mounted) {
       setState(() {
@@ -65,8 +74,133 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
         _colorMode = WidgetService().colorMode;
         _favToolId = WidgetService().favToolId;
         _systemColors = sys;
+        _userCounters = counters;
+        if (counters.isNotEmpty) {
+          final active = counters.firstWhere(
+            (c) => c.id == WidgetService().counterId,
+            orElse: () => counters.first,
+          );
+          _counterId = active.id;
+          _counterName = active.name;
+          _counterValue = active.value;
+          _counterStep = active.step;
+        } else {
+          _counterId = 0;
+          _counterName = 'Tally Counter';
+          _counterValue = 0;
+          _counterStep = 1;
+        }
       });
     }
+  }
+
+  void _updatePreviewCounter(int delta) {
+    SoundService().playKey();
+    HapticFeedback.lightImpact();
+    setState(() {
+      _counterValue += delta;
+      if (_counterValue < 0) _counterValue = 0;
+      if (_counterId != null && _counterId != 0) {
+        final idx = _userCounters.indexWhere((c) => c.id == _counterId);
+        if (idx != -1) {
+          _userCounters[idx].value = _counterValue;
+          StorageService().saveCounters(_userCounters);
+        }
+      }
+    });
+    WidgetService().syncCounterToNative(
+      id: _counterId ?? 0,
+      name: _counterName,
+      value: _counterValue,
+      step: _counterStep,
+      theme: widget.theme,
+    );
+  }
+
+  void _selectLinkedCounter(CounterItem item) {
+    SoundService().playClick();
+    HapticFeedback.selectionClick();
+    setState(() {
+      _counterId = item.id;
+      _counterName = item.name;
+      _counterValue = item.value;
+      _counterStep = item.step;
+    });
+    WidgetService().syncCounterToNative(
+      id: item.id,
+      name: item.name,
+      value: item.value,
+      step: item.step,
+      theme: widget.theme,
+    );
+  }
+
+  void _createQuickCounter() {
+    final ctrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: widget.theme.cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(
+          'New Tally Counter',
+          style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800, color: widget.theme.text),
+        ),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          style: GoogleFonts.plusJakartaSans(color: widget.theme.text),
+          decoration: InputDecoration(
+            hintText: 'Counter Name (e.g. Daily Habits)',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: widget.theme.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: widget.theme.primary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () async {
+              final name = ctrl.text.trim();
+              Navigator.pop(ctx);
+              if (name.isNotEmpty) {
+                SoundService().playClick();
+                final newItem = CounterItem(
+                  id: DateTime.now().millisecondsSinceEpoch,
+                  name: name,
+                  value: 0,
+                  step: 1,
+                );
+                final updatedList = [..._userCounters, newItem];
+                await StorageService().saveCounters(updatedList);
+                if (mounted) {
+                  setState(() {
+                    _userCounters = updatedList;
+                    _counterId = newItem.id;
+                    _counterName = newItem.name;
+                    _counterValue = newItem.value;
+                    _counterStep = newItem.step;
+                  });
+                }
+                WidgetService().syncCounterToNative(
+                  id: newItem.id,
+                  name: newItem.name,
+                  value: newItem.value,
+                  step: newItem.step,
+                  theme: widget.theme,
+                );
+              }
+            },
+            child: const Text('Add & Link', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _updateConfig({
@@ -107,7 +241,9 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
             ok
                 ? (_selectedRatio == '4x1'
                     ? 'Tap "Add" to place Tooler 4×1 Quick Bar on Home Screen!'
-                    : 'Tap "Add" to place your 1×1 Icon Shortcut on Home Screen!')
+                    : (_selectedRatio == '2x2'
+                        ? 'Tap "Add" to place Tooler 2×2 Tally Counter on Home Screen!'
+                        : 'Tap "Add" to place your 1×1 Icon Shortcut on Home Screen!'))
                 : 'Long-press your phone Home Screen → Widgets → Tooler to place it.',
             style: GoogleFonts.plusJakartaSans(
               color: Colors.white,
@@ -209,7 +345,9 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                           border: Border.all(color: theme.border),
                         ),
                         child: Text(
-                          _selectedRatio == '4x1' ? '4 × 1 Bar' : '1 × 1 Icon',
+                          _selectedRatio == '4x1'
+                              ? '4 × 1 Bar'
+                              : (_selectedRatio == '2x2' ? '2 × 2 Counter' : '1 × 1 Icon'),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
@@ -221,7 +359,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                   ),
                   const SizedBox(height: 22),
 
-                  // Render 4x1 or 1x1 Widget Preview
+                  // Render 4x1, 2x2, or 1x1 Widget Preview
                   if (_selectedRatio == '4x1')
                     Container(
                       height: 76,
@@ -277,6 +415,120 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                         ],
                       ),
                     )
+                  else if (_selectedRatio == '2x2')
+                    Container(
+                      width: 172,
+                      height: 172,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: previewCardBg,
+                        borderRadius: BorderRadius.circular(26),
+                        border: Border.all(color: previewBorder, width: 1.5),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: previewIsDark ? 0.35 : 0.08),
+                            blurRadius: 16,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Header: Icon + Name + Badge
+                          Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: previewBubble,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Icon(Icons.exposure_plus_1_rounded, size: 15, color: previewPrimary),
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: Text(
+                                  _counterName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: previewPrimary,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: previewPrimary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  '2×2',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: previewPrimary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+
+                          // Number count in center
+                          Center(
+                            child: Text(
+                              '$_counterValue',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w900,
+                                color: previewPrimary,
+                              ),
+                            ),
+                          ),
+
+                          // Interactive - and + buttons
+                          Row(
+                            children: [
+                              Expanded(
+                                child: BouncyTap(
+                                  onTap: () => _updatePreviewCounter(-_counterStep),
+                                  child: Container(
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: previewBubble,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: previewBorder),
+                                    ),
+                                    child: Center(
+                                      child: Icon(Icons.remove_rounded, size: 22, color: previewPrimary),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: BouncyTap(
+                                  onTap: () => _updatePreviewCounter(_counterStep),
+                                  child: Container(
+                                    height: 38,
+                                    decoration: BoxDecoration(
+                                      color: previewPrimary,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Center(
+                                      child: Icon(Icons.add_rounded, size: 22, color: Colors.white),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    )
                   else
                     // 1x1 Icon-Only Squircle Preview (Zero Name Text!)
                     Container(
@@ -309,7 +561,9 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                   Text(
                     _selectedRatio == '4x1'
                         ? 'Calculator · Calendar · Weather · All Tools'
-                        : 'Icon-only shortcut · Opens ${selectedSection['title']} hover page',
+                        : (_selectedRatio == '2x2'
+                            ? 'Interactive Tally Counter · Tap + / - directly from phone Home Screen'
+                            : 'Icon-only shortcut · Opens ${selectedSection['title']} hover page'),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
@@ -323,25 +577,35 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
 
             const SizedBox(height: 18),
 
-            // 2. Ratio Selector (4x1 vs 1x1)
+            // 2. Ratio Selector (4x1 vs 2x2 vs 1x1)
             _buildSectionCard(
               title: 'Widget Ratio',
               child: Row(
                 children: [
                   Expanded(
                     child: _buildChoiceTile(
-                      label: '4 × 1 Quick Bar',
-                      subtitle: '4 direct icons',
+                      label: '4 × 1 Bar',
+                      subtitle: 'Quick Bar',
                       icon: Icons.view_week_rounded,
                       isSelected: _selectedRatio == '4x1',
                       onTap: () => _updateConfig(ratio: '4x1'),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: _buildChoiceTile(
-                      label: '1 × 1 Shortcut',
-                      subtitle: 'Fav icon only',
+                      label: '2 × 2 Count',
+                      subtitle: 'Tally Counter',
+                      icon: Icons.exposure_plus_1_rounded,
+                      isSelected: _selectedRatio == '2x2',
+                      onTap: () => _updateConfig(ratio: '2x2'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildChoiceTile(
+                      label: '1 × 1 Icon',
+                      subtitle: 'Shortcut',
                       icon: Icons.crop_square_rounded,
                       isSelected: _selectedRatio == '1x1',
                       onTap: () => _updateConfig(ratio: '1x1'),
@@ -381,7 +645,108 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
               ),
             ),
 
-            // 4. Favorite Tool Picker (for 1x1 Widget)
+            // 4a. Linked Tally Counter Picker (for 2x2 Widget)
+            if (_selectedRatio == '2x2') ...[
+              const SizedBox(height: 14),
+              _buildSectionCard(
+                title: 'Linked Tally Counter',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (_userCounters.isNotEmpty) ...[
+                      Text(
+                        'Tap a counter to link it to your 2×2 Home Screen Widget:',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: _userCounters.map((item) {
+                          final isSel = item.id == _counterId;
+                          return InkWell(
+                            onTap: () => _selectLinkedCounter(item),
+                            borderRadius: BorderRadius.circular(12),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 160),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              decoration: BoxDecoration(
+                                color: isSel ? theme.primary.withValues(alpha: 0.16) : theme.bg,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: isSel ? theme.primary : theme.border,
+                                  width: isSel ? 1.8 : 1.0,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    isSel ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                                    size: 16,
+                                    color: isSel ? theme.primary : theme.textSecondary,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    item.name,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 12.5,
+                                      fontWeight: isSel ? FontWeight.w800 : FontWeight.w600,
+                                      color: isSel ? theme.primary : theme.text,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: isSel ? theme.primary : theme.border,
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      '${item.value}',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w800,
+                                        color: isSel ? Colors.white : theme.text,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 10),
+                    ] else ...[
+                      Text(
+                        'No counters created yet. Create one below to link with your 2×2 widget:',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: theme.primary,
+                        side: BorderSide(color: theme.primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: _createQuickCounter,
+                      icon: const Icon(Icons.add_rounded, size: 18),
+                      label: const Text('Create New Counter'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+
+            // 4b. Favorite Tool Picker (for 1x1 Widget)
             if (_selectedRatio == '1x1') ...[
               const SizedBox(height: 14),
               _buildSectionCard(
@@ -477,7 +842,9 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                 label: Text(
                   _selectedRatio == '4x1'
                       ? 'Add 4×1 Widget to Home Screen'
-                      : 'Add 1×1 Widget to Home Screen',
+                      : (_selectedRatio == '2x2'
+                          ? 'Add 2×2 Counter Widget to Home Screen'
+                          : 'Add 1×1 Widget to Home Screen'),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,

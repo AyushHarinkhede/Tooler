@@ -870,7 +870,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '4×1 Quick Bar & 1×1 Fav Icon · App / System Theme',
+                                  '4×1 Quick Bar, 2×2 Tally Counter & 1×1 Icon',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.plusJakartaSans(

@@ -126,6 +126,21 @@
                 android:resource="@xml/tooler_widget_1x1_info" />
         </receiver>
 
+        <!-- Home Screen 2x2 Interactive Tally Counter Widget -->
+        <receiver
+            android:name=".ToolerCounterWidgetProvider"
+            android:exported="true"
+            android:label="Tooler Tally Counter (2×2)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.tooler.tooler.ACTION_COUNTER_INC" />
+                <action android:name="com.tooler.tooler.ACTION_COUNTER_DEC" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tooler_widget_2x2_info" />
+        </receiver>
+
         <!-- Flutter Local Notifications Receivers for Real-time & Background Alarms -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">

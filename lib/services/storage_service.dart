@@ -140,10 +140,7 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString(keyCounters);
     if (str == null || str.isEmpty) {
-      return [
-        CounterItem(id: 1, name: "Water Glasses", value: 4, step: 1),
-        CounterItem(id: 2, name: "Productivity Sprints", value: 3, step: 1),
-      ];
+      return [];
     }
     // Verify cryptographic integrity
     final checksum = prefs.getString(keyCountersChecksum);
@@ -152,7 +149,15 @@ class StorageService {
     }
     try {
       final List decoded = jsonDecode(str);
-      return decoded.map((e) => CounterItem.fromJson(e)).toList();
+      final list = decoded.map((e) => CounterItem.fromJson(e)).toList();
+      // Purge legacy auto-seeded dummy items if user never added anything custom
+      if (list.length == 2 &&
+          list.any((c) => c.name == "Water Glasses" && c.id == 1) &&
+          list.any((c) => c.name == "Productivity Sprints" && c.id == 2)) {
+        await saveCounters([]);
+        return [];
+      }
+      return list;
     } catch (_) {
       return [];
     }

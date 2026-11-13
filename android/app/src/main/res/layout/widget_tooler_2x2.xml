@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_2x2_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="2dp">
+
+    <ImageView
+        android:id="@+id/widget_2x2_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="Tooler Counter Background" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:padding="12dp">
+
+        <!-- Top Header: Counter Name & Tooler Icon (Click opens Tally Counter) -->
+        <LinearLayout
+            android:id="@+id/widget_counter_header"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="@drawable/widget_tile_ripple"
+            android:padding="2dp">
+
+            <ImageView
+                android:id="@+id/widget_counter_icon"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="Counter Icon" />
+
+            <TextView
+                android:id="@+id/widget_counter_name"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:paddingStart="6dp"
+                android:paddingEnd="6dp"
+                android:singleLine="true"
+                android:ellipsize="end"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="Tally Counter" />
+
+            <TextView
+                android:id="@+id/widget_counter_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="9sp"
+                android:textStyle="bold"
+                android:text="2×2" />
+        </LinearLayout>
+
+        <!-- Center: Prominent Big Bold Count Number (Click opens Tally Counter) -->
+        <TextView
+            android:id="@+id/widget_counter_value"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textSize="40sp"
+            android:textStyle="bold"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="@drawable/widget_tile_ripple"
+            android:text="0" />
+
+        <!-- Bottom: Interactive Minus and Plus Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/widget_btn_minus"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="fitCenter"
+                android:padding="4dp"
+                android:background="@drawable/widget_tile_ripple"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Minus" />
+
+            <View
+                android:layout_width="10dp"
+                android:layout_height="match_parent" />
+
+            <ImageView
+                android:id="@+id/widget_btn_plus"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:scaleType="fitCenter"
+                android:padding="4dp"
+                android:background="@drawable/widget_tile_ripple"
+                android:clickable="true"
+                android:focusable="true"
+                android:contentDescription="Plus" />
+        </LinearLayout>
+    </LinearLayout>
+
+</FrameLayout>

@@ -36,7 +36,32 @@ object ToolerWidgetRenderer {
     const val KEY_APP_BORDER = "app_border"
     const val KEY_APP_IS_DARK = "app_is_dark"
 
+    const val KEY_COUNTER_ID = "counter_id"
+    const val KEY_COUNTER_NAME = "counter_name"
+    const val KEY_COUNTER_VALUE = "counter_value"
+    const val KEY_COUNTER_STEP = "counter_step"
+
     const val EXTRA_WIDGET_TOOL_ID = "widget_tool_id"
+
+    fun getCounterId(context: Context): Int {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getInt(KEY_COUNTER_ID, 0)
+    }
+
+    fun getCounterName(context: Context): String {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getString(KEY_COUNTER_NAME, "Tally Counter") ?: "Tally Counter"
+    }
+
+    fun getCounterValue(context: Context): Int {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getInt(KEY_COUNTER_VALUE, 0)
+    }
+
+    fun getCounterStep(context: Context): Int {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        return prefs.getInt(KEY_COUNTER_STEP, 1).coerceAtLeast(1)
+    }
 
     fun getSystemPalette(context: Context): WidgetPalette {
         val isNight = (context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
@@ -541,5 +566,77 @@ object ToolerWidgetRenderer {
                 canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.24f, accentFill)
             }
         }
+    }
+
+    fun renderCounterButtonBitmap(isPlus: Boolean, widthPx: Int, heightPx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val pad = 4f
+        val rect = RectF(pad, pad, widthPx - pad, heightPx - pad)
+        val radius = heightPx * 0.30f
+
+        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (isPlus) palette.primary else palette.bubbleBg
+            style = Paint.Style.FILL
+        }
+        canvas.drawRoundRect(rect, radius, radius, fillPaint)
+
+        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (isPlus) shiftLuminance(palette.primary, 1.15f) else palette.border
+            style = Paint.Style.STROKE
+            strokeWidth = 3f
+        }
+        canvas.drawRoundRect(rect, radius, radius, borderPaint)
+
+        val symPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (isPlus) Color.WHITE else palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = (heightPx * 0.12f).coerceAtLeast(6f)
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        val cx = widthPx / 2f
+        val cy = heightPx / 2f
+        val arm = heightPx * 0.22f
+
+        canvas.drawLine(cx - arm, cy, cx + arm, cy, symPaint)
+        if (isPlus) {
+            canvas.drawLine(cx, cy - arm, cx, cy + arm, symPaint)
+        }
+        return bmp
+    }
+
+    fun renderSmallCounterIconBitmap(sizePx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.10f
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.bubbleBg
+            style = Paint.Style.FILL
+        }
+
+        val rect = RectF(s * 0.10f, s * 0.10f, s * 0.90f, s * 0.90f)
+        canvas.drawRoundRect(rect, s * 0.24f, s * 0.24f, fill)
+        canvas.drawRoundRect(rect, s * 0.24f, s * 0.24f, stroke)
+
+        val tickStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.09f
+            strokeCap = Paint.Cap.ROUND
+        }
+        canvas.drawLine(s * 0.36f, s * 0.32f, s * 0.36f, s * 0.68f, tickStroke)
+        canvas.drawLine(s * 0.50f, s * 0.32f, s * 0.50f, s * 0.68f, tickStroke)
+        canvas.drawLine(s * 0.64f, s * 0.32f, s * 0.64f, s * 0.68f, tickStroke)
+
+        return bmp
     }
 }
