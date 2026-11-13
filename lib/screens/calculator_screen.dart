@@ -84,7 +84,6 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
         }
       }
     });
-    // Initialize initial easter egg ("Nothing ⚪" for 0)
     _computePreview();
   }
 
@@ -362,6 +361,21 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
   void _appendKey(String key) {
     if (_isErrorState()) {
       _expression = '0';
+      _lastEquation = '';
+      _easterEggText = null;
+    }
+
+    if (_lastEquation.isNotEmpty && _lastEquation.endsWith('=')) {
+      if (_isOperator(key) || key == '%') {
+        _lastEquation = '';
+        _easterEggText = null;
+      } else {
+        _expression = key == '.' ? '0.' : key;
+        _lastEquation = '';
+        _easterEggText = null;
+        _computePreview();
+        return;
+      }
     }
 
     if (_isOperator(key)) {
@@ -570,36 +584,22 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
   }
 
   void _computePreview() {
+    _easterEggText = null;
     try {
       final clean = _expression.trim();
+      final noSpaces = clean.replaceAll(' ', '');
 
-      // Specifically for 0÷0: "Ask your ChatBot"
-      if (clean == '0÷0' || clean == '0/0') {
-        _previewResult = '= Ask your ChatBot! 🤖';
-        _easterEggText = _calcMode == CalcMode.basic ? "Ask your ChatBot! 🤖" : null;
-        return;
-      }
-
-      // Specifically for 1+: "Never Settle"
-      if (clean == '1+') {
-        _previewResult = '= Never Settle 🔴';
-        _easterEggText = _calcMode == CalcMode.basic ? "Never Settle 🔴" : null;
-        return;
-      }
-
-      if (clean == '0') {
+      // Special cases while typing: don't show preview
+      if (noSpaces == '0÷0' || noSpaces == '0/0' || clean == '0' || clean == '1+') {
         _previewResult = '';
-        _easterEggText = _calcMode == CalcMode.basic ? "Nothing ⚪" : null;
         return;
       }
 
       final res = _evaluateExpression(_expression);
       if (res != null && res != 'Error' && !res.startsWith('Cannot') && res != _expression) {
         _previewResult = '= $res';
-        _easterEggText = _calcMode == CalcMode.basic ? _detectEasterEgg(_expression, res) : null;
       } else {
         _previewResult = '';
-        _easterEggText = _calcMode == CalcMode.basic ? _detectEasterEgg(_expression, _expression) : null;
       }
     } catch (_) {
       _previewResult = '';
@@ -611,12 +611,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
     if (_isSlidingUp) return;
 
     final clean = _expression.trim();
+    final noSpaces = clean.replaceAll(' ', '');
 
-    // 0 ÷ 0
-    if (clean == '0÷0' || clean == '0/0') {
+    // 0 ÷ 0: shows "Ask your ChatBot" directly in main answer display, no emoji, no bottom chip!
+    if (noSpaces == '0÷0' || noSpaces == '0/0') {
       _lastEquation = '0 ÷ 0 =';
-      _slidingAns = 'Ask your ChatBot! 🤖';
-      _slideEgg = "Ask your ChatBot! 🤖";
+      _slidingAns = 'Ask your ChatBot';
+      _slideEgg = null;
       _isSlidingUp = true;
       _previewResult = '';
       _slideUpController.forward(from: 0.0);
@@ -626,10 +627,10 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
     }
 
     // 1+
-    if (clean == '1+' || clean == '1+ ' || clean == '1+0') {
+    if (noSpaces == '1+' || noSpaces == '1+0') {
       _lastEquation = '1+ =';
-      _slidingAns = 'Never Settle 🔴';
-      _slideEgg = "OnePlus • Never Settle";
+      _slidingAns = '1';
+      _slideEgg = "Never Settle";
       _isSlidingUp = true;
       _previewResult = '';
       _slideUpController.forward(from: 0.0);
@@ -643,9 +644,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
       if (res != null) {
         if (res == 'Error' || res.startsWith('Cannot')) {
           _lastEquation = '$_expression =';
-          _expression = 'Error';
+          _expression = res;
           _previewResult = '';
-          _easterEggText = _calcMode == CalcMode.basic ? "Ask your ChatBot! 🤖" : null;
+          _easterEggText = null;
           HapticFeedback.heavyImpact();
           return;
         }
@@ -672,13 +673,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
         _lastEquation = '$_expression =';
         _expression = 'Error';
         _previewResult = '';
-        _easterEggText = _calcMode == CalcMode.basic ? "Ask your ChatBot! 🤖" : null;
+        _easterEggText = null;
       }
     } catch (_) {
       _lastEquation = '$_expression =';
       _expression = 'Error';
       _previewResult = '';
-      _easterEggText = _calcMode == CalcMode.basic ? "Ask your ChatBot! 🤖" : null;
+      _easterEggText = null;
     }
   }
 
@@ -688,64 +689,61 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
     final cleanRes = result.replaceAll('=', '').trim();
     final cleanExpr = expr.replaceAll(' ', '');
 
-    if (cleanExpr == '0÷0' || cleanExpr == '0/0' || cleanRes.contains('ChatBot') || cleanRes.contains('Chat Bot')) {
-      return "Ask your ChatBot! 🤖";
+    // 0÷0 is shown directly in the main answer display, never in the bottom easter egg area
+    if (cleanExpr == '0÷0' || cleanExpr == '0/0' || cleanRes.contains('ChatBot')) {
+      return null;
     }
 
     if (cleanExpr.startsWith('1+') || cleanRes.contains('Never Settle')) {
-      return "Never Settle 🔴";
+      return "Never Settle";
     }
 
     if (cleanRes == '7') {
-      return "Thala for a reason! 🦁 #7";
+      return "Thala for a reason";
     }
-    if (cleanRes == '13') {
-      return "Unlucky ⚠️ (Friday 13th)";
+    if (cleanRes == '13' || cleanRes == '4') {
+      return "Unlucky";
     }
-    if (cleanRes == '4') {
-      return "Unlucky ⚠️ (Tetraphobia)";
-    }
-    if (cleanRes == '0' || cleanRes == '0.0' || cleanExpr == '0' || cleanExpr == '0=') {
-      return "Nothing ⚪";
+    if (cleanRes == '0' || cleanRes == '0.0') {
+      return "Nothing";
     }
     if (cleanRes == '67') {
-      return "Six Seven 🤙";
+      return "Six Seven";
     }
     if (cleanRes == '911') {
-      return "Emergency Call 🚨";
+      return "Emergency Call";
     }
     if (cleanRes == '42') {
-      return "Answer to Life 🌌";
+      return "Answer to Life";
     }
     if (cleanRes == '69') {
-      return "Nice 😉";
+      return "Nice";
     }
     if (cleanRes == '100') {
-      return "Century! 💯";
+      return "Century";
     }
     if (cleanRes == '360') {
-      return "Full Circle 🔄";
+      return "Full Circle";
     }
     if (cleanRes == '404') {
-      return "Error 404: Not Found 🔍";
+      return "Error 404: Not Found";
     }
     if (cleanRes == '777') {
-      return "Lucky 777 🎰";
+      return "Lucky 777";
     }
     if (cleanRes == '3000') {
-      return "I love you 3000 ❤️";
+      return "I love you 3000";
     }
     if (cleanRes == '2026') {
-      return "Current Era 2026 🚀";
+      return "Current Era 2026";
     }
     if (cleanRes == '3.14' || cleanRes == '3.14159' || cleanRes.startsWith('3.14159')) {
-      return "Pi Day 🥧";
+      return "Pi Day";
     }
 
-    // Numbers <= 10 (like 1+1 = 2, 9+1 = 10, 5+3 = 8): "It's easy! 😉"
     final d = double.tryParse(cleanRes);
     if (d != null && d > 0 && d <= 10 && d == d.roundToDouble()) {
-      return "It's easy! 😉";
+      return "It's easy";
     }
 
     return null;
@@ -1533,37 +1531,15 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
                           controller: _displayScrollController,
                           scrollDirection: Axis.horizontal,
                           reverse: true,
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _AnimatedExpressionDisplay(
-                                expression: _expression,
-                                style: widget.theme.fontMono(
-                                  fontSize: _getFontSize(_expression),
-                                  fontWeight: FontWeight.bold,
-                                  color: isError ? Colors.redAccent : widget.theme.text,
-                                ),
-                              ),
-                              if (isError) ...[
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFEF4444).withValues(alpha: 0.15),
-                                    borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFEF4444), width: 1.2),
-                                  ),
-                                  child: Text(
-                                    "Ask your ChatBot! 🤖",
-                                    style: widget.theme.fontMono(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: const Color(0xFFDC2626),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
+                          child: _AnimatedExpressionDisplay(
+                            expression: _expression,
+                            style: widget.theme.fontMono(
+                              fontSize: _getFontSize(_expression),
+                              fontWeight: FontWeight.bold,
+                              color: _expression == 'Error' || _expression.startsWith('Cannot')
+                                  ? Colors.redAccent
+                                  : (_expression == 'Ask your ChatBot' ? widget.theme.primary : widget.theme.text),
+                            ),
                           ),
                         ),
                       ),
