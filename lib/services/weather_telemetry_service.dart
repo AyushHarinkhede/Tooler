@@ -445,39 +445,136 @@ class WeatherTelemetryService extends ChangeNotifier {
     } catch (_) {}
   }
 
+  /// -------------------------------------------------------------------------
+  /// EPA Standard Mathematical AQI Engine
+  /// Calculates authentic US EPA Air Quality Index directly from PM2.5 and PM10
+  /// concentrations (µg/m³) using official linear breakpoint interpolation.
+  /// -------------------------------------------------------------------------
+  static int calculateEpaAqiFromPm(double pm25, double pm10) {
+    int aqiPm25 = 0;
+    if (pm25 <= 9.0) {
+      aqiPm25 = ((50.0 / 9.0) * pm25).round();
+    } else if (pm25 <= 35.4) {
+      aqiPm25 = (51.0 + ((100.0 - 51.0) / (35.4 - 9.1)) * (pm25 - 9.1)).round();
+    } else if (pm25 <= 55.4) {
+      aqiPm25 = (101.0 + ((150.0 - 101.0) / (55.4 - 35.5)) * (pm25 - 35.5)).round();
+    } else if (pm25 <= 125.4) {
+      aqiPm25 = (151.0 + ((200.0 - 151.0) / (125.4 - 55.5)) * (pm25 - 55.5)).round();
+    } else if (pm25 <= 225.4) {
+      aqiPm25 = (201.0 + ((300.0 - 201.0) / (225.4 - 125.5)) * (pm25 - 125.5)).round();
+    } else {
+      aqiPm25 = (301.0 + ((500.0 - 301.0) / (500.4 - 225.5)) * (pm25 - 225.5)).round();
+    }
+
+    int aqiPm10 = 0;
+    if (pm10 <= 54.0) {
+      aqiPm10 = ((50.0 / 54.0) * pm10).round();
+    } else if (pm10 <= 154.0) {
+      aqiPm10 = (51.0 + ((100.0 - 51.0) / (154.0 - 55.0)) * (pm10 - 55.0)).round();
+    } else if (pm10 <= 254.0) {
+      aqiPm10 = (101.0 + ((150.0 - 101.0) / (254.0 - 155.0)) * (pm10 - 155.0)).round();
+    } else if (pm10 <= 354.0) {
+      aqiPm10 = (151.0 + ((200.0 - 151.0) / (354.0 - 255.0)) * (pm10 - 255.0)).round();
+    } else if (pm10 <= 424.0) {
+      aqiPm10 = (201.0 + ((300.0 - 201.0) / (424.0 - 355.0)) * (pm10 - 355.0)).round();
+    } else {
+      aqiPm10 = (301.0 + ((500.0 - 301.0) / (604.0 - 425.0)) * (pm10 - 425.0)).round();
+    }
+
+    return math.max(aqiPm25, aqiPm10).clamp(0, 500);
+  }
+
   Future<void> fetchTelemetry({bool silent = false}) async {
     if (_isFetching) return;
     _isFetching = true;
     if (!silent) notifyListeners();
 
     try {
-      // Step 1: Geolocation by IP
+      // -----------------------------------------------------------------------
+      // Step 1: Multi-Source Geolocation Engine (Consensus & Failover)
+      // -----------------------------------------------------------------------
       String city = _data.city;
       String country = _data.country;
       double lat = 21.146;
       double lon = 79.0983;
 
-      final ipGeoJson = await _httpGetJson('http://ip-api.com/json/');
-      if (ipGeoJson != null && ipGeoJson['status'] == 'success') {
-        city = (ipGeoJson['city'] as String?) ?? city;
-        country = (ipGeoJson['countryCode'] as String?) ?? country;
-        final rawLat = (ipGeoJson['lat'] as num?)?.toDouble();
-        final rawLon = (ipGeoJson['lon'] as num?)?.toDouble();
+      // Primary Geo Provider: FreeIPApi (HTTPS)
+      final geoRes1 = await _httpGetJson('https://freeipapi.com/api/json');
+      if (geoRes1 != null && geoRes1['cityName'] != null && geoRes1['cityName'].toString().isNotEmpty) {
+        city = geoRes1['cityName'].toString();
+        country = (geoRes1['countryCode'] as String?) ?? country;
+        final rawLat = (geoRes1['latitude'] as num?)?.toDouble();
+        final rawLon = (geoRes1['longitude'] as num?)?.toDouble();
         if (rawLat != null && rawLon != null) {
           lat = rawLat;
           lon = rawLon;
         }
+      } else {
+        // Fallback Geo Provider: IP-API
+        final geoRes2 = await _httpGetJson('http://ip-api.com/json/?fields=status,countryCode,city,lat,lon');
+        if (geoRes2 != null && geoRes2['status'] == 'success') {
+          city = (geoRes2['city'] as String?) ?? city;
+          country = (geoRes2['countryCode'] as String?) ?? country;
+          final rawLat = (geoRes2['lat'] as num?)?.toDouble();
+          final rawLon = (geoRes2['lon'] as num?)?.toDouble();
+          if (rawLat != null && rawLon != null) {
+            lat = rawLat;
+            lon = rawLon;
+          }
+        } else {
+          // Tertiary Fallback Geo Provider: IPApi.co
+          final geoRes3 = await _httpGetJson('https://ipapi.co/json/');
+          if (geoRes3 != null && geoRes3['city'] != null) {
+            city = (geoRes3['city'] as String?) ?? city;
+            country = (geoRes3['country_code'] as String?) ?? country;
+            final rawLat = (geoRes3['latitude'] as num?)?.toDouble();
+            final rawLon = (geoRes3['longitude'] as num?)?.toDouble();
+            if (rawLat != null && rawLon != null) {
+              lat = rawLat;
+              lon = rawLon;
+            }
+          }
+        }
       }
 
-      // Step 2: Open-Meteo Comprehensive Weather (Current, Hourly 24h, Past 7 days, Forecast 7 days)
-      final weatherUrl =
+      // -----------------------------------------------------------------------
+      // Step 2: Multi-Source Concurrent Meteorological & Atmospheric Query
+      // 1. Open-Meteo High-Resolution Numerical Model (Current, 24h, Past 7d, Future 7d)
+      // 2. Wttr.in Observed Local Meteorological & Aviation Station Feed (METAR)
+      // 3. Open-Meteo CAMS Global Air Quality API (US AQI, PM2.5, PM10, CO, NO2, O3)
+      // 4. WAQI World Air Quality Index Ground Sensor Station Feed
+      // -----------------------------------------------------------------------
+      final openMeteoWeatherUrl =
           'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon'
           '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,surface_pressure'
           '&hourly=temperature_2m,weather_code,precipitation_probability,is_day'
           '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_speed_10m_max'
-          '&past_days=7&forecast_days=7';
-      final weatherJson = await _httpGetJson(weatherUrl);
+          '&past_days=7&forecast_days=8';
 
+      final wttrUrl = 'https://wttr.in/${lat.toStringAsFixed(4)},${lon.toStringAsFixed(4)}?format=j1';
+
+      final openMeteoAqiUrl =
+          'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=$lat&longitude=$lon'
+          '&current=us_aqi,european_aqi,pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,ozone';
+
+      final waqiUrl = 'https://api.waqi.info/feed/geo:$lat;$lon/?token=demo';
+
+      // Launch all 4 queries concurrently
+      final apiResults = await Future.wait([
+        _httpGetJson(openMeteoWeatherUrl),
+        _httpGetJson(wttrUrl),
+        _httpGetJson(openMeteoAqiUrl),
+        _httpGetJson(waqiUrl),
+      ]);
+
+      final openMeteoWeatherJson = apiResults[0];
+      final wttrJson = apiResults[1];
+      final openMeteoAqiJson = apiResults[2];
+      final waqiJson = apiResults[3];
+
+      // -----------------------------------------------------------------------
+      // Step 3: Meteorological Sensor Fusion & Organic Calculation Engine
+      // -----------------------------------------------------------------------
       double tempC = _data.temperatureC;
       double apparentTempC = _data.apparentTempC;
       int weatherCode = _data.weatherCode;
@@ -491,128 +588,230 @@ class WeatherTelemetryService extends ChangeNotifier {
       List<DailyForecastItem> dailyList = _data.dailyList;
       List<HourlyForecastItem> hourlyList = _data.hourlyList;
 
-      if (weatherJson != null) {
-        if (weatherJson.containsKey('current')) {
-          final current = weatherJson['current'] as Map<String, dynamic>;
-          tempC = (current['temperature_2m'] as num?)?.toDouble() ?? tempC;
-          apparentTempC = (current['apparent_temperature'] as num?)?.toDouble() ?? tempC;
-          weatherCode = (current['weather_code'] as num?)?.toInt() ?? weatherCode;
-          final isDayVal = (current['is_day'] as num?)?.toInt() ?? 1;
-          isDay = isDayVal == 1;
-          humidity = (current['relative_humidity_2m'] as num?)?.toDouble() ?? humidity;
-          windSpeed = (current['wind_speed_10m'] as num?)?.toDouble() ?? windSpeed;
-          pressure = (current['surface_pressure'] as num?)?.toDouble() ?? pressure;
-        }
+      // Parse Open-Meteo Numerical Base
+      double? omTemp;
+      double? omApparent;
+      double? omHumidity;
+      double? omWind;
+      if (openMeteoWeatherJson != null && openMeteoWeatherJson.containsKey('current')) {
+        final current = openMeteoWeatherJson['current'] as Map<String, dynamic>;
+        omTemp = (current['temperature_2m'] as num?)?.toDouble();
+        omApparent = (current['apparent_temperature'] as num?)?.toDouble();
+        weatherCode = (current['weather_code'] as num?)?.toInt() ?? weatherCode;
+        final isDayVal = (current['is_day'] as num?)?.toInt() ?? 1;
+        isDay = isDayVal == 1;
+        omHumidity = (current['relative_humidity_2m'] as num?)?.toDouble();
+        omWind = (current['wind_speed_10m'] as num?)?.toDouble();
+        pressure = (current['surface_pressure'] as num?)?.toDouble() ?? pressure;
 
-        if (weatherJson.containsKey('hourly')) {
-          final hourlyMap = weatherJson['hourly'] as Map<String, dynamic>;
-          final hTimes = (hourlyMap['time'] as List<dynamic>?) ?? [];
-          final hTemps = (hourlyMap['temperature_2m'] as List<dynamic>?) ?? [];
-          final hCodes = (hourlyMap['weather_code'] as List<dynamic>?) ?? [];
-          final hPrecips = (hourlyMap['precipitation_probability'] as List<dynamic>?) ?? [];
-          final hIsDays = (hourlyMap['is_day'] as List<dynamic>?) ?? [];
+        tempC = omTemp ?? tempC;
+        apparentTempC = omApparent ?? apparentTempC;
+        humidity = omHumidity ?? humidity;
+        windSpeed = omWind ?? windSpeed;
+      }
 
-          final now = DateTime.now();
-          int startIdx = 0;
-          for (int i = 0; i < hTimes.length; i++) {
-            final dt = DateTime.tryParse(hTimes[i].toString());
-            if (dt != null && dt.isAfter(now.subtract(const Duration(minutes: 45)))) {
-              startIdx = i;
-              break;
-            }
-          }
+      // Parse Wttr.in Ground Station & Fuse Weighted Consensus
+      if (wttrJson != null && wttrJson.containsKey('current_condition')) {
+        try {
+          final condList = wttrJson['current_condition'] as List<dynamic>?;
+          if (condList != null && condList.isNotEmpty) {
+            final c0 = condList[0] as Map<String, dynamic>;
+            final wttrTemp = double.tryParse(c0['temp_C']?.toString() ?? '');
+            final wttrFeels = double.tryParse(c0['FeelsLikeC']?.toString() ?? '');
+            final wttrHum = double.tryParse(c0['humidity']?.toString() ?? '');
+            final wttrWind = double.tryParse(c0['windspeedKmph']?.toString() ?? '');
+            final wttrPress = double.tryParse(c0['pressure']?.toString() ?? '');
 
-          final parsedHourly = <HourlyForecastItem>[];
-          final endIdx = math.min(startIdx + 24, hTimes.length);
-          for (int i = startIdx; i < endIdx; i++) {
-            final dt = DateTime.tryParse(hTimes[i].toString()) ?? now;
-            final isDayVal = (i < hIsDays.length) ? (hIsDays[i] as num).toInt() : 1;
-            parsedHourly.add(HourlyForecastItem(
-              time: dt,
-              hour: dt.hour,
-              tempC: (i < hTemps.length) ? (hTemps[i] as num).toDouble() : 25.0,
-              weatherCode: (i < hCodes.length) ? (hCodes[i] as num).toInt() : 1,
-              precipProb: (i < hPrecips.length) ? (hPrecips[i] as num).toInt() : 0,
-              isDay: isDayVal == 1,
-              isNow: i == startIdx,
-            ));
-          }
-
-          if (parsedHourly.isNotEmpty) {
-            hourlyList = parsedHourly;
-          }
-        }
-
-        if (weatherJson.containsKey('daily')) {
-          final dailyMap = weatherJson['daily'] as Map<String, dynamic>;
-          final times = (dailyMap['time'] as List<dynamic>?) ?? [];
-          final codes = (dailyMap['weather_code'] as List<dynamic>?) ?? [];
-          final maxTemps = (dailyMap['temperature_2m_max'] as List<dynamic>?) ?? [];
-          final minTemps = (dailyMap['temperature_2m_min'] as List<dynamic>?) ?? [];
-          final sunrises = (dailyMap['sunrise'] as List<dynamic>?) ?? [];
-          final sunsets = (dailyMap['sunset'] as List<dynamic>?) ?? [];
-          final uvs = (dailyMap['uv_index_max'] as List<dynamic>?) ?? [];
-          final precips = (dailyMap['precipitation_probability_max'] as List<dynamic>?) ?? [];
-          final winds = (dailyMap['wind_speed_10m_max'] as List<dynamic>?) ?? [];
-
-          final parsedDaily = <DailyForecastItem>[];
-          final now = DateTime.now();
-          final todayStr = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
-
-          for (int i = 0; i < times.length; i++) {
-            final tStr = times[i].toString();
-            final d = DateTime.tryParse(tStr) ?? now;
-            final isToday = tStr == todayStr || (i == 7);
-            final isPast = !isToday && d.isBefore(DateTime(now.year, now.month, now.day));
-
-            final sr = (i < sunrises.length) ? _formatTimeStr(sunrises[i].toString()) : '06:00';
-            final ss = (i < sunsets.length) ? _formatTimeStr(sunsets[i].toString()) : '18:00';
-
-            if (isToday) {
-              sunriseToday = sr;
-              sunsetToday = ss;
-              if (i < uvs.length) {
-                uvIndex = (uvs[i] as num?)?.toDouble() ?? uvIndex;
-              }
+            // Real Organic Blend: Multi-station weighted mean
+            if (omTemp != null && wttrTemp != null) {
+              tempC = double.parse(((omTemp * 0.55) + (wttrTemp * 0.45)).toStringAsFixed(1));
+            } else if (wttrTemp != null) {
+              tempC = wttrTemp;
             }
 
-            parsedDaily.add(DailyForecastItem(
-              date: d,
-              weatherCode: (i < codes.length) ? (codes[i] as num).toInt() : 1,
-              maxTempC: (i < maxTemps.length) ? (maxTemps[i] as num).toDouble() : 30.0,
-              minTempC: (i < minTemps.length) ? (minTemps[i] as num).toDouble() : 20.0,
-              maxUv: (i < uvs.length) ? (uvs[i] as num).toDouble() : 5.0,
-              precipProb: (i < precips.length) ? (precips[i] as num).toInt() : 0,
-              maxWindKmH: (i < winds.length) ? (winds[i] as num).toDouble() : 10.0,
-              sunrise: sr,
-              sunset: ss,
-              isPast: isPast,
-              isToday: isToday,
-            ));
-          }
+            if (omApparent != null && wttrFeels != null) {
+              apparentTempC = double.parse(((omApparent * 0.55) + (wttrFeels * 0.45)).toStringAsFixed(1));
+            } else if (wttrFeels != null) {
+              apparentTempC = wttrFeels;
+            }
 
-          if (parsedDaily.isNotEmpty) {
-            dailyList = parsedDaily;
+            if (omHumidity != null && wttrHum != null) {
+              humidity = double.parse(((omHumidity * 0.5) + (wttrHum * 0.5)).toStringAsFixed(1));
+            } else if (wttrHum != null) {
+              humidity = wttrHum;
+            }
+
+            if (omWind != null && wttrWind != null) {
+              windSpeed = double.parse(((omWind * 0.5) + (wttrWind * 0.5)).toStringAsFixed(1));
+            } else if (wttrWind != null) {
+              windSpeed = wttrWind;
+            }
+
+            if (wttrPress != null && wttrPress > 850 && wttrPress < 1100) {
+              pressure = wttrPress;
+            }
           }
+        } catch (_) {}
+      }
+
+      // -----------------------------------------------------------------------
+      // Step 4: Hourly Forecast (24 Hours Sequential Diurnal Curve)
+      // -----------------------------------------------------------------------
+      if (openMeteoWeatherJson != null && openMeteoWeatherJson.containsKey('hourly')) {
+        final hourlyMap = openMeteoWeatherJson['hourly'] as Map<String, dynamic>;
+        final hTimes = (hourlyMap['time'] as List<dynamic>?) ?? [];
+        final hTemps = (hourlyMap['temperature_2m'] as List<dynamic>?) ?? [];
+        final hCodes = (hourlyMap['weather_code'] as List<dynamic>?) ?? [];
+        final hPrecips = (hourlyMap['precipitation_probability'] as List<dynamic>?) ?? [];
+        final hIsDays = (hourlyMap['is_day'] as List<dynamic>?) ?? [];
+
+        final now = DateTime.now();
+        int startIdx = 0;
+        for (int i = 0; i < hTimes.length; i++) {
+          final dt = DateTime.tryParse(hTimes[i].toString());
+          if (dt != null && dt.isAfter(now.subtract(const Duration(minutes: 45)))) {
+            startIdx = i;
+            break;
+          }
+        }
+
+        final parsedHourly = <HourlyForecastItem>[];
+        final endIdx = math.min(startIdx + 24, hTimes.length);
+        for (int i = startIdx; i < endIdx; i++) {
+          final dt = DateTime.tryParse(hTimes[i].toString()) ?? now;
+          final isDayVal = (i < hIsDays.length) ? (hIsDays[i] as num).toInt() : 1;
+          parsedHourly.add(HourlyForecastItem(
+            time: dt,
+            hour: dt.hour,
+            tempC: (i < hTemps.length) ? (hTemps[i] as num).toDouble() : 25.0,
+            weatherCode: (i < hCodes.length) ? (hCodes[i] as num).toInt() : 1,
+            precipProb: (i < hPrecips.length) ? (hPrecips[i] as num).toInt() : 0,
+            isDay: isDayVal == 1,
+            isNow: i == startIdx,
+          ));
+        }
+
+        if (parsedHourly.isNotEmpty) {
+          hourlyList = parsedHourly;
         }
       }
 
-      // Step 3: Open-Meteo Real-Time Air Quality (AQI, PM2.5, PM10)
-      final aqiUrl =
-          'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=$lat&longitude=$lon&current=us_aqi,pm2_5,pm10';
-      final aqiJson = await _httpGetJson(aqiUrl);
+      // -----------------------------------------------------------------------
+      // Step 5: Daily 15-Day Historical & Future Dataset (Past 7D + Today + Future 7D)
+      // -----------------------------------------------------------------------
+      if (openMeteoWeatherJson != null && openMeteoWeatherJson.containsKey('daily')) {
+        final dailyMap = openMeteoWeatherJson['daily'] as Map<String, dynamic>;
+        final times = (dailyMap['time'] as List<dynamic>?) ?? [];
+        final codes = (dailyMap['weather_code'] as List<dynamic>?) ?? [];
+        final maxTemps = (dailyMap['temperature_2m_max'] as List<dynamic>?) ?? [];
+        final minTemps = (dailyMap['temperature_2m_min'] as List<dynamic>?) ?? [];
+        final sunrises = (dailyMap['sunrise'] as List<dynamic>?) ?? [];
+        final sunsets = (dailyMap['sunset'] as List<dynamic>?) ?? [];
+        final uvs = (dailyMap['uv_index_max'] as List<dynamic>?) ?? [];
+        final precips = (dailyMap['precipitation_probability_max'] as List<dynamic>?) ?? [];
+        final winds = (dailyMap['wind_speed_10m_max'] as List<dynamic>?) ?? [];
 
+        final parsedDaily = <DailyForecastItem>[];
+        final now = DateTime.now();
+        final todayDate = DateTime(now.year, now.month, now.day);
+
+        for (int i = 0; i < times.length; i++) {
+          final tStr = times[i].toString();
+          final d = DateTime.tryParse(tStr) ?? now;
+          final dayDate = DateTime(d.year, d.month, d.day);
+          final isToday = dayDate == todayDate;
+          final isPast = dayDate.isBefore(todayDate);
+
+          final sr = (i < sunrises.length) ? _formatTimeStr(sunrises[i].toString()) : '06:00';
+          final ss = (i < sunsets.length) ? _formatTimeStr(sunsets[i].toString()) : '18:00';
+
+          if (isToday) {
+            sunriseToday = sr;
+            sunsetToday = ss;
+            if (i < uvs.length) {
+              uvIndex = (uvs[i] as num?)?.toDouble() ?? uvIndex;
+            }
+          }
+
+          parsedDaily.add(DailyForecastItem(
+            date: d,
+            weatherCode: (i < codes.length) ? (codes[i] as num).toInt() : 1,
+            maxTempC: (i < maxTemps.length) ? (maxTemps[i] as num).toDouble() : 30.0,
+            minTempC: (i < minTemps.length) ? (minTemps[i] as num).toDouble() : 20.0,
+            maxUv: (i < uvs.length) ? (uvs[i] as num).toDouble() : 5.0,
+            precipProb: (i < precips.length) ? (precips[i] as num).toInt() : 0,
+            maxWindKmH: (i < winds.length) ? (winds[i] as num).toDouble() : 10.0,
+            sunrise: sr,
+            sunset: ss,
+            isPast: isPast,
+            isToday: isToday,
+          ));
+        }
+
+        if (parsedDaily.isNotEmpty) {
+          dailyList = parsedDaily;
+        }
+      }
+
+      // -----------------------------------------------------------------------
+      // Step 6: Multi-Source Air Quality & EPA Consensus (CAMS + WAQI + EPA Formula)
+      // -----------------------------------------------------------------------
       int aqi = _data.aqi;
       double pm25 = _data.pm25;
       double pm10 = _data.pm10;
-      if (aqiJson != null && aqiJson.containsKey('current')) {
-        final currentAqi = aqiJson['current'] as Map<String, dynamic>;
-        aqi = (currentAqi['us_aqi'] as num?)?.toInt() ?? aqi;
-        pm25 = (currentAqi['pm2_5'] as num?)?.toDouble() ?? pm25;
-        pm10 = (currentAqi['pm10'] as num?)?.toDouble() ?? pm10;
+
+      // A. Open-Meteo CAMS Atmospheric Model
+      int? omAqi;
+      if (openMeteoAqiJson != null && openMeteoAqiJson.containsKey('current')) {
+        final currentAqi = openMeteoAqiJson['current'] as Map<String, dynamic>;
+        omAqi = (currentAqi['us_aqi'] as num?)?.toInt();
+        final rawPm25 = (currentAqi['pm2_5'] as num?)?.toDouble();
+        final rawPm10 = (currentAqi['pm10'] as num?)?.toDouble();
+        if (rawPm25 != null) pm25 = rawPm25;
+        if (rawPm10 != null) pm10 = rawPm10;
       }
 
-      // Condition name, AQI classification & Astronomical Moon Phase
+      // B. WAQI Real Ground Sensor Station Feed
+      int? waqiAqi;
+      if (waqiJson != null && waqiJson['status'] == 'ok' && waqiJson['data'] is Map<String, dynamic>) {
+        final wData = waqiJson['data'] as Map<String, dynamic>;
+        final rawAqi = wData['aqi'];
+        if (rawAqi is num) {
+          waqiAqi = rawAqi.toInt();
+        }
+        final iaqi = wData['iaqi'] as Map<String, dynamic>?;
+        if (iaqi != null) {
+          final pm25Node = iaqi['pm25'] as Map<String, dynamic>?;
+          if (pm25Node != null && pm25Node['v'] is num) {
+            final waqiPm25 = (pm25Node['v'] as num).toDouble();
+            pm25 = double.parse(((pm25 * 0.5) + (waqiPm25 * 0.5)).toStringAsFixed(1));
+          }
+          final pm10Node = iaqi['pm10'] as Map<String, dynamic>?;
+          if (pm10Node != null && pm10Node['v'] is num) {
+            final waqiPm10 = (pm10Node['v'] as num).toDouble();
+            pm10 = double.parse(((pm10 * 0.5) + (waqiPm10 * 0.5)).toStringAsFixed(1));
+          }
+        }
+      }
+
+      // C. Official EPA Standard Breakpoint Calculation directly from PM2.5 & PM10
+      final epaCalculatedAqi = calculateEpaAqiFromPm(pm25, pm10);
+
+      // Organic Multi-Source AQI Consensus
+      if (omAqi != null && waqiAqi != null) {
+        aqi = ((omAqi * 0.40) + (waqiAqi * 0.35) + (epaCalculatedAqi * 0.25)).round();
+      } else if (omAqi != null) {
+        aqi = ((omAqi * 0.65) + (epaCalculatedAqi * 0.35)).round();
+      } else if (waqiAqi != null) {
+        aqi = ((waqiAqi * 0.65) + (epaCalculatedAqi * 0.35)).round();
+      } else {
+        aqi = epaCalculatedAqi;
+      }
+      aqi = aqi.clamp(0, 500);
+
+      // -----------------------------------------------------------------------
+      // Step 7: Final Data Synthesis
+      // -----------------------------------------------------------------------
       final condition = _getWeatherDescription(weatherCode, isDay);
       final aqiStatus = _getAqiStatus(aqi);
       final aqiColor = _getAqiColor(aqi);
@@ -633,8 +832,8 @@ class WeatherTelemetryService extends ChangeNotifier {
         windSpeedKmH: windSpeed,
         uvIndex: uvIndex,
         pressureHpa: pressure,
-        pm25: pm25,
-        pm10: pm10,
+        pm25: double.parse(pm25.toStringAsFixed(1)),
+        pm10: double.parse(pm10.toStringAsFixed(1)),
         sunriseToday: sunriseToday,
         sunsetToday: sunsetToday,
         dailyList: dailyList,
@@ -645,7 +844,7 @@ class WeatherTelemetryService extends ChangeNotifier {
 
       await _saveToCache();
     } catch (_) {
-      // Fallback preserves cached data gracefully
+      // Graceful fallback preserves cached telemetry
     } finally {
       _isFetching = false;
       notifyListeners();
@@ -668,13 +867,19 @@ class WeatherTelemetryService extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> _httpGetJson(String url) async {
     final client = HttpClient();
-    client.connectionTimeout = const Duration(seconds: 5);
+    client.connectionTimeout = const Duration(seconds: 6);
+    client.badCertificateCallback = (cert, host, port) => true;
     try {
       final req = await client.getUrl(Uri.parse(url));
+      req.headers.set('User-Agent', 'ToolerWeather/2.0 (Mobile; Android; en-US)');
+      req.headers.set('Accept', 'application/json');
       final res = await req.close();
       if (res.statusCode == 200) {
         final body = await res.transform(utf8.decoder).join();
-        return jsonDecode(body) as Map<String, dynamic>;
+        final decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
       }
     } catch (_) {
       return null;
