@@ -1140,10 +1140,31 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
                             ],
                           ),
                         ),
-                        IconButton(
-                          icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
-                          tooltip: "Tape History",
-                          onPressed: _showHistoryModal,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: Icon(
+                                _isClockMode ? Icons.calculate_rounded : Icons.access_time_rounded,
+                                color: _isClockMode ? widget.theme.primary : widget.theme.text,
+                                size: 22,
+                              ),
+                              tooltip: _isClockMode ? "Calculator" : "Digital Clock (Hold C)",
+                              onPressed: () {
+                                HapticFeedback.selectionClick();
+                                if (_isClockMode) {
+                                  _deactivateLiveClock();
+                                } else {
+                                  _activateLiveClock();
+                                }
+                              },
+                            ),
+                            IconButton(
+                              icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
+                              tooltip: "Tape History",
+                              onPressed: _showHistoryModal,
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -1747,7 +1768,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
   Widget _buildProgKeyBtn(String key, bool isAllowed) {
     final bool isOp = ['+', '-', '×', '÷'].contains(key);
     final bool isEquals = key == '=';
-    final bool isClear = key == 'AC' || key == 'C';
+    final bool isClear = key == 'AC';
     final bool isHexLetter = ['A', 'B', 'C', 'D', 'E', 'F'].contains(key);
 
     Color btnBg = widget.theme.cardBg;
@@ -2016,32 +2037,82 @@ class _AnimatedCalcButton extends StatefulWidget {
   State<_AnimatedCalcButton> createState() => _AnimatedCalcButtonState();
 }
 
-class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> {
+class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> with SingleTickerProviderStateMixin {
   bool _isPressed = false;
   Timer? _holdTimer;
   bool _didTriggerHold = false;
+  Offset? _pointerDownPos;
+  late AnimationController _pulseController;
 
-  void _startHoldTimer() {
-    _holdTimer?.cancel();
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 550),
+    );
+  }
+
+  void _onPointerDown(PointerDownEvent event) {
+    _pointerDownPos = event.position;
+    setState(() => _isPressed = true);
     _didTriggerHold = false;
+    _cancelHoldTimer();
     if (widget.onThreeSecondHold != null) {
-      _holdTimer = Timer(const Duration(milliseconds: 3000), () {
+      _pulseController.repeat(reverse: true);
+      _holdTimer = Timer(const Duration(milliseconds: 2200), () {
         if (mounted && _isPressed) {
           _didTriggerHold = true;
+          _pulseController.stop();
+          _pulseController.reset();
+          HapticFeedback.heavyImpact();
+          SoundService().playSuccess();
           widget.onThreeSecondHold!();
         }
       });
     }
   }
 
+  void _onPointerMove(PointerMoveEvent event) {
+    if (_pointerDownPos != null) {
+      final distance = (event.position - _pointerDownPos!).distance;
+      if (distance > 45) {
+        _cancelHoldTimer();
+      }
+    }
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    final bool triggered = _didTriggerHold;
+    _cancelHoldTimer();
+    setState(() => _isPressed = false);
+    _pointerDownPos = null;
+    if (!triggered) {
+      widget.onTap();
+    }
+    _didTriggerHold = false;
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    _cancelHoldTimer();
+    setState(() => _isPressed = false);
+    _pointerDownPos = null;
+    _didTriggerHold = false;
+  }
+
   void _cancelHoldTimer() {
     _holdTimer?.cancel();
     _holdTimer = null;
+    if (_pulseController.isAnimating) {
+      _pulseController.stop();
+      _pulseController.reset();
+    }
   }
 
   @override
   void dispose() {
     _cancelHoldTimer();
+    _pulseController.dispose();
     super.dispose();
   }
 
@@ -2066,24 +2137,71 @@ class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> {
       );
     }
 
+    // When 3-second hold is supported (e.g. 'C' or 'AC' button to activate live clock)
+    if (widget.onThreeSecondHold != null) {
+      return Listener(
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUp,
+        onPointerCancel: _onPointerCancel,
+        child: AnimatedScale(
+          scale: _isPressed ? 0.92 : 1.0,
+          duration: const Duration(milliseconds: 90),
+          curve: Curves.easeOutBack,
+          child: AnimatedBuilder(
+            animation: _pulseController,
+            builder: (context, child) {
+              final double glow = _isPressed ? _pulseController.value : 0.0;
+              return Container(
+                decoration: BoxDecoration(
+                  color: Color.lerp(widget.bg, widget.theme.primary, glow * 0.4) ?? widget.bg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: Color.lerp(
+                      (widget.border as Border?)?.top.color ?? widget.theme.border,
+                      widget.theme.primary,
+                      glow,
+                    ) ?? widget.theme.primary,
+                    width: (widget.border as Border?)?.top.width ?? 2.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: widget.theme.primary.withValues(alpha: glow * 0.45),
+                      blurRadius: glow * 10,
+                      spreadRadius: glow * 1.5,
+                    ),
+                    BoxShadow(
+                      color: widget.theme.border.withValues(alpha: _isPressed ? 0.1 : 0.3),
+                      offset: _isPressed ? const Offset(0, 1) : const Offset(0, 3),
+                      blurRadius: _isPressed ? 1 : 0,
+                    ),
+                  ],
+                ),
+                alignment: Alignment.center,
+                child: child,
+              );
+            },
+            child: Text(
+              widget.label,
+              style: widget.theme.fontDisplay(
+                fontSize: 22,
+                fontWeight: widget.isEquals || widget.isOp ? FontWeight.w900 : FontWeight.bold,
+                color: widget.text,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Standard button handling
     return GestureDetector(
-      onTapDown: (_) {
-        setState(() => _isPressed = true);
-        _startHoldTimer();
-      },
+      onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) {
-        _cancelHoldTimer();
         setState(() => _isPressed = false);
-        if (!_didTriggerHold) {
-          widget.onTap();
-        }
-        _didTriggerHold = false;
+        widget.onTap();
       },
-      onTapCancel: () {
-        _cancelHoldTimer();
-        setState(() => _isPressed = false);
-        _didTriggerHold = false;
-      },
+      onTapCancel: () => setState(() => _isPressed = false),
       onLongPress: widget.onLongPress,
       child: AnimatedScale(
         scale: _isPressed ? 0.91 : 1.0,
