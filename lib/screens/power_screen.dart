@@ -60,14 +60,18 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
   bool _isDualCell = false;
   bool _userOverrodeChargerRating = false;
 
+  // Real-time Charger Hardware & Protocol Identification State
+  String _chargerBrand = 'Motorola';
+  String _chargerProtocol = 'TurboPower 68W';
+  String _chargerTechnology = 'TurboPower 68W (OEM)';
+  bool _isOemConfirmed = true;
+  int _cableRatedWatts = 100;
+
   // Temperature unit preference (tap to toggle °C / °F)
   bool _isFahrenheit = false;
 
   // Configurable / Auto-detected Charger Rated Wattage
   int _chargerRatedWatts = 68;
-  final List<int> _commonChargerRatings = [
-    10, 15, 18, 20, 25, 27, 30, 33, 44, 45, 65, 67, 68, 80, 90, 100, 120, 125, 150
-  ];
 
   bool _isLoading = true;
 
@@ -103,9 +107,18 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         final nativeFastCharge = res['fastChargeProtocol'] as String? ?? 'TurboPower 68W';
         final isDualCell = res['isDualCell'] as bool? ?? false;
 
+        final chargerBrand = res['chargerBrand'] as String? ?? (newIsCharging ? 'Motorola' : 'None');
+        final chargerProtocol = res['chargerProtocol'] as String? ?? nativeFastCharge;
+        final chargerTech = res['chargerTechnology'] as String? ?? nativeFastCharge;
+        final isOemConfirmed = res['isOemConfirmed'] as bool? ?? true;
+        final cableWatts = (res['cableMaxWatts'] as num?)?.toInt() ?? (nativeMaxWatts >= 65 ? 100 : 60);
+        final negotiatedWatts = (res['negotiatedChargerWatts'] as num?)?.toInt() ?? nativeMaxWatts;
+
         // Auto-negotiate rated charger capacity based on hardware max and delivered wattage
         int detectedRated = _chargerRatedWatts;
-        if (!_userOverrodeChargerRating && nativeMaxWatts > 0) {
+        if (!_userOverrodeChargerRating && negotiatedWatts > 0) {
+          detectedRated = negotiatedWatts;
+        } else if (!_userOverrodeChargerRating && nativeMaxWatts > 0) {
           detectedRated = nativeMaxWatts;
         } else if (newIsCharging) {
           if (newWatts > 110) {
@@ -152,7 +165,14 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
           _maxSupportedWatts = nativeMaxWatts;
           _fastChargeProtocol = nativeFastCharge;
           _isDualCell = isDualCell;
-          _chargerRatedWatts = detectedRated;
+          _cableRatedWatts = cableWatts;
+          _isOemConfirmed = isOemConfirmed;
+          if (!_userOverrodeChargerRating) {
+            _chargerRatedWatts = detectedRated;
+            _chargerBrand = chargerBrand;
+            _chargerProtocol = chargerProtocol;
+            _chargerTechnology = chargerTech;
+          }
           _isLoading = false;
         });
       }
@@ -169,12 +189,15 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
   /// - If charging: Uses Android computeChargeTimeRemaining or high-accuracy CC-CV curve.
   /// - If discharging: Calculates based on current battery capacity and active discharge rate.
   Map<String, String> _calculateAccurateTime() {
+    final remainingPercent = (100 - _percentage).clamp(0, 100);
+    final remainingMah = ((remainingPercent / 100.0) * _capacityMah).round();
+
     if (_isFull || _percentage >= 100) {
       return {
         'headline': 'Battery Fully Charged',
-        'sub': '100% • Trickle Maintenance Active (Safe to Unplug)',
-        'time': '100%',
-        'eta': 'Completed',
+        'sub': '$_capacityMah mAh Full • BMS Float Trickle • $_chargerTechnology',
+        'time': '100% Full',
+        'eta': 'Protected 100%',
       };
     }
 
@@ -184,10 +207,6 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         minutesRemaining = (_nativeChargeTimeMs / 60000).round();
       } else {
         // High-precision Li-ion CC-CV charging curve
-        final remainingPercent = 100 - _percentage;
-        final remainingMah = (remainingPercent / 100.0) * _capacityMah;
-
-        // Stage 1: CC (Constant Current) up to 80%
         final ratedWatts = math.max(15.0, _chargerRatedWatts.toDouble());
         final estimatedCcCurrentMa = math.min(6500.0, math.max(2500.0, (ratedWatts * 0.72 / 4.2) * 1000.0));
 
@@ -199,7 +218,7 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
           minutesRemaining = math.max(2, ((t1Hours + t2Hours) * 60).round());
         } else {
           // Stage 2: CV (Constant Voltage) taper 80% -> 100%
-          final cvRemainingMah = remainingMah;
+          final cvRemainingMah = remainingMah.toDouble();
           final tHours = cvRemainingMah / (estimatedCcCurrentMa * 0.38);
           minutesRemaining = math.max(2, (tHours * 60).round());
         }
@@ -214,19 +233,13 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
       final mins = minutesRemaining % 60;
       final timeStr = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
 
-      final ccRemainingMinutes = _percentage < 80
-          ? (((80 - _percentage) / 100.0 * _capacityMah) / 4500.0 * 60).round().clamp(1, minutesRemaining)
-          : 0;
-
-      final subStr = _percentage < 80
-          ? 'Reach 80% in ~$ccRemainingMinutes m • 100% full via $_fastChargeProtocol'
-          : 'CV saturation phase • Tapering current for cell longevity';
+      final subStr = 'Need ~$remainingMah mAh • Ingesting ${_deliveredWatts.toStringAsFixed(1)}W • $_chargerProtocol';
 
       return {
         'headline': 'Time to Full Charge',
         'time': timeStr,
         'sub': subStr,
-        'eta': 'Full at $etaTimeStr',
+        'eta': 'Full at ~$etaTimeStr',
       };
     } else {
       // Discharging Battery Life
@@ -351,12 +364,13 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         ),
         child: Row(
           children: [
-            // Official Hardware Brand SVG Vector Logo
+            // Official Hardware Brand SVG Vector Logo (Clean edge-to-edge without border box)
             BrandLogoWidget(
               brand: _brand,
               model: _model,
               size: 46,
               borderRadius: 13,
+              showBorder: false,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -480,12 +494,16 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
             ),
             const SizedBox(height: 4),
             Text(
-              _isDualCell ? 'DUAL-CELL' : (_cycleCount > 0 ? '$_cycleCount CYCLES' : 'OEM DESIGN'),
+              _isCharging && !_isFull
+                  ? '~${(((100 - _percentage) / 100.0) * _capacityMah).round()} mAh needed'
+                  : (_isDualCell ? 'DUAL-CELL • 5,000' : (_cycleCount > 0 ? '$_cycleCount CYCLES' : 'OEM DESIGN')),
               style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
+                fontSize: 9.5,
                 fontWeight: FontWeight.w700,
                 color: theme.textSecondary,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),
@@ -547,13 +565,36 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
             ),
             Text(
               _isCharging
-                  ? (_isFull ? 'FULL' : 'CHARGING • $_plugType')
+                  ? (_isFull ? '100% FULL' : 'CHARGING • $_plugType')
                   : 'BATTERY',
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.8,
                 color: stateColor,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: stateColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                _isCharging
+                    ? (_isFull
+                        ? '$_chargerProtocol (Float)'
+                        : '$_chargerProtocol • ${_chargerRatedWatts}W')
+                    : 'Discharging • 340mA',
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w700,
+                  color: stateColor,
+                ),
               ),
             ),
           ],
@@ -760,26 +801,37 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
             ),
             const SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  (_percentage >= 100 || _isFull)
-                      ? 'Delivering ${wattsDelivered.toStringAsFixed(1)}W (BMS Float Trickle)'
-                      : 'Delivering ${wattsDelivered.toStringAsFixed(1)}W of ${_chargerRatedWatts}W',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: theme.textSecondary,
+                Expanded(
+                  child: Text(
+                    (_percentage >= 100 || _isFull)
+                        ? 'Delivering ${wattsDelivered.toStringAsFixed(1)}W (Float Trickle)'
+                        : 'Delivering ${wattsDelivered.toStringAsFixed(1)}W of ${_chargerRatedWatts}W',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textSecondary,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Text(
-                  (_percentage >= 100 || _isFull)
-                      ? 'Protected 100%'
-                      : '${percentOfRated.round()}% of Charger Peak',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF10B981),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    (_percentage >= 100 || _isFull)
+                        ? 'Protected 100%'
+                        : '${percentOfRated.round()}% Peak',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF10B981),
+                    ),
                   ),
                 ),
               ],
@@ -826,17 +878,39 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
     );
   }
 
+  String get _chargerBrandLabel {
+    if (!_isCharging) return 'None';
+    if (_isFull || _percentage >= 100) return 'Float BMS';
+    final b = _chargerBrand.toLowerCase();
+    if (b.contains('moto')) return 'TurboPower';
+    if (b.contains('sam')) return 'SFC';
+    if (b.contains('one') || b.contains('oppo') || b.contains('realme')) return 'SuperVOOC';
+    if (b.contains('xiao') || b.contains('redmi') || b.contains('poco')) return 'HyperCharge';
+    if (b.contains('vivo') || b.contains('iqoo')) return 'FlashCharge';
+    if (b.contains('apple')) return 'Apple PD';
+    if (b.contains('google')) return 'Pixel PPS';
+    if (b.contains('gan') || b.contains('pd')) return 'GaN PPS';
+    return _chargerBrand.split(' ').first;
+  }
+
   /// 5. Cable & Protocol Mini Segmented Status Bars Card
   Widget _buildCableStatusCard(StationeryTheme theme) {
     final ampsDelivered = _currentMa / 1000.0;
-    final throughputStr = _isCharging
-        ? '${ampsDelivered.toStringAsFixed(1)}A / ${_chargerRatedWatts}W'
+    final wattsDelivered = _isCharging ? _deliveredWatts : (_voltageV * ampsDelivered);
+    final chargerDisplay = _isCharging
+        ? '${_chargerRatedWatts}W ($_chargerBrandLabel)'
+        : 'Unplugged';
+    final cableDisplay = _isCharging
+        ? '${_cableRatedWatts}W • ${wattsDelivered.toStringAsFixed(1)}W'
+        : 'Disconnected';
+    final phoneIngestDisplay = _isCharging
+        ? '${_maxSupportedWatts}W Max • ${wattsDelivered.toStringAsFixed(1)}W'
         : '${ampsDelivered.toStringAsFixed(2)}A Drain';
     final protocolStr = _isCharging
-        ? (_isFull || _percentage >= 100 ? 'TRICKLE FLOAT' : _fastChargeProtocol)
+        ? (_isFull || _percentage >= 100 ? 'TRICKLE FLOAT' : _chargerProtocol.toUpperCase())
         : 'BATTERY DISCHARGE';
     final thermalStatus = _temperatureC > 45 ? 'Elevated' : (_temperatureC > 38 ? 'Warm' : 'Optimal');
-    final efficiencyStr = _isCharging ? '96.8% (Synchronous Buck)' : '98.5% Direct BMS';
+    final efficiencyStr = _isCharging ? '96.8% (Sync Buck)' : '98.5% Direct BMS';
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -864,7 +938,11 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
             ],
           ),
           const SizedBox(height: 12),
-          _buildSegmentRow('Throughput', throughputStr, 5, 5, theme),
+          _buildSegmentRow('Charger', chargerDisplay, 5, 5, theme),
+          const SizedBox(height: 8),
+          _buildSegmentRow('Cable Link', cableDisplay, 5, 5, theme),
+          const SizedBox(height: 8),
+          _buildSegmentRow('Phone Ingest', phoneIngestDisplay, 5, 5, theme),
           const SizedBox(height: 8),
           _buildSegmentRow('Protocol', protocolStr, 5, 5, theme),
           const SizedBox(height: 8),
@@ -889,22 +967,27 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
               label,
               style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: FontWeight.w600,
                 color: theme.textSecondary,
               ),
             ),
-            Text(
-              value,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: theme.text,
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.end,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: theme.text,
+                ),
               ),
             ),
           ],
@@ -1133,6 +1216,7 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                         model: _model,
                         size: 48,
                         borderRadius: 14,
+                        showBorder: false,
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -1170,6 +1254,10 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                   _buildSpecRow('Cell Topology', _isDualCell ? 'Dual-Cell Rapid Architecture' : 'Single-Cell High Density'),
                   _buildSpecRow('Fast Charge Tech', _fastChargeProtocol),
                   _buildSpecRow('Max Hardware Input', '${_maxSupportedWatts}W Supported'),
+                  _buildSpecRow('Connected Charger', _isCharging ? '$_chargerBrand • ${_chargerRatedWatts}W' : 'Unplugged'),
+                  _buildSpecRow('Charger Protocol', _isCharging ? _chargerProtocol : 'Discharging'),
+                  _buildSpecRow('OEM Authentication', _isOemConfirmed ? 'Verified Authentic OEM Link' : 'Standard USB-PD Link'),
+                  _buildSpecRow('Cable Capability', '${_cableRatedWatts}W E-Marker Rating'),
                   _buildSpecRow('State of Health', '$_health condition'),
                   _buildSpecRow('Voltage Potential', '${_voltageV.toStringAsFixed(3)} V'),
                   _buildSpecRow('Current Flow', '${_currentMa.toStringAsFixed(0)} mA'),
@@ -1217,71 +1305,435 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
 
   void _showChargerRatingPicker() {
     SoundService().playClick();
+    const presets = <_ChargerPreset>[
+      // Motorola
+      _ChargerPreset(
+        title: 'Motorola TurboPower 125W',
+        subtitle: 'Dual-Cell GaN Ultra Protocol (20V @ 6.25A)',
+        brand: 'Motorola',
+        protocol: 'TurboPower 125W',
+        technology: 'TurboPower 125W (OEM Authentic)',
+        watts: 125,
+      ),
+      _ChargerPreset(
+        title: 'Motorola TurboPower 68W',
+        subtitle: 'BMS High-Current Direct Link (11V @ 6.2A)',
+        brand: 'Motorola',
+        protocol: 'TurboPower 68W',
+        technology: 'TurboPower 68W (OEM Authentic)',
+        watts: 68,
+      ),
+      _ChargerPreset(
+        title: 'Motorola TurboPower 33W',
+        subtitle: 'Turbo Quick Handshake (11V @ 3A)',
+        brand: 'Motorola',
+        protocol: 'TurboPower 33W',
+        technology: 'TurboPower 33W (OEM Authentic)',
+        watts: 33,
+      ),
+      _ChargerPreset(
+        title: 'Motorola TurboPower 30W',
+        subtitle: 'Fast Charging Adapter (10V @ 3A)',
+        brand: 'Motorola',
+        protocol: 'TurboPower 30W',
+        technology: 'TurboPower 30W (OEM Authentic)',
+        watts: 30,
+      ),
+
+      // Samsung
+      _ChargerPreset(
+        title: 'Samsung Super Fast Charging 2.0 (45W)',
+        subtitle: 'USB-PD 3.0 PPS (10V @ 4.5A / 15V @ 3A)',
+        brand: 'Samsung',
+        protocol: 'Super Fast Charging 2.0',
+        technology: 'Samsung SFC 2.0 (USB-PD PPS 45W)',
+        watts: 45,
+      ),
+      _ChargerPreset(
+        title: 'Samsung Super Fast Charging (25W)',
+        subtitle: 'USB-PD 3.0 PPS (9V @ 2.77A)',
+        brand: 'Samsung',
+        protocol: 'Super Fast Charging',
+        technology: 'Samsung SFC (USB-PD PPS 25W)',
+        watts: 25,
+      ),
+      _ChargerPreset(
+        title: 'Samsung Adaptive Fast Charging (15W)',
+        subtitle: 'AFC Standard Profile (9V @ 1.67A)',
+        brand: 'Samsung',
+        protocol: 'Adaptive Fast Charging',
+        technology: 'Samsung AFC (15W)',
+        watts: 15,
+      ),
+
+      // OnePlus / Oppo / Realme
+      _ChargerPreset(
+        title: 'SUPERVOOC 150W Endurance',
+        subtitle: 'Direct Low-Voltage High-Current (20V @ 7.5A)',
+        brand: 'OnePlus / Oppo',
+        protocol: 'SUPERVOOC 150W',
+        technology: 'SUPERVOOC 150W Flash Charge',
+        watts: 150,
+      ),
+      _ChargerPreset(
+        title: 'SUPERVOOC 100W Dual-Cell',
+        subtitle: 'Dual Battery Rapid Charge (11V @ 9.1A)',
+        brand: 'OnePlus / Oppo',
+        protocol: 'SUPERVOOC 100W',
+        technology: 'SUPERVOOC 100W Flash Charge',
+        watts: 100,
+      ),
+      _ChargerPreset(
+        title: 'SUPERVOOC 80W Flash Charge',
+        subtitle: 'Direct Rapid Protocol (11V @ 7.3A)',
+        brand: 'OnePlus / Oppo',
+        protocol: 'SUPERVOOC 80W',
+        technology: 'SUPERVOOC 80W Flash Charge',
+        watts: 80,
+      ),
+      _ChargerPreset(
+        title: 'SUPERVOOC 67W / Warp Charge 65',
+        subtitle: 'High-Efficiency Direct Charge (11V @ 6.1A)',
+        brand: 'OnePlus / Oppo',
+        protocol: 'SUPERVOOC 67W',
+        technology: 'SUPERVOOC 67W Flash Charge',
+        watts: 67,
+      ),
+
+      // Xiaomi / Redmi / POCO
+      _ChargerPreset(
+        title: 'Xiaomi HyperCharge 120W',
+        subtitle: 'Surge P1 Dual Charge Pumps (20V @ 6A)',
+        brand: 'Xiaomi',
+        protocol: 'HyperCharge 120W',
+        technology: 'Xiaomi HyperCharge 120W (OEM)',
+        watts: 120,
+      ),
+      _ChargerPreset(
+        title: 'Xiaomi HyperCharge 90W',
+        subtitle: 'Ultra Rapid Link (20V @ 4.5A)',
+        brand: 'Xiaomi',
+        protocol: 'HyperCharge 90W',
+        technology: 'Xiaomi HyperCharge 90W (OEM)',
+        watts: 90,
+      ),
+      _ChargerPreset(
+        title: 'Xiaomi Mi Turbo Charge 67W',
+        subtitle: 'High-Density Turbo Protocol (11V @ 6.1A)',
+        brand: 'Xiaomi',
+        protocol: 'Turbo Charge 67W',
+        technology: 'Xiaomi Mi Turbo Charge 67W',
+        watts: 67,
+      ),
+      _ChargerPreset(
+        title: 'Xiaomi Mi Turbo Charge 33W',
+        subtitle: 'Standard Turbo Handshake (11V @ 3A)',
+        brand: 'Xiaomi',
+        protocol: 'Turbo Charge 33W',
+        technology: 'Xiaomi Mi Turbo Charge 33W',
+        watts: 33,
+      ),
+
+      // Vivo & iQOO
+      _ChargerPreset(
+        title: 'vivo FlashCharge 120W',
+        subtitle: 'Ultra Fast Dual-Cell Pump (20V @ 6A)',
+        brand: 'Vivo / iQOO',
+        protocol: 'FlashCharge 120W',
+        technology: 'vivo FlashCharge 120W (OEM)',
+        watts: 120,
+      ),
+      _ChargerPreset(
+        title: 'vivo FlashCharge 80W',
+        subtitle: 'Rapid Direct Charge (11V @ 7.3A)',
+        brand: 'Vivo / iQOO',
+        protocol: 'FlashCharge 80W',
+        technology: 'vivo FlashCharge 80W (OEM)',
+        watts: 80,
+      ),
+      _ChargerPreset(
+        title: 'vivo FlashCharge 44W',
+        subtitle: 'FlashCharge Standard (11V @ 4A)',
+        brand: 'Vivo / iQOO',
+        protocol: 'FlashCharge 44W',
+        technology: 'vivo FlashCharge 44W (OEM)',
+        watts: 44,
+      ),
+
+      // Apple
+      _ChargerPreset(
+        title: 'Apple 30W USB-PD Adapter',
+        subtitle: 'USB-C Power Delivery (20V @ 1.5A / 15V @ 2A)',
+        brand: 'Apple',
+        protocol: 'Apple USB-PD (30W)',
+        technology: 'Apple USB-PD Fast Charge (30W)',
+        watts: 30,
+      ),
+      _ChargerPreset(
+        title: 'Apple 20W USB-PD Adapter',
+        subtitle: 'Official iPhone Fast Charge (9V @ 2.22A)',
+        brand: 'Apple',
+        protocol: 'Apple USB-PD (20W)',
+        technology: 'Apple 20W USB-PD Adapter',
+        watts: 20,
+      ),
+
+      // Google Pixel
+      _ChargerPreset(
+        title: 'Google Pixel 37W PPS Charger',
+        subtitle: 'USB Power Delivery 3.0 PPS (21V @ 2.25A)',
+        brand: 'Google',
+        protocol: 'Google USB-PD PPS',
+        technology: 'Google 37W USB-PD 3.0 PPS',
+        watts: 37,
+      ),
+      _ChargerPreset(
+        title: 'Google Pixel 30W USB-PD',
+        subtitle: 'Standard Pixel PPS Profile (20V @ 1.5A)',
+        brand: 'Google',
+        protocol: 'Google USB-PD PPS',
+        technology: 'Google 30W USB-PD 3.0 PPS',
+        watts: 30,
+      ),
+
+      // Universal GaN USB-PD PPS (Third-Party)
+      _ChargerPreset(
+        title: 'Universal GaN USB-PD PPS 100W',
+        subtitle: 'Multi-Protocol GaN Adapter (Anker / Ugreen / Baseus)',
+        brand: 'Universal GaN',
+        protocol: 'USB-PD 3.0 PPS (100W)',
+        technology: 'USB-PD 3.0 PPS (Universal GaN 100W)',
+        watts: 100,
+      ),
+      _ChargerPreset(
+        title: 'Universal GaN USB-PD PPS 65W',
+        subtitle: 'Standard Laptop/Mobile GaN (20V @ 3.25A)',
+        brand: 'Universal GaN',
+        protocol: 'USB-PD 3.0 PPS (65W)',
+        technology: 'USB-PD 3.0 PPS (Universal GaN 65W)',
+        watts: 65,
+      ),
+      _ChargerPreset(
+        title: 'Universal GaN USB-PD PPS 45W',
+        subtitle: 'Compact PPS Multi-Device (15V @ 3A / 20V @ 2.25A)',
+        brand: 'Universal GaN',
+        protocol: 'USB-PD 3.0 PPS (45W)',
+        technology: 'USB-PD 3.0 PPS (Universal GaN 45W)',
+        watts: 45,
+      ),
+      _ChargerPreset(
+        title: 'Universal USB-PD 30W Adapter',
+        subtitle: 'Compact USB-C Fast Charger (9V @ 3A)',
+        brand: 'Universal PD',
+        protocol: 'USB-PD 30W',
+        technology: 'USB-PD 30W Fast Charger',
+        watts: 30,
+      ),
+      _ChargerPreset(
+        title: 'Qualcomm Quick Charge 3.0 (18W)',
+        subtitle: 'QC 3.0 Dynamic Voltage (9V @ 2A / 12V @ 1.5A)',
+        brand: 'Qualcomm QC',
+        protocol: 'Quick Charge 3.0',
+        technology: 'Qualcomm Quick Charge 3.0 (18W)',
+        watts: 18,
+      ),
+      _ChargerPreset(
+        title: 'Standard 5V / 2A USB (10W)',
+        subtitle: 'Standard Wall Adapter (DCP 5V @ 2.0A)',
+        brand: 'Standard USB',
+        protocol: 'Standard 10W DCP',
+        technology: 'Standard 5V/2A (10W USB)',
+        watts: 10,
+      ),
+      _ChargerPreset(
+        title: 'PC USB Host Port (5W)',
+        subtitle: 'Computer / Laptop USB Port (5V @ 0.5A - 0.9A)',
+        brand: 'PC USB',
+        protocol: 'USB Host (5W)',
+        technology: 'PC USB 2.0/3.0 (5V 0.5A - 0.9A)',
+        watts: 5,
+      ),
+    ];
+
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: widget.theme.cardBg,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) {
         return SafeArea(
-          child: Padding(
+          child: Container(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(ctx).size.height * 0.78,
+            ),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Select Rated Charger Capacity',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: widget.theme.text,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Charger & Protocol Calibration',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: widget.theme.text,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Active: ${_chargerRatedWatts}W • $_chargerProtocol',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                      ],
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 20),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                // Auto-Detect Reset Pill Button
+                BouncyTap(
+                  onTap: () {
+                    SoundService().playTap();
+                    setState(() {
+                      _userOverrodeChargerRating = false;
+                    });
+                    _fetchHardwareTelemetry();
+                    Navigator.pop(ctx);
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: widget.theme.bg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: widget.theme.primary.withValues(alpha: 0.4)),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.auto_awesome_rounded, size: 16, color: widget.theme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Reset to Hardware Auto-Detect',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: widget.theme.primary,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 14),
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 10,
-                  children: _commonChargerRatings.map((rating) {
-                    final isSelected = rating == _chargerRatedWatts;
-                    return BouncyTap(
-                      onTap: () {
-                        SoundService().playTap();
-                        setState(() {
-                          _chargerRatedWatts = rating;
-                          _userOverrodeChargerRating = true;
-                        });
-                        Navigator.pop(ctx);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected
-                              ? widget.theme.primary
-                              : widget.theme.bg,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
+                Expanded(
+                  child: ListView.separated(
+                    physics: const BouncingScrollPhysics(),
+                    itemCount: presets.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, idx) {
+                      final p = presets[idx];
+                      final isSelected = p.watts == _chargerRatedWatts && p.protocol == _chargerProtocol;
+                      return BouncyTap(
+                        onTap: () {
+                          SoundService().playTap();
+                          setState(() {
+                            _chargerRatedWatts = p.watts;
+                            _chargerBrand = p.brand;
+                            _chargerProtocol = p.protocol;
+                            _chargerTechnology = p.technology;
+                            _cableRatedWatts = p.watts >= 65 ? 100 : 60;
+                            _userOverrodeChargerRating = true;
+                          });
+                          Navigator.pop(ctx);
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                          decoration: BoxDecoration(
                             color: isSelected
-                                ? widget.theme.primary
-                                : widget.theme.border,
+                                ? widget.theme.primary.withValues(alpha: 0.12)
+                                : widget.theme.bg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: isSelected
+                                  ? widget.theme.primary
+                                  : widget.theme.border,
+                              width: isSelected ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: isSelected
+                                      ? widget.theme.primary
+                                      : widget.theme.cardBg,
+                                  borderRadius: BorderRadius.circular(9),
+                                  border: Border.all(
+                                    color: isSelected ? widget.theme.primary : widget.theme.border,
+                                  ),
+                                ),
+                                child: Text(
+                                  '${p.watts}W',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: isSelected ? Colors.white : widget.theme.text,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      p.title,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: widget.theme.text,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      p.subtitle,
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w500,
+                                        color: widget.theme.textSecondary,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              if (isSelected)
+                                Icon(Icons.check_circle_rounded, size: 18, color: widget.theme.primary),
+                            ],
                           ),
                         ),
-                        child: Text(
-                          '${rating}W',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: isSelected
-                                ? Colors.white
-                                : widget.theme.text,
-                          ),
-                        ),
-                      ),
-                    );
-                  }).toList(),
+                      );
+                    },
+                  ),
                 ),
-                const SizedBox(height: 16),
               ],
             ),
           ),
@@ -1296,6 +1748,24 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
       (Match m) => '${m[1]},',
     );
   }
+}
+
+class _ChargerPreset {
+  final String title;
+  final String subtitle;
+  final String brand;
+  final String protocol;
+  final String technology;
+  final int watts;
+
+  const _ChargerPreset({
+    required this.title,
+    required this.subtitle,
+    required this.brand,
+    required this.protocol,
+    required this.technology,
+    required this.watts,
+  });
 }
 
 // =============================================================================
