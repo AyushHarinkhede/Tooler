@@ -17,13 +17,18 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
+import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.media.MediaScannerConnection
+import android.media.RingtoneManager
 import android.media.SoundPool
 import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.provider.MediaStore
 import android.provider.Settings
 import android.telephony.TelephonyManager
@@ -67,8 +72,12 @@ open class MainActivity : FlutterActivity() {
     private var loopbackThread: Thread? = null
     private var monitorGain: Float = 1.0f
 
-    // Native Sound Engine (SoundPool) for instant, zero-latency physical feedback
+    // Native Sound Engine (SoundPool + Alarm MediaPlayer) for physical feedback & alarms
     private var soundPool: SoundPool? = null
+    private var alarmSoundPool: SoundPool? = null
+    private var alarmMediaPlayer: MediaPlayer? = null
+    private var alarmVibrator: Vibrator? = null
+    private var alarmSoundId: Int = 0
     private val soundMap = HashMap<String, Int>()
     private var isSoundEnabled = true
     private var activeAlarmStreamId: Int = 0
@@ -256,7 +265,9 @@ open class MainActivity : FlutterActivity() {
                     result.success(true)
                 }
                 "playAlarm" -> {
-                    playNativeAlarm()
+                    val sound = call.argument<Boolean>("sound") ?: true
+                    val vibrate = call.argument<Boolean>("vibrate") ?: true
+                    playNativeAlarm(sound, vibrate)
                     result.success(true)
                 }
                 "stopAlarm" -> {
@@ -1849,6 +1860,16 @@ open class MainActivity : FlutterActivity() {
                 .setAudioAttributes(audioAttributes)
                 .build()
 
+            val alarmAudioAttributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+
+            alarmSoundPool = SoundPool.Builder()
+                .setMaxStreams(2)
+                .setAudioAttributes(alarmAudioAttributes)
+                .build()
+
             val loader = FlutterInjector.instance().flutterLoader()
             val soundNames = listOf("click", "key", "tap", "success", "alert", "alarm")
             val soundsDir = File(cacheDir, "tooler_sounds")
@@ -1870,6 +1891,9 @@ open class MainActivity : FlutterActivity() {
                         if (soundId != 0) {
                             soundMap[soundName] = soundId
                         }
+                        if (soundName == "alarm") {
+                            alarmSoundId = alarmSoundPool?.load(cacheFile.absolutePath, 1) ?: 0
+                        }
                     }
                 } catch (e: Exception) {
                     // Fallback synthesis handled gracefully
@@ -1888,22 +1912,104 @@ open class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun playNativeAlarm() {
-        if (!isSoundEnabled) return
+    private fun playNativeAlarm(sound: Boolean = true, vibrate: Boolean = true) {
         stopNativeAlarm()
-        val alarmId = soundMap["alarm"] ?: soundMap["alert"]
-        if (alarmId != null && alarmId != 0) {
-            activeAlarmStreamId = soundPool?.play(alarmId, 1.0f, 1.0f, 2, 7, 1.0f) ?: 0
+
+        // 1. HARDWARE VIBRATION (Continuous repeating alarm pulse)
+        if (vibrate) {
+            try {
+                alarmVibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val vm = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                    vm?.defaultVibrator
+                } else {
+                    @Suppress("DEPRECATION")
+                    getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                }
+                val pattern = longArrayOf(0, 600, 250, 600, 250, 800)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    alarmVibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    alarmVibrator?.vibrate(pattern, 0)
+                }
+            } catch (_: Exception) {}
+        }
+
+        // 2. LOUD ALARM AUDIO (Dedicated USAGE_ALARM stream, unmuted by silent/vibrate mode)
+        if (sound) {
+            try {
+                val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                val maxVol = audioManager.getStreamMaxVolume(AudioManager.STREAM_ALARM)
+                val curVol = audioManager.getStreamVolume(AudioManager.STREAM_ALARM)
+                if (curVol < (maxVol * 0.75).toInt()) {
+                    try {
+                        audioManager.setStreamVolume(AudioManager.STREAM_ALARM, (maxVol * 0.85).toInt(), 0)
+                    } catch (_: Exception) {}
+                }
+
+                val audioAttributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build()
+
+                val soundsDir = File(cacheDir, "tooler_sounds")
+                val cacheWav = File(soundsDir, "alarm.wav")
+
+                val player = MediaPlayer()
+                player.setAudioAttributes(audioAttributes)
+                player.isLooping = true
+
+                if (cacheWav.exists() && cacheWav.length() > 0) {
+                    player.setDataSource(cacheWav.absolutePath)
+                    player.prepare()
+                    player.start()
+                    alarmMediaPlayer = player
+                } else {
+                    var uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                    if (uri == null) {
+                        uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+                    }
+                    if (uri != null) {
+                        player.setDataSource(applicationContext, uri)
+                        player.prepare()
+                        player.start()
+                        alarmMediaPlayer = player
+                    }
+                }
+            } catch (e: Exception) {
+                // High-priority SoundPool fallback on USAGE_ALARM stream
+                try {
+                    val idToPlay = if (alarmSoundId != 0) alarmSoundId else (soundMap["alarm"] ?: soundMap["alert"] ?: 0)
+                    if (idToPlay != 0) {
+                        activeAlarmStreamId = alarmSoundPool?.play(idToPlay, 1.0f, 1.0f, 2, -1, 1.0f)
+                            ?: (soundPool?.play(idToPlay, 1.0f, 1.0f, 2, -1, 1.0f) ?: 0)
+                    }
+                } catch (_: Exception) {}
+            }
         }
     }
 
     private fun stopNativeAlarm() {
+        try {
+            alarmMediaPlayer?.stop()
+            alarmMediaPlayer?.release()
+        } catch (_: Exception) {}
+        alarmMediaPlayer = null
+
         if (activeAlarmStreamId != 0) {
+            try {
+                alarmSoundPool?.stop(activeAlarmStreamId)
+            } catch (_: Exception) {}
             try {
                 soundPool?.stop(activeAlarmStreamId)
             } catch (_: Exception) {}
             activeAlarmStreamId = 0
         }
+
+        try {
+            alarmVibrator?.cancel()
+        } catch (_: Exception) {}
+        alarmVibrator = null
     }
 
     private fun checkBluetoothConnected(audioManager: AudioManager): Boolean {
@@ -2224,6 +2330,8 @@ open class MainActivity : FlutterActivity() {
         // Keep ToolerAudioService running in background RAM if recording or audio monitor is active
         stopNativeAlarm()
         try {
+            alarmSoundPool?.release()
+            alarmSoundPool = null
             soundPool?.release()
             soundPool = null
         } catch (_: Exception) {}

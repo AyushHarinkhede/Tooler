@@ -133,37 +133,23 @@ class SoundService {
     }
   }
 
-  /// Repeating ringing alarm sequence when a timer completes
-  void playTimerAlarm() {
-    stopTimerAlarm();
-    if (!soundEnabled && !hapticsEnabled) return;
-
-    if (soundEnabled) {
-      try {
-        _nativeChannel.invokeMethod('playAlarm');
-      } catch (_) {
-        _playSound('alarm', volume: 1.0);
-      }
+  /// Plays the authoritative, loud native alarm (hardware USAGE_ALARM stream)
+  /// with synchronized continuous haptic vibration.
+  /// Bypasses silent/vibrate switches so the user is reliably alerted.
+  void playAlarm({bool sound = true, bool vibrate = true}) {
+    stopAlarm();
+    try {
+      _nativeChannel.invokeMethod('playAlarm', {
+        'sound': sound,
+        'vibrate': vibrate,
+      });
+    } catch (_) {
+      if (sound) _playSound('alarm', volume: 1.0);
     }
-
-    int chimeCount = 0;
-    void pulse() {
-      if (hapticsEnabled) {
-        HapticFeedback.heavyImpact();
-      }
-      chimeCount++;
-      if (chimeCount >= 8) {
-        stopTimerAlarm();
-      }
-    }
-
-    pulse();
-    _alarmRingtoneTimer = Timer.periodic(const Duration(milliseconds: 450), (_) {
-      pulse();
-    });
   }
 
-  void stopTimerAlarm() {
+  /// Stops any currently playing alarm sound and vibration immediately.
+  void stopAlarm() {
     _alarmRingtoneTimer?.cancel();
     _alarmRingtoneTimer = null;
     try {
@@ -172,5 +158,15 @@ class SoundService {
     try {
       _fallbackPlayer?.stop();
     } catch (_) {}
+  }
+
+  /// Repeating ringing alarm sequence when a countdown timer completes.
+  /// Plays the EXACT same loud, proper wake-up sound & vibration as Alarm.
+  void playTimerAlarm({bool sound = true, bool vibrate = true}) {
+    playAlarm(sound: sound, vibrate: vibrate);
+  }
+
+  void stopTimerAlarm() {
+    stopAlarm();
   }
 }

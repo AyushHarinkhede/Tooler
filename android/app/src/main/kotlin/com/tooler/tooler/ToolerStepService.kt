@@ -352,6 +352,7 @@ class ToolerStepService : Service(), SensorEventListener {
                 .apply()
 
             updateNotification()
+            checkBackgroundStepMilestones()
             pushLiveTelemetry()
         }
     }
@@ -418,8 +419,111 @@ class ToolerStepService : Service(), SensorEventListener {
 
         if (liveTodaySteps % 5 == 0 || count > 1) {
             updateNotification()
+            checkBackgroundStepMilestones()
         }
         pushLiveTelemetry()
+    }
+
+    private fun checkBackgroundStepMilestones() {
+        try {
+            val p = prefs ?: return
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val goal = p.getInt(KEY_DAILY_GOAL, 10000)
+
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val fitnessChannel = NotificationChannel(
+                    "tooler_fitness_channel",
+                    "Step Counter Goals & Milestones",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply {
+                    description = "Daily step goal completions, 1,000-step milestones & 6-hour progress checks"
+                    enableVibration(true)
+                }
+                nm.createNotificationChannel(fitnessChannel)
+            }
+
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+                ?: Intent(this, MainActivity::class.java)
+            val pi = PendingIntent.getActivity(
+                this,
+                4000,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
+
+            // 1. Goal Complete Check (Strictly once per day upon crossing goal)
+            if (liveTodaySteps >= goal && liveTodaySteps > 0) {
+                val lastGoalDate = p.getString("flutter.tooler_step_goal_notif_date", null)
+                if (lastGoalDate != todayStr) {
+                    p.edit().putString("flutter.tooler_step_goal_notif_date", todayStr).apply()
+                    val calories = (liveTodaySteps * 0.042).toInt()
+                    val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Notification.Builder(this, "tooler_fitness_channel")
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Notification.Builder(this)
+                    }
+                    val notif = builder
+                        .setSmallIcon(R.drawable.ic_step_notification)
+                        .setContentTitle("🏆 Daily Step Goal Achieved! 🎉")
+                        .setContentText("Incredible effort! You hit your goal of $goal steps today ($liveDistanceKm km, $calories kcal burned). Keep up the great streak!")
+                        .setAutoCancel(true)
+                        .setContentIntent(pi)
+                        .build()
+                    nm.notify(4001, notif)
+                }
+            }
+
+            // 2. 1,000 Step Milestone Check (har 1,000 cover karne par)
+            val lastMilestone = p.getInt("flutter.tooler_last_step_milestone_notified", 0)
+            if (liveTodaySteps >= lastMilestone + 1000 && liveTodaySteps >= 1000) {
+                val currentMilestone = (liveTodaySteps / 1000) * 1000
+                if (currentMilestone > lastMilestone) {
+                    p.edit().putInt("flutter.tooler_last_step_milestone_notified", currentMilestone).apply()
+                    val calories = (liveTodaySteps * 0.042).toInt()
+                    val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Notification.Builder(this, "tooler_fitness_channel")
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Notification.Builder(this)
+                    }
+                    val notif = builder
+                        .setSmallIcon(R.drawable.ic_step_notification)
+                        .setContentTitle("👟 Step Milestone: $currentMilestone Steps!")
+                        .setContentText("You've covered $liveDistanceKm km and burned $calories kcal today.")
+                        .setAutoCancel(true)
+                        .setContentIntent(pi)
+                        .build()
+                    nm.notify(4002, notif)
+                }
+            }
+
+            // 3. Every 6 Hours Periodic Check (daytime 8:00 AM to 10:00 PM)
+            val nowMs = System.currentTimeMillis()
+            val last6HrMs = p.getLong("flutter.tooler_last_step_6hr_notif_time", 0L)
+            val cal = java.util.Calendar.getInstance()
+            val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+            if ((nowMs - last6HrMs >= 6 * 3600 * 1000L) && hour in 8..22 && liveTodaySteps > 0) {
+                p.edit().putLong("flutter.tooler_last_step_6hr_notif_time", nowMs).apply()
+                val calories = (liveTodaySteps * 0.042).toInt()
+                val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    Notification.Builder(this, "tooler_fitness_channel")
+                } else {
+                    @Suppress("DEPRECATION")
+                    Notification.Builder(this)
+                }
+                val notif = builder
+                    .setSmallIcon(R.drawable.ic_step_notification)
+                    .setContentTitle("🚶 6-Hour Step Progress")
+                    .setContentText("Active progress: $liveTodaySteps steps ($liveDistanceKm km · $calories kcal). Stay energized!")
+                    .setAutoCancel(true)
+                    .setContentIntent(pi)
+                    .build()
+                nm.notify(4003, notif)
+            }
+        } catch (_: Throwable) {}
     }
 
     private fun checkDayRollover() {
@@ -460,6 +564,8 @@ class ToolerStepService : Service(), SensorEventListener {
                 .putString(KEY_TRAIL_POINTS, "[]")
                 .putString(KEY_LAST_DATE, todayStr)
                 .remove(KEY_HARDWARE_BASELINE)
+                .remove("flutter.tooler_step_goal_notif_date")
+                .putInt("flutter.tooler_last_step_milestone_notified", 0)
                 .apply()
 
             updateNotification()

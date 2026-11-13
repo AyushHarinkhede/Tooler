@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'storage_service.dart';
@@ -22,6 +24,11 @@ class NotificationService {
 
   static const int timerNotificationId = 1001;
   static const int stopwatchNotificationId = 1002;
+  static const int weatherDailyNotificationId = 3001;
+  static const int stepGoalNotificationId = 4001;
+  static const int stepMilestoneNotificationId = 4002;
+  static const int stepPeriodicNotificationId = 4003;
+  static const int tallyMilestoneBaseId = 5000;
 
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
@@ -105,8 +112,8 @@ class NotificationService {
 
         final alarmChannel = AndroidNotificationChannel(
           'tooler_alarm_channel',
-          'Smart Alarms',
-          description: 'High-priority wake-up alerts and smart alarms',
+          'Alarms',
+          description: 'High-priority wake-up alerts and alarms',
           importance: Importance.max,
           playSound: true,
           enableVibration: true,
@@ -114,11 +121,41 @@ class NotificationService {
           audioAttributesUsage: AudioAttributesUsage.alarm,
         );
 
+        const tallyChannel = AndroidNotificationChannel(
+          'tooler_tally_channel',
+          'Tally Counter Milestones',
+          description: 'Goal completions and sacred counting milestones',
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: true,
+        );
+
+        const weatherChannel = AndroidNotificationChannel(
+          'tooler_weather_channel',
+          'Daily Weather Brief',
+          description: 'Morning weather and AQI forecast summary (once daily)',
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: false,
+        );
+
+        const fitnessChannel = AndroidNotificationChannel(
+          'tooler_fitness_channel',
+          'Step Counter Goals & Milestones',
+          description: 'Daily step goal completions, 1,000-step milestones & 6-hour progress checks',
+          importance: Importance.high,
+          playSound: true,
+          enableVibration: true,
+        );
+
         await androidImpl.createNotificationChannel(timerChannel);
         await androidImpl.createNotificationChannel(taskChannel);
         await androidImpl.createNotificationChannel(calendarChannel);
         await androidImpl.createNotificationChannel(stopwatchChannel);
         await androidImpl.createNotificationChannel(alarmChannel);
+        await androidImpl.createNotificationChannel(tallyChannel);
+        await androidImpl.createNotificationChannel(weatherChannel);
+        await androidImpl.createNotificationChannel(fitnessChannel);
       }
       _initialized = true;
     } catch (_) {}
@@ -432,7 +469,7 @@ class NotificationService {
   }
 
   // =========================================================================
-  // 5. SMART ALARM NOTIFICATIONS (Exact Background Wake-Up Alarms)
+  // 5. ALARM NOTIFICATIONS (Exact Background Wake-Up Alarms)
   // =========================================================================
 
   Future<void> scheduleAlarmNotification({
@@ -451,8 +488,8 @@ class NotificationService {
 
       const androidDetails = AndroidNotificationDetails(
         'tooler_alarm_channel',
-        'Smart Alarms',
-        channelDescription: 'High-priority wake-up alerts and smart alarms',
+        'Alarms',
+        channelDescription: 'High-priority wake-up alerts and alarms',
         importance: Importance.max,
         priority: Priority.max,
         playSound: true,
@@ -502,6 +539,258 @@ class NotificationService {
   Future<void> cancelAlarmNotification(int id) async {
     try {
       await _notifications.cancel(id);
+    } catch (_) {}
+  }
+
+  // =========================================================================
+  // 6. TALLY COUNTER MILESTONES & GOAL NOTIFICATIONS
+  // =========================================================================
+
+  Future<void> showTallyMilestoneNotification({
+    required int counterId,
+    required String counterName,
+    required int value,
+    int? targetGoal,
+  }) async {
+    if (!await isEnabled) return;
+    await init();
+
+    final bool isGoal = targetGoal != null && value >= targetGoal;
+    final String title = isGoal
+        ? "🎯 Goal Reached: $counterName!"
+        : (value == 108
+            ? "📿 Sacred 108 Chants Completed: $counterName!"
+            : "📿 Milestone: $counterName ($value counts)");
+    final String body = isGoal
+        ? "Congratulations! You completed your target goal of $targetGoal counts."
+        : "You just crossed $value counts on $counterName! Tap to view counter.";
+
+    const androidDetails = AndroidNotificationDetails(
+      'tooler_tally_channel',
+      'Tally Counter Milestones',
+      channelDescription: 'Goal completions and sacred counting milestones',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      category: AndroidNotificationCategory.status,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentSound: true,
+      presentBadge: true,
+    );
+
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    try {
+      await _notifications.show(
+        tallyMilestoneBaseId + (counterId % 1000),
+        title,
+        body,
+        details,
+      );
+    } catch (_) {}
+  }
+
+  // =========================================================================
+  // 7. WEATHER DAILY MORNING BRIEF (Strictly Once Per Day)
+  // =========================================================================
+
+  Future<void> showDailyMorningWeatherNotification({
+    required String city,
+    required double tempC,
+    required String condition,
+    required int aqi,
+    required String aqiStatus,
+    double? tempMin,
+    double? tempMax,
+  }) async {
+    if (!await isEnabled) return;
+    await init();
+
+    final prefs = await SharedPreferences.getInstance();
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final lastDate = prefs.getString('tooler_last_weather_notif_date');
+
+    // Strictly 1 weather notification at the start of the day
+    if (lastDate == todayStr) return;
+
+    final String title = "🌤️ Good Morning! Today's Weather in $city";
+    final String summary = "${tempC.round()}°C · $condition • AQI $aqi ($aqiStatus)";
+    final String extended = tempMin != null && tempMax != null
+        ? "Today: ${tempMin.round()}°C to ${tempMax.round()}°C · $condition\nAir Quality Index: AQI $aqi ($aqiStatus).\nHave a productive and wonderful day!"
+        : "$summary\nHave a great and energized day!";
+
+    final androidDetails = AndroidNotificationDetails(
+      'tooler_weather_channel',
+      'Daily Weather Brief',
+      channelDescription: 'Morning weather and AQI forecast summary (once daily)',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: false,
+      styleInformation: BigTextStyleInformation(
+        extended,
+        contentTitle: title,
+        summaryText: "Daily Weather Brief",
+      ),
+      category: AndroidNotificationCategory.status,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentSound: true,
+      presentBadge: false,
+    );
+
+    final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    try {
+      await _notifications.show(
+        weatherDailyNotificationId,
+        title,
+        summary,
+        details,
+      );
+      await prefs.setString('tooler_last_weather_notif_date', todayStr);
+    } catch (_) {}
+  }
+
+  // =========================================================================
+  // 8. STEP COUNTER (Goal Achieved, 1,000-Step Milestone & 6-Hour Progress)
+  // =========================================================================
+
+  Future<void> showStepGoalAchievedNotification({
+    required int steps,
+    required int goal,
+    required double distanceKm,
+    required int calories,
+  }) async {
+    if (!await isEnabled) return;
+    await init();
+
+    final prefs = await SharedPreferences.getInstance();
+    final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+    final lastGoalDate = prefs.getString('tooler_step_goal_notif_date');
+    if (lastGoalDate == todayStr) return; // Strictly once per day on achieving goal
+
+    const String title = "🏆 Daily Step Goal Achieved! 🎉";
+    final String body =
+        "Incredible effort! You reached your goal of $goal steps today ($distanceKm km, $calories kcal burned). Keep up the great streak!";
+
+    final androidDetails = AndroidNotificationDetails(
+      'tooler_fitness_channel',
+      'Step Counter Goals & Milestones',
+      channelDescription: 'Daily step goal completions and milestones',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      styleInformation: BigTextStyleInformation(
+        body,
+        contentTitle: title,
+        summaryText: "Daily Step Goal",
+      ),
+      category: AndroidNotificationCategory.status,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentSound: true,
+    );
+
+    final details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    try {
+      await _notifications.show(
+        stepGoalNotificationId,
+        title,
+        body,
+        details,
+      );
+      await prefs.setString('tooler_step_goal_notif_date', todayStr);
+    } catch (_) {}
+  }
+
+  Future<void> showStepMilestoneNotification({
+    required int milestoneSteps,
+    required double distanceKm,
+    required int calories,
+  }) async {
+    if (!await isEnabled) return;
+    await init();
+
+    final String title = "👟 Step Milestone: $milestoneSteps Steps!";
+    final String body =
+        "You've covered $distanceKm km and burned $calories kcal today. Great momentum!";
+
+    const androidDetails = AndroidNotificationDetails(
+      'tooler_fitness_channel',
+      'Step Counter Goals & Milestones',
+      channelDescription: 'Milestone distance and step progress',
+      importance: Importance.high,
+      priority: Priority.high,
+      playSound: true,
+      enableVibration: true,
+      category: AndroidNotificationCategory.status,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentSound: true,
+    );
+
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    try {
+      await _notifications.show(
+        stepMilestoneNotificationId,
+        title,
+        body,
+        details,
+      );
+    } catch (_) {}
+  }
+
+  Future<void> showStepPeriodic6HourNotification({
+    required int steps,
+    required double distanceKm,
+    required int calories,
+  }) async {
+    if (!await isEnabled) return;
+    await init();
+
+    const String title = "🚶 6-Hour Step Check-in";
+    final String body =
+        "Today's active progress: $steps steps ($distanceKm km · $calories kcal). Stay active and energized!";
+
+    const androidDetails = AndroidNotificationDetails(
+      'tooler_fitness_channel',
+      'Step Counter Goals & Milestones',
+      channelDescription: '6-hour activity check-ins',
+      importance: Importance.defaultImportance,
+      priority: Priority.defaultPriority,
+      playSound: true,
+      enableVibration: false,
+      category: AndroidNotificationCategory.status,
+    );
+
+    const iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentSound: false,
+    );
+
+    const details = NotificationDetails(android: androidDetails, iOS: iosDetails);
+
+    try {
+      await _notifications.show(
+        stepPeriodicNotificationId,
+        title,
+        body,
+        details,
+      );
     } catch (_) {}
   }
 }

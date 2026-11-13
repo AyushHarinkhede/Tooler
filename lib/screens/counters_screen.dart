@@ -6,6 +6,7 @@ import '../models/counter_model.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/widget_service.dart';
+import '../services/notification_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_character.dart';
 
@@ -123,8 +124,30 @@ class _CountersScreenState extends State<CountersScreen> with WidgetsBindingObse
       updated = item;
     });
     StorageService().saveCounters(_counters);
-    if (updated != null && updated!.id == _linkedWidgetCounterId) {
-      _syncToWidget(updated);
+    if (updated != null) {
+      if (updated!.id == _linkedWidgetCounterId) {
+        _syncToWidget(updated);
+      }
+      if (amount > 0) {
+        _checkCounterMilestoneNotification(updated!);
+      }
+    }
+  }
+
+  void _checkCounterMilestoneNotification(CounterItem item) {
+    final v = item.value;
+    if (v <= 0) return;
+    // Notify on sacred 108 chants or centenary milestones (100, 200, 500, 1000...)
+    final is108 = (v == 108);
+    final isCentenary = (v % 100 == 0);
+    final isMajor = (v == 500 || v == 1000 || v == 5000 || v == 10000);
+
+    if (is108 || isCentenary || isMajor) {
+      NotificationService().showTallyMilestoneNotification(
+        counterId: item.id,
+        counterName: item.name,
+        value: item.value,
+      );
     }
   }
 

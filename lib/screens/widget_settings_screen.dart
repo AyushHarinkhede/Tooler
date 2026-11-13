@@ -56,7 +56,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
     {'id': 'converters', 'title': 'Converters', 'iconType': 'converters'},
     {'id': 'currency', 'title': 'Currency', 'iconType': 'currency'},
     {'id': 'tasks', 'title': 'Tasks & Notes', 'iconType': 'tasks'},
-    {'id': 'alarm', 'title': 'Smart Alarm', 'iconType': 'alarm'},
+    {'id': 'alarm', 'title': 'Alarm', 'iconType': 'alarm'},
     {'id': 'stopwatch', 'title': 'Stopwatch', 'iconType': 'stopwatch'},
     {'id': 'timer', 'title': 'Timer', 'iconType': 'timer'},
     {'id': 'sizer', 'title': 'Sizer', 'iconType': 'sizer'},

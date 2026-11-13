@@ -3,7 +3,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_service.dart';
 
 /// GPS / Trail Waypoint recorded along the walk or transit
 class StepTrailPoint {
@@ -346,6 +348,7 @@ class PedometerSensorService {
 
               if (changed && !_stepStreamController.isClosed) {
                 _stepStreamController.add(_todaySteps);
+                unawaited(_checkStepNotifications());
               }
             }
           },
@@ -395,11 +398,63 @@ class PedometerSensorService {
         _activeSeconds = 0;
         _todayTrail = [];
         p.setString(_prefLastDateKey, todayStr);
+        p.setInt('tooler_last_step_milestone_notified', 0);
+        p.remove('tooler_step_goal_notif_date');
         _persistState();
       } else if (lastDateStr == null) {
         p.setString(_prefLastDateKey, todayStr);
       }
     });
+  }
+
+  Future<void> _checkStepNotifications() async {
+    if (_todaySteps <= 0) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final todayStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+      // 1. Goal Complete Check (Strictly once per day upon crossing goal)
+      if (_todaySteps >= dailyGoal) {
+        final lastGoalDate = prefs.getString('tooler_step_goal_notif_date');
+        if (lastGoalDate != todayStr) {
+          await prefs.setString('tooler_step_goal_notif_date', todayStr);
+          await NotificationService().showStepGoalAchievedNotification(
+            steps: _todaySteps,
+            goal: dailyGoal,
+            distanceKm: distanceKm,
+            calories: caloriesKcal,
+          );
+        }
+      }
+
+      // 2. 1,000 Step Milestone Check (har 1,000 cover karne par)
+      final lastMilestone = prefs.getInt('tooler_last_step_milestone_notified') ?? 0;
+      if (_todaySteps >= lastMilestone + 1000 && _todaySteps >= 1000) {
+        final currentMilestone = (_todaySteps ~/ 1000) * 1000;
+        if (currentMilestone > lastMilestone) {
+          await prefs.setInt('tooler_last_step_milestone_notified', currentMilestone);
+          await NotificationService().showStepMilestoneNotification(
+            milestoneSteps: currentMilestone,
+            distanceKm: distanceKm,
+            calories: caloriesKcal,
+          );
+        }
+      }
+
+      // 3. Every 6 Hours Periodic Check (daytime between 8:00 AM and 10:00 PM)
+      final nowMs = DateTime.now().millisecondsSinceEpoch;
+      final last6HrMs = prefs.getInt('tooler_last_step_6hr_notif_time') ?? 0;
+      final hourNow = DateTime.now().hour;
+      if ((nowMs - last6HrMs >= 6 * 3600 * 1000) && hourNow >= 8 && hourNow <= 22) {
+        await prefs.setInt('tooler_last_step_6hr_notif_time', nowMs);
+        await NotificationService().showStepPeriodic6HourNotification(
+          steps: _todaySteps,
+          distanceKm: distanceKm,
+          calories: caloriesKcal,
+        );
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadPersistedState() async {

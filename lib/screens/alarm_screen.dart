@@ -14,7 +14,7 @@ import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_character.dart';
 
 /// ---------------------------------------------------------------------------
-/// TOOLER SMART ALARM & SLEEP CYCLES SCREEN
+/// TOOLER ALARM & SLEEP CYCLES SCREEN
 /// Unique wake-up missions (Math, Shake to Wake, Memory Pattern, Smooth Slide),
 /// 90-minute REM sleep cycle calculator, Quick Power Naps, and 2D animated clock.
 /// ---------------------------------------------------------------------------
@@ -40,8 +40,8 @@ class AlarmItem {
   WakeMissionType mission;
   int mathDifficulty; // 1=Easy, 2=Medium, 3=Hard
   int shakeTarget; // 15, 25, 40
-  bool gradualVolume;
-  bool vibrate;
+  bool sound; // Compulsory loud alarm sound toggle (default true)
+  bool vibrate; // Compulsory strong haptic vibration toggle (default true)
   int snoozeMinutes;
 
   AlarmItem({
@@ -54,7 +54,7 @@ class AlarmItem {
     this.mission = WakeMissionType.math,
     this.mathDifficulty = 1,
     this.shakeTarget = 20,
-    this.gradualVolume = true,
+    this.sound = true,
     this.vibrate = true,
     this.snoozeMinutes = 5,
   }) : repeatDays = repeatDays ?? [];
@@ -69,7 +69,7 @@ class AlarmItem {
         'mission': mission.name,
         'mathDifficulty': mathDifficulty,
         'shakeTarget': shakeTarget,
-        'gradualVolume': gradualVolume,
+        'sound': sound,
         'vibrate': vibrate,
         'snoozeMinutes': snoozeMinutes,
       };
@@ -93,7 +93,7 @@ class AlarmItem {
       mission: mission,
       mathDifficulty: json['mathDifficulty'] ?? 1,
       shakeTarget: json['shakeTarget'] ?? 20,
-      gradualVolume: json['gradualVolume'] ?? true,
+      sound: json['sound'] ?? true,
       vibrate: json['vibrate'] ?? true,
       snoozeMinutes: json['snoozeMinutes'] ?? 5,
     );
@@ -558,7 +558,7 @@ class _AlarmScreenState extends State<AlarmScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Smart Alarm',
+                    'Alarm',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -567,7 +567,7 @@ class _AlarmScreenState extends State<AlarmScreen>
                     ),
                   ),
                   Text(
-                    'Missions, sleep cycles & smart wake',
+                    'Missions, sleep cycles & wake',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
@@ -1464,7 +1464,7 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
   late WakeMissionType _mission;
   late int _mathDifficulty;
   late int _shakeTarget;
-  late bool _gradualVolume;
+  late bool _sound;
   late bool _vibrate;
 
   @override
@@ -1478,7 +1478,7 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
     _mission = item?.mission ?? WakeMissionType.math;
     _mathDifficulty = item?.mathDifficulty ?? 1;
     _shakeTarget = item?.shakeTarget ?? 20;
-    _gradualVolume = item?.gradualVolume ?? true;
+    _sound = item?.sound ?? true;
     _vibrate = item?.vibrate ?? true;
   }
 
@@ -1500,7 +1500,7 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
       mission: _mission,
       mathDifficulty: _mathDifficulty,
       shakeTarget: _shakeTarget,
-      gradualVolume: _gradualVolume,
+      sound: _sound,
       vibrate: _vibrate,
     );
     widget.onSave(item);
@@ -1851,16 +1851,95 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
 
             const SizedBox(height: 14),
 
-            // Gentle Sunrise Volume Toggle
-            SwitchListTile.adaptive(
-              contentPadding: EdgeInsets.zero,
-              title: Text('Gentle Volume Escalation',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 13, fontWeight: FontWeight.w700, color: theme.text)),
-              subtitle: Text('Starts quiet and increases gently over 45s',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 11, color: theme.textSecondary)),
-              value: _gradualVolume,
-              onChanged: (v) => setState(() => _gradualVolume = v),
-              activeThumbColor: theme.primary,
+            // Compulsory Alarm Sound Toggle
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: theme.cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: theme.border, width: 1.0),
+              ),
+              child: SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                secondary: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _sound ? const Color(0xFF10B981).withValues(alpha: 0.15) : theme.bg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _sound ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                    color: _sound ? const Color(0xFF10B981) : theme.textSecondary,
+                    size: 20,
+                  ),
+                ),
+                title: Text(
+                  'Alarm Sound',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: theme.text,
+                  ),
+                ),
+                subtitle: Text(
+                  'Loud audible wake-up ringtone (bypasses silent/vibrate mode)',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    color: theme.textSecondary,
+                  ),
+                ),
+                value: _sound,
+                onChanged: (v) {
+                  SoundService().playTap();
+                  setState(() => _sound = v);
+                },
+                activeThumbColor: const Color(0xFF10B981),
+              ),
+            ),
+
+            // Compulsory Alarm Vibration Toggle
+            Container(
+              decoration: BoxDecoration(
+                color: theme.cardBg,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: theme.border, width: 1.0),
+              ),
+              child: SwitchListTile.adaptive(
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                secondary: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _vibrate ? theme.primary.withValues(alpha: 0.15) : theme.bg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    _vibrate ? Icons.vibration_rounded : Icons.phone_android_rounded,
+                    color: _vibrate ? theme.primary : theme.textSecondary,
+                    size: 20,
+                  ),
+                ),
+                title: Text(
+                  'Vibration',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: theme.text,
+                  ),
+                ),
+                subtitle: Text(
+                  'Continuous heavy haptic vibration pulse to wake you up',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    color: theme.textSecondary,
+                  ),
+                ),
+                value: _vibrate,
+                onChanged: (v) {
+                  SoundService().playTap();
+                  setState(() => _vibrate = v);
+                },
+                activeThumbColor: theme.primary,
+              ),
             ),
           ],
         ),
@@ -1981,11 +2060,11 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
       duration: const Duration(milliseconds: 320),
     )..repeat(reverse: true);
 
-    // Continuous Ringing Audio
-    SoundService().playTimerAlarm();
-    _soundTimer = Timer.periodic(const Duration(seconds: 4), (_) {
-      SoundService().playTimerAlarm();
-    });
+    // Continuous Loud Ringing Audio & Hardware Vibration
+    SoundService().playAlarm(
+      sound: widget.alarm.sound,
+      vibrate: widget.alarm.vibrate,
+    );
 
     _initMission();
   }
@@ -2111,7 +2190,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
   void _completeMission() {
     _soundTimer?.cancel();
     _accelSub?.cancel();
-    SoundService().stopTimerAlarm();
+    SoundService().stopAlarm();
     SoundService().playTaskComplete();
 
     widget.onDismissed();
@@ -2133,7 +2212,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
   void _snooze() {
     _soundTimer?.cancel();
     _accelSub?.cancel();
-    SoundService().stopTimerAlarm();
+    SoundService().stopAlarm();
     SoundService().playClick();
 
     // Schedule 5-minute snooze notification
@@ -2165,7 +2244,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     _bellAnimController.dispose();
     _soundTimer?.cancel();
     _accelSub?.cancel();
-    SoundService().stopTimerAlarm();
+    SoundService().stopAlarm();
     super.dispose();
   }
 
@@ -2717,7 +2796,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
 }
 
 /// ---------------------------------------------------------------------------
-/// TOOLER SMART ALARM VECTOR SVG ICONS (Stationery Ink Theme)
+/// TOOLER ALARM VECTOR SVG ICONS (Stationery Ink Theme)
 /// ---------------------------------------------------------------------------
 
 class AlarmMissionSvgIcon extends StatelessWidget {

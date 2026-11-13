@@ -984,7 +984,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                     ),
                                   ),
                                   Text(
-                                    'Timer ring, stopwatch & task alerts',
+                                    'Timers, Stopwatch, Alarm, Tasks, Tally, Weather & Steps',
                                     style: GoogleFonts.plusJakartaSans(
                                       fontSize: 11,
                                       color: theme.textSecondary,

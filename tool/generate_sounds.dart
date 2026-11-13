@@ -225,36 +225,68 @@ void generateAlert(String path) {
   writeWavFile(path, samples, sampleRate);
 }
 
-/// Pleasant, repeating timer alarm pulse (dual bell chime)
+/// Loud, authoritative, professional digital alarm & wake chime (4 urgent beeps + resonant chord)
+/// Tuned to 1kHz-3kHz human acoustic sensitivity zone for high penetration through phone speakers.
 void generateAlarm(String path) {
   const sampleRate = 44100;
-  const durationSec = 0.48; // 480ms
+  const durationSec = 1.08; // 1080ms total cycle
   final numSamples = (sampleRate * durationSec).round();
   final samples = List<double>.filled(numSamples, 0.0);
 
-  final pulses = [
-    [0.00, 783.99, 987.77], // G5 + B5
-    [0.20, 880.00, 1046.50], // A5 + C6
+  // 4 Urgent Beep Bursts: [startT, endT, f1, f2, f3, amp]
+  final bursts = [
+    [0.00, 0.09, 2093.00, 1046.50, 3139.50, 0.95], // Beep 1 (C7 + C6 + G7)
+    [0.13, 0.22, 2093.00, 1046.50, 3139.50, 0.95], // Beep 2
+    [0.26, 0.35, 2093.00, 1046.50, 3139.50, 0.95], // Beep 3
+    [0.39, 0.62, 2349.32, 1174.66, 3523.98, 0.98], // Beep 4 (D7 + D6, longer accented chord)
   ];
 
-  for (final p in pulses) {
-    final startT = p[0];
-    final f1 = p[1];
-    final f2 = p[2];
+  for (final b in bursts) {
+    final startT = b[0];
+    final endT = b[1];
+    final f1 = b[2];
+    final f2 = b[3];
+    final f3 = b[4];
+    final peakAmp = b[5];
 
     final startIdx = (startT * sampleRate).round();
+    final endIdx = (endT * sampleRate).round().clamp(0, numSamples);
+    final burstLen = endIdx - startIdx;
+
     double phase1 = 0.0;
     double phase2 = 0.0;
-    for (int i = startIdx; i < numSamples; i++) {
+    double phase3 = 0.0;
+
+    for (int i = startIdx; i < endIdx; i++) {
       final t = (i - startIdx) / sampleRate;
+      final dur = (endT - startT);
       phase1 += 2.0 * pi * f1 / sampleRate;
       phase2 += 2.0 * pi * f2 / sampleRate;
+      phase3 += 2.0 * pi * f3 / sampleRate;
 
-      final attack = (t / 0.003).clamp(0.0, 1.0);
-      final decay = exp(-t / 0.14);
-      final wave = (sin(phase1) * 0.6 + sin(phase2) * 0.4);
-      samples[i] += wave * attack * decay * 0.65;
+      // Fast punchy attack (1.5ms) and gentle release
+      final attack = (t / 0.0015).clamp(0.0, 1.0);
+      final decay = ((dur - t) / 0.015).clamp(0.0, 1.0);
+      final sustain = exp(-t / (dur * 1.8));
+
+      // Rich harmonics with dual sub-octave and third harmonic
+      final wave = (sin(phase1) * 0.52) +
+          (sin(phase2) * 0.33) +
+          (sin(phase3) * 0.15);
+
+      samples[i] += wave * attack * decay * sustain * peakAmp;
     }
+  }
+
+  // Harmonic resonance echo tail on 4th beep (reverberant chime)
+  final tailStartIdx = (0.39 * sampleRate).round();
+  final tailEndIdx = (0.95 * sampleRate).round();
+  double bellPhase = 0.0;
+  for (int i = tailStartIdx; i < tailEndIdx; i++) {
+    final t = (i - tailStartIdx) / sampleRate;
+    bellPhase += 2.0 * pi * 1760.0 / sampleRate; // A6 warm chime resonance
+    final decay = exp(-t / 0.18);
+    samples[i] += sin(bellPhase) * decay * 0.22;
   }
 
   writeWavFile(path, samples, sampleRate);

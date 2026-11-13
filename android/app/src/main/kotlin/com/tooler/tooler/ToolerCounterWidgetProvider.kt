@@ -51,6 +51,11 @@ class ToolerCounterWidgetProvider : AppWidgetProvider() {
             // Keep Flutter storage seamlessly updated in real time
             syncValueToFlutter(context, counterId, newVal)
 
+            // Trigger milestone notification if 108 chants or centenary milestone is crossed
+            if (action == ACTION_COUNTER_INC && (newVal == 108 || (newVal > 0 && newVal % 100 == 0))) {
+                triggerMilestoneNotification(context, ToolerWidgetRenderer.getCounterName(context), newVal)
+            }
+
             // Immediately redraw all 2x2 counter widgets
             updateAllWidgets(context)
             return
@@ -175,6 +180,48 @@ class ToolerCounterWidgetProvider : AppWidgetProvider() {
             } catch (e: Exception) {
                 android.util.Log.e("ToolerCounterWidget", "syncValueToFlutter error: ${e.message}")
             }
+        }
+        private fun triggerMilestoneNotification(context: Context, name: String, value: Int) {
+            try {
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? android.app.NotificationManager ?: return
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    val channel = android.app.NotificationChannel(
+                        "tooler_tally_channel",
+                        "Tally Counter Milestones",
+                        android.app.NotificationManager.IMPORTANCE_HIGH
+                    ).apply {
+                        description = "Goal completions and sacred counting milestones"
+                        enableVibration(true)
+                    }
+                    nm.createNotificationChannel(channel)
+                }
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                    ?: Intent(context, MainActivity::class.java)
+                val pi = PendingIntent.getActivity(
+                    context,
+                    5001,
+                    launchIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val is108 = (value == 108)
+                val title = if (is108) "📿 Sacred 108 Chants Completed: $name!" else "🎯 Milestone: $name ($value counts)"
+                val body = "You just crossed $value counts on $name. Tap to view counter."
+
+                val builder = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    android.app.Notification.Builder(context, "tooler_tally_channel")
+                } else {
+                    @Suppress("DEPRECATION")
+                    android.app.Notification.Builder(context)
+                }
+                val notif = builder
+                    .setSmallIcon(R.drawable.ic_step_notification)
+                    .setContentTitle(title)
+                    .setContentText(body)
+                    .setAutoCancel(true)
+                    .setContentIntent(pi)
+                    .build()
+                nm.notify(5001, notif)
+            } catch (_: Throwable) {}
         }
     }
 }

@@ -173,7 +173,7 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
         );
       case 'alarm':
         return _PopupToolMeta(
-          title: 'Smart Alarm',
+          title: 'Alarm',
           subtitle: 'Reliable Wake-up & Custom Tones',
           tag: 'Alerts',
           child: AlarmScreen(theme: t),

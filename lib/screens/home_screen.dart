@@ -338,10 +338,10 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       {
         'id': 'alarm',
-        'title': 'Smart Alarm',
-        'subtitle': 'Missions, Sleep Cycles & Smart Wake',
+        'title': 'Alarm',
+        'subtitle': 'Missions, Sleep Cycles & Wake',
         'category': 'Time & Tasks',
-        'tag': 'Smart Wake',
+        'tag': 'Wake Up',
         'iconType': 'alarm',
         'isFeatured': true,
         'features': [
@@ -349,11 +349,11 @@ class _HomeScreenState extends State<HomeScreen> {
           {'name': 'Sleep Cycle Calculator', 'desc': 'Calculates optimal wake-up times based on 90-minute REM sleep cycles to prevent grogginess'},
           {'name': 'Quick Power Naps', 'desc': 'One-tap alarms for 15m Power Boost, 25m Focus Rest, 45m Recharge, and 90m Full REM'},
           {'name': '2D Animated Hybrid Clock', 'desc': 'Smooth ticking analog clock face with digital readout and next-alarm countdown'},
-          {'name': 'Gentle Volume Escalation', 'desc': 'Gradual sunrise volume ramp-up over 45s for peaceful waking'},
+          {'name': 'Loud High-Attention Ringtone & Haptics', 'desc': 'Urgent wake-up chime and continuous hardware vibration bypassing silent mode'},
           {'name': 'Custom Repeat & Snooze', 'desc': 'Daily, weekday, weekend recurrence with 5m/10m snooze options'},
         ],
         'keywords': [
-          'alarm', 'smart alarm', 'wake up', 'wake', 'clock', 'alarm clock', 'math alarm',
+          'alarm', 'wake up', 'wake', 'clock', 'alarm clock', 'math alarm',
           'shake to wake', 'memory pattern', 'sleep cycle', 'rem sleep', 'power nap',
           'nap', 'sleep calculator', 'sunrise alarm', 'gentle wake', 'snooze', 'soona',
           'uthna', 'ghanti', 'wake-up', 'missions', 'samay', 'ghadi',

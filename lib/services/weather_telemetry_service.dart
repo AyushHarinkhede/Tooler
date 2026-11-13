@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'notification_service.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER REAL-TIME WEATHER, LOCATION, MOON PHASE & AQI TELEMETRY SERVICE
@@ -843,12 +844,39 @@ class WeatherTelemetryService extends ChangeNotifier {
       );
 
       await _saveToCache();
+      unawaited(_checkAndSendDailyMorningBrief());
     } catch (_) {
       // Graceful fallback preserves cached telemetry
     } finally {
       _isFetching = false;
       notifyListeners();
     }
+  }
+
+  Future<void> _checkAndSendDailyMorningBrief() async {
+    try {
+      final now = DateTime.now();
+      // Morning window: between 6:00 AM and 11:59 AM
+      if (now.hour >= 6 && now.hour < 12) {
+        DailyForecastItem? todayDaily;
+        for (final d in _data.dailyList) {
+          if (d.isToday) {
+            todayDaily = d;
+            break;
+          }
+        }
+
+        await NotificationService().showDailyMorningWeatherNotification(
+          city: _data.city,
+          tempC: _data.temperatureC,
+          condition: _data.condition,
+          aqi: _data.aqi,
+          aqiStatus: _data.aqiStatus,
+          tempMin: todayDaily?.minTempC,
+          tempMax: todayDaily?.maxTempC,
+        );
+      }
+    } catch (_) {}
   }
 
   static String _formatTimeStr(String raw) {
