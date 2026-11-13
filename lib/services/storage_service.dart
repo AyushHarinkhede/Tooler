@@ -77,11 +77,7 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final str = prefs.getString(keyTasks);
     if (str == null || str.isEmpty) {
-      return [
-        TaskItem(id: 1, text: "Finish Math calculation report", category: "Work", priority: "High"),
-        TaskItem(id: 2, text: "Organize unit conversion references", category: "Focus", priority: "Medium"),
-        TaskItem(id: 3, text: "Explore Tooler features", category: "Personal", priority: "Low"),
-      ];
+      return [];
     }
     // Verify cryptographic integrity
     final checksum = prefs.getString(keyTasksChecksum);
