@@ -20,15 +20,14 @@ import '../widgets_3d/tooler_character.dart';
 /// ---------------------------------------------------------------------------
 
 enum WakeMissionType {
-  slide('Smooth Slide', 'Gentle swipe to wake up peacefully', '🌅'),
-  math('Math Challenge', 'Solve arithmetic to wake up your brain', '🔢'),
-  shake('Shake to Wake', 'Physical motion accelerometer detection', '📱'),
-  memory('Mind Pattern', 'Memorize and repeat color tile sequence', '🧠');
+  slide('Smooth Slide', 'Gentle swipe to wake up peacefully'),
+  math('Math Challenge', 'Solve arithmetic to wake up your brain'),
+  shake('Shake to Wake', 'Physical motion accelerometer detection'),
+  memory('Mind Pattern', 'Memorize and repeat color tile sequence');
 
   final String title;
   final String description;
-  final String emoji;
-  const WakeMissionType(this.title, this.description, this.emoji);
+  const WakeMissionType(this.title, this.description);
 }
 
 class AlarmItem {
@@ -408,7 +407,7 @@ class _AlarmScreenState extends State<AlarmScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '⚡ Activated $label (${minutes}m) at ${newAlarm.formattedTime}',
+          'Activated $label (${minutes}m) at ${newAlarm.formattedTime}',
           style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         backgroundColor: widget.theme.primary,
@@ -798,15 +797,28 @@ class _AlarmScreenState extends State<AlarmScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(m.emoji, style: const TextStyle(fontSize: 22)),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        width: 38,
+                        height: 38,
                         decoration: BoxDecoration(
                           color: theme.lavenderBubble,
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: AlarmMissionSvgIcon(
+                          mission: m,
+                          size: 20,
+                          color: theme.primary,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: theme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
                         ),
                         child: Text(
-                          'Try',
+                          'Test',
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -877,8 +889,17 @@ class _AlarmScreenState extends State<AlarmScreen>
             children: [
               Row(
                 children: [
-                  const Text('🌙', style: TextStyle(fontSize: 18)),
-                  const SizedBox(width: 8),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: theme.lavenderBubble,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    alignment: Alignment.center,
+                    child: AlarmMoonSvgIcon(size: 18, color: theme.primary),
+                  ),
+                  const SizedBox(width: 10),
                   Text(
                     'Sleep Cycle Calculator',
                     style: GoogleFonts.plusJakartaSans(
@@ -1009,10 +1030,10 @@ class _AlarmScreenState extends State<AlarmScreen>
     final theme = widget.theme;
 
     final naps = [
-      {'mins': 15, 'title': 'Power Boost', 'icon': '⚡'},
-      {'mins': 25, 'title': 'Focus Rest', 'icon': '🧘'},
-      {'mins': 45, 'title': 'Recharge', 'icon': '🔋'},
-      {'mins': 90, 'title': 'Full REM', 'icon': '💤'},
+      {'mins': 15, 'title': 'Power Boost'},
+      {'mins': 25, 'title': 'Focus Rest'},
+      {'mins': 45, 'title': 'Recharge'},
+      {'mins': 90, 'title': 'Full REM'},
     ];
 
     return Column(
@@ -1059,8 +1080,21 @@ class _AlarmScreenState extends State<AlarmScreen>
                     ),
                     child: Column(
                       children: [
-                        Text(n['icon'] as String, style: const TextStyle(fontSize: 18)),
-                        const SizedBox(height: 4),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: theme.lavenderBubble,
+                            shape: BoxShape.circle,
+                          ),
+                          alignment: Alignment.center,
+                          child: AlarmPowerNapSvgIcon(
+                            napType: n['title'] as String,
+                            size: 16,
+                            color: theme.primary,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
                         Text(
                           '${mins}m',
                           style: GoogleFonts.plusJakartaSans(
@@ -1209,8 +1243,8 @@ class _AlarmScreenState extends State<AlarmScreen>
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(alarm.mission.emoji, style: const TextStyle(fontSize: 12)),
-                    const SizedBox(width: 4),
+                    AlarmMissionSvgIcon(mission: alarm.mission, size: 13, color: theme.primary),
+                    const SizedBox(width: 5),
                     Text(
                       alarm.mission.title,
                       style: GoogleFonts.plusJakartaSans(
@@ -1723,7 +1757,20 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
                       ),
                       child: Row(
                         children: [
-                          Text(m.emoji, style: const TextStyle(fontSize: 22)),
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: isSelected ? theme.primary.withValues(alpha: 0.15) : theme.lavenderBubble,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: AlarmMissionSvgIcon(
+                              mission: m,
+                              size: 20,
+                              color: isSelected ? theme.primary : theme.text,
+                            ),
+                          ),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -2073,7 +2120,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '🎉 Good Morning! Mission Complete. Alarm Dismissed.',
+          'Good Morning! Mission Complete. Alarm Dismissed.',
           style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w700),
         ),
         backgroundColor: const Color(0xFF10B981),
@@ -2093,7 +2140,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     final snoozeDate = DateTime.now().add(const Duration(minutes: 5));
     NotificationService().scheduleAlarmNotification(
       id: 9999,
-      title: "⏰ Snooze Alarm: ${widget.alarm.label}",
+      title: "Snooze Alarm: ${widget.alarm.label}",
       body: "Wake up! Your 5-minute snooze is over.",
       scheduledDate: snoozeDate,
     );
@@ -2103,7 +2150,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '💤 Snoozed for 5 minutes (rings at ${DateFormat('hh:mm a').format(snoozeDate)})',
+          'Snoozed for 5 minutes (rings at ${DateFormat('hh:mm a').format(snoozeDate)})',
           style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
         ),
         backgroundColor: widget.theme.primary,
@@ -2260,13 +2307,20 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
       children: [
         Column(
           children: [
-            Text(
-              '🔢 Solve to Dismiss Alarm',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: theme.primary,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                AlarmMissionSvgIcon(mission: WakeMissionType.math, size: 16, color: theme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Solve Arithmetic to Dismiss',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: theme.primary,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 10),
             Text(
@@ -2383,13 +2437,20 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          '📱 Shake Your Phone!',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: theme.primary,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AlarmMissionSvgIcon(mission: WakeMissionType.shake, size: 20, color: theme.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Shake Your Phone!',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: theme.primary,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 8),
         Text(
@@ -2488,13 +2549,20 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          '🧠 Memory Sequence (Level $_memoryLevel/2)',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 16,
-            fontWeight: FontWeight.w800,
-            color: theme.primary,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AlarmMissionSvgIcon(mission: WakeMissionType.memory, size: 18, color: theme.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Memory Sequence (Level $_memoryLevel/2)',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
+                color: theme.primary,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Text(
@@ -2555,13 +2623,20 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          '🌅 Gentle Morning',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 18,
-            fontWeight: FontWeight.w800,
-            color: theme.primary,
-          ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AlarmMissionSvgIcon(mission: WakeMissionType.slide, size: 20, color: theme.primary),
+            const SizedBox(width: 8),
+            Text(
+              'Gentle Morning',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: theme.primary,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 6),
         Text(
@@ -2639,4 +2714,478 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
       ],
     );
   }
+}
+
+/// ---------------------------------------------------------------------------
+/// TOOLER SMART ALARM VECTOR SVG ICONS (Stationery Ink Theme)
+/// ---------------------------------------------------------------------------
+
+class AlarmMissionSvgIcon extends StatelessWidget {
+  final WakeMissionType mission;
+  final double size;
+  final Color? color;
+
+  const AlarmMissionSvgIcon({
+    super.key,
+    required this.mission,
+    this.size = 20,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return CustomPaint(
+      size: Size(size, size),
+      painter: switch (mission) {
+        WakeMissionType.slide => _SlideSunriseSvgPainter(color: c),
+        WakeMissionType.math => _MathMissionSvgPainter(color: c),
+        WakeMissionType.shake => _ShakePhoneSvgPainter(color: c),
+        WakeMissionType.memory => _MemoryGridSvgPainter(color: c),
+      },
+    );
+  }
+}
+
+class AlarmMoonSvgIcon extends StatelessWidget {
+  final double size;
+  final Color? color;
+
+  const AlarmMoonSvgIcon({
+    super.key,
+    this.size = 20,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return CustomPaint(
+      size: Size(size, size),
+      painter: _SleepMoonSvgPainter(color: c),
+    );
+  }
+}
+
+class AlarmPowerNapSvgIcon extends StatelessWidget {
+  final String napType;
+  final double size;
+  final Color? color;
+
+  const AlarmPowerNapSvgIcon({
+    super.key,
+    required this.napType,
+    this.size = 20,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? Theme.of(context).colorScheme.primary;
+    return CustomPaint(
+      size: Size(size, size),
+      painter: switch (napType) {
+        'Power Boost' => _LightningNapSvgPainter(color: c),
+        'Focus Rest' => _ZenFocusNapSvgPainter(color: c),
+        'Recharge' => _BatteryNapSvgPainter(color: c),
+        _ => _RemWaveNapSvgPainter(color: c),
+      },
+    );
+  }
+}
+
+class _SlideSunriseSvgPainter extends CustomPainter {
+  final Color color;
+  const _SlideSunriseSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fillPaint = Paint()
+      ..color = color.withValues(alpha: 0.18)
+      ..style = PaintingStyle.fill;
+
+    // Horizon line
+    canvas.drawLine(
+      Offset(size.width * 0.12, size.height * 0.70),
+      Offset(size.width * 0.88, size.height * 0.70),
+      paint,
+    );
+
+    // Rising Sun Half Circle
+    final sunCenter = Offset(size.width * 0.50, size.height * 0.70);
+    final sunRadius = size.width * 0.26;
+    final sunRect = Rect.fromCircle(center: sunCenter, radius: sunRadius);
+    final sunPath = Path()..arcTo(sunRect, math.pi, math.pi, false)..close();
+    canvas.drawPath(sunPath, fillPaint);
+    canvas.drawArc(sunRect, math.pi, math.pi, false, paint);
+
+    // Sun Rays
+    final rayAngles = [math.pi * 1.18, math.pi * 1.35, math.pi * 1.5, math.pi * 1.65, math.pi * 1.82];
+    for (final angle in rayAngles) {
+      final inner = Offset(
+        sunCenter.dx + math.cos(angle) * (sunRadius + 2.5),
+        sunCenter.dy + math.sin(angle) * (sunRadius + 2.5),
+      );
+      final outer = Offset(
+        sunCenter.dx + math.cos(angle) * (sunRadius + 6.0),
+        sunCenter.dy + math.sin(angle) * (sunRadius + 6.0),
+      );
+      canvas.drawLine(inner, outer, paint..strokeWidth = 1.6);
+    }
+
+    // Directional slide track arrow at the bottom
+    final arrowTrackY = size.height * 0.88;
+    canvas.drawLine(
+      Offset(size.width * 0.22, arrowTrackY),
+      Offset(size.width * 0.76, arrowTrackY),
+      paint..strokeWidth = 1.8,
+    );
+    // Arrow tip
+    canvas.drawLine(
+      Offset(size.width * 0.65, arrowTrackY - 3.2),
+      Offset(size.width * 0.78, arrowTrackY),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width * 0.65, arrowTrackY + 3.2),
+      Offset(size.width * 0.78, arrowTrackY),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SlideSunriseSvgPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _MathMissionSvgPainter extends CustomPainter {
+  final Color color;
+  const _MathMissionSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final dotPaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // + in top-left
+    canvas.drawLine(Offset(size.width * 0.18, size.height * 0.30), Offset(size.width * 0.42, size.height * 0.30), stroke);
+    canvas.drawLine(Offset(size.width * 0.30, size.height * 0.18), Offset(size.width * 0.30, size.height * 0.42), stroke);
+
+    // - in top-right
+    canvas.drawLine(Offset(size.width * 0.60, size.height * 0.30), Offset(size.width * 0.84, size.height * 0.30), stroke);
+
+    // x in bottom-left
+    canvas.drawLine(Offset(size.width * 0.20, size.height * 0.62), Offset(size.width * 0.40, size.height * 0.82), stroke);
+    canvas.drawLine(Offset(size.width * 0.40, size.height * 0.62), Offset(size.width * 0.20, size.height * 0.82), stroke);
+
+    // division in bottom-right
+    canvas.drawLine(Offset(size.width * 0.60, size.height * 0.72), Offset(size.width * 0.84, size.height * 0.72), stroke);
+    canvas.drawCircle(Offset(size.width * 0.72, size.height * 0.62), 1.5, dotPaint);
+    canvas.drawCircle(Offset(size.width * 0.72, size.height * 0.82), 1.5, dotPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MathMissionSvgPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _ShakePhoneSvgPainter extends CustomPainter {
+  final Color color;
+  const _ShakePhoneSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // Center Phone
+    final phoneRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(
+        center: Offset(size.width * 0.50, size.height * 0.50),
+        width: size.width * 0.42,
+        height: size.height * 0.72,
+      ),
+      const Radius.circular(4.5),
+    );
+    canvas.drawRRect(phoneRect, stroke);
+
+    // Speaker / Notch top
+    canvas.drawLine(
+      Offset(size.width * 0.44, size.height * 0.22),
+      Offset(size.width * 0.56, size.height * 0.22),
+      stroke..strokeWidth = 1.4,
+    );
+    // Home pill bottom
+    canvas.drawLine(
+      Offset(size.width * 0.44, size.height * 0.78),
+      Offset(size.width * 0.56, size.height * 0.78),
+      stroke..strokeWidth = 1.4,
+    );
+
+    // Left Vibration Motion Waves
+    final leftWave = Path()
+      ..moveTo(size.width * 0.18, size.height * 0.32)
+      ..quadraticBezierTo(size.width * 0.08, size.height * 0.50, size.width * 0.18, size.height * 0.68);
+    canvas.drawPath(leftWave, stroke..strokeWidth = 1.8);
+
+    // Right Vibration Motion Waves
+    final rightWave = Path()
+      ..moveTo(size.width * 0.82, size.height * 0.32)
+      ..quadraticBezierTo(size.width * 0.92, size.height * 0.50, size.width * 0.82, size.height * 0.68);
+    canvas.drawPath(rightWave, stroke);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ShakePhoneSvgPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _MemoryGridSvgPainter extends CustomPainter {
+  final Color color;
+  const _MemoryGridSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+
+    final fill = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final tileW = size.width * 0.32;
+    final tileH = size.height * 0.32;
+    const r = Radius.circular(3.5);
+
+    // 4 tactile sequence quadrants
+    // Top-left
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.14, size.height * 0.14, tileW, tileH), r),
+      stroke,
+    );
+    // Top-right (active highlighted memory tile)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.54, size.height * 0.14, tileW, tileH), r),
+      fill,
+    );
+    // Bottom-left
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.14, size.height * 0.54, tileW, tileH), r),
+      stroke,
+    );
+    // Bottom-right
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.54, size.height * 0.54, tileW, tileH), r),
+      stroke,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _MemoryGridSvgPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _SleepMoonSvgPainter extends CustomPainter {
+  final Color color;
+  const _SleepMoonSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fill = Paint()
+      ..color = color.withValues(alpha: 0.15)
+      ..style = PaintingStyle.fill;
+
+    // Crescent Moon
+    final moon = Path();
+    moon.moveTo(size.width * 0.58, size.height * 0.14);
+    moon.arcToPoint(
+      Offset(size.width * 0.58, size.height * 0.86),
+      radius: Radius.circular(size.width * 0.38),
+      clockwise: true,
+    );
+    moon.arcToPoint(
+      Offset(size.width * 0.58, size.height * 0.14),
+      radius: Radius.circular(size.width * 0.30),
+      clockwise: false,
+    );
+    canvas.drawPath(moon, fill);
+    canvas.drawPath(moon, stroke);
+
+    // Orbiting Sleep Star Sparkles
+    void drawSparkle(Offset center, double s) {
+      canvas.drawLine(Offset(center.dx - s, center.dy), Offset(center.dx + s, center.dy), stroke..strokeWidth = 1.4);
+      canvas.drawLine(Offset(center.dx, center.dy - s), Offset(center.dx, center.dy + s), stroke..strokeWidth = 1.4);
+    }
+
+    drawSparkle(Offset(size.width * 0.78, size.height * 0.28), 3.0);
+    drawSparkle(Offset(size.width * 0.84, size.height * 0.64), 2.0);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SleepMoonSvgPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _LightningNapSvgPainter extends CustomPainter {
+  final Color color;
+  const _LightningNapSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fill = Paint()
+      ..color = color.withValues(alpha: 0.2)
+      ..style = PaintingStyle.fill;
+
+    final bolt = Path()
+      ..moveTo(size.width * 0.56, size.height * 0.12)
+      ..lineTo(size.width * 0.28, size.height * 0.52)
+      ..lineTo(size.width * 0.50, size.height * 0.52)
+      ..lineTo(size.width * 0.44, size.height * 0.88)
+      ..lineTo(size.width * 0.76, size.height * 0.44)
+      ..lineTo(size.width * 0.54, size.height * 0.44)
+      ..close();
+
+    canvas.drawPath(bolt, fill);
+    canvas.drawPath(bolt, stroke);
+  }
+
+  @override
+  bool shouldRepaint(covariant _LightningNapSvgPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _ZenFocusNapSvgPainter extends CustomPainter {
+  final Color color;
+  const _ZenFocusNapSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+
+    final center = Offset(size.width * 0.5, size.height * 0.5);
+    // Outer focus ring
+    canvas.drawCircle(center, size.width * 0.36, stroke);
+    // Inner zen ring
+    canvas.drawCircle(center, size.width * 0.18, stroke);
+    // Center calm focus dot
+    canvas.drawCircle(center, 2.0, Paint()..color = color..style = PaintingStyle.fill);
+
+    // Cross marks
+    canvas.drawLine(Offset(center.dx, size.height * 0.06), Offset(center.dx, size.height * 0.16), stroke..strokeWidth = 1.5);
+    canvas.drawLine(Offset(center.dx, size.height * 0.84), Offset(center.dx, size.height * 0.94), stroke);
+    canvas.drawLine(Offset(size.width * 0.06, center.dy), Offset(size.width * 0.16, center.dy), stroke);
+    canvas.drawLine(Offset(size.width * 0.84, center.dy), Offset(size.width * 0.94, center.dy), stroke);
+  }
+
+  @override
+  bool shouldRepaint(covariant _ZenFocusNapSvgPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _BatteryNapSvgPainter extends CustomPainter {
+  final Color color;
+  const _BatteryNapSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fill = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Battery Body
+    final body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.18, size.height * 0.22, size.width * 0.56, size.height * 0.56),
+      const Radius.circular(3.5),
+    );
+    canvas.drawRRect(body, stroke);
+
+    // Terminal Pin
+    final terminal = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.74, size.height * 0.38, size.width * 0.09, size.height * 0.24),
+      const Radius.circular(1.5),
+    );
+    canvas.drawRRect(terminal, fill);
+
+    // Energy level bars
+    final barW = size.width * 0.10;
+    final barH = size.height * 0.36;
+    final barY = size.height * 0.32;
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.25, barY, barW, barH), const Radius.circular(1.5)), fill);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.40, barY, barW, barH), const Radius.circular(1.5)), fill);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.55, barY, barW, barH), const Radius.circular(1.5)), fill);
+  }
+
+  @override
+  bool shouldRepaint(covariant _BatteryNapSvgPainter oldDelegate) => oldDelegate.color != color;
+}
+
+class _RemWaveNapSvgPainter extends CustomPainter {
+  final Color color;
+  const _RemWaveNapSvgPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final stroke = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // REM Sleep Brainwave Curve
+    final wave = Path()
+      ..moveTo(size.width * 0.10, size.height * 0.52)
+      ..lineTo(size.width * 0.24, size.height * 0.52)
+      ..lineTo(size.width * 0.34, size.height * 0.24)
+      ..lineTo(size.width * 0.48, size.height * 0.78)
+      ..lineTo(size.width * 0.60, size.height * 0.34)
+      ..lineTo(size.width * 0.72, size.height * 0.64)
+      ..lineTo(size.width * 0.80, size.height * 0.52)
+      ..lineTo(size.width * 0.90, size.height * 0.52);
+
+    canvas.drawPath(wave, stroke);
+  }
+
+  @override
+  bool shouldRepaint(covariant _RemWaveNapSvgPainter oldDelegate) => oldDelegate.color != color;
 }

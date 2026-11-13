@@ -47,8 +47,7 @@ android {
 
     buildTypes {
         release {
-            val useReleaseSigning = project.hasProperty("useReleaseSigning") && hasReleaseKeystore
-            signingConfig = if (useReleaseSigning) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            signingConfig = if (hasReleaseKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 
