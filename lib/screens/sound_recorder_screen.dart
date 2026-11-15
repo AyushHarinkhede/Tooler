@@ -23,6 +23,7 @@ class VoiceRecordingItem {
   String caption;
   final List<int> bookmarks;
   final double peakDb;
+  final bool aiEnhanced;
 
   VoiceRecordingItem({
     required this.id,
@@ -30,10 +31,11 @@ class VoiceRecordingItem {
     required this.filePath,
     required this.durationSeconds,
     required this.createdAt,
-    this.tag = 'Noise Check',
+    this.tag = 'Recording',
     this.caption = '',
     List<int>? bookmarks,
     this.peakDb = 0.0,
+    this.aiEnhanced = true,
   }) : bookmarks = bookmarks ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -46,6 +48,7 @@ class VoiceRecordingItem {
         'caption': caption,
         'bookmarks': bookmarks,
         'peakDb': peakDb,
+        'aiEnhanced': aiEnhanced,
       };
 
   factory VoiceRecordingItem.fromJson(Map<String, dynamic> json) =>
@@ -56,14 +59,29 @@ class VoiceRecordingItem {
         durationSeconds: (json['durationSeconds'] as num?)?.toInt() ?? 0,
         createdAt: DateTime.tryParse(json['createdAt'] as String? ?? '') ??
             DateTime.now(),
-        tag: json['tag'] as String? ?? 'Noise Check',
+        tag: json['tag'] as String? ?? 'Recording',
         caption: json['caption'] as String? ?? '',
         bookmarks: (json['bookmarks'] as List<dynamic>?)
                 ?.map((e) => (e as num).toInt())
                 .toList() ??
             [],
         peakDb: (json['peakDb'] as num?)?.toDouble() ?? 0.0,
+        aiEnhanced: json['aiEnhanced'] as bool? ?? true,
       );
+}
+
+/// Keeps active recording alive in RAM across screen navigation, backgrounding,
+/// and phone lock/unlock cycles, backed by Android ToolerAudioService.
+class _ActiveRecordingSession {
+  static final AudioRecorder sharedRecorder = AudioRecorder();
+  static bool isRecording = false;
+  static bool isPaused = false;
+  static DateTime? startedAt;
+  static int pausedAccumulatedSeconds = 0;
+  static String audioSource = 'mic';
+  static bool aiEnhanced = true;
+  static double peakDb = 0.0;
+  static final List<int> bookmarks = [];
 }
 
 class SoundRecorderScreen extends StatefulWidget {
@@ -75,13 +93,13 @@ class SoundRecorderScreen extends StatefulWidget {
 }
 
 class _SoundRecorderScreenState extends State<SoundRecorderScreen>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   static const String _storageKey = 'tooler_saved_voice_recordings';
   static const MethodChannel _loopbackChannel =
       MethodChannel('com.tooler.tooler/audio_loopback');
 
-  // Audio Recorder & Streams
-  final AudioRecorder _recorder = AudioRecorder();
+  // Audio Recorder & Streams (backed by persistent session recorder)
+  AudioRecorder get _recorder => _ActiveRecordingSession.sharedRecorder;
   StreamSubscription? _pcmStreamSub;
   StreamSubscription? _ampSub;
   Timer? _simTimer;
@@ -90,10 +108,16 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
   // Earphone Audio Pass-Through / Loopback State
   bool _isPassThroughEnabled = false;
-  String _passThroughRoute = 'phone_to_earphone'; // 'phone_to_earphone' or 'earphone_to_phone'
+  String _monitorCaptureSource = 'phone'; // 'phone' or 'earphone'
+  String _monitorListenOutput = 'earphone'; // 'earphone' or 'phone'
   bool _isBluetoothConnected = false;
   double _passThroughVolume = 1.0;
   Timer? _bluetoothCheckTimer;
+
+  String get _passThroughRoute =>
+      (_monitorCaptureSource == 'earphone' && _monitorListenOutput == 'phone')
+          ? 'earphone_to_phone'
+          : 'phone_to_earphone';
 
   // Live Decibels & Waveform
   double _currentDb = 38.0;
@@ -116,25 +140,15 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   // Animation Controllers
   late AnimationController _pulseController;
 
-  // Active Captions & Tags
-  String _activeTag = 'Noise Check';
+  // Active Captions
   final TextEditingController _captionController = TextEditingController();
-  final List<String> _tagPresets = [
-    'Noise Check',
-    'Voice Memo',
-    'Meeting Note',
-    'Call Recording',
-    'System Sound',
-    'Lecture',
-    'Sound Evidence',
-  ];
 
   // Audio Input Sources & Call Telemetry
   String _selectedAudioSource = 'mic'; // 'mic', 'earphone', 'system_sound', 'call'
   bool _isCallActive = false;
   Timer? _callCheckTimer;
 
-  // AI Voice Clarity & Intelligibility Enhancer
+  // AI Voice Clarity
   bool _isAiVoiceCorrectionEnabled = true;
 
   // Audio Playback
@@ -148,6 +162,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   StreamSubscription? _posSub;
   StreamSubscription? _durSub;
   StreamSubscription? _stateSub;
+  StreamSubscription? _completeSub;
+
+  bool get _isPlayingAudio => _playerState == PlayerState.playing;
 
   // Saved Recordings List
   List<VoiceRecordingItem> _recordings = [];
@@ -156,6 +173,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
 
     _pulseController = AnimationController(
       vsync: this,
@@ -164,7 +182,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
     _initPlayerListeners();
     _loadRecordings();
-    _startLiveMicMonitoring();
+    _restorePersistentSession();
     _checkBluetoothStatus();
     _bluetoothCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _checkBluetoothStatus();
@@ -173,37 +191,122 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     _callCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _checkCallStatus();
     });
-    // Watchdog to ensure live dB never freezes
-    _watchdogTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
+    // Watchdog to ensure live dB never freezes (strictly paused during playback & monitor)
+    _watchdogTimer = Timer.periodic(const Duration(milliseconds: 1200), (_) {
       if (!_isRecording &&
+          !_isPlayingAudio &&
+          !_isPassThroughEnabled &&
           _lastMicPacketTime != null &&
-          DateTime.now().difference(_lastMicPacketTime!).inMilliseconds > 1400) {
+          DateTime.now().difference(_lastMicPacketTime!).inMilliseconds > 1600) {
         _recoverLiveMicMonitoring();
       }
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _syncNativeMonitorStatus();
+      if (_isRecording && !_isPausedRecording && _ActiveRecordingSession.startedAt != null) {
+        final int elapsed = _ActiveRecordingSession.pausedAccumulatedSeconds +
+            DateTime.now().difference(_ActiveRecordingSession.startedAt!).inSeconds;
+        if (mounted) setState(() => _recordSeconds = elapsed);
+      } else if (!_isRecording && !_isPlayingAudio && !_isPassThroughEnabled) {
+        _startLiveMicMonitoring();
+      }
+    }
+    // When paused/inactive/hidden: DO NOT stop recording or foreground audio monitor!
+  }
+
+  Future<void> _restorePersistentSession() async {
+    await _syncNativeMonitorStatus();
+
+    if (_ActiveRecordingSession.isRecording) {
+      final int elapsed = _ActiveRecordingSession.isPaused
+          ? _ActiveRecordingSession.pausedAccumulatedSeconds
+          : _ActiveRecordingSession.pausedAccumulatedSeconds +
+              (_ActiveRecordingSession.startedAt != null
+                  ? DateTime.now()
+                      .difference(_ActiveRecordingSession.startedAt!)
+                      .inSeconds
+                  : 0);
+      if (mounted) {
+        setState(() {
+          _isRecording = true;
+          _isPausedRecording = _ActiveRecordingSession.isPaused;
+          _recordSeconds = elapsed;
+          _selectedAudioSource = _ActiveRecordingSession.audioSource;
+          _isAiVoiceCorrectionEnabled = _ActiveRecordingSession.aiEnhanced;
+          _recordingPeakDb = _ActiveRecordingSession.peakDb;
+          _currentBookmarks
+            ..clear()
+            ..addAll(_ActiveRecordingSession.bookmarks);
+        });
+      }
+      _attachRecordingTimersAndAmp();
+    } else if (!_isPassThroughEnabled) {
+      await _startLiveMicMonitoring();
+    }
+  }
+
+  Future<void> _syncNativeMonitorStatus() async {
+    if (kIsWeb || !Platform.isAndroid) return;
+    try {
+      final dynamic raw = await _loopbackChannel.invokeMethod('getMonitorStatus');
+      if (raw is Map && mounted) {
+        setState(() {
+          _isPassThroughEnabled = raw['isLoopbackRunning'] == true;
+          _monitorCaptureSource = (raw['captureSource'] as String?) ?? _monitorCaptureSource;
+          _monitorListenOutput = (raw['listenOutput'] as String?) ?? _monitorListenOutput;
+          final double? g = (raw['gain'] as num?)?.toDouble();
+          if (g != null && g >= 0.2 && g <= 2.0) {
+            _passThroughVolume = g;
+          }
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _bluetoothCheckTimer?.cancel();
     _callCheckTimer?.cancel();
     _watchdogTimer?.cancel();
-    _stopPassThrough();
+    // Do NOT stop background audio monitor or active recording on dispose!
     _pcmStreamSub?.cancel();
     _ampSub?.cancel();
     _simTimer?.cancel();
     _recordTimer?.cancel();
     _pulseController.dispose();
-    _recorder.dispose();
+    if (!_ActiveRecordingSession.isRecording) {
+      try {
+        _recorder.stop();
+      } catch (_) {}
+    }
     _player.dispose();
     _posSub?.cancel();
     _durSub?.cancel();
     _stateSub?.cancel();
+    _completeSub?.cancel();
     _captionController.dispose();
     super.dispose();
   }
 
   void _initPlayerListeners() {
+    if (!kIsWeb && Platform.isAndroid) {
+      _player.setAudioContext(
+        AudioContext(
+          android: const AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.music,
+            usageType: AndroidUsageType.media,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+        ),
+      );
+    }
     _posSub = _player.onPositionChanged.listen((pos) {
       if (mounted) setState(() => _currentPosition = pos);
     });
@@ -211,7 +314,21 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       if (mounted) setState(() => _totalDuration = dur);
     });
     _stateSub = _player.onPlayerStateChanged.listen((st) {
-      if (mounted) setState(() => _playerState = st);
+      if (mounted) {
+        setState(() => _playerState = st);
+        if (st == PlayerState.paused || st == PlayerState.stopped) {
+          _resumeLiveMicAfterPlayback();
+        }
+      }
+    });
+    _completeSub = _player.onPlayerComplete.listen((_) {
+      if (mounted) {
+        setState(() {
+          _playerState = PlayerState.stopped;
+          _currentPosition = Duration.zero;
+        });
+        _resumeLiveMicAfterPlayback();
+      }
     });
   }
 
@@ -244,7 +361,26 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   }
 
   // --- LIVE MICROPHONE MONITORING & CALIBRATION ---
+  Future<void> _pauseLiveMicForPlayback() async {
+    _simTimer?.cancel();
+    await _pcmStreamSub?.cancel();
+    _pcmStreamSub = null;
+    if (!_isRecording) {
+      try {
+        await _recorder.stop();
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _resumeLiveMicAfterPlayback() async {
+    await Future.delayed(const Duration(milliseconds: 300));
+    if (mounted && !_isRecording && !_isPlayingAudio && !_isPassThroughEnabled) {
+      await _startLiveMicMonitoring();
+    }
+  }
+
   Future<void> _startLiveMicMonitoring() async {
+    if (_isRecording || _isPlayingAudio || _isPassThroughEnabled) return;
     try {
       final bool hasPermission = await _recorder.hasPermission();
       if (!hasPermission) {
@@ -263,12 +399,13 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
           encoder: AudioEncoder.pcm16bits,
           sampleRate: 16000,
           numChannels: 1,
+          audioInterruption: AudioInterruptionMode.none,
         ),
       );
 
       _pcmStreamSub?.cancel();
       _pcmStreamSub = stream.listen((Uint8List chunk) {
-        if (!mounted || _isRecording) return;
+        if (!mounted || _isRecording || _isPlayingAudio) return;
         _lastMicPacketTime = DateTime.now();
 
         double sumSquares = 0.0;
@@ -316,9 +453,10 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   }
 
   void _recoverLiveMicMonitoring() {
+    if (_isRecording || _isPlayingAudio || _isPassThroughEnabled) return;
     _startAmbientSimulation();
     Future.delayed(const Duration(milliseconds: 600), () {
-      if (mounted && !_isRecording) {
+      if (mounted && !_isRecording && !_isPlayingAudio && !_isPassThroughEnabled) {
         _startLiveMicMonitoring();
       }
     });
@@ -417,6 +555,20 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         return;
       }
 
+      // Stop playback if active so mic capture is clean
+      if (_isPlayingAudio) {
+        await _player.stop();
+        _currentlyPlayingId = null;
+      }
+
+      // Start Android Foreground Service + WakeLock so recording survives
+      // backgrounding (in RAM) and screen lock/unlock cycles
+      if (!kIsWeb && Platform.isAndroid) {
+        try {
+          await _loopbackChannel.invokeMethod('startRecordingService');
+        } catch (_) {}
+      }
+
       // Pause monitoring stream to allow dedicated recording capture
       await _pcmStreamSub?.cancel();
       _pcmStreamSub = null;
@@ -457,12 +609,22 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
           autoGain: _isAiVoiceCorrectionEnabled,
           echoCancel: _isAiVoiceCorrectionEnabled,
           noiseSuppress: _isAiVoiceCorrectionEnabled,
+          audioInterruption: AudioInterruptionMode.none,
           androidConfig: AndroidRecordConfig(
             audioSource: audioSource,
           ),
         ),
         path: path ?? '',
       );
+
+      _ActiveRecordingSession.isRecording = true;
+      _ActiveRecordingSession.isPaused = false;
+      _ActiveRecordingSession.startedAt = DateTime.now();
+      _ActiveRecordingSession.pausedAccumulatedSeconds = 0;
+      _ActiveRecordingSession.audioSource = _selectedAudioSource;
+      _ActiveRecordingSession.aiEnhanced = _isAiVoiceCorrectionEnabled;
+      _ActiveRecordingSession.peakDb = _currentDb;
+      _ActiveRecordingSession.bookmarks.clear();
 
       setState(() {
         _isRecording = true;
@@ -472,35 +634,60 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         _currentBookmarks.clear();
       });
 
-      // Listen to amplitude updates while actively recording
-      _ampSub?.cancel();
-      _ampSub = _recorder
-          .onAmplitudeChanged(const Duration(milliseconds: 100))
-          .listen((amp) {
-        if (!mounted || !_isRecording) return;
-        _lastMicPacketTime = DateTime.now();
-        // amp.current is dBFS (-60 to 0) -> map to SPL dB (30 to 115)
-        final double rawSpl = (98.0 + amp.current).clamp(28.0, 115.0);
-        final double normalized = ((rawSpl - 30.0) / 70.0).clamp(0.08, 1.0);
-        _updateLiveDecibel(rawSpl, sliceAmps: [normalized, normalized]);
-      });
-
-      _recordTimer?.cancel();
-      _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (!_isPausedRecording && mounted) {
-          setState(() => _recordSeconds++);
-        }
-      });
+      _attachRecordingTimersAndAmp();
     } catch (e) {
       debugPrint('Error starting recording: $e');
+      if (!kIsWeb && Platform.isAndroid) {
+        try {
+          await _loopbackChannel.invokeMethod('stopRecordingService');
+        } catch (_) {}
+      }
+      _ActiveRecordingSession.isRecording = false;
       _restartMonitoringAfterStop();
     }
+  }
+
+  void _attachRecordingTimersAndAmp() {
+    // Listen to amplitude updates while actively recording
+    _ampSub?.cancel();
+    _ampSub = _recorder
+        .onAmplitudeChanged(const Duration(milliseconds: 100))
+        .listen((amp) {
+      if (!mounted || !_isRecording) return;
+      _lastMicPacketTime = DateTime.now();
+      // amp.current is dBFS (-60 to 0) -> map to SPL dB (30 to 115)
+      final double rawSpl = (98.0 + amp.current).clamp(28.0, 115.0);
+      final double normalized = ((rawSpl - 30.0) / 70.0).clamp(0.08, 1.0);
+      if (rawSpl > _ActiveRecordingSession.peakDb) {
+        _ActiveRecordingSession.peakDb = rawSpl;
+      }
+      _updateLiveDecibel(rawSpl, sliceAmps: [normalized, normalized]);
+    });
+
+    _recordTimer?.cancel();
+    _recordTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!_isPausedRecording && mounted) {
+        final int elapsed = _ActiveRecordingSession.pausedAccumulatedSeconds +
+            (_ActiveRecordingSession.startedAt != null
+                ? DateTime.now()
+                    .difference(_ActiveRecordingSession.startedAt!)
+                    .inSeconds
+                : _recordSeconds + 1);
+        setState(() => _recordSeconds = elapsed);
+      }
+    });
   }
 
   Future<void> _pauseRecording() async {
     SoundService().playKey();
     HapticFeedback.lightImpact();
     await _recorder.pause();
+    if (_ActiveRecordingSession.startedAt != null) {
+      _ActiveRecordingSession.pausedAccumulatedSeconds +=
+          DateTime.now().difference(_ActiveRecordingSession.startedAt!).inSeconds;
+      _ActiveRecordingSession.startedAt = null;
+    }
+    _ActiveRecordingSession.isPaused = true;
     setState(() => _isPausedRecording = true);
   }
 
@@ -508,6 +695,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     SoundService().playKey();
     HapticFeedback.lightImpact();
     await _recorder.resume();
+    _ActiveRecordingSession.startedAt = DateTime.now();
+    _ActiveRecordingSession.isPaused = false;
     setState(() => _isPausedRecording = false);
   }
 
@@ -517,6 +706,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     if (_recordSeconds > 0 && !_currentBookmarks.contains(_recordSeconds)) {
       setState(() {
         _currentBookmarks.add(_recordSeconds);
+        _ActiveRecordingSession.bookmarks.add(_recordSeconds);
       });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -541,6 +731,19 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     _ampSub = null;
 
     final String? recordedPath = await _recorder.stop();
+    final bool wasAiEnhanced = _ActiveRecordingSession.aiEnhanced;
+    final String sourceUsed = _ActiveRecordingSession.audioSource;
+
+    _ActiveRecordingSession.isRecording = false;
+    _ActiveRecordingSession.isPaused = false;
+    _ActiveRecordingSession.startedAt = null;
+    _ActiveRecordingSession.pausedAccumulatedSeconds = 0;
+
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        await _loopbackChannel.invokeMethod('stopRecordingService');
+      } catch (_) {}
+    }
 
     setState(() {
       _isRecording = false;
@@ -555,34 +758,30 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       return;
     }
 
-    // Automatically copy file to phone's public Download/Tooler_Recordings folder!
-    String finalPath = recordedPath;
+    // Export copy to public Download/Tooler_Recordings folder, while keeping
+    // the app-internal recordedPath for 100% reliable playback across Android versions
     final publicCopyPath = await _saveFileToPublicDownloads(recordedPath);
-    if (publicCopyPath != null) {
-      finalPath = publicCopyPath;
-    }
 
-    String chosenTag = _activeTag;
-    if (_selectedAudioSource == 'call' && _activeTag == 'Noise Check') {
-      chosenTag = 'Call Recording';
-    } else if (_selectedAudioSource == 'system_sound' && _activeTag == 'Noise Check') {
-      chosenTag = 'System Sound';
-    } else if (_selectedAudioSource == 'earphone' && _activeTag == 'Noise Check') {
-      chosenTag = 'Earphone Audio';
-    }
+    final String chosenTag = switch (sourceUsed) {
+      'call' => 'Call Recording',
+      'system_sound' => 'System Sound',
+      'earphone' => 'Earphone Audio',
+      _ => 'Voice Record',
+    };
 
     final String defaultTitle =
         '$chosenTag · ${_recordings.length + 1} (${_recordingPeakDb.toStringAsFixed(0)} dB)';
     final newItem = VoiceRecordingItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: defaultTitle,
-      filePath: finalPath,
+      filePath: recordedPath,
       durationSeconds: _recordSeconds,
       createdAt: DateTime.now(),
       tag: chosenTag,
       caption: _captionController.text.trim(),
       bookmarks: List<int>.from(_currentBookmarks),
       peakDb: _recordingPeakDb,
+      aiEnhanced: wasAiEnhanced,
     );
 
     setState(() {
@@ -599,7 +798,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         SnackBar(
           content: Text(
             publicCopyPath != null
-                ? 'Recording saved to phone: Download/Tooler_Recordings/'
+                ? 'Recording saved to Download/Tooler_Recordings/'
                 : 'Recording saved successfully',
             style: widget.theme.fontDisplay(color: Colors.white, fontSize: 13),
           ),
@@ -615,7 +814,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
   Future<void> _restartMonitoringAfterStop() async {
     await Future.delayed(const Duration(milliseconds: 350));
-    if (mounted && !_isRecording) {
+    if (mounted && !_isRecording && !_isPlayingAudio && !_isPassThroughEnabled) {
       await _startLiveMicMonitoring();
     }
   }
@@ -669,44 +868,89 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     return null;
   }
 
-  // --- PLAYBACK ACTIONS ---
-  Future<void> _playRecording(VoiceRecordingItem item) async {
-    SoundService().playKey();
-    HapticFeedback.selectionClick();
-
-    if (_currentlyPlayingId == item.id && _playerState == PlayerState.playing) {
-      await _player.pause();
-    } else if (_currentlyPlayingId == item.id &&
-        _playerState == PlayerState.paused) {
-      await _player.resume();
-    } else {
-      await _player.stop();
-      _currentlyPlayingId = item.id;
-      if (kIsWeb) {
-        await _player.play(UrlSource(item.filePath));
-      } else {
-        await _player.play(DeviceFileSource(item.filePath));
-      }
-      await _player.setPlaybackRate(_playbackSpeed);
-    }
-    setState(() {});
+  // --- PLAYBACK ACTIONS (Zero AudioFocus Conflict) ---
+  Future<String?> _resolvePlayablePath(String originalPath) async {
+    if (kIsWeb) return originalPath;
+    if (await File(originalPath).exists()) return originalPath;
+    final fileName = originalPath.split(RegExp(r'[/\\]')).last;
+    try {
+      final docDir = await getApplicationDocumentsDirectory();
+      final docCandidate = '${docDir.path}/$fileName';
+      if (await File(docCandidate).exists()) return docCandidate;
+    } catch (_) {}
+    final dlCandidate = '/storage/emulated/0/Download/Tooler_Recordings/$fileName';
+    if (await File(dlCandidate).exists()) return dlCandidate;
+    return null;
   }
 
-  Future<void> _togglePlaybackSpeed() async {
-    SoundService().playKey();
+  Future<void> _playRecording(VoiceRecordingItem item) async {
     HapticFeedback.selectionClick();
-    int nextIdx =
-        (_playbackSpeeds.indexOf(_playbackSpeed) + 1) % _playbackSpeeds.length;
-    _playbackSpeed = _playbackSpeeds[nextIdx];
-    await _player.setPlaybackRate(_playbackSpeed);
-    setState(() {});
+
+    try {
+      if (_currentlyPlayingId == item.id && _playerState == PlayerState.playing) {
+        await _player.pause();
+        if (mounted) setState(() => _playerState = PlayerState.paused);
+        return;
+      }
+
+      // Always pause live mic monitoring BEFORE playing so AudioRecorder never steals AudioFocus
+      await _pauseLiveMicForPlayback();
+
+      if (_currentlyPlayingId == item.id && _playerState == PlayerState.paused) {
+        await _player.setPlaybackRate(_playbackSpeed);
+        await _player.resume();
+        if (mounted) setState(() => _playerState = PlayerState.playing);
+        return;
+      }
+
+      final String? resolvedPath = await _resolvePlayablePath(item.filePath);
+      if (resolvedPath == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Audio file not found in storage.',
+                style: widget.theme.fontDisplay(color: Colors.white, fontSize: 13),
+              ),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+        return;
+      }
+
+      await _player.stop();
+      setState(() {
+        _currentlyPlayingId = item.id;
+        _currentPosition = Duration.zero;
+        _totalDuration = Duration(seconds: item.durationSeconds);
+        _playerState = PlayerState.playing;
+      });
+
+      if (kIsWeb) {
+        await _player.setSource(UrlSource(resolvedPath));
+      } else {
+        await _player.setSource(DeviceFileSource(resolvedPath));
+      }
+      await _player.setPlaybackRate(_playbackSpeed);
+      await _player.resume();
+    } catch (e) {
+      debugPrint('Playback error: $e');
+      if (mounted) {
+        setState(() => _playerState = PlayerState.stopped);
+      }
+    }
   }
 
   Future<void> _setPlaybackSpeed(double speed) async {
-    SoundService().playKey();
     HapticFeedback.selectionClick();
     _playbackSpeed = speed;
-    await _player.setPlaybackRate(_playbackSpeed);
+    if (_currentlyPlayingId != null) {
+      try {
+        await _player.setPlaybackRate(_playbackSpeed);
+      } catch (_) {}
+    }
     setState(() {});
   }
 
@@ -832,7 +1076,6 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             _isCallActive = inCall;
             if (inCall && !_isRecording) {
               _selectedAudioSource = 'call';
-              _activeTag = 'Call Recording';
             }
           });
         }
@@ -850,12 +1093,14 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     }
 
     await _checkBluetoothStatus();
-    if (!_isBluetoothConnected) {
+    final bool needsEarphone =
+        _monitorCaptureSource == 'earphone' || _monitorListenOutput == 'earphone';
+    if (needsEarphone && !_isBluetoothConnected) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Please turn ON Bluetooth & connect your earphone/headphone first.",
+              "Please connect Bluetooth or wired earphone for earphone routing.",
               style: widget.theme.fontDisplay(color: Colors.white, fontSize: 13),
             ),
             backgroundColor: Colors.amber.shade900,
@@ -865,10 +1110,17 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       }
     }
 
+    // Pause live dB mic stream if not recording so native loopback gets exclusive mic
+    if (!_isRecording) {
+      await _pauseLiveMicForPlayback();
+    }
+
     try {
       if (!kIsWeb && Platform.isAndroid) {
         final bool ok = await _loopbackChannel.invokeMethod('startLoopback', {
           'route': _passThroughRoute,
+          'captureSource': _monitorCaptureSource,
+          'listenOutput': _monitorListenOutput,
           'gain': _passThroughVolume,
         }) ?? false;
         if (mounted) {
@@ -896,21 +1148,27 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       setState(() {
         _isPassThroughEnabled = false;
       });
+      _resumeLiveMicAfterPlayback();
     }
   }
 
-  Future<void> _changePassThroughRoute(String route) async {
+  Future<void> _setMonitorRoute({
+    String? captureSource,
+    String? listenOutput,
+  }) async {
     SoundService().playKey();
     HapticFeedback.selectionClick();
     setState(() {
-      _passThroughRoute = route;
+      if (captureSource != null) _monitorCaptureSource = captureSource;
+      if (listenOutput != null) _monitorListenOutput = listenOutput;
     });
     if (_isPassThroughEnabled) {
       try {
         if (!kIsWeb && Platform.isAndroid) {
-          await _loopbackChannel.invokeMethod('stopLoopback');
           await _loopbackChannel.invokeMethod('startLoopback', {
             'route': _passThroughRoute,
+            'captureSource': _monitorCaptureSource,
+            'listenOutput': _monitorListenOutput,
             'gain': _passThroughVolume,
           });
         }
@@ -1348,39 +1606,11 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
             const SizedBox(height: 12),
 
-            // Tag selector while recording
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _tagPresets.map((tag) {
-                  final bool isSelected = (_activeTag == tag);
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: ChoiceChip(
-                      label: Text(tag),
-                      selected: isSelected,
-                      selectedColor: widget.theme.primary,
-                      labelStyle: TextStyle(
-                        fontSize: 11,
-                        color: isSelected ? Colors.white : widget.theme.text,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      onSelected: (val) {
-                        if (val) setState(() => _activeTag = tag);
-                      },
-                    ),
-                  );
-                }).toList(),
-              ),
-            ),
-
-            const SizedBox(height: 12),
-
             // Caption / Note field
             TextField(
               controller: _captionController,
               decoration: InputDecoration(
-                hintText: "Add note / noise description...",
+                hintText: "Add note / description...",
                 hintStyle: TextStyle(
                   fontSize: 12,
                   color: widget.theme.textSecondary,
@@ -1443,7 +1673,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               ],
             ),
           ] else ...[
-            // Idle State: Audio Source Selector
+            // Idle State: Audio Source Selector (Color-highlighted pills, no checkmark)
             Text(
               "Audio Source",
               style: widget.theme.fontDisplay(
@@ -1452,7 +1682,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                 color: widget.theme.textSecondary,
               ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -1484,9 +1714,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
             const SizedBox(height: 10),
 
-            // AI Voice Correction & Clarity Toggle
+            // Compact AI Voice Clarity Toggle (No caption/subtitle)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
               decoration: BoxDecoration(
                 color: _isAiVoiceCorrectionEnabled
                     ? widget.theme.primary.withValues(alpha: 0.08)
@@ -1509,25 +1739,13 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "AI Voice Clarity System",
-                          style: widget.theme.fontDisplay(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: widget.theme.text,
-                          ),
-                        ),
-                        Text(
-                          "Intelligible speech clarity & acoustic de-noise without distortion",
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: widget.theme.textSecondary,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      "AI Voice Clarity",
+                      style: widget.theme.fontDisplay(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.bold,
+                        color: widget.theme.text,
+                      ),
                     ),
                   ),
                   Switch(
@@ -1569,7 +1787,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                             ? "Captures active call conversation"
                             : _selectedAudioSource == 'system_sound'
                                 ? "Captures phone system playback"
-                                : "Studio quality audio recording",
+                                : "Runs in background while in RAM",
                         style: TextStyle(
                           fontSize: 11,
                           color: widget.theme.textSecondary,
@@ -1622,55 +1840,150 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     bool isLiveCall = false,
   }) {
     final bool isSelected = (_selectedAudioSource == id);
+    final Color activeBg =
+        (isLiveCall && isSelected) ? Colors.green.shade700 : widget.theme.primary;
     return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: FilterChip(
-        avatar: Icon(
-          icon,
-          size: 16,
-          color: isSelected
-              ? Colors.white
-              : (isLiveCall ? Colors.green : widget.theme.textSecondary),
-        ),
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label),
-            if (isLiveCall) ...[
-              const SizedBox(width: 4),
-              Container(
-                width: 7,
-                height: 7,
-                decoration: const BoxDecoration(
-                  color: Colors.greenAccent,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ],
-          ],
-        ),
-        selected: isSelected,
-        selectedColor: isLiveCall && isSelected
-            ? Colors.green.shade700
-            : widget.theme.primary,
-        checkmarkColor: Colors.white,
-        labelStyle: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.bold,
-          color: isSelected ? Colors.white : widget.theme.text,
-        ),
-        onSelected: (val) {
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: () {
           SoundService().playKey();
           HapticFeedback.selectionClick();
           setState(() {
             _selectedAudioSource = id;
-            if (id == 'call') {
-              _activeTag = 'Call Recording';
-            } else if (id == 'system_sound') {
-              _activeTag = 'System Sound';
-            }
           });
         },
+        borderRadius: BorderRadius.circular(12),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? activeBg : widget.theme.bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? activeBg
+                  : (isLiveCall ? Colors.green : widget.theme.border),
+              width: 1.3,
+            ),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: activeBg.withValues(alpha: 0.25),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected
+                    ? Colors.white
+                    : (isLiveCall ? Colors.green : widget.theme.textSecondary),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : widget.theme.text,
+                ),
+              ),
+              if (isLiveCall) ...[
+                const SizedBox(width: 5),
+                Container(
+                  width: 7,
+                  height: 7,
+                  decoration: BoxDecoration(
+                    color: isSelected ? Colors.greenAccent : Colors.green,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSpeedPopupButton({bool compact = false}) {
+    return PopupMenuButton<double>(
+      tooltip: "Playback Speed",
+      initialValue: _playbackSpeed,
+      onSelected: (spd) => _setPlaybackSpeed(spd),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(14),
+        side: BorderSide(color: widget.theme.border),
+      ),
+      color: widget.theme.cardBg,
+      itemBuilder: (context) => _playbackSpeeds.map((spd) {
+        final bool isCur = (_playbackSpeed == spd);
+        return PopupMenuItem<double>(
+          value: spd,
+          height: 38,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                "${spd}x",
+                style: widget.theme.fontMono(
+                  fontSize: 13,
+                  fontWeight: isCur ? FontWeight.bold : FontWeight.w500,
+                  color: isCur ? widget.theme.primary : widget.theme.text,
+                ),
+              ),
+              if (isCur)
+                Icon(
+                  Icons.circle,
+                  size: 8,
+                  color: widget.theme.primary,
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+      child: Container(
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 8 : 10,
+          vertical: compact ? 4 : 5,
+        ),
+        decoration: BoxDecoration(
+          color: widget.theme.primary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: widget.theme.primary.withValues(alpha: 0.35),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.speed_rounded,
+              size: compact ? 13 : 14,
+              color: widget.theme.primary,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              "${_playbackSpeed}x",
+              style: TextStyle(
+                fontSize: compact ? 10.5 : 11.5,
+                fontWeight: FontWeight.bold,
+                color: widget.theme.primary,
+              ),
+            ),
+            Icon(
+              Icons.arrow_drop_down_rounded,
+              size: compact ? 15 : 16,
+              color: widget.theme.primary,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1699,39 +2012,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                   color: widget.theme.text,
                 ),
               ),
-              InkWell(
-                onTap: _togglePlaybackSpeed,
-                borderRadius: BorderRadius.circular(10),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: widget.theme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: widget.theme.primary.withValues(alpha: 0.3),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.speed_rounded,
-                        size: 14,
-                        color: widget.theme.primary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        "${_playbackSpeed}x Speed",
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: widget.theme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              _buildSpeedPopupButton(),
             ],
           ),
 
@@ -1764,18 +2045,22 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, idx) {
                 final item = _recordings[idx];
-                final bool isPlaying = (_currentlyPlayingId == item.id &&
+                final bool isSelectedCard = _currentlyPlayingId == item.id;
+                final bool isPlaying = (isSelectedCard &&
                     _playerState == PlayerState.playing);
+                final bool isExpandedPlayer = isSelectedCard &&
+                    (_playerState == PlayerState.playing ||
+                        _playerState == PlayerState.paused);
 
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isPlaying
+                    color: isExpandedPlayer
                         ? widget.theme.primary.withValues(alpha: 0.08)
                         : widget.theme.bg,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
-                      color: isPlaying
+                      color: isExpandedPlayer
                           ? widget.theme.primary
                           : widget.theme.border,
                       width: 1.2,
@@ -1843,6 +2128,31 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                                         ),
                                       ),
                                     ],
+                                    const SizedBox(width: 6),
+                                    // AI Voice Clarity status — icon only (no text)
+                                    Tooltip(
+                                      message: item.aiEnhanced
+                                          ? "AI Voice Clarity: ON"
+                                          : "AI Voice Clarity: OFF",
+                                      child: Container(
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: BoxDecoration(
+                                          color: item.aiEnhanced
+                                              ? widget.theme.primary.withValues(alpha: 0.14)
+                                              : widget.theme.border.withValues(alpha: 0.4),
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: Icon(
+                                          item.aiEnhanced
+                                              ? Icons.auto_awesome_rounded
+                                              : Icons.auto_awesome_outlined,
+                                          size: 12,
+                                          color: item.aiEnhanced
+                                              ? widget.theme.primary
+                                              : widget.theme.textSecondary.withValues(alpha: 0.6),
+                                        ),
+                                      ),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -1884,7 +2194,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                           ),
                         ],
                       ),
-                      if (isPlaying && _totalDuration.inMilliseconds > 0)
+                      if (isExpandedPlayer && _totalDuration.inMilliseconds > 0)
                         Padding(
                           padding: const EdgeInsets.only(top: 8, left: 4, right: 4),
                           child: Column(
@@ -1911,79 +2221,39 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                                     _formatSeconds(_currentPosition.inSeconds),
                                     style: widget.theme.fontMono(fontSize: 10, color: widget.theme.textSecondary),
                                   ),
-                                  Text(
-                                    _formatSeconds(_totalDuration.inSeconds),
-                                    style: widget.theme.fontMono(fontSize: 10, color: widget.theme.textSecondary),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              // Speed Controller Chips & AI Clarity Badge
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
                                   Row(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(Icons.speed_rounded, size: 14, color: widget.theme.primary),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        "Speed:",
-                                        style: TextStyle(
-                                          fontSize: 10.5,
-                                          fontWeight: FontWeight.bold,
-                                          color: widget.theme.textSecondary,
+                                      _buildSpeedPopupButton(compact: true),
+                                      const SizedBox(width: 8),
+                                      Tooltip(
+                                        message: item.aiEnhanced
+                                            ? "AI Voice Clarity: ON"
+                                            : "AI Voice Clarity: OFF",
+                                        child: Container(
+                                          padding: const EdgeInsets.all(5),
+                                          decoration: BoxDecoration(
+                                            color: item.aiEnhanced
+                                                ? widget.theme.primary.withValues(alpha: 0.14)
+                                                : widget.theme.border.withValues(alpha: 0.4),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: Icon(
+                                            item.aiEnhanced
+                                                ? Icons.auto_awesome_rounded
+                                                : Icons.auto_awesome_outlined,
+                                            size: 14,
+                                            color: item.aiEnhanced
+                                                ? widget.theme.primary
+                                                : widget.theme.textSecondary.withValues(alpha: 0.6),
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Wrap(
-                                        spacing: 4,
-                                        children: _playbackSpeeds.map((spd) {
-                                          final bool isCur = (_playbackSpeed == spd);
-                                          return InkWell(
-                                            onTap: () => _setPlaybackSpeed(spd),
-                                            borderRadius: BorderRadius.circular(6),
-                                            child: Container(
-                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                                              decoration: BoxDecoration(
-                                                color: isCur
-                                                    ? widget.theme.primary
-                                                    : widget.theme.border.withValues(alpha: 0.5),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                "${spd}x",
-                                                style: TextStyle(
-                                                  fontSize: 9.5,
-                                                  fontWeight: FontWeight.bold,
-                                                  color: isCur ? Colors.white : widget.theme.text,
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        }).toList(),
                                       ),
                                     ],
                                   ),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: widget.theme.primary.withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.auto_awesome_rounded, size: 11, color: widget.theme.primary),
-                                        const SizedBox(width: 3),
-                                        Text(
-                                          "AI Voice Clear",
-                                          style: TextStyle(
-                                            fontSize: 9.5,
-                                            fontWeight: FontWeight.bold,
-                                            color: widget.theme.primary,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                                  Text(
+                                    _formatSeconds(_totalDuration.inSeconds),
+                                    style: widget.theme.fontMono(fontSize: 10, color: widget.theme.textSecondary),
                                   ),
                                 ],
                               ),
@@ -2017,6 +2287,11 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
   // --- 5. EARPHONE & PHONE AUDIO MONITOR ---
   Widget _buildEarphonePassThroughSection() {
+    final bool isPhoneToEarphone =
+        _monitorCaptureSource == 'phone' && _monitorListenOutput == 'earphone';
+    final bool isEarphoneToPhone =
+        _monitorCaptureSource == 'earphone' && _monitorListenOutput == 'phone';
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),
@@ -2046,33 +2321,67 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: (_isPassThroughEnabled ? widget.theme.primary : widget.theme.border)
-                          .withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: (_isPassThroughEnabled
+                                ? widget.theme.primary
+                                : widget.theme.border)
+                            .withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.headphones_rounded,
+                        size: 20,
+                        color: _isPassThroughEnabled
+                            ? widget.theme.primary
+                            : widget.theme.textSecondary,
+                      ),
                     ),
-                    child: Icon(
-                      Icons.headphones_rounded,
-                      size: 20,
-                      color: _isPassThroughEnabled
-                          ? widget.theme.primary
-                          : widget.theme.textSecondary,
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Earphone Audio Monitor",
+                            style: widget.theme.fontDisplay(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: widget.theme.text,
+                            ),
+                          ),
+                          if (_isPassThroughEnabled)
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 6,
+                                  height: 6,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 5),
+                                Text(
+                                  "Active in Background",
+                                  style: TextStyle(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.green.shade700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    "Earphone Audio Monitor",
-                    style: widget.theme.fontDisplay(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: widget.theme.text,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
               Switch.adaptive(
                 value: _isPassThroughEnabled,
@@ -2082,34 +2391,34 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             ],
           ),
 
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
 
-          // Bluetooth Connection Status Banner
+          // Bluetooth / Headset Connection Status Banner
           if (!_isBluetoothConnected)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.amber.shade900.withValues(alpha: 0.12),
+                color: Colors.amber.shade900.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: Colors.amber.shade900.withValues(alpha: 0.4),
-                  width: 1.2,
+                  color: Colors.amber.shade900.withValues(alpha: 0.35),
+                  width: 1.1,
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.bluetooth_disabled_rounded,
-                    size: 20,
+                    size: 18,
                     color: Colors.amber.shade900,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      "Bluetooth disconnected. Please turn ON Bluetooth & connect your earphone.",
+                      "Connect Bluetooth or wired earphone for earphone monitoring.",
                       style: widget.theme.fontDisplay(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.w600,
                         color: Colors.amber.shade900,
                       ),
@@ -2121,7 +2430,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
           else
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
                 color: Colors.green.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
@@ -2134,14 +2443,14 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                 children: [
                   const Icon(
                     Icons.bluetooth_connected_rounded,
-                    size: 18,
+                    size: 17,
                     color: Colors.green,
                   ),
                   const SizedBox(width: 8),
                   Text(
-                    "Bluetooth Connected & Active",
+                    "Earphone / Bluetooth Connected",
                     style: widget.theme.fontDisplay(
-                      fontSize: 12,
+                      fontSize: 11.5,
                       fontWeight: FontWeight.bold,
                       color: Colors.green,
                     ),
@@ -2150,156 +2459,231 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               ),
             ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 14),
 
-          // Dual-Device Route Flow Diagram
+          // Quick Segmented Switch: Phone ➔ Earphone | Earphone ➔ Phone
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: widget.theme.bg,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: widget.theme.border, width: 1.2),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _setMonitorRoute(
+                      captureSource: 'phone',
+                      listenOutput: 'earphone',
+                    ),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isPhoneToEarphone
+                            ? widget.theme.primary
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.phone_android_rounded,
+                            size: 15,
+                            color: isPhoneToEarphone
+                                ? Colors.white
+                                : widget.theme.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 13,
+                            color: isPhoneToEarphone
+                                ? Colors.white70
+                                : widget.theme.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.headphones_rounded,
+                            size: 15,
+                            color: isPhoneToEarphone
+                                ? Colors.white
+                                : widget.theme.textSecondary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            "Phone → Ear",
+                            style: widget.theme.fontDisplay(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: isPhoneToEarphone
+                                  ? Colors.white
+                                  : widget.theme.text,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _setMonitorRoute(
+                      captureSource: 'earphone',
+                      listenOutput: 'phone',
+                    ),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(vertical: 10),
+                      decoration: BoxDecoration(
+                        color: isEarphoneToPhone
+                            ? widget.theme.primary
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.headphones_rounded,
+                            size: 15,
+                            color: isEarphoneToPhone
+                                ? Colors.white
+                                : widget.theme.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.arrow_forward_rounded,
+                            size: 13,
+                            color: isEarphoneToPhone
+                                ? Colors.white70
+                                : widget.theme.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.phone_android_rounded,
+                            size: 15,
+                            color: isEarphoneToPhone
+                                ? Colors.white
+                                : widget.theme.textSecondary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            "Ear → Phone",
+                            style: widget.theme.fontDisplay(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                              color: isEarphoneToPhone
+                                  ? Colors.white
+                                  : widget.theme.text,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: 14),
+
+          // Explicit Audio Capture (Mic Input) & Live Listen (Speaker Output) Selectors
+          Container(
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: widget.theme.bg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: widget.theme.border),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Earphone / Headphone Device Card
-                Column(
+                // 1. Audio Capture From (Mic Input)
+                Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (_passThroughRoute == 'earphone_to_phone'
-                                ? widget.theme.primary
-                                : widget.theme.cardBg)
-                            .withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _passThroughRoute == 'earphone_to_phone'
-                              ? widget.theme.primary
-                              : widget.theme.border,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.headphones_rounded,
-                        size: 28,
-                        color: _passThroughRoute == 'earphone_to_phone'
-                            ? widget.theme.primary
-                            : widget.theme.textSecondary,
-                      ),
+                    Icon(
+                      Icons.mic_rounded,
+                      size: 14,
+                      color: widget.theme.primary,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(width: 6),
                     Text(
-                      "Earphone",
+                      "Audio Capture (Mic)",
                       style: widget.theme.fontDisplay(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.bold,
-                        color: widget.theme.text,
-                      ),
-                    ),
-                    Text(
-                      _passThroughRoute == 'earphone_to_phone' ? "Mic (Input)" : "Audio (Output)",
-                      style: TextStyle(
-                        fontSize: 10,
                         color: widget.theme.textSecondary,
                       ),
                     ),
                   ],
                 ),
-
-                // Interactive Route Switcher Pill
-                InkWell(
-                  onTap: () {
-                    final next = _passThroughRoute == 'phone_to_earphone'
-                        ? 'earphone_to_phone'
-                        : 'phone_to_earphone';
-                    _changePassThroughRoute(next);
-                  },
-                  borderRadius: BorderRadius.circular(24),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: widget.theme.primary,
-                      borderRadius: BorderRadius.circular(24),
-                      boxShadow: [
-                        BoxShadow(
-                          color: widget.theme.primary.withValues(alpha: 0.3),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMonitorOptionPill(
+                        label: "Phone Mic",
+                        icon: Icons.phone_android_rounded,
+                        isSelected: _monitorCaptureSource == 'phone',
+                        onTap: () => _setMonitorRoute(captureSource: 'phone'),
+                      ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          _passThroughRoute == 'phone_to_earphone'
-                              ? Icons.arrow_back_rounded
-                              : Icons.arrow_forward_rounded,
-                          size: 16,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          _passThroughRoute == 'phone_to_earphone'
-                              ? "Phone ➔ Earphone"
-                              : "Earphone ➔ Phone",
-                          style: widget.theme.fontDisplay(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        const Icon(
-                          Icons.swap_horiz_rounded,
-                          size: 16,
-                          color: Colors.white70,
-                        ),
-                      ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildMonitorOptionPill(
+                        label: "Earphone Mic",
+                        icon: Icons.headset_mic_rounded,
+                        isSelected: _monitorCaptureSource == 'earphone',
+                        onTap: () => _setMonitorRoute(captureSource: 'earphone'),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
 
-                // Phone Device Card
-                Column(
+                const SizedBox(height: 12),
+
+                // 2. Live Listen On (Speaker Output)
+                Row(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (_passThroughRoute == 'phone_to_earphone'
-                                ? widget.theme.primary
-                                : widget.theme.cardBg)
-                            .withValues(alpha: 0.2),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: _passThroughRoute == 'phone_to_earphone'
-                              ? widget.theme.primary
-                              : widget.theme.border,
-                        ),
-                      ),
-                      child: Icon(
-                        Icons.phone_android_rounded,
-                        size: 28,
-                        color: _passThroughRoute == 'phone_to_earphone'
-                            ? widget.theme.primary
-                            : widget.theme.textSecondary,
-                      ),
+                    Icon(
+                      Icons.hearing_rounded,
+                      size: 14,
+                      color: widget.theme.primary,
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(width: 6),
                     Text(
-                      "Phone",
+                      "Live Listen (Output)",
                       style: widget.theme.fontDisplay(
-                        fontSize: 12,
+                        fontSize: 11.5,
                         fontWeight: FontWeight.bold,
-                        color: widget.theme.text,
+                        color: widget.theme.textSecondary,
                       ),
                     ),
-                    Text(
-                      _passThroughRoute == 'phone_to_earphone' ? "Mic (Input)" : "Speaker (Output)",
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: widget.theme.textSecondary,
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMonitorOptionPill(
+                        label: "Earphone",
+                        icon: Icons.headphones_rounded,
+                        isSelected: _monitorListenOutput == 'earphone',
+                        onTap: () => _setMonitorRoute(listenOutput: 'earphone'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildMonitorOptionPill(
+                        label: "Phone Speaker",
+                        icon: Icons.speaker_phone_rounded,
+                        isSelected: _monitorListenOutput == 'phone',
+                        onTap: () => _setMonitorRoute(listenOutput: 'phone'),
                       ),
                     ),
                   ],
@@ -2353,6 +2737,52 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMonitorOptionPill({
+    required String label,
+    required IconData icon,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(11),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(
+          color: isSelected ? widget.theme.primary : widget.theme.cardBg,
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(
+            color: isSelected ? widget.theme.primary : widget.theme.border,
+            width: 1.2,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              icon,
+              size: 15,
+              color: isSelected ? Colors.white : widget.theme.textSecondary,
+            ),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : widget.theme.text,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

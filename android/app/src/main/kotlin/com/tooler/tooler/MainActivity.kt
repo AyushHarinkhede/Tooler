@@ -116,7 +116,7 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        // Loopback Channel
+        // Loopback & Persistent Foreground Audio Service Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, LOOPBACK_CHANNEL).setMethodCallHandler { call, result ->
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             when (call.method) {
@@ -126,19 +126,49 @@ class MainActivity : FlutterActivity() {
                 }
                 "startLoopback" -> {
                     val route = call.argument<String>("route") ?: "phone_to_earphone"
+                    val captureSource = call.argument<String>("captureSource")
+                        ?: if (route == "earphone_to_phone") "earphone" else "phone"
+                    val listenOutput = call.argument<String>("listenOutput")
+                        ?: if (route == "earphone_to_phone") "phone" else "earphone"
                     val gain = (call.argument<Double>("gain") ?: 1.0).toFloat()
                     monitorGain = gain
-                    startAudioLoopback(audioManager, route)
+                    ToolerAudioService.monitorGain = gain
+                    dispatchAudioService(
+                        ToolerAudioService.ACTION_START_LOOPBACK,
+                        captureSource = captureSource,
+                        listenOutput = listenOutput,
+                        gain = gain
+                    )
                     result.success(true)
                 }
                 "stopLoopback" -> {
-                    stopAudioLoopback()
+                    dispatchAudioService(ToolerAudioService.ACTION_STOP_LOOPBACK)
                     result.success(true)
                 }
                 "setGain" -> {
                     val gain = (call.argument<Double>("gain") ?: 1.0).toFloat()
                     monitorGain = gain
+                    ToolerAudioService.monitorGain = gain
                     result.success(true)
+                }
+                "startRecordingService" -> {
+                    dispatchAudioService(ToolerAudioService.ACTION_START_RECORDING_KEEPALIVE)
+                    result.success(true)
+                }
+                "stopRecordingService" -> {
+                    dispatchAudioService(ToolerAudioService.ACTION_STOP_RECORDING_KEEPALIVE)
+                    result.success(true)
+                }
+                "getMonitorStatus" -> {
+                    result.success(
+                        mapOf(
+                            "isLoopbackRunning" to ToolerAudioService.isLoopbackRunning,
+                            "isRecordingKeepAlive" to ToolerAudioService.isRecordingKeepAlive,
+                            "captureSource" to ToolerAudioService.currentCaptureSource,
+                            "listenOutput" to ToolerAudioService.currentListenOutput,
+                            "gain" to ToolerAudioService.monitorGain.toDouble()
+                        )
+                    )
                 }
                 "isCallActive" -> {
                     val inCall = audioManager.mode == AudioManager.MODE_IN_CALL ||
@@ -1087,8 +1117,34 @@ class MainActivity : FlutterActivity() {
         }
     }
 
+    private fun dispatchAudioService(
+        action: String,
+        captureSource: String? = null,
+        listenOutput: String? = null,
+        gain: Float? = null
+    ) {
+        try {
+            val intent = Intent(this, ToolerAudioService::class.java).apply {
+                this.action = action
+                if (captureSource != null) putExtra(ToolerAudioService.EXTRA_CAPTURE_SOURCE, captureSource)
+                if (listenOutput != null) putExtra(ToolerAudioService.EXTRA_LISTEN_OUTPUT, listenOutput)
+                if (gain != null) putExtra(ToolerAudioService.EXTRA_GAIN, gain)
+            }
+            val isStartAction = action == ToolerAudioService.ACTION_START_LOOPBACK ||
+                action == ToolerAudioService.ACTION_UPDATE_LOOPBACK ||
+                action == ToolerAudioService.ACTION_START_RECORDING_KEEPALIVE
+            if (isStartAction && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(intent)
+            } else {
+                startService(intent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     override fun onDestroy() {
-        stopAudioLoopback()
+        // Keep ToolerAudioService running in background RAM if recording or audio monitor is active
         stopNativeAlarm()
         try {
             soundPool?.release()

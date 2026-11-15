@@ -1,0 +1,464 @@
+package com.tooler.tooler
+
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.media.AudioAttributes
+import android.media.AudioDeviceInfo
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioRecord
+import android.media.AudioTrack
+import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
+import android.os.Build
+import android.os.IBinder
+import android.os.PowerManager
+import kotlin.concurrent.thread
+
+class ToolerAudioService : Service() {
+
+    companion object {
+        const val CHANNEL_ID = "tooler_audio_foreground_channel"
+        const val NOTIFICATION_ID = 4109
+
+        const val ACTION_START_RECORDING_KEEPALIVE = "com.tooler.tooler.ACTION_START_RECORDING"
+        const val ACTION_STOP_RECORDING_KEEPALIVE = "com.tooler.tooler.ACTION_STOP_RECORDING"
+        const val ACTION_START_LOOPBACK = "com.tooler.tooler.ACTION_START_LOOPBACK"
+        const val ACTION_UPDATE_LOOPBACK = "com.tooler.tooler.ACTION_UPDATE_LOOPBACK"
+        const val ACTION_STOP_LOOPBACK = "com.tooler.tooler.ACTION_STOP_LOOPBACK"
+        const val ACTION_STOP_ALL = "com.tooler.tooler.ACTION_STOP_ALL"
+
+        const val EXTRA_CAPTURE_SOURCE = "captureSource" // "phone" or "earphone"
+        const val EXTRA_LISTEN_OUTPUT = "listenOutput"   // "earphone" or "phone"
+        const val EXTRA_GAIN = "gain"
+
+        @Volatile var isRecordingKeepAlive: Boolean = false
+        @Volatile var isLoopbackRunning: Boolean = false
+        @Volatile var currentCaptureSource: String = "phone"
+        @Volatile var currentListenOutput: String = "earphone"
+        @Volatile var monitorGain: Float = 1.0f
+    }
+
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var audioRecord: AudioRecord? = null
+    private var audioTrack: AudioTrack? = null
+    private var echoCanceler: AcousticEchoCanceler? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
+    private var loopbackThread: Thread? = null
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        val action = intent?.action ?: ""
+
+        when (action) {
+            ACTION_START_RECORDING_KEEPALIVE -> {
+                isRecordingKeepAlive = true
+                promoteToForeground()
+                acquireWakeLock()
+            }
+            ACTION_STOP_RECORDING_KEEPALIVE -> {
+                isRecordingKeepAlive = false
+                if (!isLoopbackRunning) {
+                    shutdownService()
+                    return START_NOT_STICKY
+                } else {
+                    updateNotification()
+                }
+            }
+            ACTION_START_LOOPBACK, ACTION_UPDATE_LOOPBACK -> {
+                val cap = intent?.getStringExtra(EXTRA_CAPTURE_SOURCE) ?: currentCaptureSource
+                val out = intent?.getStringExtra(EXTRA_LISTEN_OUTPUT) ?: currentListenOutput
+                val gain = intent?.getFloatExtra(EXTRA_GAIN, monitorGain) ?: monitorGain
+                currentCaptureSource = cap
+                currentListenOutput = out
+                monitorGain = gain
+
+                promoteToForeground()
+                acquireWakeLock()
+                startNativeLoopback(cap, out)
+                updateNotification()
+            }
+            ACTION_STOP_LOOPBACK -> {
+                stopNativeLoopback()
+                if (!isRecordingKeepAlive) {
+                    shutdownService()
+                    return START_NOT_STICKY
+                } else {
+                    updateNotification()
+                }
+            }
+            ACTION_STOP_ALL -> {
+                isRecordingKeepAlive = false
+                stopNativeLoopback()
+                shutdownService()
+                return START_NOT_STICKY
+            }
+            else -> {
+                if (isRecordingKeepAlive || isLoopbackRunning) {
+                    promoteToForeground()
+                    acquireWakeLock()
+                }
+            }
+        }
+
+        return START_STICKY
+    }
+
+    override fun onDestroy() {
+        stopNativeLoopback()
+        isRecordingKeepAlive = false
+        releaseWakeLock()
+        super.onDestroy()
+    }
+
+    private fun shutdownService() {
+        releaseWakeLock()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } else {
+                @Suppress("DEPRECATION")
+                stopForeground(true)
+            }
+        } catch (_: Exception) {}
+        stopSelf()
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Tooler Active Audio",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Keeps Tooler voice recording and live audio monitor active in background"
+                setSound(null, null)
+                enableVibration(false)
+            }
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+    }
+
+    private fun buildNotification(): Notification {
+        val openIntent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingOpen = PendingIntent.getActivity(
+            this,
+            0,
+            openIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
+        val title = when {
+            isRecordingKeepAlive && isLoopbackRunning -> "Tooler Audio Active (Recording + Monitor)"
+            isRecordingKeepAlive -> "Tooler Sound Recorder Active"
+            isLoopbackRunning -> "Tooler Live Audio Monitor Active"
+            else -> "Tooler Audio Service"
+        }
+
+        val routeDesc = if (isLoopbackRunning) {
+            val inLabel = if (currentCaptureSource == "earphone") "Earphone Mic" else "Phone Mic"
+            val outLabel = if (currentListenOutput == "phone") "Phone Speaker" else "Earphone"
+            "$inLabel → $outLabel"
+        } else {
+            "Running in background"
+        }
+
+        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            Notification.Builder(this, CHANNEL_ID)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }
+
+        return builder
+            .setContentTitle(title)
+            .setContentText(routeDesc)
+            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
+            .setOngoing(true)
+            .setContentIntent(pendingOpen)
+            .build()
+    }
+
+    private fun promoteToForeground() {
+        val notification = buildNotification()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            try {
+                startForeground(NOTIFICATION_ID, notification)
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun updateNotification() {
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            nm.notify(NOTIFICATION_ID, buildNotification())
+        } catch (_: Exception) {}
+    }
+
+    private fun acquireWakeLock() {
+        try {
+            if (wakeLock == null) {
+                val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+                wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "Tooler::AudioServiceWakeLock")
+                wakeLock?.setReferenceCounted(false)
+            }
+            if (wakeLock?.isHeld == false) {
+                wakeLock?.acquire(12 * 60 * 60 * 1000L) // up to 12 hours safety cap
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun releaseWakeLock() {
+        try {
+            if (wakeLock?.isHeld == true) {
+                wakeLock?.release()
+            }
+        } catch (_: Exception) {}
+    }
+
+    private fun findInputDevice(audioManager: AudioManager, captureSource: String): AudioDeviceInfo? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
+        val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+        return if (captureSource == "earphone") {
+            inputs.firstOrNull {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && it.type == AudioDeviceInfo.TYPE_BLE_HEADSET) ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+            }
+        } else {
+            inputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC }
+        }
+    }
+
+    private fun findOutputDevice(audioManager: AudioManager, listenOutput: String): AudioDeviceInfo? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) return null
+        val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        return if (listenOutput == "phone") {
+            outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
+        } else {
+            outputs.firstOrNull {
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && it.type == AudioDeviceInfo.TYPE_BLE_HEADSET) ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+            }
+        }
+    }
+
+    private fun startNativeLoopback(captureSource: String, listenOutput: String) {
+        stopNativeLoopback()
+
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
+        try {
+            val needBtSco = (captureSource == "earphone")
+            if (needBtSco) {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        val commDevices = audioManager.availableCommunicationDevices
+                        val btDev = commDevices.firstOrNull {
+                            it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                            it.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+                        }
+                        if (btDev != null) {
+                            audioManager.setCommunicationDevice(btDev)
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        audioManager.startBluetoothSco()
+                        @Suppress("DEPRECATION")
+                        audioManager.isBluetoothScoOn = true
+                    }
+                } catch (_: Exception) {}
+            } else {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        audioManager.clearCommunicationDevice()
+                    } else {
+                        @Suppress("DEPRECATION")
+                        audioManager.stopBluetoothSco()
+                        @Suppress("DEPRECATION")
+                        audioManager.isBluetoothScoOn = false
+                    }
+                } catch (_: Exception) {}
+            }
+
+            val sampleRate = 44100
+            val channelConfigIn = AudioFormat.CHANNEL_IN_MONO
+            val channelConfigOut = AudioFormat.CHANNEL_OUT_MONO
+            val audioFormat = AudioFormat.ENCODING_PCM_16BIT
+
+            val minBufIn = AudioRecord.getMinBufferSize(sampleRate, channelConfigIn, audioFormat)
+            val minBufOut = AudioTrack.getMinBufferSize(sampleRate, channelConfigOut, audioFormat)
+            val bufferSize = Math.max(minBufIn, minBufOut).coerceAtLeast(2048) * 2
+
+            val audioSource = if (captureSource == "earphone") {
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION
+            } else if (listenOutput == "phone") {
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION // enables built-in AEC against speaker feedback
+            } else {
+                MediaRecorder.AudioSource.MIC
+            }
+
+            val rec = AudioRecord(audioSource, sampleRate, channelConfigIn, audioFormat, bufferSize)
+            if (rec.state != AudioRecord.STATE_INITIALIZED) {
+                rec.release()
+                return
+            }
+
+            val track = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                val usage = if (listenOutput == "phone" && captureSource == "earphone") {
+                    AudioAttributes.USAGE_MEDIA
+                } else {
+                    AudioAttributes.USAGE_MEDIA
+                }
+                AudioTrack.Builder()
+                    .setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(usage)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                    )
+                    .setAudioFormat(
+                        AudioFormat.Builder()
+                            .setEncoding(audioFormat)
+                            .setSampleRate(sampleRate)
+                            .setChannelMask(channelConfigOut)
+                            .build()
+                    )
+                    .setBufferSizeInBytes(bufferSize)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .build()
+            } else {
+                @Suppress("DEPRECATION")
+                AudioTrack(AudioManager.STREAM_MUSIC, sampleRate, channelConfigOut, audioFormat, bufferSize, AudioTrack.MODE_STREAM)
+            }
+
+            // Explicit Hardware Device Routing (API 23+)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                findInputDevice(audioManager, captureSource)?.let { dev ->
+                    rec.preferredDevice = dev
+                }
+                findOutputDevice(audioManager, listenOutput)?.let { dev ->
+                    track.preferredDevice = dev
+                }
+            }
+
+            // Acoustic Echo Canceler & Noise Suppressor for clear live audio
+            try {
+                if (AcousticEchoCanceler.isAvailable()) {
+                    echoCanceler = AcousticEchoCanceler.create(rec.audioSessionId)?.apply {
+                        enabled = true
+                    }
+                }
+                if (NoiseSuppressor.isAvailable()) {
+                    noiseSuppressor = NoiseSuppressor.create(rec.audioSessionId)?.apply {
+                        enabled = true
+                    }
+                }
+            } catch (_: Exception) {}
+
+            audioRecord = rec
+            audioTrack = track
+
+            track.play()
+            rec.startRecording()
+            isLoopbackRunning = true
+
+            loopbackThread = thread(start = true, priority = Thread.MAX_PRIORITY, name = "ToolerAudioLoopback") {
+                val audioBuffer = ShortArray(bufferSize / 2)
+                while (isLoopbackRunning && audioRecord != null && audioTrack != null) {
+                    val readCount = try {
+                        audioRecord?.read(audioBuffer, 0, audioBuffer.size) ?: 0
+                    } catch (_: Exception) {
+                        0
+                    }
+                    if (readCount > 0) {
+                        val gain = monitorGain
+                        if (gain != 1.0f) {
+                            for (i in 0 until readCount) {
+                                val amplified = (audioBuffer[i] * gain).toInt()
+                                audioBuffer[i] = Math.max(-32768, Math.min(32767, amplified)).toShort()
+                            }
+                        }
+                        try {
+                            audioTrack?.write(audioBuffer, 0, readCount)
+                        } catch (_: Exception) {}
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            stopNativeLoopback()
+        }
+    }
+
+    private fun stopNativeLoopback() {
+        isLoopbackRunning = false
+        try {
+            echoCanceler?.release()
+        } catch (_: Exception) {}
+        echoCanceler = null
+
+        try {
+            noiseSuppressor?.release()
+        } catch (_: Exception) {}
+        noiseSuppressor = null
+
+        try {
+            audioRecord?.stop()
+            audioRecord?.release()
+        } catch (_: Exception) {}
+        audioRecord = null
+
+        try {
+            audioTrack?.stop()
+            audioTrack?.release()
+        } catch (_: Exception) {}
+        audioTrack = null
+
+        loopbackThread = null
+
+        try {
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                audioManager.clearCommunicationDevice()
+            } else {
+                @Suppress("DEPRECATION")
+                audioManager.stopBluetoothSco()
+                @Suppress("DEPRECATION")
+                audioManager.isBluetoothScoOn = false
+            }
+        } catch (_: Exception) {}
+    }
+}
