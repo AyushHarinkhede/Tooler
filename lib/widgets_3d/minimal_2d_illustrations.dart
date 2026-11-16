@@ -633,34 +633,100 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawCompass(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    final center = Offset(w * 0.5, h * 0.5);
-    canvas.drawCircle(center, w * 0.36, p);
-    // Cardinal ticks
-    canvas.drawLine(Offset(w * 0.5, h * 0.18), Offset(w * 0.5, h * 0.26), p);
-    canvas.drawLine(Offset(w * 0.5, h * 0.74), Offset(w * 0.5, h * 0.82), p);
-    canvas.drawLine(Offset(w * 0.18, h * 0.5), Offset(w * 0.26, h * 0.5), p);
-    canvas.drawLine(Offset(w * 0.74, h * 0.5), Offset(w * 0.82, h * 0.5), p);
+    final cx = w * 0.50;
+    final cy = h * 0.53;
+    final r = w * 0.35;
 
-    // North Needle
-    final north = Path()
-      ..moveTo(w * 0.5, h * 0.26)
-      ..lineTo(w * 0.56, h * 0.5)
-      ..lineTo(w * 0.44, h * 0.5)
-      ..close();
-    canvas.drawPath(north, fill);
+    final pThin = Paint()
+      ..color = strokeColor.withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
-    // South Needle
-    final south = Path()
-      ..moveTo(w * 0.5, h * 0.74)
-      ..lineTo(w * 0.56, h * 0.5)
-      ..lineTo(w * 0.44, h * 0.5)
+    // Vintage navigation casing top loop & mounting collar
+    canvas.drawCircle(Offset(cx, h * 0.12), w * 0.055, p);
+    canvas.drawLine(Offset(cx - w * 0.045, h * 0.175), Offset(cx + w * 0.045, h * 0.175), p);
+
+    // Outer compass bezel casing & inner dial ring
+    canvas.drawCircle(Offset(cx, cy), r, p);
+    canvas.drawCircle(Offset(cx, cy), r * 0.80, pThin);
+
+    // Cardinal tick marks (N, S, E, W)
+    canvas.drawLine(Offset(cx, cy - r), Offset(cx, cy - r * 0.72), p);
+    canvas.drawLine(Offset(cx, cy + r * 0.76), Offset(cx, cy + r), p);
+    canvas.drawLine(Offset(cx - r, cy), Offset(cx - r * 0.76, cy), p);
+    canvas.drawLine(Offset(cx + r * 0.76, cy), Offset(cx + r, cy), p);
+
+    // 4 Sub-cardinal pips (NE, NW, SE, SW)
+    final d = r * 0.80 * 0.7071;
+    canvas.drawCircle(Offset(cx + d, cy - d), w * 0.016, p);
+    canvas.drawCircle(Offset(cx - d, cy - d), w * 0.016, p);
+    canvas.drawCircle(Offset(cx + d, cy + d), w * 0.016, p);
+    canvas.drawCircle(Offset(cx - d, cy + d), w * 0.016, p);
+
+    // North apex arrow notch indicator
+    final nArrow = Path()
+      ..moveTo(cx - w * 0.035, cy - r + w * 0.09)
+      ..lineTo(cx, cy - r + w * 0.035)
+      ..lineTo(cx + w * 0.035, cy - r + w * 0.09)
       ..close();
-    canvas.drawPath(south, p);
+    canvas.drawPath(nArrow, fill);
+
+    // 4-Point Faceted Compass Rose & Magnetic Needle
+    // North Needle (Faceted: Left facet accent filled, Right facet stroked)
+    final nLeft = Path()
+      ..moveTo(cx, cy - r * 0.68)
+      ..lineTo(cx - w * 0.065, cy)
+      ..lineTo(cx, cy)
+      ..close();
+    canvas.drawPath(nLeft, fill);
+    canvas.drawPath(nLeft, p);
+
+    final nRight = Path()
+      ..moveTo(cx, cy - r * 0.68)
+      ..lineTo(cx + w * 0.065, cy)
+      ..lineTo(cx, cy)
+      ..close();
+    canvas.drawPath(nRight, p);
+
+    // South Needle (Faceted)
+    final sLeft = Path()
+      ..moveTo(cx, cy + r * 0.64)
+      ..lineTo(cx - w * 0.055, cy)
+      ..lineTo(cx, cy)
+      ..close();
+    canvas.drawPath(sLeft, p);
+
+    final sRight = Path()
+      ..moveTo(cx, cy + r * 0.64)
+      ..lineTo(cx + w * 0.055, cy)
+      ..lineTo(cx, cy)
+      ..close();
+    canvas.drawPath(sRight, p);
+
+    // East & West compass wings
+    final wWing = Path()
+      ..moveTo(cx - r * 0.42, cy)
+      ..lineTo(cx, cy - w * 0.035)
+      ..lineTo(cx, cy + w * 0.035)
+      ..close();
+    canvas.drawPath(wWing, p);
+
+    final eWing = Path()
+      ..moveTo(cx + r * 0.42, cy)
+      ..lineTo(cx, cy - w * 0.035)
+      ..lineTo(cx, cy + w * 0.035)
+      ..close();
+    canvas.drawPath(eWing, p);
+
+    // Center brass pivot assembly
     final pinBg = Paint()
       ..color = isDark ? const Color(0xFF1E1E24) : Colors.white
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, w * 0.04, pinBg);
-    canvas.drawCircle(center, w * 0.04, p);
+    canvas.drawCircle(Offset(cx, cy), w * 0.045, pinBg);
+    canvas.drawCircle(Offset(cx, cy), w * 0.045, p);
+    canvas.drawCircle(Offset(cx, cy), w * 0.02, fill);
   }
 
   void _drawStopwatch(Canvas canvas, double w, double h, Paint p, Paint fill) {
@@ -776,13 +842,95 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawSizer(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // Caliper frame
-    canvas.drawLine(Offset(w * 0.22, h * 0.20), Offset(w * 0.22, h * 0.80), p);
-    canvas.drawLine(Offset(w * 0.22, h * 0.20), Offset(w * 0.65, h * 0.20), p);
-    canvas.drawLine(Offset(w * 0.65, h * 0.20), Offset(w * 0.65, h * 0.36), p);
-    // Sliding jaw
-    canvas.drawLine(Offset(w * 0.45, h * 0.16), Offset(w * 0.45, h * 0.40), p);
-    canvas.drawCircle(Offset(w * 0.45, h * 0.28), w * 0.05, fill);
+    final pThin = Paint()
+      ..color = strokeColor.withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final beamY1 = h * 0.33;
+    final beamY2 = h * 0.47;
+
+    // Main Vernier scale beam (ruler bar)
+    final beamRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(w * 0.16, beamY1, w * 0.68, beamY2 - beamY1),
+      topRight: Radius.circular(w * 0.03),
+      bottomRight: Radius.circular(w * 0.03),
+    );
+    canvas.drawRRect(beamRect, p);
+
+    // Depth gauge probe extending from rear
+    canvas.drawLine(Offset(w * 0.84, (beamY1 + beamY2) / 2), Offset(w * 0.90, (beamY1 + beamY2) / 2), p);
+
+    // Millimeter graduation ticks along top of main beam
+    for (int i = 0; i < 5; i++) {
+      final tx = w * 0.34 + i * (w * 0.09);
+      final tHeight = (i % 2 == 0) ? h * 0.07 : h * 0.04;
+      canvas.drawLine(Offset(tx, beamY1), Offset(tx, beamY1 + tHeight), pThin);
+    }
+
+    // Fixed Jaw (Left end)
+    // Lower external measuring jaw
+    final fixedJaw = Path()
+      ..moveTo(w * 0.16, beamY2)
+      ..lineTo(w * 0.16, h * 0.82)
+      ..quadraticBezierTo(w * 0.16, h * 0.84, w * 0.23, h * 0.84)
+      ..lineTo(w * 0.23, h * 0.58)
+      ..lineTo(w * 0.27, beamY2)
+      ..close();
+    canvas.drawPath(fixedJaw, p);
+
+    // Upper internal measuring nib
+    final fixedNib = Path()
+      ..moveTo(w * 0.16, beamY1)
+      ..lineTo(w * 0.16, h * 0.19)
+      ..quadraticBezierTo(w * 0.16, h * 0.17, w * 0.22, h * 0.17)
+      ..lineTo(w * 0.22, beamY1)
+      ..close();
+    canvas.drawPath(fixedNib, p);
+
+    // Movable Vernier Slider Carriage (at w * 0.49 to w * 0.62)
+    final slider = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.49, beamY1 - h * 0.03, w * 0.13, (beamY2 - beamY1) + h * 0.06),
+      Radius.circular(w * 0.03),
+    );
+    final sliderBg = Paint()
+      ..color = isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(slider, sliderBg);
+    canvas.drawRRect(slider, p);
+
+    // Top knurled locking thumb screw
+    final screw = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.525, h * 0.21, w * 0.06, h * 0.09),
+      Radius.circular(w * 0.02),
+    );
+    canvas.drawRRect(screw, fill);
+    canvas.drawRRect(screw, p);
+
+    // Lower sliding jaw clamping toward fixed jaw
+    final slidingJaw = Path()
+      ..moveTo(w * 0.49, beamY2 + h * 0.03)
+      ..lineTo(w * 0.49, h * 0.80)
+      ..quadraticBezierTo(w * 0.50, h * 0.82, w * 0.55, h * 0.76)
+      ..lineTo(w * 0.58, beamY2 + h * 0.03)
+      ..close();
+    canvas.drawPath(slidingJaw, p);
+
+    // Vernier scale ticks on slider body
+    canvas.drawLine(Offset(w * 0.53, beamY1 + h * 0.01), Offset(w * 0.53, beamY1 + h * 0.05), pThin);
+    canvas.drawLine(Offset(w * 0.56, beamY1 + h * 0.01), Offset(w * 0.56, beamY1 + h * 0.05), pThin);
+
+    // Precision measured ring / workpiece being sized
+    final ringCenter = Offset(w * 0.36, h * 0.70);
+    canvas.drawCircle(ringCenter, w * 0.075, fill);
+    canvas.drawCircle(ringCenter, w * 0.075, p);
+    final holeBg = Paint()
+      ..color = isDark ? const Color(0xFF18181B) : Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawCircle(ringCenter, w * 0.035, holeBg);
+    canvas.drawCircle(ringCenter, w * 0.035, pThin);
   }
 
   void _drawCounters(Canvas canvas, double w, double h, Paint p, Paint fill) {
@@ -844,36 +992,138 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawGames(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // Gamepad silhouette
-    final pad = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.18, h * 0.28, w * 0.64, h * 0.46),
-      Radius.circular(w * 0.18),
+    final pThin = Paint()
+      ..color = strokeColor.withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // Ergonomic modern console controller silhouette
+    final pad = Path()
+      ..moveTo(w * 0.50, h * 0.35)
+      ..cubicTo(w * 0.58, h * 0.32, w * 0.68, h * 0.32, w * 0.78, h * 0.36)
+      ..cubicTo(w * 0.86, h * 0.40, w * 0.88, h * 0.58, w * 0.84, h * 0.72)
+      ..cubicTo(w * 0.82, h * 0.80, w * 0.72, h * 0.82, w * 0.67, h * 0.74)
+      ..cubicTo(w * 0.62, h * 0.66, w * 0.56, h * 0.58, w * 0.50, h * 0.58)
+      ..cubicTo(w * 0.44, h * 0.58, w * 0.38, h * 0.66, w * 0.33, h * 0.74)
+      ..cubicTo(w * 0.28, h * 0.82, w * 0.18, h * 0.80, w * 0.16, h * 0.72)
+      ..cubicTo(w * 0.12, h * 0.58, w * 0.14, h * 0.40, w * 0.22, h * 0.36)
+      ..cubicTo(w * 0.32, h * 0.32, w * 0.42, h * 0.32, w * 0.50, h * 0.35)
+      ..close();
+    canvas.drawPath(pad, p);
+
+    // Top shoulder triggers (L1 and R1 bumpers)
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.26, h * 0.26, w * 0.13, h * 0.07), Radius.circular(w * 0.03)),
+      p,
     );
-    canvas.drawRRect(pad, p);
-    // D-Pad +
-    canvas.drawLine(Offset(w * 0.34, h * 0.44), Offset(w * 0.34, h * 0.58), p);
-    canvas.drawLine(Offset(w * 0.27, h * 0.51), Offset(w * 0.41, h * 0.51), p);
-    // Action buttons
-    canvas.drawCircle(Offset(w * 0.62, h * 0.46), w * 0.04, fill);
-    canvas.drawCircle(Offset(w * 0.70, h * 0.54), w * 0.04, p);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.61, h * 0.26, w * 0.13, h * 0.07), Radius.circular(w * 0.03)),
+      p,
+    );
+
+    // Left Directional D-Pad (+)
+    final dpadCenter = Offset(w * 0.31, h * 0.51);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromCenter(center: dpadCenter, width: w * 0.15, height: h * 0.06), Radius.circular(w * 0.02)),
+      p,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(Rect.fromCenter(center: dpadCenter, width: w * 0.06, height: h * 0.15), Radius.circular(w * 0.02)),
+      p,
+    );
+    canvas.drawCircle(dpadCenter, w * 0.018, p);
+
+    // Right Action Buttons (ABXY Diamond)
+    final btnCenter = Offset(w * 0.69, h * 0.51);
+    final rBtn = w * 0.032;
+    // Top (Y)
+    canvas.drawCircle(Offset(btnCenter.dx, btnCenter.dy - h * 0.08), rBtn, p);
+    // Right (B)
+    canvas.drawCircle(Offset(btnCenter.dx + w * 0.075, btnCenter.dy), rBtn, p);
+    // Bottom (A) - Primary action button in vibrant accent fill!
+    canvas.drawCircle(Offset(btnCenter.dx, btnCenter.dy + h * 0.08), rBtn, fill);
+    canvas.drawCircle(Offset(btnCenter.dx, btnCenter.dy + h * 0.08), rBtn, p);
+    // Left (X)
+    canvas.drawCircle(Offset(btnCenter.dx - w * 0.075, btnCenter.dy), rBtn, p);
+
+    // Dual Ergonomic Analog Thumbsticks
+    // Left thumbstick (offset lower-right)
+    final stickL = Offset(w * 0.42, h * 0.62);
+    canvas.drawCircle(stickL, w * 0.045, p);
+    canvas.drawCircle(stickL, w * 0.02, pThin);
+    // Right thumbstick (offset lower-left)
+    final stickR = Offset(w * 0.58, h * 0.62);
+    canvas.drawCircle(stickR, w * 0.045, p);
+    canvas.drawCircle(stickR, w * 0.02, pThin);
+
+    // Central Glowing Home / Menu Button
+    canvas.drawCircle(Offset(w * 0.50, h * 0.44), w * 0.03, fill);
   }
 
   void _drawBrowser(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // Window card
+    final pThin = Paint()
+      ..color = strokeColor.withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // Sleek modern desktop/tablet browser window shell
     final win = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.18, h * 0.22, w * 0.64, h * 0.58),
-      Radius.circular(w * 0.12),
+      Rect.fromLTWH(w * 0.15, h * 0.17, w * 0.70, h * 0.66),
+      Radius.circular(w * 0.10),
     );
     canvas.drawRRect(win, p);
-    // Top bar
-    canvas.drawLine(Offset(w * 0.18, h * 0.38), Offset(w * 0.82, h * 0.38), p);
-    // Three dots
-    canvas.drawCircle(Offset(w * 0.28, h * 0.30), w * 0.03, fill);
-    canvas.drawCircle(Offset(w * 0.36, h * 0.30), w * 0.03, p);
-    canvas.drawCircle(Offset(w * 0.44, h * 0.30), w * 0.03, p);
-    // Globe curve
-    canvas.drawCircle(Offset(w * 0.50, h * 0.58), w * 0.14, p);
-    canvas.drawLine(Offset(w * 0.36, h * 0.58), Offset(w * 0.64, h * 0.58), p);
+
+    // Window chrome header divider bar
+    canvas.drawLine(Offset(w * 0.15, h * 0.35), Offset(w * 0.85, h * 0.35), p);
+
+    // Traffic light window control dots
+    canvas.drawCircle(Offset(w * 0.23, h * 0.26), w * 0.022, fill);
+    canvas.drawCircle(Offset(w * 0.29, h * 0.26), w * 0.022, p);
+    canvas.drawCircle(Offset(w * 0.35, h * 0.26), w * 0.022, p);
+
+    // Modern URL search capsule / address bar
+    final urlBar = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.42, h * 0.21, w * 0.36, h * 0.10),
+      Radius.circular(w * 0.05),
+    );
+    canvas.drawRRect(urlBar, p);
+    // SSL lock & address line placeholder
+    canvas.drawLine(Offset(w * 0.48, h * 0.26), Offset(w * 0.68, h * 0.26), pThin);
+    canvas.drawCircle(Offset(w * 0.72, h * 0.26), w * 0.018, fill);
+
+    // Viewport: 3D Spherical Web Globe
+    final cx = w * 0.46;
+    final cy = h * 0.59;
+    final rGlobe = w * 0.17;
+
+    // Outer globe meridian circle
+    canvas.drawCircle(Offset(cx, cy), rGlobe, p);
+    // Equator line
+    canvas.drawLine(Offset(cx - rGlobe, cy), Offset(cx + rGlobe, cy), p);
+    // Prime Meridian 3D ellipse
+    canvas.drawOval(Rect.fromCenter(center: Offset(cx, cy), width: rGlobe * 0.90, height: rGlobe * 2.0), p);
+    // Latitude curvature arcs
+    final latRect1 = Rect.fromCenter(center: Offset(cx, cy - rGlobe * 0.48), width: rGlobe * 1.6, height: rGlobe * 0.7);
+    canvas.drawArc(latRect1, 0.2, 2.74, false, pThin);
+    final latRect2 = Rect.fromCenter(center: Offset(cx, cy + rGlobe * 0.48), width: rGlobe * 1.6, height: rGlobe * 0.7);
+    canvas.drawArc(latRect2, -2.94, 2.74, false, pThin);
+
+    // Dynamic web mouse cursor arrow interacting with web content
+    final cursor = Path()
+      ..moveTo(w * 0.62, h * 0.60)
+      ..lineTo(w * 0.74, h * 0.68)
+      ..lineTo(w * 0.69, h * 0.69)
+      ..lineTo(w * 0.75, h * 0.78)
+      ..lineTo(w * 0.71, h * 0.81)
+      ..lineTo(w * 0.65, h * 0.72)
+      ..lineTo(w * 0.59, h * 0.73)
+      ..close();
+    canvas.drawPath(cursor, fill);
+    canvas.drawPath(cursor, p);
   }
 
   void _drawPassword(Canvas canvas, double w, double h, Paint p, Paint fill) {
@@ -975,38 +1225,74 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawPower(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // Battery outer casing
+    final pThin = Paint()
+      ..color = strokeColor.withValues(alpha: 0.45)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    // High-tech battery vertical outer shell
     final shell = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.18, h * 0.28, w * 0.56, h * 0.44),
-      Radius.circular(w * 0.08),
+      Rect.fromLTWH(w * 0.28, h * 0.24, w * 0.44, h * 0.62),
+      Radius.circular(w * 0.10),
     );
     canvas.drawRRect(shell, p);
 
-    // Battery positive terminal nipple
-    final terminal = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.74, h * 0.39, w * 0.08, h * 0.22),
-      Radius.circular(w * 0.03),
+    // Battery top positive terminal nipple (+ cap)
+    final terminal = RRect.fromRectAndCorners(
+      Rect.fromLTWH(w * 0.42, h * 0.16, w * 0.16, h * 0.08),
+      topLeft: Radius.circular(w * 0.04),
+      topRight: Radius.circular(w * 0.04),
     );
     canvas.drawRRect(terminal, fill);
     canvas.drawRRect(terminal, p);
 
-    // Energy charge lines inside
-    canvas.drawLine(Offset(w * 0.28, h * 0.38), Offset(w * 0.28, h * 0.62), p);
+    // Internal bottom charging energy reservoir level
+    final chargeLevel = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.33, h * 0.66, w * 0.34, h * 0.15),
+      Radius.circular(w * 0.05),
+    );
+    final chargeBg = Paint()
+      ..color = accentColor.withValues(alpha: isDark ? 0.30 : 0.20)
+      ..style = PaintingStyle.fill;
+    canvas.drawRRect(chargeLevel, chargeBg);
+    canvas.drawRRect(chargeLevel, pThin);
 
-    // Lightning bolt in center
+    // High-voltage dynamic electric lightning bolt
     final bolt = Path()
-      ..moveTo(w * 0.48, h * 0.31)
-      ..lineTo(w * 0.36, h * 0.50)
-      ..lineTo(w * 0.46, h * 0.50)
-      ..lineTo(w * 0.42, h * 0.69)
-      ..lineTo(w * 0.58, h * 0.48)
-      ..lineTo(w * 0.48, h * 0.48)
+      ..moveTo(w * 0.54, h * 0.30)
+      ..lineTo(w * 0.40, h * 0.49)
+      ..lineTo(w * 0.51, h * 0.49)
+      ..lineTo(w * 0.43, h * 0.72)
+      ..lineTo(w * 0.58, h * 0.47)
+      ..lineTo(w * 0.47, h * 0.47)
       ..close();
     canvas.drawPath(bolt, fill);
     canvas.drawPath(bolt, p);
 
-    // Full indicator pip
-    canvas.drawCircle(Offset(w * 0.64, h * 0.50), w * 0.04, p);
+    // Polarity telemetry markings (+ at top left, - at bottom right)
+    // Plus (+)
+    canvas.drawLine(Offset(w * 0.34, h * 0.34), Offset(w * 0.40, h * 0.34), pThin);
+    canvas.drawLine(Offset(w * 0.37, h * 0.31), Offset(w * 0.37, h * 0.37), pThin);
+    // Minus (-)
+    canvas.drawLine(Offset(w * 0.60, h * 0.74), Offset(w * 0.66, h * 0.74), pThin);
+
+    // Wireless / Telemetric charge pulse arcs on flanks
+    canvas.drawArc(
+      Rect.fromCenter(center: Offset(w * 0.19, h * 0.54), width: w * 0.13, height: w * 0.26),
+      -1.5,
+      3.0,
+      false,
+      pThin,
+    );
+    canvas.drawArc(
+      Rect.fromCenter(center: Offset(w * 0.81, h * 0.54), width: w * 0.13, height: w * 0.26),
+      1.6,
+      3.0,
+      false,
+      pThin,
+    );
   }
 
   void _drawSecurity(Canvas canvas, double w, double h, Paint p, Paint fill) {

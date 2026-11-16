@@ -510,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       {
         'id': 'games',
-        'title': 'Game',
+        'title': 'Games',
         'subtitle': 'Ludo, UNO, Snake & Ladder, Tic-Tac-Toe, Tetris & Snake',
         'category': 'Time & Tasks',
         'tag': 'Arcade & Board',
