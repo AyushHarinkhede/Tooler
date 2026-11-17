@@ -1093,7 +1093,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
 
-            const SizedBox(height: 40),
+            const SizedBox(height: 24),
+
+            Center(
+              child: ToolerLogo(
+                height: 30,
+                color: theme.text,
+                accentColor: theme.primary,
+              ),
+            ),
+
+            const SizedBox(height: 36),
           ],
         ),
       ),

@@ -893,9 +893,11 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          BouncyTap(
+          ToolerLogo(
+            height: 36,
+            color: theme.text,
+            accentColor: theme.primary,
             onTap: () {
-              SoundService().playClick();
               if (_scrollController.hasClients) {
                 _scrollController.animateTo(
                   0,
@@ -904,12 +906,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               }
             },
-            scaleFraction: 0.95,
-            child: ToolerLogo(
-              height: 36,
-              color: theme.text,
-              accentColor: theme.primary,
-            ),
           ),
 
           // Settings Action Button (opens modern settings with bouncy tactile pop)
