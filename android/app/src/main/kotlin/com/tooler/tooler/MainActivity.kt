@@ -46,6 +46,7 @@ open class MainActivity : FlutterActivity() {
     private val SECURITY_EVENTS_CHANNEL = "com.tooler.tooler/security_scan_events"
     private val BROWSER_DL_CHANNEL = "com.tooler.tooler/browser_download"
     private val BROWSER_DL_EVENTS_CHANNEL = "com.tooler.tooler/browser_download_events"
+    private val BROWSER_PRIVACY_CHANNEL = "com.tooler.tooler/browser_privacy"
     private val FM_RADIO_CHANNEL = "com.tooler.tooler/fm_radio"
     private val WIDGET_CHANNEL = "com.tooler.tooler/widgets"
 
@@ -53,6 +54,7 @@ open class MainActivity : FlutterActivity() {
 
     private var securityEngine: ToolerSecurityEngine? = null
     private var browserDownloader: ToolerBrowserDownloader? = null
+    private var browserPrivacyEngine: ToolerBrowserPrivacyEngine? = null
 
     // Home Screen Widget deep-link routing state
     protected var widgetMethodChannel: MethodChannel? = null
@@ -466,6 +468,47 @@ open class MainActivity : FlutterActivity() {
                     thread(isDaemon = true) {
                         val meta = dlEngine.probeUrlMeta(url, referer, userAgent, cookie)
                         runOnUiThread { result.success(meta) }
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Real Browser Privacy Engine: WebView ProxyController VPN Tunnel + Native Incognito Hardening
+        val privacyEngine = ToolerBrowserPrivacyEngine(applicationContext)
+        browserPrivacyEngine = privacyEngine
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BROWSER_PRIVACY_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getDirectIp" -> {
+                    thread(isDaemon = true) {
+                        val info = privacyEngine.fetchDirectIpInfo()
+                        runOnUiThread { result.success(info) }
+                    }
+                }
+                "connectVpnProxy" -> {
+                    val custom = call.argument<String>("customProxy")
+                    privacyEngine.connectLiveVpnProxy(custom) { resMap ->
+                        result.success(resMap)
+                    }
+                }
+                "disconnectVpnProxy" -> {
+                    privacyEngine.disconnectVpnProxy { ok ->
+                        result.success(ok)
+                    }
+                }
+                "getPrivacyStatus" -> {
+                    result.success(privacyEngine.getStatus())
+                }
+                "setIncognitoHardening" -> {
+                    val enabled = call.argument<Boolean>("enabled") ?: false
+                    privacyEngine.setIncognitoHardening(enabled) { ok ->
+                        result.success(ok)
+                    }
+                }
+                "wipeAllTraces" -> {
+                    privacyEngine.wipeAllTracesNow { ok ->
+                        result.success(ok)
                     }
                 }
                 else -> result.notImplemented()

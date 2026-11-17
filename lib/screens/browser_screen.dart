@@ -8,6 +8,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
+import '../services/browser_adblock_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_hover_sheet.dart';
 import '../widgets_3d/tooler_logo.dart';
@@ -40,7 +41,10 @@ class _BrowserScreenState extends State<BrowserScreen> {
       MethodChannel('com.tooler.tooler/browser_download');
   static const EventChannel _dlEventChannel =
       EventChannel('com.tooler.tooler/browser_download_events');
+  static const MethodChannel _privacyChannel =
+      MethodChannel('com.tooler.tooler/browser_privacy');
 
+  final BrowserAdBlockService _adBlock = BrowserAdBlockService();
   late final WebViewController _controller;
   final TextEditingController _urlCtrl = TextEditingController();
   final FocusNode _urlFocus = FocusNode();
@@ -58,12 +62,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
   // true -> shows Search icon; false -> shows Refresh icon
   bool _hasEditedUrl = false;
 
-  // Privacy Modes: VPN + Incognito
-  bool _isVpnActive = true;
+  // REAL Privacy & Security Engines: Multi-API AdBlock + Live Proxy VPN + Native Incognito
+  bool _isAdBlockActive = true;
+  int _adsBlockedCount = 0;
+
+  bool _isVpnActive = false;
+  bool _isVpnConnecting = false;
+  String _directIp = 'Checking...';
+  String _directLocation = '';
+  String _vpnRoutedIp = '';
+  String _vpnServerLabel = 'Not Connected';
+  String _vpnProxyHostPort = '';
+  String _vpnSourceApi = '';
+  int _vpnLatencyMs = 0;
+  String _vpnErrorMsg = '';
+
   bool _isIncognitoMode = false;
-  final String _vpnServer = 'Zurich, Switzerland';
-  String _maskedIp = '185.220.101.5';
-  int _trackersBlocked = 38;
 
   // Deep Sniffed Media Items on current webpage
   List<Map<String, dynamic>> _detectedMedia = [];
@@ -85,14 +99,55 @@ class _BrowserScreenState extends State<BrowserScreen> {
     super.initState();
     _initWebViewController();
     _subscribeDownloadEvents();
+    _initPrivacyEngines();
+  }
+
+  Future<void> _initPrivacyEngines() async {
+    // 1. Load cached + sync 3 live AdBlock APIs
+    await _adBlock.initialize();
+    if (mounted) setState(() {});
+
+    // 2. Fetch real current direct IP & restore any active native ProxyController status
+    try {
+      final statusRaw = await _privacyChannel.invokeMethod('getPrivacyStatus');
+      if (statusRaw is Map && mounted) {
+        final connected = statusRaw['connected'] == true;
+        setState(() {
+          _isVpnActive = connected;
+          _isIncognitoMode = statusRaw['incognitoHardened'] == true;
+          if (connected) {
+            _vpnRoutedIp = statusRaw['ip'] as String? ?? '';
+            final city = statusRaw['city'] as String? ?? '';
+            final country = statusRaw['country'] as String? ?? 'Global Relay';
+            _vpnServerLabel = city.isNotEmpty ? '$city, $country' : country;
+            _vpnProxyHostPort = '${statusRaw['host']}:${statusRaw['port']}';
+            _vpnLatencyMs = (statusRaw['latencyMs'] as num?)?.toInt() ?? 0;
+            _vpnSourceApi = statusRaw['sourceApi'] as String? ?? '';
+          }
+        });
+      }
+      final directRaw = await _privacyChannel.invokeMethod('getDirectIp');
+      if (directRaw is Map && mounted) {
+        final ip = directRaw['ip'] as String? ?? 'Unavailable';
+        final city = directRaw['city'] as String? ?? '';
+        final country = directRaw['country'] as String? ?? '';
+        setState(() {
+          _directIp = ip;
+          _directLocation = city.isNotEmpty && country.isNotEmpty
+              ? '$city, $country'
+              : country;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
   void dispose() {
     _dlEventSub?.cancel();
     if (_isIncognitoMode) {
-      // Auto-purge session traces if user leaves browser while Incognito is ON
+      // Auto-purge all native cookies, WebStorage, and WebView caches on close
       _purgeWebViewTracesSilent();
+      _privacyChannel.invokeMethod('setIncognitoHardening', {'enabled': false}).catchError((_) {});
     }
     _urlCtrl.dispose();
     _urlFocus.dispose();
@@ -104,6 +159,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
       await _controller.clearCache();
       await WebViewCookieManager().clearCookies();
       await _controller.clearLocalStorage();
+      await _privacyChannel.invokeMethod('wipeAllTraces');
     } catch (_) {}
   }
 
@@ -164,6 +220,20 @@ class _BrowserScreenState extends State<BrowserScreen> {
       ..setBackgroundColor(
           widget.theme.isDark ? const Color(0xFF121216) : Colors.white)
       ..setUserAgent(_activeUserAgent)
+      ..addJavaScriptChannel(
+        'ToolerPrivacyBridge',
+        onMessageReceived: (JavaScriptMessage msg) {
+          try {
+            final data = jsonDecode(msg.message);
+            if (data is Map && data['type'] == 'ad_blocked') {
+              final count = (data['count'] as num?)?.toInt() ?? 1;
+              if (mounted && count > 0) {
+                setState(() => _adsBlockedCount += count);
+              }
+            }
+          } catch (_) {}
+        },
+      )
       ..setNavigationDelegate(
         NavigationDelegate(
           onProgress: (int progress) {
@@ -186,6 +256,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 }
               });
             }
+            // Early-stage Ad/Popup & Incognito shield injection right as page starts loading
+            _injectPrivacyAndAdBlockShields();
           },
           onPageFinished: (String url) async {
             if (!mounted) return;
@@ -199,6 +271,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               }
             });
             _updateNavigationState();
+            await _injectPrivacyAndAdBlockShields();
             await _injectRuntimeMediaHook();
             Future.delayed(const Duration(milliseconds: 450), () {
               if (mounted) _sniffPageMedia();
@@ -208,6 +281,15 @@ class _BrowserScreenState extends State<BrowserScreen> {
             debugPrint('Browser resource notice: ${error.description}');
           },
           onNavigationRequest: (NavigationRequest request) {
+            // 1. REAL Multi-API Ad & Popup Redirect Blocker (15,000+ domains from 3 live APIs!)
+            if (_isAdBlockActive && _adBlock.isAdOrPopupUrl(request.url)) {
+              if (mounted) {
+                setState(() => _adsBlockedCount++);
+              }
+              return NavigationDecision.prevent;
+            }
+
+            // 2. Direct Media / File Download Interceptor
             final urlLower = request.url.toLowerCase().split('?').first;
             final isDirectDownload = urlLower.endsWith('.apk') ||
                 urlLower.endsWith('.zip') ||
@@ -235,11 +317,28 @@ class _BrowserScreenState extends State<BrowserScreen> {
       );
   }
 
-  /// Displays clean search term if on Google Search, otherwise clean URL
+  Future<void> _injectPrivacyAndAdBlockShields() async {
+    try {
+      if (_isAdBlockActive) {
+        await _controller.runJavaScript(_adBlock.buildAdBlockInjectionJs());
+      }
+      if (_isIncognitoMode || _isVpnActive) {
+        await _controller.runJavaScript(
+          _adBlock.buildIncognitoHardeningJs(
+            isIncognito: _isIncognitoMode,
+            isVpn: _isVpnActive,
+          ),
+        );
+      }
+    } catch (_) {}
+  }
+
+  /// Displays clean search term if on Google or DuckDuckGo Search, otherwise clean URL
   String _extractDisplayQueryOrUrl(String url) {
     try {
       final uri = Uri.parse(url);
-      if (uri.host.contains('google.') && uri.path.contains('/search')) {
+      if ((uri.host.contains('google.') && uri.path.contains('/search')) ||
+          uri.host.contains('duckduckgo.com')) {
         final q = uri.queryParameters['q'];
         if (q != null && q.trim().isNotEmpty) return q.trim();
       }
@@ -546,6 +645,9 @@ class _BrowserScreenState extends State<BrowserScreen> {
       finalUrl = (query.startsWith('http://') || query.startsWith('https://'))
           ? query
           : 'https://$query';
+    } else if (_isIncognitoMode) {
+      // Real private zero-tracking search engine when Incognito is active!
+      finalUrl = 'https://duckduckgo.com/?q=${Uri.encodeComponent(query)}';
     } else {
       finalUrl = 'https://www.google.com/search?q=${Uri.encodeComponent(query)}';
     }
@@ -590,25 +692,124 @@ class _BrowserScreenState extends State<BrowserScreen> {
     }
   }
 
-  // --- INCOGNITO MODE TOGGLE ---
+  // --- REAL HARDENED INCOGNITO MODE TOGGLE ---
+  // Disables native Chromium CookieManager persistence, blocks WebRTC/beacons,
+  // switches search to DuckDuckGo Private, and wipes WebStorage + Disk Cache.
   Future<void> _toggleIncognitoMode(bool enabled) async {
     SoundService().playClick();
     HapticFeedback.lightImpact();
 
-    // Always wipe WebView session data when entering OR leaving Incognito Mode
     await _purgeWebViewTracesSilent();
+    try {
+      await _privacyChannel.invokeMethod('setIncognitoHardening', {'enabled': enabled});
+    } catch (_) {}
 
     if (!mounted) return;
     setState(() {
       _isIncognitoMode = enabled;
     });
 
+    if (_hasLoadedFirstPage && _currentUrl.isNotEmpty) {
+      await _injectPrivacyAndAdBlockShields();
+    }
+
     _showToast(
       enabled
-          ? 'Incognito Mode ON — zero cookies, zero cache & private headers active'
-          : 'Incognito Mode OFF — session data wiped clean',
+          ? 'Real Incognito ON — cookies blocked natively, WebRTC shielded & DuckDuckGo active'
+          : 'Incognito OFF — all cookies, storage & WebView caches wiped clean',
       color: enabled ? const Color(0xFF7C3AED) : widget.theme.primary,
       icon: enabled ? Icons.visibility_off_rounded : Icons.verified_user_rounded,
+    );
+  }
+
+  // --- REAL VPN / PROXY TUNNEL CONNECT & DISCONNECT ---
+  // Uses native Android androidx.webkit.ProxyController + GeoNode & ProxyScrape APIs
+  // to route WebView traffic through a live HTTPS-verified relay node!
+  Future<void> _connectRealVpn({
+    String? customProxy,
+    void Function(VoidCallback)? sheetSetState,
+  }) async {
+    if (_isVpnConnecting) return;
+    SoundService().playClick();
+    HapticFeedback.lightImpact();
+
+    setState(() {
+      _isVpnConnecting = true;
+      _vpnErrorMsg = '';
+    });
+    sheetSetState?.call(() {});
+
+    try {
+      final raw = await _privacyChannel.invokeMethod('connectVpnProxy', {
+        if (customProxy != null && customProxy.trim().isNotEmpty)
+          'customProxy': customProxy.trim(),
+      });
+      if (!mounted) return;
+
+      if (raw is Map && raw['connected'] == true) {
+        final city = raw['city'] as String? ?? '';
+        final country = raw['country'] as String? ?? 'Global Relay';
+        setState(() {
+          _isVpnConnecting = false;
+          _isVpnActive = true;
+          _vpnRoutedIp = raw['ip'] as String? ?? '';
+          _vpnServerLabel = city.isNotEmpty ? '$city, $country' : country;
+          _vpnProxyHostPort = '${raw['host']}:${raw['port']}';
+          _vpnLatencyMs = (raw['latencyMs'] as num?)?.toInt() ?? 0;
+          _vpnSourceApi = raw['sourceApi'] as String? ?? 'Live Proxy API';
+          _vpnErrorMsg = '';
+        });
+        sheetSetState?.call(() {});
+        SoundService().playSuccess();
+        _showToast(
+          'VPN Connected • $_vpnServerLabel ($_vpnRoutedIp · ${_vpnLatencyMs}ms)',
+          color: const Color(0xFF10B981),
+          icon: Icons.shield_rounded,
+        );
+      } else {
+        final err = (raw is Map ? raw['error'] as String? : null) ??
+            'No live relay node responded — tap Retry';
+        setState(() {
+          _isVpnConnecting = false;
+          _isVpnActive = false;
+          _vpnErrorMsg = err;
+        });
+        sheetSetState?.call(() {});
+        _showToast(err, color: Colors.amber.shade800, icon: Icons.warning_amber_rounded);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isVpnConnecting = false;
+        _isVpnActive = false;
+        _vpnErrorMsg = '$e';
+      });
+      sheetSetState?.call(() {});
+    }
+  }
+
+  Future<void> _disconnectRealVpn({
+    void Function(VoidCallback)? sheetSetState,
+  }) async {
+    SoundService().playClick();
+    try {
+      await _privacyChannel.invokeMethod('disconnectVpnProxy');
+    } catch (_) {}
+    if (!mounted) return;
+    setState(() {
+      _isVpnActive = false;
+      _isVpnConnecting = false;
+      _vpnRoutedIp = '';
+      _vpnServerLabel = 'Not Connected';
+      _vpnProxyHostPort = '';
+      _vpnLatencyMs = 0;
+      _vpnErrorMsg = '';
+    });
+    sheetSetState?.call(() {});
+    _showToast(
+      'VPN Disconnected • Direct connection restored',
+      color: widget.theme.primary,
+      icon: Icons.shield_outlined,
     );
   }
 
@@ -738,19 +939,294 @@ class _BrowserScreenState extends State<BrowserScreen> {
   }
 
   // ===========================================================================
-  // VPN STATUS BOTTOM SHEET
+  // REAL BUILT-IN VPN / PROXY TUNNEL BOTTOM SHEET (ProxyController + Live APIs)
   // ===========================================================================
   void _showVpnStatusDialog() {
+    SoundService().playClick();
+    final customProxyCtrl = TextEditingController(text: _vpnProxyHostPort);
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            final theme = widget.theme;
+            return Padding(
+              padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
+                decoration: BoxDecoration(
+                  color: theme.bg,
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+                  border: Border.all(color: theme.border, width: 1.5),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: _isVpnActive
+                                    ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                                    : (_isVpnConnecting
+                                        ? const Color(0xFFF59E0B).withValues(alpha: 0.15)
+                                        : Colors.grey.withValues(alpha: 0.15)),
+                                shape: BoxShape.circle,
+                              ),
+                              child: _isVpnConnecting
+                                  ? const SizedBox(
+                                      width: 22,
+                                      height: 22,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2.3,
+                                        color: Color(0xFFF59E0B),
+                                      ),
+                                    )
+                                  : Icon(
+                                      _isVpnActive ? Icons.shield_rounded : Icons.shield_outlined,
+                                      color: _isVpnActive ? const Color(0xFF10B981) : Colors.grey,
+                                      size: 24,
+                                    ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Live Proxy VPN Tunnel',
+                                  style: theme.fontDisplay(fontSize: 16, fontWeight: FontWeight.bold),
+                                ),
+                                Text(
+                                  _isVpnConnecting
+                                      ? 'Verifying live HTTPS relays...'
+                                      : (_isVpnActive
+                                          ? 'WebView Traffic Routed'
+                                          : 'Direct Connection (VPN Off)'),
+                                  style: theme.fontMono(
+                                    fontSize: 10.5,
+                                    color: _isVpnActive
+                                        ? const Color(0xFF10B981)
+                                        : (_isVpnConnecting
+                                            ? const Color(0xFFF59E0B)
+                                            : theme.textSecondary),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        Switch(
+                          value: _isVpnActive,
+                          activeTrackColor: const Color(0xFF10B981),
+                          onChanged: _isVpnConnecting
+                              ? null
+                              : (val) async {
+                                  if (val) {
+                                    await _connectRealVpn(sheetSetState: setDialogState);
+                                  } else {
+                                    await _disconnectRealVpn(sheetSetState: setDialogState);
+                                  }
+                                },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Container(
+                      padding: const EdgeInsets.all(13),
+                      decoration: BoxDecoration(
+                        color: theme.cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.border, width: 1.2),
+                      ),
+                      child: Column(
+                        children: [
+                          _buildVpnMetricRow(
+                            'Your Direct IP',
+                            _directLocation.isNotEmpty ? '$_directIp ($_directLocation)' : _directIp,
+                            Icons.router_rounded,
+                          ),
+                          const Divider(height: 14),
+                          _buildVpnMetricRow(
+                            'Routed VPN IP',
+                            _isVpnActive && _vpnRoutedIp.isNotEmpty ? _vpnRoutedIp : 'Off (Direct)',
+                            Icons.public_rounded,
+                          ),
+                          const Divider(height: 14),
+                          _buildVpnMetricRow(
+                            'Verified Relay',
+                            _isVpnActive ? '$_vpnServerLabel (${_vpnLatencyMs}ms)' : 'Not Connected',
+                            Icons.storage_rounded,
+                          ),
+                          const Divider(height: 14),
+                          _buildVpnMetricRow(
+                            'Engine & API',
+                            _isVpnActive && _vpnSourceApi.isNotEmpty
+                                ? 'ProxyController · $_vpnSourceApi'
+                                : 'GeoNode + ProxyScrape APIs',
+                            Icons.lock_outline_rounded,
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (_vpnErrorMsg.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        _vpnErrorMsg,
+                        style: theme.fontMono(fontSize: 10, color: const Color(0xFFF59E0B)),
+                      ),
+                    ],
+
+                    const SizedBox(height: 12),
+
+                    // Optional Custom Proxy Node input (host:port)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.cardBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(Icons.dns_rounded, size: 16, color: theme.textSecondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: customProxyCtrl,
+                              style: theme.fontMono(fontSize: 11.5),
+                              decoration: InputDecoration(
+                                hintText: 'Optional custom proxy (ip:port)',
+                                hintStyle: theme.fontMono(
+                                  fontSize: 11,
+                                  color: theme.textSecondary.withValues(alpha: 0.6),
+                                ),
+                                border: InputBorder.none,
+                                isDense: true,
+                              ),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: _isVpnConnecting
+                                ? null
+                                : () {
+                                    final hp = customProxyCtrl.text.trim();
+                                    if (hp.contains(':')) {
+                                      _connectRealVpn(
+                                        customProxy: hp,
+                                        sheetSetState: setDialogState,
+                                      );
+                                    }
+                                  },
+                            child: Text(
+                              'USE',
+                              style: theme.fontMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: theme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SizedBox(
+                            height: 44,
+                            child: ElevatedButton.icon(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.primary,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              icon: const Icon(Icons.refresh_rounded, size: 17),
+                              label: Text(
+                                _isVpnActive ? 'Rotate Live Node' : 'Connect Auto Relay',
+                                style: theme.fontDisplay(fontSize: 12.5, fontWeight: FontWeight.bold),
+                              ),
+                              onPressed: _isVpnConnecting
+                                  ? null
+                                  : () => _connectRealVpn(sheetSetState: setDialogState),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        SizedBox(
+                          height: 44,
+                          child: OutlinedButton(
+                            style: OutlinedButton.styleFrom(
+                              side: BorderSide(color: theme.border, width: 1.2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(ctx);
+                              _performSearchOrNavigate('https://ipwho.is/');
+                            },
+                            child: Text(
+                              'Verify IP',
+                              style: theme.fontMono(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: theme.text,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    ).whenComplete(() => customProxyCtrl.dispose());
+  }
+
+  // ===========================================================================
+  // REAL 3-API AD & POPUP BLOCKER CONTROL SHEET
+  // ===========================================================================
+  void _showAdBlockSheet() {
     SoundService().playClick();
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
-          builder: (ctx, setDialogState) {
+          builder: (ctx, setSheetState) {
             final theme = widget.theme;
             return Container(
-              padding: const EdgeInsets.all(22),
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 22),
               decoration: BoxDecoration(
                 color: theme.bg,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -770,7 +1246,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -779,14 +1255,13 @@ class _BrowserScreenState extends State<BrowserScreen> {
                           Container(
                             padding: const EdgeInsets.all(10),
                             decoration: BoxDecoration(
-                              color: _isVpnActive
-                                  ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                                  : Colors.grey.withValues(alpha: 0.15),
+                              color: (_isAdBlockActive ? const Color(0xFFF43F5E) : Colors.grey)
+                                  .withValues(alpha: 0.14),
                               shape: BoxShape.circle,
                             ),
                             child: Icon(
-                              _isVpnActive ? Icons.shield_rounded : Icons.shield_outlined,
-                              color: _isVpnActive ? const Color(0xFF10B981) : Colors.grey,
+                              Icons.gpp_good_rounded,
+                              color: _isAdBlockActive ? const Color(0xFFF43F5E) : Colors.grey,
                               size: 24,
                             ),
                           ),
@@ -795,15 +1270,17 @@ class _BrowserScreenState extends State<BrowserScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Built-in Private VPN',
+                                'Ad & Popup Blocker',
                                 style: theme.fontDisplay(fontSize: 16, fontWeight: FontWeight.bold),
                               ),
                               Text(
-                                _isVpnActive ? 'Encrypted Relay Active' : 'VPN Off',
+                                '$_adsBlockedCount ads/popups blocked · ${_adBlock.totalBlockedDomains} rules',
                                 style: theme.fontMono(
-                                  fontSize: 11,
-                                  color: _isVpnActive ? const Color(0xFF10B981) : theme.textSecondary,
-                                  fontWeight: FontWeight.w600,
+                                  fontSize: 10.5,
+                                  color: _isAdBlockActive
+                                      ? const Color(0xFFF43F5E)
+                                      : theme.textSecondary,
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ],
@@ -811,19 +1288,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
                         ],
                       ),
                       Switch(
-                        value: _isVpnActive,
-                        activeTrackColor: const Color(0xFF10B981),
+                        value: _isAdBlockActive,
+                        activeTrackColor: const Color(0xFFF43F5E),
                         onChanged: (val) {
                           SoundService().playClick();
-                          setState(() => _isVpnActive = val);
-                          setDialogState(() {});
+                          setState(() => _isAdBlockActive = val);
+                          setSheetState(() {});
+                          if (_hasLoadedFirstPage && _currentUrl.isNotEmpty) {
+                            _controller.reload();
+                          }
                         },
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   Container(
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(13),
                     decoration: BoxDecoration(
                       color: theme.cardBg,
                       borderRadius: BorderRadius.circular(16),
@@ -831,36 +1311,96 @@ class _BrowserScreenState extends State<BrowserScreen> {
                     ),
                     child: Column(
                       children: [
-                        _buildVpnMetricRow('Masked Virtual IP', _maskedIp, Icons.public_rounded),
-                        const Divider(height: 16),
-                        _buildVpnMetricRow('Relay Node', _vpnServer, Icons.storage_rounded),
-                        const Divider(height: 16),
-                        _buildVpnMetricRow('Cipher', 'AES-256-GCM / WireGuard', Icons.lock_outline_rounded),
-                        const Divider(height: 16),
-                        _buildVpnMetricRow('Trackers Shielded', '$_trackersBlocked', Icons.block_rounded),
+                        for (int i = 0; i < _adBlock.feeds.length; i++) ...[
+                          if (i > 0) const Divider(height: 14),
+                          Row(
+                            children: [
+                              Icon(
+                                _adBlock.feeds[i].synced
+                                    ? Icons.check_circle_rounded
+                                    : Icons.cloud_sync_rounded,
+                                size: 17,
+                                color: _adBlock.feeds[i].synced
+                                    ? const Color(0xFF10B981)
+                                    : theme.primary,
+                              ),
+                              const SizedBox(width: 9),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      _adBlock.feeds[i].name,
+                                      style: theme.fontDisplay(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                    Text(
+                                      _adBlock.feeds[i].shortUrl,
+                                      style: theme.fontMono(
+                                        fontSize: 9.5,
+                                        color: theme.textSecondary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Text(
+                                _adBlock.feeds[i].domainCount > 0
+                                    ? '${_adBlock.feeds[i].domainCount}'
+                                    : 'Cached',
+                                style: theme.fontMono(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
                     height: 44,
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.primary,
+                        backgroundColor: const Color(0xFFF43F5E),
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      icon: const Icon(Icons.refresh_rounded, size: 18),
-                      label: Text('Rotate Masked IP', style: theme.fontDisplay(fontSize: 13, fontWeight: FontWeight.bold)),
-                      onPressed: () {
-                        SoundService().playTap();
-                        setState(() {
-                          _maskedIp = '185.220.101.${10 + (DateTime.now().second % 80)}';
-                          _trackersBlocked += 3;
-                        });
-                        setDialogState(() {});
-                      },
+                      icon: _adBlock.isSyncing
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.sync_rounded, size: 18),
+                      label: Text(
+                        _adBlock.isSyncing
+                            ? 'Syncing 3 AdBlock APIs...'
+                            : 'Sync All 3 Filter APIs Now',
+                        style: theme.fontDisplay(fontSize: 13, fontWeight: FontWeight.bold),
+                      ),
+                      onPressed: _adBlock.isSyncing
+                          ? null
+                          : () async {
+                              SoundService().playTap();
+                              setSheetState(() {});
+                              final total = await _adBlock.syncAllApis();
+                              if (mounted) {
+                                setState(() {});
+                                setSheetState(() {});
+                                _showToast(
+                                  'Synced 3 AdBlock APIs • $total ad & popup domains active!',
+                                  color: const Color(0xFF10B981),
+                                  icon: Icons.gpp_good_rounded,
+                                );
+                              }
+                            },
                     ),
                   ),
                 ],
@@ -883,13 +1423,22 @@ class _BrowserScreenState extends State<BrowserScreen> {
             Text(label, style: widget.theme.fontDisplay(fontSize: 12, color: widget.theme.textSecondary)),
           ],
         ),
-        Text(value, style: widget.theme.fontMono(fontSize: 12, fontWeight: FontWeight.bold, color: widget.theme.text)),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.right,
+            style: widget.theme.fontMono(fontSize: 11.5, fontWeight: FontWeight.bold, color: widget.theme.text),
+          ),
+        ),
       ],
     );
   }
 
   // ===========================================================================
-  // THREE-DOT BROWSER MENU (WITH INCOGNITO TOGGLE + VPN + FULLSCREEN + TOOLS)
+  // THREE-DOT BROWSER MENU (ADBLOCK + REAL INCOGNITO + REAL VPN + TOOLS)
   // ===========================================================================
   void _showBrowserMenu() {
     SoundService().playClick();
@@ -930,10 +1479,27 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       Text('Browser Menu', style: theme.fontDisplay(fontSize: 17, fontWeight: FontWeight.bold)),
                       Row(
                         children: [
+                          if (_isAdBlockActive)
+                            Container(
+                              margin: const EdgeInsets.only(right: 5),
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF43F5E).withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                'ADBLOCK',
+                                style: theme.fontMono(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: const Color(0xFFF43F5E),
+                                ),
+                              ),
+                            ),
                           if (_isIncognitoMode)
                             Container(
-                              margin: const EdgeInsets.only(right: 6),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              margin: const EdgeInsets.only(right: 5),
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF7C3AED).withValues(alpha: 0.16),
                                 borderRadius: BorderRadius.circular(999),
@@ -941,7 +1507,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                               child: Text(
                                 'INCOGNITO',
                                 style: theme.fontMono(
-                                  fontSize: 9.5,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.bold,
                                   color: const Color(0xFF7C3AED),
                                 ),
@@ -949,7 +1515,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                             ),
                           if (_isVpnActive)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF10B981).withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(999),
@@ -957,7 +1523,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                               child: Text(
                                 'VPN ON',
                                 style: theme.fontMono(
-                                  fontSize: 9.5,
+                                  fontSize: 9,
                                   fontWeight: FontWeight.bold,
                                   color: const Color(0xFF10B981),
                                 ),
@@ -969,14 +1535,40 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   ),
                   const SizedBox(height: 14),
 
-                  // 1. INCOGNITO MODE TOGGLE (NEW!)
+                  // 1. MULTI-API AD & POPUP BLOCKER (NEW!)
+                  _buildMenuActionTile(
+                    icon: Icons.gpp_good_rounded,
+                    iconColor: _isAdBlockActive ? const Color(0xFFF43F5E) : Colors.grey,
+                    title: 'Ad & Popup Blocker',
+                    subtitle: _isAdBlockActive
+                        ? '$_adsBlockedCount blocked • 3 Live Filter APIs (${_adBlock.totalBlockedDomains} rules)'
+                        : 'Tap to block banner ads & popups',
+                    trailing: Switch(
+                      value: _isAdBlockActive,
+                      activeTrackColor: const Color(0xFFF43F5E),
+                      onChanged: (val) {
+                        SoundService().playClick();
+                        setState(() => _isAdBlockActive = val);
+                        setSheetState(() {});
+                        if (_hasLoadedFirstPage && _currentUrl.isNotEmpty) {
+                          _controller.reload();
+                        }
+                      },
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _showAdBlockSheet();
+                    },
+                  ),
+
+                  // 2. REAL HARDENED INCOGNITO MODE
                   _buildMenuActionTile(
                     customLeading: const _IncognitoVectorIcon(size: 22, color: Color(0xFF7C3AED)),
                     iconColor: const Color(0xFF7C3AED),
                     title: 'Incognito Mode',
                     subtitle: _isIncognitoMode
-                        ? 'Private session active • auto-wipes traces'
-                        : 'Browse privately with zero cookies or cache',
+                        ? 'Native cookies OFF • DuckDuckGo • Anti-WebRTC'
+                        : 'Zero cookies, WebRTC shield & private search',
                     trailing: Switch(
                       value: _isIncognitoMode,
                       activeTrackColor: const Color(0xFF7C3AED),
@@ -991,28 +1583,40 @@ class _BrowserScreenState extends State<BrowserScreen> {
                     },
                   ),
 
-                  // 2. VPN TOGGLE
+                  // 3. REAL LIVE PROXY VPN TUNNEL
                   _buildMenuActionTile(
                     icon: _isVpnActive ? Icons.shield_rounded : Icons.shield_outlined,
                     iconColor: _isVpnActive ? const Color(0xFF10B981) : Colors.grey,
                     title: 'Built-in VPN',
-                    subtitle: _isVpnActive ? 'Relay: $_vpnServer ($_maskedIp)' : 'Tap to enable encrypted relay',
-                    trailing: Switch(
-                      value: _isVpnActive,
-                      activeTrackColor: const Color(0xFF10B981),
-                      onChanged: (val) {
-                        SoundService().playClick();
-                        setState(() => _isVpnActive = val);
-                        setSheetState(() {});
-                      },
-                    ),
+                    subtitle: _isVpnConnecting
+                        ? 'Finding verified HTTPS relay node...'
+                        : (_isVpnActive
+                            ? '$_vpnServerLabel ($_vpnRoutedIp · ${_vpnLatencyMs}ms)'
+                            : 'Tap to tunnel traffic via live Proxy APIs'),
+                    trailing: _isVpnConnecting
+                        ? const SizedBox(
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.2),
+                          )
+                        : Switch(
+                            value: _isVpnActive,
+                            activeTrackColor: const Color(0xFF10B981),
+                            onChanged: (val) async {
+                              if (val) {
+                                await _connectRealVpn(sheetSetState: setSheetState);
+                              } else {
+                                await _disconnectRealVpn(sheetSetState: setSheetState);
+                              }
+                            },
+                          ),
                     onTap: () {
                       Navigator.pop(ctx);
                       _showVpnStatusDialog();
                     },
                   ),
 
-                  // 3. FULLSCREEN TOGGLE
+                  // 4. FULLSCREEN TOGGLE
                   _buildMenuActionTile(
                     icon: isFullScreen ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
                     iconColor: theme.primary,
@@ -1024,7 +1628,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                     },
                   ),
 
-                  // 4. DESKTOP MODE
+                  // 5. DESKTOP MODE
                   _buildMenuActionTile(
                     icon: Icons.desktop_windows_rounded,
                     iconColor: const Color(0xFFF59E0B),
@@ -1057,7 +1661,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
                       },
                     ),
 
-                  // 5. CLEAR ALL TRACES
+                  // 6. CLEAR ALL TRACES
                   _buildMenuActionTile(
                     icon: Icons.delete_sweep_rounded,
                     iconColor: const Color(0xFFF43F5E),
@@ -2069,8 +2673,8 @@ class _BrowserScreenState extends State<BrowserScreen> {
               ),
             ),
 
-            // 4. Below Search Bar to the Side: VPN Icon (if ON) & Incognito Icon (if ON)
-            if (_isVpnActive || _isIncognitoMode) ...[
+            // 4. Below Search Bar to the Side: AdBlock, VPN & Incognito icons (only when ON)
+            if (_isAdBlockActive || _isVpnActive || _isIncognitoMode) ...[
               const SizedBox(height: 11),
               Align(
                 alignment: Alignment.centerLeft,
@@ -2079,14 +2683,42 @@ class _BrowserScreenState extends State<BrowserScreen> {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
+                      if (_isAdBlockActive)
+                        Tooltip(
+                          message: 'Ad & Popup Blocker Active',
+                          child: BouncyTap(
+                            onTap: _showAdBlockSheet,
+                            child: Container(
+                              width: 30,
+                              height: 30,
+                              margin: EdgeInsets.only(right: (_isVpnActive || _isIncognitoMode) ? 8 : 0),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF43F5E).withValues(alpha: 0.13),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFFF43F5E).withValues(alpha: 0.35),
+                                  width: 1.0,
+                                ),
+                              ),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.gpp_good_rounded,
+                                  size: 16,
+                                  color: Color(0xFFF43F5E),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       if (_isVpnActive)
                         Tooltip(
-                          message: 'VPN Active',
+                          message: 'Live VPN Active ($_vpnRoutedIp)',
                           child: BouncyTap(
                             onTap: _showVpnStatusDialog,
                             child: Container(
                               width: 30,
                               height: 30,
+                              margin: EdgeInsets.only(right: _isIncognitoMode ? 8 : 0),
                               decoration: BoxDecoration(
                                 color: const Color(0xFF10B981).withValues(alpha: 0.13),
                                 shape: BoxShape.circle,
@@ -2105,7 +2737,6 @@ class _BrowserScreenState extends State<BrowserScreen> {
                             ),
                           ),
                         ),
-                      if (_isVpnActive && _isIncognitoMode) const SizedBox(width: 8),
                       if (_isIncognitoMode)
                         Tooltip(
                           message: 'Incognito Active',
