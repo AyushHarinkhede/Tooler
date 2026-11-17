@@ -1,7 +1,7 @@
 name: tooler
 description: "Tooler - Complete School Stationery Kit Doodle Toolkit for Android & iOS"
 publish_to: 'none'
-version: 1.0.32+26000
+version: 1.0.33+27000
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
