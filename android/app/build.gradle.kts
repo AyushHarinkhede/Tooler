@@ -10,6 +10,7 @@ plugins {
 android {
     namespace = "com.tooler.tooler"
     compileSdk = flutter.compileSdkVersion
+    ndkVersion = "28.2.13676358"
 
     compileOptions {
         isCoreLibraryDesugaringEnabled = true
