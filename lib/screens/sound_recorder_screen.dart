@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:record/record.dart';
 import 'package:audioplayers/audioplayers.dart';
@@ -110,23 +111,33 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   bool _isPassThroughEnabled = false;
   String _monitorCaptureSource = 'phone'; // 'phone' or 'earphone'
   String _monitorListenOutput = 'earphone'; // 'earphone' or 'phone'
-  bool _isBluetoothConnected = false;
+  bool _isBluetoothEnabled = false;
+  bool _isBluetoothConnected = false; // true if BT earphone OR wired headset is connected
+  bool _isWiredConnected = false;
+  String _connectedDeviceName = '';
   double _passThroughVolume = 1.0;
   Timer? _bluetoothCheckTimer;
+  Timer? _monitorMeterTimer;
+  Timer? _recAmpFallbackTimer;
 
   String get _passThroughRoute =>
       (_monitorCaptureSource == 'earphone' && _monitorListenOutput == 'phone')
           ? 'earphone_to_phone'
           : 'phone_to_earphone';
 
-  // Live Decibels & Waveform
-  double _currentDb = 38.0;
+  // Live Decibels & Ultra-Smooth Interpolated Gauge State
+  double _currentDb = 36.0;
+  double _displayDb = 36.0; // Smoothly damped 60/120fps display value for zero jitter
+  double _peakHoldDb = 36.0;
+  DateTime _peakHoldUpdatedAt = DateTime.now();
   double _minDb = 34.0;
-  double _maxDb = 45.0;
-  double _sumDb = 38.0;
+  double _maxDb = 42.0;
+  double _sumDb = 36.0;
   int _sampleCount = 1;
+  Ticker? _gaugeTicker;
+  Duration _lastTickerElapsed = Duration.zero;
 
-  final List<double> _liveAmplitudes = List.generate(36, (_) => 0.15);
+  final List<double> _liveAmplitudes = List.generate(36, (_) => 0.14);
   final math.Random _random = math.Random();
 
   // Recording State
@@ -143,9 +154,10 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   // Active Captions
   final TextEditingController _captionController = TextEditingController();
 
-  // Audio Input Sources & Call Telemetry
+  // Audio Input Sources & Call Telemetry (Dialer + WhatsApp + Instagram + Snapchat + VoIP)
   String _selectedAudioSource = 'mic'; // 'mic', 'earphone', 'system_sound', 'call'
   bool _isCallActive = false;
+  String _activeCallType = 'None';
   Timer? _callCheckTimer;
 
   // AI Voice Clarity
@@ -180,6 +192,37 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       duration: const Duration(milliseconds: 1000),
     )..repeat(reverse: true);
 
+    // 60/120fps silky smooth display damper for zero-jitter circular dB gauge
+    _gaugeTicker = createTicker((elapsed) {
+      final dt = ((elapsed - _lastTickerElapsed).inMicroseconds / 1000000.0)
+          .clamp(0.001, 0.05);
+      _lastTickerElapsed = elapsed;
+
+      // Exponential smoothing: responsive attack, silky smooth release
+      final bool rising = _currentDb > _displayDb;
+      final double speed = rising ? 11.5 : 6.2;
+      final double factor = 1.0 - math.exp(-speed * dt);
+      final double nextDb = _displayDb + (_currentDb - _displayDb) * factor;
+
+      // Smooth peak-hold indicator decay after 1.6s hold
+      double nextPeak = _peakHoldDb;
+      if (nextDb >= nextPeak) {
+        nextPeak = nextDb;
+        _peakHoldUpdatedAt = DateTime.now();
+      } else if (DateTime.now().difference(_peakHoldUpdatedAt).inMilliseconds > 1600) {
+        nextPeak = math.max(nextDb, nextPeak - 14.0 * dt);
+      }
+
+      if ((nextDb - _displayDb).abs() > 0.03 || (nextPeak - _peakHoldDb).abs() > 0.03) {
+        if (mounted) {
+          setState(() {
+            _displayDb = nextDb;
+            _peakHoldDb = nextPeak;
+          });
+        }
+      }
+    })..start();
+
     _initPlayerListeners();
     _loadRecordings();
     _restorePersistentSession();
@@ -188,18 +231,50 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       _checkBluetoothStatus();
     });
     _checkCallStatus();
-    _callCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+    _callCheckTimer = Timer.periodic(const Duration(milliseconds: 1500), (_) {
       _checkCallStatus();
     });
-    // Watchdog to ensure live dB never freezes (strictly paused during playback & monitor)
-    _watchdogTimer = Timer.periodic(const Duration(milliseconds: 1200), (_) {
-      if (!_isRecording &&
+    // Watchdog to ensure live dB NEVER freezes in idle, recording, or monitor mode
+    _watchdogTimer = Timer.periodic(const Duration(milliseconds: 1100), (_) {
+      if (_isPassThroughEnabled) {
+        _ensureMonitorMeterPolling();
+      } else if (!_isRecording &&
           !_isPlayingAudio &&
-          !_isPassThroughEnabled &&
-          _lastMicPacketTime != null &&
-          DateTime.now().difference(_lastMicPacketTime!).inMilliseconds > 1600) {
+          (_lastMicPacketTime == null ||
+              DateTime.now().difference(_lastMicPacketTime!).inMilliseconds > 1500)) {
         _recoverLiveMicMonitoring();
       }
+    });
+  }
+
+  void _ensureMonitorMeterPolling() {
+    if (_monitorMeterTimer != null && _monitorMeterTimer!.isActive) return;
+    _monitorMeterTimer = Timer.periodic(const Duration(milliseconds: 90), (_) async {
+      if (!mounted || !_isPassThroughEnabled) {
+        _monitorMeterTimer?.cancel();
+        _monitorMeterTimer = null;
+        return;
+      }
+      if (kIsWeb || !Platform.isAndroid) return;
+      try {
+        final dynamic raw = await _loopbackChannel.invokeMethod('getMonitorStatus');
+        if (raw is Map && mounted) {
+          final bool stillRunning = raw['isLoopbackRunning'] == true;
+          if (!stillRunning) {
+            setState(() => _isPassThroughEnabled = false);
+            _monitorMeterTimer?.cancel();
+            _monitorMeterTimer = null;
+            _resumeLiveMicAfterPlayback();
+            return;
+          }
+          final double? db = (raw['liveDb'] as num?)?.toDouble();
+          final double? amp = (raw['liveAmp'] as num?)?.toDouble();
+          if (db != null) {
+            _lastMicPacketTime = DateTime.now();
+            _updateLiveDecibel(db, sliceAmps: amp != null ? [amp] : null);
+          }
+        }
+      } catch (_) {}
     });
   }
 
@@ -254,15 +329,20 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     try {
       final dynamic raw = await _loopbackChannel.invokeMethod('getMonitorStatus');
       if (raw is Map && mounted) {
-        setState(() {
-          _isPassThroughEnabled = raw['isLoopbackRunning'] == true;
-          _monitorCaptureSource = (raw['captureSource'] as String?) ?? _monitorCaptureSource;
-          _monitorListenOutput = (raw['listenOutput'] as String?) ?? _monitorListenOutput;
-          final double? g = (raw['gain'] as num?)?.toDouble();
-          if (g != null && g >= 0.2 && g <= 2.0) {
-            _passThroughVolume = g;
+        if (mounted) {
+          setState(() {
+            _isPassThroughEnabled = raw['isLoopbackRunning'] == true;
+            _monitorCaptureSource = (raw['captureSource'] as String?) ?? _monitorCaptureSource;
+            _monitorListenOutput = (raw['listenOutput'] as String?) ?? _monitorListenOutput;
+            final double? g = (raw['gain'] as num?)?.toDouble();
+            if (g != null && g >= 0.2 && g <= 2.0) {
+              _passThroughVolume = g;
+            }
+          });
+          if (_isPassThroughEnabled) {
+            _ensureMonitorMeterPolling();
           }
-        });
+        }
       }
     } catch (_) {}
   }
@@ -273,6 +353,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     _bluetoothCheckTimer?.cancel();
     _callCheckTimer?.cancel();
     _watchdogTimer?.cancel();
+    _monitorMeterTimer?.cancel();
+    _recAmpFallbackTimer?.cancel();
+    _gaugeTicker?.dispose();
     // Do NOT stop background audio monitor or active recording on dispose!
     _pcmStreamSub?.cancel();
     _ampSub?.cancel();
@@ -393,6 +476,15 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         return;
       }
 
+      // Cleanly close any lingering stream before opening a fresh PCM stream
+      await _pcmStreamSub?.cancel();
+      _pcmStreamSub = null;
+      try {
+        if (await _recorder.isRecording()) {
+          await _recorder.stop();
+        }
+      } catch (_) {}
+
       // Start raw PCM 16-bit audio stream for live dB & waveform analysis
       final stream = await _recorder.startStream(
         const RecordConfig(
@@ -403,9 +495,12 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         ),
       );
 
-      _pcmStreamSub?.cancel();
       _pcmStreamSub = stream.listen((Uint8List chunk) {
-        if (!mounted || _isRecording || _isPlayingAudio) return;
+        if (!mounted || _isRecording || _isPlayingAudio || _isPassThroughEnabled) return;
+        // Stop fallback simulation immediately so real hardware mic never collides with sim!
+        if (_simTimer != null && _simTimer!.isActive) {
+          _simTimer?.cancel();
+        }
         _lastMicPacketTime = DateTime.now();
 
         double sumSquares = 0.0;
@@ -544,6 +639,53 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     HapticFeedback.mediumImpact();
 
     try {
+      // Strict Call Recording check: verify live call on Dialer, WhatsApp, Instagram, Snapchat, or VoIP
+      if (_selectedAudioSource == 'call') {
+        await _checkCallStatus();
+        if (!_isCallActive) {
+          if (mounted) {
+            showDialog(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: widget.theme.cardBg,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  side: BorderSide(color: Colors.amber.shade700.withValues(alpha: 0.5), width: 1.5),
+                ),
+                title: Row(
+                  children: [
+                    Icon(Icons.phone_missed_rounded, color: Colors.amber.shade700, size: 22),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'No Active Call Detected',
+                        style: widget.theme.fontDisplay(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  'Call Recording only starts when an active call is running on Phone Dialer, WhatsApp, Instagram, Snapchat, or another calling app.\n\nStart or answer a call first, then tap Record Call.',
+                  style: TextStyle(fontSize: 13, color: widget.theme.textSecondary, height: 1.45),
+                ),
+                actions: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: widget.theme.primary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return;
+        }
+      }
+
       if (!await _recorder.hasPermission()) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -587,7 +729,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       AndroidAudioSource audioSource;
       switch (_selectedAudioSource) {
         case 'call':
-          audioSource = AndroidAudioSource.voiceCommunication;
+          // voiceRecognition avoids Android VoIP/Dialer mute lock while capturing both ends clearly
+          audioSource = AndroidAudioSource.voiceRecognition;
           break;
         case 'system_sound':
           audioSource = AndroidAudioSource.voiceCommunication;
@@ -648,20 +791,42 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   }
 
   void _attachRecordingTimersAndAmp() {
-    // Listen to amplitude updates while actively recording
+    // Listen to amplitude updates while actively recording (65ms smooth cadence)
     _ampSub?.cancel();
     _ampSub = _recorder
-        .onAmplitudeChanged(const Duration(milliseconds: 100))
+        .onAmplitudeChanged(const Duration(milliseconds: 65))
         .listen((amp) {
-      if (!mounted || !_isRecording) return;
-      _lastMicPacketTime = DateTime.now();
-      // amp.current is dBFS (-60 to 0) -> map to SPL dB (30 to 115)
-      final double rawSpl = (98.0 + amp.current).clamp(28.0, 115.0);
-      final double normalized = ((rawSpl - 30.0) / 70.0).clamp(0.08, 1.0);
-      if (rawSpl > _ActiveRecordingSession.peakDb) {
-        _ActiveRecordingSession.peakDb = rawSpl;
+      if (!mounted || !_isRecording || _isPausedRecording) return;
+      if (amp.current > -155.0) {
+        _lastMicPacketTime = DateTime.now();
+        final double rawSpl = (98.0 + amp.current).clamp(28.0, 115.0);
+        final double smoothed = (_currentDb * 0.30) + (rawSpl * 0.70);
+        final double normalized = ((smoothed - 30.0) / 70.0).clamp(0.08, 1.0);
+        if (smoothed > _ActiveRecordingSession.peakDb) {
+          _ActiveRecordingSession.peakDb = smoothed;
+        }
+        _updateLiveDecibel(smoothed, sliceAmps: [normalized]);
       }
-      _updateLiveDecibel(rawSpl, sliceAmps: [normalized, normalized]);
+    });
+
+    // Secondary hardware amplitude poll so dB meter NEVER freezes during recording
+    _recAmpFallbackTimer?.cancel();
+    _recAmpFallbackTimer = Timer.periodic(const Duration(milliseconds: 90), (_) async {
+      if (!mounted || !_isRecording || _isPausedRecording) return;
+      final stalled = _lastMicPacketTime == null ||
+          DateTime.now().difference(_lastMicPacketTime!).inMilliseconds > 220;
+      if (!stalled) return;
+      try {
+        final amp = await _recorder.getAmplitude();
+        if (!mounted || !_isRecording) return;
+        if (amp.current > -155.0) {
+          _lastMicPacketTime = DateTime.now();
+          final double rawSpl = (98.0 + amp.current).clamp(28.0, 115.0);
+          final double smoothed = (_currentDb * 0.35) + (rawSpl * 0.65);
+          final double normalized = ((smoothed - 30.0) / 70.0).clamp(0.08, 1.0);
+          _updateLiveDecibel(smoothed, sliceAmps: [normalized]);
+        }
+      } catch (_) {}
     });
 
     _recordTimer?.cancel();
@@ -727,6 +892,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     HapticFeedback.heavyImpact();
 
     _recordTimer?.cancel();
+    _recAmpFallbackTimer?.cancel();
+    _recAmpFallbackTimer = null;
     _ampSub?.cancel();
     _ampSub = null;
 
@@ -758,10 +925,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       return;
     }
 
-    // Export copy to public Download/Tooler_Recordings folder, while keeping
-    // the app-internal recordedPath for 100% reliable playback across Android versions
-    final publicCopyPath = await _saveFileToPublicDownloads(recordedPath);
-
+    // Keep recording inside Tooler app list ONLY (do NOT auto-export to device storage).
+    // User exports to device Download/Tooler_Recordings/ ONLY when pressing the Save icon.
     final String chosenTag = switch (sourceUsed) {
       'call' => 'Call Recording',
       'system_sound' => 'System Sound',
@@ -797,10 +962,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            publicCopyPath != null
-                ? 'Recording saved to Download/Tooler_Recordings/'
-                : 'Recording saved successfully',
-            style: widget.theme.fontDisplay(color: Colors.white, fontSize: 13),
+            'Recording added to list · Tap Save icon to export to device storage',
+            style: widget.theme.fontDisplay(color: Colors.white, fontSize: 12.5),
           ),
           backgroundColor: widget.theme.primary,
           behavior: SnackBarBehavior.floating,
@@ -958,6 +1121,50 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     SoundService().playKey();
     HapticFeedback.lightImpact();
 
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: widget.theme.cardBg,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: Colors.redAccent.withValues(alpha: 0.45), width: 1.5),
+        ),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Delete Audio?',
+                style: widget.theme.fontDisplay(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          'You are about to permanently delete "${item.title}" (${_formatSeconds(item.durationSeconds)}). This action cannot be undone.',
+          style: TextStyle(fontSize: 13, color: widget.theme.textSecondary, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: widget.theme.textSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.redAccent,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
     if (_currentlyPlayingId == item.id) {
       await _player.stop();
       _currentlyPlayingId = null;
@@ -971,9 +1178,11 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       }
     } catch (_) {}
 
-    setState(() {
-      _recordings.removeWhere((r) => r.id == item.id);
-    });
+    if (mounted) {
+      setState(() {
+        _recordings.removeWhere((r) => r.id == item.id);
+      });
+    }
     await _saveRecordings();
   }
 
@@ -1055,12 +1264,24 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   Future<void> _checkBluetoothStatus() async {
     try {
       if (!kIsWeb && Platform.isAndroid) {
-        final bool isConn =
-            await _loopbackChannel.invokeMethod('isBluetoothConnected') ?? false;
-        if (mounted && _isBluetoothConnected != isConn) {
-          setState(() {
-            _isBluetoothConnected = isConn;
-          });
+        final dynamic raw = await _loopbackChannel.invokeMethod('getBluetoothAudioState');
+        if (raw is Map && mounted) {
+          final btOn = raw['bluetoothEnabled'] == true;
+          final earConn = raw['isEarphoneConnected'] == true;
+          final wiredConn = raw['isWiredConnected'] == true;
+          final devName = (raw['deviceName'] as String? ?? '').trim();
+
+          if (_isBluetoothEnabled != btOn ||
+              _isBluetoothConnected != earConn ||
+              _isWiredConnected != wiredConn ||
+              _connectedDeviceName != devName) {
+            setState(() {
+              _isBluetoothEnabled = btOn;
+              _isBluetoothConnected = earConn;
+              _isWiredConnected = wiredConn;
+              _connectedDeviceName = devName;
+            });
+          }
         }
       }
     } catch (_) {}
@@ -1069,18 +1290,29 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   Future<void> _checkCallStatus() async {
     try {
       if (!kIsWeb && Platform.isAndroid) {
-        final bool inCall =
-            await _loopbackChannel.invokeMethod('isCallActive') ?? false;
-        if (mounted && _isCallActive != inCall) {
-          setState(() {
-            _isCallActive = inCall;
-            if (inCall && !_isRecording) {
-              _selectedAudioSource = 'call';
-            }
-          });
+        final dynamic raw = await _loopbackChannel.invokeMethod('getCallStatus');
+        if (raw is Map && mounted) {
+          final bool inCall = raw['isCallActive'] == true;
+          final String cType = (raw['callType'] as String? ?? 'None');
+          if (_isCallActive != inCall || _activeCallType != cType) {
+            setState(() {
+              _isCallActive = inCall;
+              _activeCallType = cType;
+              if (inCall && !_isRecording) {
+                _selectedAudioSource = 'call';
+              }
+            });
+          }
         }
       }
     } catch (_) {}
+  }
+
+  String _getEarphoneUnavailableMessage() {
+    if (!_isBluetoothEnabled) {
+      return "Bluetooth is OFF. Turn ON Bluetooth & connect earphones, or plug in wired earphones.";
+    }
+    return "Bluetooth is ON, but no earphone device is connected.";
   }
 
   Future<void> _togglePassThrough(bool enable) async {
@@ -1097,17 +1329,19 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         _monitorCaptureSource == 'earphone' || _monitorListenOutput == 'earphone';
     if (needsEarphone && !_isBluetoothConnected) {
       if (mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              "Please connect Bluetooth or wired earphone for earphone routing.",
-              style: widget.theme.fontDisplay(color: Colors.white, fontSize: 13),
+              _getEarphoneUnavailableMessage(),
+              style: widget.theme.fontDisplay(color: Colors.white, fontSize: 12.5),
             ),
             backgroundColor: Colors.amber.shade900,
             behavior: SnackBarBehavior.floating,
           ),
         );
       }
+      return;
     }
 
     // Pause live dB mic stream if not recording so native loopback gets exclusive mic
@@ -1127,6 +1361,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
           setState(() {
             _isPassThroughEnabled = ok;
           });
+          if (ok) _ensureMonitorMeterPolling();
         }
       } else {
         setState(() {
@@ -1139,6 +1374,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   }
 
   Future<void> _stopPassThrough() async {
+    _monitorMeterTimer?.cancel();
+    _monitorMeterTimer = null;
     try {
       if (!kIsWeb && Platform.isAndroid) {
         await _loopbackChannel.invokeMethod('stopLoopback');
@@ -1158,6 +1395,25 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   }) async {
     SoundService().playKey();
     HapticFeedback.selectionClick();
+
+    final wantsEarphone = captureSource == 'earphone' || listenOutput == 'earphone';
+    if (wantsEarphone && !_isBluetoothConnected) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              _getEarphoneUnavailableMessage(),
+              style: widget.theme.fontDisplay(color: Colors.white, fontSize: 12.5),
+            ),
+            backgroundColor: Colors.amber.shade900,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       if (captureSource != null) _monitorCaptureSource = captureSource;
       if (listenOutput != null) _monitorListenOutput = listenOutput;
@@ -1191,9 +1447,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
   @override
   Widget build(BuildContext context) {
-    final Color safetyColor = _getSafetyColor(_currentDb);
-    final String safetyStatus = _getSafetyStatus(_currentDb);
-    final double avgDb = _sampleCount > 0 ? (_sumDb / _sampleCount) : _currentDb;
+    final Color safetyColor = _getSafetyColor(_displayDb);
+    final String safetyStatus = _getSafetyStatus(_displayDb);
+    final double avgDb = _sampleCount > 0 ? (_sumDb / _sampleCount) : _displayDb;
 
     return Scaffold(
       backgroundColor: widget.theme.bg,
@@ -1275,13 +1531,15 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             child: Stack(
               alignment: Alignment.center,
               children: [
-                // Custom Painter for Radial Bar Gauge
+                // Custom Painter for Silky Smooth Radial Bar Gauge
                 CustomPaint(
                   size: const Size(210, 210),
                   painter: _RadialDecibelBarPainter(
-                    decibel: _currentDb,
+                    decibel: _displayDb,
+                    peakHoldDb: _peakHoldDb,
                     gaugeColor: safetyColor,
-                    trackColor: widget.theme.border.withValues(alpha: 0.5),
+                    primaryColor: widget.theme.primary,
+                    trackColor: widget.theme.border.withValues(alpha: 0.45),
                   ),
                 ),
 
@@ -1295,7 +1553,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                       textBaseline: TextBaseline.alphabetic,
                       children: [
                         Text(
-                          _currentDb.toStringAsFixed(0),
+                          _displayDb.toStringAsFixed(0),
                           style: widget.theme.fontDisplay(
                             fontSize: 54,
                             fontWeight: FontWeight.w900,
@@ -1329,9 +1587,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                         ),
                       ),
                       child: Text(
-                        _currentDb < 68.0
+                        _displayDb < 68.0
                             ? "SAFE"
-                            : _currentDb < 82.0
+                            : _displayDb < 82.0
                                 ? "MODERATE"
                                 : "DANGER",
                         style: widget.theme.fontMono(
@@ -1452,7 +1710,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             children: [
               Icon(Icons.graphic_eq_rounded, size: 20, color: safetyColor),
               Text(
-                "LIVE ${(_currentDb).toStringAsFixed(1)} dB",
+                "LIVE ${_displayDb.toStringAsFixed(1)} dB",
                 style: widget.theme.fontMono(
                   fontSize: 11,
                   fontWeight: FontWeight.bold,
@@ -1539,7 +1797,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          "Active Phone Call Detected",
+                          "Active Call Detected · $_activeCallType",
                           style: widget.theme.fontDisplay(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -1548,7 +1806,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          "Call recording mode enabled. Tap Record Call to capture conversation audio.",
+                          "Dialer, WhatsApp, Instagram & Snapchat calls ready to record.",
                           style: TextStyle(
                             fontSize: 11,
                             color: widget.theme.textSecondary,
@@ -1696,6 +1954,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                     id: 'earphone',
                     label: 'Earphone',
                     icon: Icons.headphones_rounded,
+                    isOffState: !_isBluetoothConnected,
                   ),
                   _buildSourceChip(
                     id: 'system_sound',
@@ -1763,43 +2022,27 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
             const SizedBox(height: 14),
 
-            // Idle State: Start Record Button
+            // Idle State: Start Record Row (Clean title word ONLY — caption removed)
             Row(
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _selectedAudioSource == 'call'
-                            ? "Record Phone Call"
-                            : _selectedAudioSource == 'system_sound'
-                                ? "Record System Audio"
-                                : "Record Noise & Audio",
-                        style: widget.theme.fontDisplay(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: widget.theme.text,
-                        ),
-                      ),
-                      Text(
-                        _selectedAudioSource == 'call'
-                            ? "Captures active call conversation"
-                            : _selectedAudioSource == 'system_sound'
-                                ? "Captures phone system playback"
-                                : "Runs in background while in RAM",
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: widget.theme.textSecondary,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    _selectedAudioSource == 'call'
+                        ? "Record Phone Call"
+                        : _selectedAudioSource == 'system_sound'
+                            ? "Record System Audio"
+                            : "Record Noise & Audio",
+                    style: widget.theme.fontDisplay(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: widget.theme.text,
+                    ),
                   ),
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _selectedAudioSource == 'call'
-                        ? Colors.green.shade700
+                        ? (_isCallActive ? Colors.green.shade700 : widget.theme.textSecondary.withValues(alpha: 0.55))
                         : widget.theme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
@@ -1838,8 +2081,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     required String label,
     required IconData icon,
     bool isLiveCall = false,
+    bool isOffState = false,
   }) {
-    final bool isSelected = (_selectedAudioSource == id);
+    final bool isSelected = !isOffState && (_selectedAudioSource == id);
     final Color activeBg =
         (isLiveCall && isSelected) ? Colors.green.shade700 : widget.theme.primary;
     return Padding(
@@ -1848,6 +2092,20 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         onTap: () {
           SoundService().playKey();
           HapticFeedback.selectionClick();
+          if (isOffState) {
+            ScaffoldMessenger.of(context).removeCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  _getEarphoneUnavailableMessage(),
+                  style: widget.theme.fontDisplay(color: Colors.white, fontSize: 12.5),
+                ),
+                backgroundColor: Colors.amber.shade900,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            return;
+          }
           setState(() {
             _selectedAudioSource = id;
           });
@@ -1857,12 +2115,16 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           decoration: BoxDecoration(
-            color: isSelected ? activeBg : widget.theme.bg,
+            color: isOffState
+                ? widget.theme.border.withValues(alpha: 0.28)
+                : (isSelected ? activeBg : widget.theme.bg),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected
-                  ? activeBg
-                  : (isLiveCall ? Colors.green : widget.theme.border),
+              color: isOffState
+                  ? widget.theme.border.withValues(alpha: 0.5)
+                  : (isSelected
+                      ? activeBg
+                      : (isLiveCall ? Colors.green : widget.theme.border)),
               width: 1.3,
             ),
             boxShadow: isSelected
@@ -1881,9 +2143,11 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               Icon(
                 icon,
                 size: 16,
-                color: isSelected
-                    ? Colors.white
-                    : (isLiveCall ? Colors.green : widget.theme.textSecondary),
+                color: isOffState
+                    ? widget.theme.textSecondary.withValues(alpha: 0.42)
+                    : (isSelected
+                        ? Colors.white
+                        : (isLiveCall ? Colors.green : widget.theme.textSecondary)),
               ),
               const SizedBox(width: 6),
               Text(
@@ -1891,7 +2155,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : widget.theme.text,
+                  color: isOffState
+                      ? widget.theme.textSecondary.withValues(alpha: 0.45)
+                      : (isSelected ? Colors.white : widget.theme.text),
                 ),
               ),
               if (isLiveCall) ...[
@@ -2287,10 +2553,29 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
   // --- 5. EARPHONE & PHONE AUDIO MONITOR ---
   Widget _buildEarphonePassThroughSection() {
-    final bool isPhoneToEarphone =
-        _monitorCaptureSource == 'phone' && _monitorListenOutput == 'earphone';
-    final bool isEarphoneToPhone =
-        _monitorCaptureSource == 'earphone' && _monitorListenOutput == 'phone';
+    // Live Bluetooth & Headset inline status shown right below title
+    final Color btStatusColor;
+    final IconData btStatusIcon;
+    final String btStatusLabel;
+    if (_isBluetoothConnected) {
+      btStatusColor = const Color(0xFF10B981);
+      btStatusIcon = _isWiredConnected && _connectedDeviceName == 'Wired Earphone'
+          ? Icons.headset_rounded
+          : Icons.bluetooth_connected_rounded;
+      btStatusLabel = _connectedDeviceName.isNotEmpty
+          ? 'Connected · $_connectedDeviceName'
+          : 'Bluetooth Connected';
+    } else if (_isBluetoothEnabled) {
+      btStatusColor = const Color(0xFFF59E0B);
+      btStatusIcon = Icons.bluetooth_searching_rounded;
+      btStatusLabel = 'Bluetooth ON · No device connected';
+    } else {
+      btStatusColor = widget.theme.textSecondary.withValues(alpha: 0.75);
+      btStatusIcon = Icons.bluetooth_disabled_rounded;
+      btStatusLabel = 'Bluetooth is OFF';
+    }
+
+    final bool earphoneOff = !_isBluetoothConnected;
 
     return Container(
       width: double.infinity,
@@ -2317,7 +2602,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section Header + Master Toggle Switch
+          // Section Header + Inline Bluetooth Status + Master Toggle Switch
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -2327,7 +2612,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: (_isPassThroughEnabled
+                        color: (_isPassThroughEnabled && !earphoneOff
                                 ? widget.theme.primary
                                 : widget.theme.border)
                             .withValues(alpha: 0.2),
@@ -2336,9 +2621,11 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                       child: Icon(
                         Icons.headphones_rounded,
                         size: 20,
-                        color: _isPassThroughEnabled
-                            ? widget.theme.primary
-                            : widget.theme.textSecondary,
+                        color: earphoneOff
+                            ? widget.theme.textSecondary.withValues(alpha: 0.45)
+                            : (_isPassThroughEnabled
+                                ? widget.theme.primary
+                                : widget.theme.textSecondary),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -2354,29 +2641,30 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                               color: widget.theme.text,
                             ),
                           ),
-                          if (_isPassThroughEnabled)
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 6,
-                                  height: 6,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 5),
-                                Text(
-                                  "Active in Background",
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                btStatusIcon,
+                                size: 12.5,
+                                color: btStatusColor,
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  btStatusLabel,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w600,
-                                    color: Colors.green.shade700,
+                                    color: btStatusColor,
                                   ),
                                 ),
-                              ],
-                            ),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -2391,208 +2679,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             ],
           ),
 
-          const SizedBox(height: 12),
-
-          // Bluetooth / Headset Connection Status Banner
-          if (!_isBluetoothConnected)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.amber.shade900.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.amber.shade900.withValues(alpha: 0.35),
-                  width: 1.1,
-                ),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.bluetooth_disabled_rounded,
-                    size: 18,
-                    color: Colors.amber.shade900,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      "Connect Bluetooth or wired earphone for earphone monitoring.",
-                      style: widget.theme.fontDisplay(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.amber.shade900,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: Colors.green.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.green.withValues(alpha: 0.35),
-                  width: 1.0,
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.bluetooth_connected_rounded,
-                    size: 17,
-                    color: Colors.green,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    "Earphone / Bluetooth Connected",
-                    style: widget.theme.fontDisplay(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.green,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
           const SizedBox(height: 14),
 
-          // Quick Segmented Switch: Phone ➔ Earphone | Earphone ➔ Phone
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: widget.theme.bg,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: widget.theme.border, width: 1.2),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => _setMonitorRoute(
-                      captureSource: 'phone',
-                      listenOutput: 'earphone',
-                    ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isPhoneToEarphone
-                            ? widget.theme.primary
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.phone_android_rounded,
-                            size: 15,
-                            color: isPhoneToEarphone
-                                ? Colors.white
-                                : widget.theme.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 13,
-                            color: isPhoneToEarphone
-                                ? Colors.white70
-                                : widget.theme.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.headphones_rounded,
-                            size: 15,
-                            color: isPhoneToEarphone
-                                ? Colors.white
-                                : widget.theme.textSecondary,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            "Phone → Ear",
-                            style: widget.theme.fontDisplay(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.bold,
-                              color: isPhoneToEarphone
-                                  ? Colors.white
-                                  : widget.theme.text,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: GestureDetector(
-                    onTap: () => _setMonitorRoute(
-                      captureSource: 'earphone',
-                      listenOutput: 'phone',
-                    ),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: isEarphoneToPhone
-                            ? widget.theme.primary
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.headphones_rounded,
-                            size: 15,
-                            color: isEarphoneToPhone
-                                ? Colors.white
-                                : widget.theme.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.arrow_forward_rounded,
-                            size: 13,
-                            color: isEarphoneToPhone
-                                ? Colors.white70
-                                : widget.theme.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.phone_android_rounded,
-                            size: 15,
-                            color: isEarphoneToPhone
-                                ? Colors.white
-                                : widget.theme.textSecondary,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            "Ear → Phone",
-                            style: widget.theme.fontDisplay(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.bold,
-                              color: isEarphoneToPhone
-                                  ? Colors.white
-                                  : widget.theme.text,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 14),
-
-          // Explicit Audio Capture (Mic Input) & Live Listen (Speaker Output) Selectors
+          // Direct Audio Capture (Mic Input) & Live Listen (Output) Selectors
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -2630,6 +2719,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                         label: "Phone Mic",
                         icon: Icons.phone_android_rounded,
                         isSelected: _monitorCaptureSource == 'phone',
+                        isOffState: false,
                         onTap: () => _setMonitorRoute(captureSource: 'phone'),
                       ),
                     ),
@@ -2638,7 +2728,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                       child: _buildMonitorOptionPill(
                         label: "Earphone Mic",
                         icon: Icons.headset_mic_rounded,
-                        isSelected: _monitorCaptureSource == 'earphone',
+                        isSelected: !earphoneOff && _monitorCaptureSource == 'earphone',
+                        isOffState: earphoneOff,
                         onTap: () => _setMonitorRoute(captureSource: 'earphone'),
                       ),
                     ),
@@ -2673,7 +2764,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                       child: _buildMonitorOptionPill(
                         label: "Earphone",
                         icon: Icons.headphones_rounded,
-                        isSelected: _monitorListenOutput == 'earphone',
+                        isSelected: !earphoneOff && _monitorListenOutput == 'earphone',
+                        isOffState: earphoneOff,
                         onTap: () => _setMonitorRoute(listenOutput: 'earphone'),
                       ),
                     ),
@@ -2683,6 +2775,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                         label: "Phone Speaker",
                         icon: Icons.speaker_phone_rounded,
                         isSelected: _monitorListenOutput == 'phone',
+                        isOffState: false,
                         onTap: () => _setMonitorRoute(listenOutput: 'phone'),
                       ),
                     ),
@@ -2745,8 +2838,22 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     required String label,
     required IconData icon,
     required bool isSelected,
+    required bool isOffState,
     required VoidCallback onTap,
   }) {
+    final Color bgColor = isOffState
+        ? widget.theme.border.withValues(alpha: 0.28)
+        : (isSelected ? widget.theme.primary : widget.theme.cardBg);
+    final Color borderColor = isOffState
+        ? widget.theme.border.withValues(alpha: 0.5)
+        : (isSelected ? widget.theme.primary : widget.theme.border);
+    final Color contentColor = isOffState
+        ? widget.theme.textSecondary.withValues(alpha: 0.45)
+        : (isSelected ? Colors.white : widget.theme.text);
+    final Color iconColor = isOffState
+        ? widget.theme.textSecondary.withValues(alpha: 0.42)
+        : (isSelected ? Colors.white : widget.theme.textSecondary);
+
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(11),
@@ -2754,10 +2861,10 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
         decoration: BoxDecoration(
-          color: isSelected ? widget.theme.primary : widget.theme.cardBg,
+          color: bgColor,
           borderRadius: BorderRadius.circular(11),
           border: Border.all(
-            color: isSelected ? widget.theme.primary : widget.theme.border,
+            color: borderColor,
             width: 1.2,
           ),
         ),
@@ -2767,7 +2874,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             Icon(
               icon,
               size: 15,
-              color: isSelected ? Colors.white : widget.theme.textSecondary,
+              color: iconColor,
             ),
             const SizedBox(width: 6),
             Flexible(
@@ -2777,7 +2884,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                 style: TextStyle(
                   fontSize: 11.5,
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? Colors.white : widget.theme.text,
+                  color: contentColor,
                 ),
               ),
             ),
@@ -2789,88 +2896,139 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 }
 
 // =============================================================================
-// RADIAL DECIBEL BAR PAINTER (CIRCULAR SWEEP BAR GAUGE)
-// Fills from 30 dB (0%) to 120 dB (100%)
+// SILKY SMOOTH RADIAL DECIBEL BAR PAINTER (ZERO-JITTER STUDIO SPL GAUGE)
+// Fills smoothly from 30 dB (0%) to 110 dB (100%) with gradient glow & peak dot
 // =============================================================================
 class _RadialDecibelBarPainter extends CustomPainter {
   final double decibel;
+  final double peakHoldDb;
   final Color gaugeColor;
+  final Color primaryColor;
   final Color trackColor;
 
   _RadialDecibelBarPainter({
     required this.decibel,
+    required this.peakHoldDb,
     required this.gaugeColor,
+    required this.primaryColor,
     required this.trackColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = (size.width / 2) - 16;
+    final double radius = (size.width / 2) - 18;
+    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
 
     // Sweep from bottom-left (140°) to bottom-right (400° -> 260° sweep)
     const double startAngle = 140.0 * math.pi / 180.0;
     const double totalSweep = 260.0 * math.pi / 180.0;
 
-    // Normalized progress [0.0 to 1.0] from 30 dB to 110 dB
     final double progress = ((decibel - 30.0) / 80.0).clamp(0.0, 1.0);
     final double activeSweep = totalSweep * progress;
+    final double peakProgress = ((peakHoldDb - 30.0) / 80.0).clamp(0.0, 1.0);
 
-    // Background track arc
-    final Paint trackPaint = Paint()
-      ..color = trackColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14.0
-      ..strokeCap = StrokeCap.round;
+    // 1. Subtle Inner Micro-Tick Scale Dots (30..110 dB, 25 smooth ticks)
+    const int tickCount = 24;
+    for (int i = 0; i <= tickCount; i++) {
+      final double frac = i / tickCount;
+      final double ang = startAngle + (totalSweep * frac);
+      final bool isMajor = i % 6 == 0;
+      final bool isLit = frac <= progress;
+      final double innerR = radius - (isMajor ? 16.5 : 14.0);
+      final double outerR = radius - 10.5;
+      final Paint tickPaint = Paint()
+        ..color = isLit
+            ? gaugeColor.withValues(alpha: isMajor ? 0.72 : 0.40)
+            : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
+        ..strokeWidth = isMajor ? 2.0 : 1.2
+        ..strokeCap = StrokeCap.round;
 
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      totalSweep,
-      false,
-      trackPaint,
-    );
-
-    // Active Decibel Fill Arc
-    final Paint activePaint = Paint()
-      ..color = gaugeColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 14.0
-      ..strokeCap = StrokeCap.round;
-
-    if (activeSweep > 0.01) {
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        activeSweep,
-        false,
-        activePaint,
+      canvas.drawLine(
+        Offset(center.dx + innerR * math.cos(ang), center.dy + innerR * math.sin(ang)),
+        Offset(center.dx + outerR * math.cos(ang), center.dy + outerR * math.sin(ang)),
+        tickPaint,
       );
     }
 
-    // Tick markers around the arc (30, 50, 70, 90, 110 dB)
-    final Paint tickPaint = Paint()
+    // 2. Smooth Recessed Background Track Arc
+    final Paint trackPaint = Paint()
       ..color = trackColor
-      ..strokeWidth = 2.0;
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
 
-    for (int db = 30; db <= 110; db += 20) {
-      final double p = (db - 30.0) / 80.0;
-      final double ang = startAngle + (totalSweep * p);
-      final Offset p1 = Offset(
-        center.dx + (radius - 12) * math.cos(ang),
-        center.dy + (radius - 12) * math.sin(ang),
+    // 3. Soft Ambient Glow Under Active Arc
+    if (activeSweep > 0.01) {
+      final Paint glowPaint = Paint()
+        ..color = gaugeColor.withValues(alpha: 0.28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 18.0
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
+
+      // 4. Silky SweepGradient Active Decibel Arc
+      final Shader arcShader = SweepGradient(
+        startAngle: 0.0,
+        endAngle: totalSweep,
+        colors: [
+          primaryColor,
+          Color.lerp(primaryColor, gaugeColor, 0.55)!,
+          gaugeColor,
+        ],
+        stops: const [0.0, 0.62, 1.0],
+        transform: const GradientRotation(startAngle),
+      ).createShader(arcRect);
+
+      final Paint activePaint = Paint()
+        ..shader = arcShader
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12.5
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
+
+      // 5. Crisp Luminous Leading Tip Orb
+      final double tipAngle = startAngle + activeSweep;
+      final Offset tipCenter = Offset(
+        center.dx + radius * math.cos(tipAngle),
+        center.dy + radius * math.sin(tipAngle),
       );
-      final Offset p2 = Offset(
-        center.dx + (radius + 12) * math.cos(ang),
-        center.dy + (radius + 12) * math.sin(ang),
+      canvas.drawCircle(
+        tipCenter,
+        7.5,
+        Paint()
+          ..color = gaugeColor.withValues(alpha: 0.35)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
       );
-      canvas.drawLine(p1, p2, tickPaint);
+      canvas.drawCircle(
+        tipCenter,
+        4.2,
+        Paint()..color = Colors.white.withValues(alpha: 0.95),
+      );
+    }
+
+    // 6. Floating Peak-Hold Indicator Marker Dot (smoothly tracks recent peak)
+    if (peakProgress > progress + 0.025) {
+      final double peakAngle = startAngle + (totalSweep * peakProgress);
+      final Offset peakPos = Offset(
+        center.dx + radius * math.cos(peakAngle),
+        center.dy + radius * math.sin(peakAngle),
+      );
+      canvas.drawCircle(
+        peakPos,
+        3.6,
+        Paint()..color = gaugeColor.withValues(alpha: 0.85),
+      );
     }
   }
 
   @override
   bool shouldRepaint(covariant _RadialDecibelBarPainter oldDelegate) {
-    return oldDelegate.decibel != decibel ||
-        oldDelegate.gaugeColor != gaugeColor;
+    return (oldDelegate.decibel - decibel).abs() > 0.01 ||
+        (oldDelegate.peakHoldDb - peakHoldDb).abs() > 0.01 ||
+        oldDelegate.gaugeColor != gaugeColor ||
+        oldDelegate.primaryColor != primaryColor;
   }
 }

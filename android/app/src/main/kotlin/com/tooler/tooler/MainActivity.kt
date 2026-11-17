@@ -2,7 +2,9 @@ package com.tooler.tooler
 
 import android.app.ActivityManager
 import android.appwidget.AppWidgetManager
+import android.bluetooth.BluetoothManager
 import android.content.ComponentName
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -21,7 +23,9 @@ import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
+import android.provider.MediaStore
 import android.provider.Settings
+import android.telephony.TelephonyManager
 import io.flutter.FlutterInjector
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -156,6 +160,9 @@ open class MainActivity : FlutterActivity() {
                     val isConnected = checkBluetoothConnected(audioManager)
                     result.success(isConnected)
                 }
+                "getBluetoothAudioState" -> {
+                    result.success(getBluetoothAudioState(audioManager))
+                }
                 "startLoopback" -> {
                     val route = call.argument<String>("route") ?: "phone_to_earphone"
                     val captureSource = call.argument<String>("captureSource")
@@ -198,15 +205,18 @@ open class MainActivity : FlutterActivity() {
                             "isRecordingKeepAlive" to ToolerAudioService.isRecordingKeepAlive,
                             "captureSource" to ToolerAudioService.currentCaptureSource,
                             "listenOutput" to ToolerAudioService.currentListenOutput,
-                            "gain" to ToolerAudioService.monitorGain.toDouble()
+                            "gain" to ToolerAudioService.monitorGain.toDouble(),
+                            "liveDb" to ToolerAudioService.liveDb,
+                            "liveAmp" to ToolerAudioService.liveAmp
                         )
                     )
                 }
                 "isCallActive" -> {
-                    val inCall = audioManager.mode == AudioManager.MODE_IN_CALL ||
-                            audioManager.mode == AudioManager.MODE_IN_COMMUNICATION ||
-                            audioManager.mode == AudioManager.MODE_RINGTONE
-                    result.success(inCall)
+                    val status = getActiveCallStatus(audioManager)
+                    result.success(status["isCallActive"] == true)
+                }
+                "getCallStatus" -> {
+                    result.success(getActiveCallStatus(audioManager))
                 }
                 "saveToPublicDirectory" -> {
                     val sourcePath = call.argument<String>("sourcePath") ?: ""
@@ -1087,24 +1097,161 @@ open class MainActivity : FlutterActivity() {
     }
 
     private fun checkBluetoothConnected(audioManager: AudioManager): Boolean {
-        return try {
+        val state = getBluetoothAudioState(audioManager)
+        return state["isEarphoneConnected"] == true
+    }
+
+    private fun getBluetoothAudioState(audioManager: AudioManager): Map<String, Any> {
+        var bluetoothEnabled = false
+        try {
+            val bm = getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
+            bluetoothEnabled = bm?.adapter?.isEnabled == true
+        } catch (_: Exception) {}
+
+        var isBtConnected = false
+        var isWiredConnected = false
+        var deviceName = ""
+
+        try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val devices = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-                devices.any {
-                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
-                    (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && (it.type == AudioDeviceInfo.TYPE_BLE_HEADSET || it.type == AudioDeviceInfo.TYPE_BLE_SPEAKER)) ||
-                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                    it.type == AudioDeviceInfo.TYPE_USB_HEADSET
+                val outputs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                for (dev in outputs) {
+                    val t = dev.type
+                    val isBt = t == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                        t == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                        (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && (
+                            t == AudioDeviceInfo.TYPE_BLE_HEADSET || t == AudioDeviceInfo.TYPE_BLE_SPEAKER
+                        ))
+                    val isWired = t == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                        t == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
+                        t == AudioDeviceInfo.TYPE_USB_HEADSET
+
+                    if (isBt) {
+                        isBtConnected = true
+                        val prod = dev.productName?.toString()?.trim() ?: ""
+                        if (prod.isNotEmpty() && deviceName.isEmpty()) deviceName = prod
+                    } else if (isWired) {
+                        isWiredConnected = true
+                        if (deviceName.isEmpty()) deviceName = "Wired Earphone"
+                    }
                 }
             } else {
                 @Suppress("DEPRECATION")
-                audioManager.isBluetoothA2dpOn || audioManager.isWiredHeadsetOn
+                isBtConnected = audioManager.isBluetoothA2dpOn || audioManager.isBluetoothScoOn
+                @Suppress("DEPRECATION")
+                isWiredConnected = audioManager.isWiredHeadsetOn
             }
-        } catch (e: Exception) {
-            false
-        }
+        } catch (_: Exception) {}
+
+        return mapOf(
+            "bluetoothEnabled" to bluetoothEnabled,
+            "isBluetoothConnected" to isBtConnected,
+            "isWiredConnected" to isWiredConnected,
+            "isEarphoneConnected" to (isBtConnected || isWiredConnected),
+            "deviceName" to deviceName
+        )
+    }
+
+    /**
+     * Multi-layer real call detector:
+     * Detects Phone Dialer calls AND VoIP app calls (WhatsApp, Instagram, Snapchat,
+     * Telegram, Discord, Zoom, Google Meet, Messenger) via AudioManager mode,
+     * activePlaybackConfigurations (USAGE_VOICE_COMMUNICATION), activeRecordingConfigurations,
+     * and TelephonyManager call state.
+     */
+    private fun getActiveCallStatus(audioManager: AudioManager): Map<String, Any> {
+        var isCallActive = false
+        var callType = "None"
+
+        try {
+            // 1. Direct AudioManager Mode check (Dialer & VoIP apps)
+            when (audioManager.mode) {
+                AudioManager.MODE_IN_CALL -> {
+                    isCallActive = true
+                    callType = "Phone Dialer Call"
+                }
+                AudioManager.MODE_IN_COMMUNICATION -> {
+                    // Ignore if Tooler's own BT SCO loopback is the sole reason mode == IN_COMMUNICATION
+                    if (!ToolerAudioService.isLoopbackRunning) {
+                        isCallActive = true
+                        callType = "VoIP / App Call"
+                    }
+                }
+                AudioManager.MODE_RINGTONE -> {
+                    isCallActive = true
+                    callType = "Incoming Call"
+                }
+                else -> {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                        audioManager.mode == AudioManager.MODE_CALL_SCREENING
+                    ) {
+                        isCallActive = true
+                        callType = "Phone Call"
+                    }
+                }
+            }
+
+            // 2. Active Playback Configurations (API 26+) — detects WhatsApp/Instagram/Snapchat VoIP audio even when OEM mode lags
+            if (!isCallActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    val playConfigs = audioManager.activePlaybackConfigurations
+                    for (cfg in playConfigs) {
+                        val usage = cfg.audioAttributes.usage
+                        if (usage == AudioAttributes.USAGE_VOICE_COMMUNICATION ||
+                            usage == AudioAttributes.USAGE_VOICE_COMMUNICATION_SIGNALLING
+                        ) {
+                            isCallActive = true
+                            callType = "App Call (WhatsApp · Insta · Snap)"
+                            break
+                        } else if (usage == AudioAttributes.USAGE_NOTIFICATION_RINGTONE) {
+                            isCallActive = true
+                            callType = "Incoming Call"
+                            break
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // 3. Active Recording Configurations (API 24+) — detects another app capturing VOICE_COMMUNICATION / VOICE_CALL
+            if (!isCallActive && !ToolerAudioService.isLoopbackRunning && !ToolerAudioService.isRecordingKeepAlive &&
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+            ) {
+                try {
+                    val recConfigs = audioManager.activeRecordingConfigurations
+                    for (cfg in recConfigs) {
+                        val src = cfg.clientAudioSource
+                        if (src == MediaRecorder.AudioSource.VOICE_COMMUNICATION ||
+                            src == MediaRecorder.AudioSource.VOICE_CALL
+                        ) {
+                            isCallActive = true
+                            callType = "App Call (VoIP Active)"
+                            break
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // 4. TelephonyManager cellular call state check
+            if (!isCallActive) {
+                try {
+                    val tm = getSystemService(Context.TELEPHONY_SERVICE) as? TelephonyManager
+                    @Suppress("DEPRECATION")
+                    val cState = tm?.callState ?: TelephonyManager.CALL_STATE_IDLE
+                    if (cState == TelephonyManager.CALL_STATE_OFFHOOK) {
+                        isCallActive = true
+                        callType = "Phone Dialer Call"
+                    } else if (cState == TelephonyManager.CALL_STATE_RINGING) {
+                        isCallActive = true
+                        callType = "Incoming Call"
+                    }
+                } catch (_: Exception) {}
+            }
+        } catch (_: Exception) {}
+
+        return mapOf(
+            "isCallActive" to isCallActive,
+            "callType" to callType
+        )
     }
 
     private fun startAudioLoopback(audioManager: AudioManager, route: String) {
@@ -1200,6 +1347,22 @@ open class MainActivity : FlutterActivity() {
             val src = File(sourcePath)
             if (!src.exists()) return null
 
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val relPath = "${Environment.DIRECTORY_DOWNLOADS}/Tooler_Recordings"
+                val values = ContentValues().apply {
+                    put(MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                    put(MediaStore.MediaColumns.MIME_TYPE, "audio/mp4")
+                    put(MediaStore.MediaColumns.RELATIVE_PATH, relPath)
+                }
+                val uri = contentResolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
+                    ?: return null
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    src.inputStream().use { input -> input.copyTo(out) }
+                    out.flush()
+                }
+                return "$relPath/$fileName"
+            }
+
             val downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
             val toolerDir = File(downloadsDir, "Tooler_Recordings")
             if (!toolerDir.exists()) {
@@ -1208,7 +1371,6 @@ open class MainActivity : FlutterActivity() {
             val destFile = File(toolerDir, fileName)
             src.copyTo(destFile, overwrite = true)
 
-            // Trigger MediaScanner so it appears immediately in file managers & players
             MediaScannerConnection.scanFile(
                 applicationContext,
                 arrayOf(destFile.absolutePath),
