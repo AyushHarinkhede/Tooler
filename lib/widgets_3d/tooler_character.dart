@@ -23,7 +23,13 @@ enum ToolerCharacterPose {
   creativeDrawing('character_creative_drawing.svg', 'Creative UI Wireframe & Stylus', 'Reclining in chair drawing with digital stylus on tablet with UI wireframe board'),
   projectRoadmap('character_project_roadmap.svg', 'Project Roadmap & Gantt Schedule', 'Standing with clipboard pointing marker at project roadmap schedule board'),
   phoneMultitasking('character_phone_multitasking.svg', 'Phone Call & Contract Review', 'Speaking on smartphone while pointing at floating certified contract document'),
-  weatherClean('character_weather_clean.svg', 'Weather & Clean Air Guardian', 'Standing vector character for live weather, air quality and atmospheric ecology');
+  weatherClean('character_weather_clean.svg', 'Weather & Clean Air Guardian', 'Standing vector character for live weather, air quality and atmospheric ecology'),
+  weatherGood('character_aqi_pose1_good.svg', 'Clean Air Breathing Mascot', 'Deep breathing with open arms, fresh air trails and green leaves'),
+  weatherCough('character_aqi_pose2_cough.svg', 'Moderate Air Cough Mascot', 'Coughing with hand to mouth and drifting autumn leaves'),
+  weatherMask('character_aqi_pose3_mask.svg', 'Protective Mask Air Mascot', 'Wearing protective N95 mask in rising smog'),
+  weatherSadMask('character_aqi_pose4_sad.svg', 'Heavy Pollution Sad Mascot', 'Sad slouched posture with mask in thick particulate smog'),
+  weatherOxygen('character_aqi_pose5_oxygen.svg', 'Hazardous Air Oxygen Mascot', 'Wearing oxygen mask connected to medical cylinder tank'),
+  weatherWorst('character_aqi_pose6_worst.svg', 'Critical Toxic Weather Mascot', 'Emaciated and wrinkled with oxygen cylinder and dead tree in heavy smog');
 
   final String assetName;
   final String title;
@@ -219,6 +225,8 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
     var svg = rawSvg
         .replaceAll('var(--char-accent, #9468E8)', hexPrimary)
         .replaceAll('#9468E8', hexPrimary)
+        .replaceAll('#F43F5E', hexPrimary)
+        .replaceAll('var(--char-accent, #F43F5E)', hexPrimary)
         .replaceAll('#7E4EE0', hexPantsBack)
         .replaceAll('#EDE9FE', hexLight)
         .replaceAll('#C8B6FA', hexLight)
