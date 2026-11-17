@@ -22,7 +22,8 @@ enum ToolerCharacterPose {
   studyWriting('character_study_writing.svg', 'Study & Journaling with Desk Lamp', 'Leaning forward writing in notebook with angle task lamp and books'),
   creativeDrawing('character_creative_drawing.svg', 'Creative UI Wireframe & Stylus', 'Reclining in chair drawing with digital stylus on tablet with UI wireframe board'),
   projectRoadmap('character_project_roadmap.svg', 'Project Roadmap & Gantt Schedule', 'Standing with clipboard pointing marker at project roadmap schedule board'),
-  phoneMultitasking('character_phone_multitasking.svg', 'Phone Call & Contract Review', 'Speaking on smartphone while pointing at floating certified contract document');
+  phoneMultitasking('character_phone_multitasking.svg', 'Phone Call & Contract Review', 'Speaking on smartphone while pointing at floating certified contract document'),
+  weatherClean('character_weather_clean.svg', 'Weather & Clean Air Guardian', 'Standing vector character for live weather, air quality and atmospheric ecology');
 
   final String assetName;
   final String title;

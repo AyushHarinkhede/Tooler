@@ -243,9 +243,9 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
       case 'weather':
       case 'mausam':
         return _PopupToolMeta(
-          title: 'Weather & Atmosphere',
+          title: 'Weather',
           subtitle: 'Live Weather, 14-Day Trend & AQI Mascot',
-          tag: 'Atmosphere',
+          tag: 'Weather',
           child: WeatherScreen(theme: t),
         );
       default:

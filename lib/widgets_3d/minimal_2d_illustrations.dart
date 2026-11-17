@@ -1238,28 +1238,38 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawWeather(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // Sun peaking behind cloud with warm accent
-    final sunCenter = Offset(w * 0.64, h * 0.34);
-    canvas.drawCircle(sunCenter, w * 0.14, fill);
-    canvas.drawCircle(sunCenter, w * 0.14, p);
+    // 1. Radiant Glowing Golden Sun Orb with Corona Rays (Upper right)
+    final sunCenter = Offset(w * 0.64, h * 0.32);
+    final sunRadius = w * 0.14;
 
-    // Sun rays
-    for (int i = 0; i < 4; i++) {
-      final angle = -math.pi * 0.25 + (i * math.pi * 0.3);
-      final p1 = Offset(sunCenter.dx + math.cos(angle) * (w * 0.18), sunCenter.dy + math.sin(angle) * (w * 0.18));
-      final p2 = Offset(sunCenter.dx + math.cos(angle) * (w * 0.25), sunCenter.dy + math.sin(angle) * (w * 0.25));
-      canvas.drawLine(p1, p2, p);
+    // Sun orb body
+    canvas.drawCircle(sunCenter, sunRadius, fill);
+    canvas.drawCircle(sunCenter, sunRadius, p);
+
+    // 5 dynamic radial sunbeams radiating outward
+    for (int i = 0; i < 5; i++) {
+      final angle = -math.pi * 0.36 + (i * (math.pi * 0.68 / 4));
+      final p1 = Offset(
+        sunCenter.dx + math.cos(angle) * (w * 0.18),
+        sunCenter.dy + math.sin(angle) * (w * 0.18),
+      );
+      final p2 = Offset(
+        sunCenter.dx + math.cos(angle) * (w * 0.26),
+        sunCenter.dy + math.sin(angle) * (w * 0.26),
+      );
+      canvas.drawLine(p1, p2, p..strokeWidth = 1.4);
     }
+    p.strokeWidth = 1.7;
 
-    // Modern flat cloud
+    // 2. Modern Volumetric Meteorological Cloud
     final cloud = Path();
-    cloud.moveTo(w * 0.28, h * 0.68);
-    cloud.lineTo(w * 0.68, h * 0.68);
-    cloud.arcToPoint(Offset(w * 0.76, h * 0.58), radius: Radius.circular(w * 0.1));
-    cloud.arcToPoint(Offset(w * 0.62, h * 0.44), radius: Radius.circular(w * 0.15));
-    cloud.arcToPoint(Offset(w * 0.38, h * 0.46), radius: Radius.circular(w * 0.16));
-    cloud.arcToPoint(Offset(w * 0.24, h * 0.58), radius: Radius.circular(w * 0.12));
-    cloud.arcToPoint(Offset(w * 0.28, h * 0.68), radius: Radius.circular(w * 0.1));
+    cloud.moveTo(w * 0.22, h * 0.65);
+    cloud.lineTo(w * 0.74, h * 0.65);
+    cloud.arcToPoint(Offset(w * 0.82, h * 0.53), radius: Radius.circular(w * 0.12));
+    cloud.arcToPoint(Offset(w * 0.66, h * 0.38), radius: Radius.circular(w * 0.15));
+    cloud.arcToPoint(Offset(w * 0.38, h * 0.40), radius: Radius.circular(w * 0.17));
+    cloud.arcToPoint(Offset(w * 0.18, h * 0.53), radius: Radius.circular(w * 0.13));
+    cloud.arcToPoint(Offset(w * 0.22, h * 0.65), radius: Radius.circular(w * 0.10));
     cloud.close();
 
     final bgFill = Paint()
@@ -1268,10 +1278,39 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawPath(cloud, bgFill);
     canvas.drawPath(cloud, p);
 
-    // Rain drop lines
-    canvas.drawLine(Offset(w * 0.38, h * 0.74), Offset(w * 0.34, h * 0.84), p);
-    canvas.drawLine(Offset(w * 0.52, h * 0.74), Offset(w * 0.48, h * 0.84), p);
-    canvas.drawLine(Offset(w * 0.66, h * 0.74), Offset(w * 0.62, h * 0.84), p);
+    // 3. Dynamic Weather Dual Elements: Stylized Electric Bolt + Cyan Droplet
+    // Golden lightning bolt
+    final bolt = Path()
+      ..moveTo(w * 0.45, h * 0.59)
+      ..lineTo(w * 0.37, h * 0.73)
+      ..lineTo(w * 0.45, h * 0.73)
+      ..lineTo(w * 0.35, h * 0.89);
+    canvas.drawPath(
+      bolt,
+      Paint()
+        ..color = const Color(0xFFF59E0B)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.miter,
+    );
+
+    // Teardrop Raindrop in vibrant sky cyan
+    final dropCenter = Offset(w * 0.62, h * 0.77);
+    final drop = Path()
+      ..moveTo(dropCenter.dx, dropCenter.dy - (w * 0.08))
+      ..quadraticBezierTo(dropCenter.dx + (w * 0.05), dropCenter.dy - (w * 0.01), dropCenter.dx + (w * 0.04), dropCenter.dy + (w * 0.04))
+      ..arcToPoint(Offset(dropCenter.dx - (w * 0.04), dropCenter.dy + (w * 0.04)), radius: Radius.circular(w * 0.04))
+      ..quadraticBezierTo(dropCenter.dx - (w * 0.05), dropCenter.dy - (w * 0.01), dropCenter.dx, dropCenter.dy - (w * 0.08))
+      ..close();
+    canvas.drawPath(drop, Paint()..color = const Color(0xFF38BDF8));
+    canvas.drawPath(
+      drop,
+      Paint()
+        ..color = strokeColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {

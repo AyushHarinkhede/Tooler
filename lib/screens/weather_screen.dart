@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
+import '../widgets_3d/minimal_2d_illustrations.dart';
 import '../services/sound_service.dart';
 import '../services/weather_telemetry_service.dart';
 
@@ -387,137 +389,226 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           ),
           const SizedBox(width: 12),
 
-          // Title
+          // Weather Icon & Title
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Text(
-                      'Weather & Atmosphere',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: theme.text,
+                Minimal2DIcon(
+                  type: 'weather',
+                  size: 34,
+                  bubbleColor: theme.lavenderBubble,
+                  accentColor: theme.primary,
+                  isDark: isDark,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Weather',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: theme.text,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: theme.primary.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'LIVE',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                color: theme.primary,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                      decoration: BoxDecoration(
-                        color: theme.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'LIVE',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
-                          fontWeight: FontWeight.w900,
-                          color: theme.primary,
-                          letterSpacing: 0.5,
+                      Text(
+                        'Live Forecast & Air Quality',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                          color: theme.textSecondary,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'Mausam, Air Quality & Lunar Trajectory',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: theme.textSecondary,
+                    ],
                   ),
                 ),
               ],
             ),
           ),
 
-          // °C / °F Unit Toggle
-          InkWell(
-            onTap: () {
-              SoundService().playClick();
-              HapticFeedback.selectionClick();
-              setState(() => _useFahrenheit = !_useFahrenheit);
-            },
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+          // Single Clean Three-Dot Menu Button (Contains °C/°F Toggle, Refresh & Weather Simulator)
+          PopupMenuButton<String>(
+            icon: Container(
+              padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
                 color: isDark ? const Color(0xFF2A2A30) : theme.lavenderBubble,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(color: theme.border, width: 1.2),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _useFahrenheit ? '°F' : '°C',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
+              child: Icon(Icons.more_vert_rounded, size: 18, color: theme.text),
+            ),
+            tooltip: 'Weather Options',
+            color: isDark ? const Color(0xFF1E1E22) : Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+              side: BorderSide(color: theme.border, width: 1.2),
+            ),
+            elevation: 8,
+            onSelected: (value) {
+              if (value == 'unit') {
+                SoundService().playClick();
+                HapticFeedback.selectionClick();
+                setState(() => _useFahrenheit = !_useFahrenheit);
+              } else if (value == 'refresh') {
+                SoundService().playTap();
+                HapticFeedback.lightImpact();
+                _telemetry.fetchTelemetry();
+              } else if (value == 'simulator') {
+                SoundService().playSpecialClick();
+                _showSimulationSheet(theme, isDark);
+              } else if (value == 'reset') {
+                SoundService().playTap();
+                setState(() {
+                  _simMode = WeatherSimMode.live;
+                  _simAqiOverride = null;
+                });
+              }
+            },
+            itemBuilder: (context) => [
+              // 1. Temperature Unit Toggle (°C / °F)
+              PopupMenuItem<String>(
+                value: 'unit',
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.thermostat_rounded,
+                      size: 18,
                       color: theme.primary,
                     ),
-                  ),
-                  const SizedBox(width: 3),
-                  Icon(Icons.swap_vert_rounded, size: 14, color: theme.textSecondary),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
-
-          // Simulation & Disasters Explorer Menu
-          InkWell(
-            onTap: () {
-              SoundService().playSpecialClick();
-              _showSimulationSheet(theme, isDark);
-            },
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: _simMode != WeatherSimMode.live
-                    ? const Color(0xFFF59E0B).withValues(alpha: 0.2)
-                    : (isDark ? const Color(0xFF2A2A30) : theme.lavenderBubble),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _simMode != WeatherSimMode.live ? const Color(0xFFF59E0B) : theme.border,
-                  width: 1.2,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _useFahrenheit ? 'Switch to °Celsius' : 'Switch to °Fahrenheit',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: theme.text,
+                        ),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: theme.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        _useFahrenheit ? '°F' : '°C',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: theme.primary,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              child: Icon(
-                Icons.auto_awesome_rounded,
-                size: 16,
-                color: _simMode != WeatherSimMode.live ? const Color(0xFFF59E0B) : theme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 6),
+              const PopupMenuDivider(height: 1),
 
-          // Refresh Button
-          InkWell(
-            onTap: () {
-              SoundService().playTap();
-              _telemetry.fetchTelemetry();
-            },
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF2A2A30) : theme.lavenderBubble,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: theme.border, width: 1.2),
+              // 2. Refresh Weather
+              PopupMenuItem<String>(
+                value: 'refresh',
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.refresh_rounded,
+                      size: 18,
+                      color: Color(0xFF0284C7),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Refresh Weather',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: theme.text,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              child: _telemetry.isFetching
-                  ? SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: theme.primary),
-                    )
-                  : Icon(Icons.refresh_rounded, size: 16, color: theme.text),
-            ),
+              const PopupMenuDivider(height: 1),
+
+              // 3. Weather Simulator
+              PopupMenuItem<String>(
+                value: 'simulator',
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.tune_rounded,
+                      size: 18,
+                      color: Color(0xFFF59E0B),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Weather Simulator',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: theme.text,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // 4. Reset Option (Visible when simulator mode or AQI override is active)
+              if (_simMode != WeatherSimMode.live || _simAqiOverride != null) ...[
+                const PopupMenuDivider(height: 1),
+                PopupMenuItem<String>(
+                  value: 'reset',
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.restore_rounded,
+                        size: 18,
+                        color: Color(0xFF10B981),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Reset to Live Weather',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF10B981),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
         ],
       ),
@@ -819,29 +910,44 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     // 51-100: Moderate, concerned, mild cough
     // 101-200: Poor, coughing, protective N95 mask
     // > 200: Hazardous, sad, medical oxygen mask + oxygen cylinder
+        // Progressive 6-Stage Character AQI Logic:
+    // 1. CleanAirBreathe:         <= 50   (Khul ke saans, fresh air breeze, green leaves)
+    // 2. MildCoughAutumn:         51-100  (Coughing spasm, hand to mouth, autumn red/amber leaves)
+    // 3. UnhealthyMask:           101-150 (Protective N95 mask, wilting brown leaves)
+    // 4. VeryUnhealthySadMask:    151-200 (Visibly sad slumped mask pose, eye-bags, soot motes)
+    // 5. HazardousOxygenCylinder: 201-300 (Medical oxygen mask + oxygen tank & coiled tube, toxic yellow smog)
+    // 6. SevereToxicWrinkled:     > 300   (Deep facial wrinkles, emaciated gaunt, tremor, cylinder in red zone)
     final _AqiCharacterMood mood;
     final String advice;
     final String healthImpact;
 
     if (aqi <= 50) {
-      mood = _AqiCharacterMood.happyClean;
-      advice = 'Ideal air quality! Perfect time for outdoor walks, jogs, and opening windows.';
+      mood = _AqiCharacterMood.cleanAirBreathe;
+      advice = 'Ideal air quality! Perfect time for outdoor walks, jogs, and deep breathing.';
       healthImpact = 'Clean Air • No health precautions required.';
     } else if (aqi <= 100) {
-      mood = _AqiCharacterMood.moderateCough;
-      advice = 'Acceptable air quality. Unusually sensitive people should limit prolonged outdoor exertion.';
-      healthImpact = 'Moderate • Minor respiratory sensitivity possible.';
-    } else if (aqi <= 200) {
+      mood = _AqiCharacterMood.mildCoughAutumn;
+      advice = 'Acceptable air quality. Sensitive individuals may feel throat tickles or mild coughs.';
+      healthImpact = 'Moderate • Minor respiratory sensitivity & cough.';
+    } else if (aqi <= 150) {
       mood = _AqiCharacterMood.unhealthyMask;
-      advice = 'Air is unhealthy! Wear an N95 mask outdoors, keep windows shut, and use indoor air purifiers.';
-      healthImpact = 'Unhealthy • Coughing, eye irritation, breathing fatigue.';
+      advice = 'Unhealthy for sensitive groups! Wear a protective N95 mask when outdoors.';
+      healthImpact = 'Unhealthy (Mild) • N95 mask recommended outdoors.';
+    } else if (aqi <= 200) {
+      mood = _AqiCharacterMood.veryUnhealthySadMask;
+      advice = 'Unhealthy air quality! High particulate fatigue. Keep mask strapped and windows shut.';
+      healthImpact = 'Unhealthy • High dust fatigue, wear mask & rest.';
+    } else if (aqi <= 300) {
+      mood = _AqiCharacterMood.hazardousOxygenCylinder;
+      advice = 'Very Unhealthy & Hazardous! Dangerous pollution levels. Stay indoors with oxygen purifier support.';
+      healthImpact = 'Hazardous • Heavy smog, oxygen tank support required.';
     } else {
-      mood = _AqiCharacterMood.hazardousOxygen;
-      advice = 'Hazardous toxic smog! Avoid all outdoor exposure. Seal room, turn on HEPA purifier & seek medical air if breathing is compromised.';
-      healthImpact = 'Hazardous • Severe risk for lungs, heart and oxygen saturation.';
+      mood = _AqiCharacterMood.severeToxicWrinkled;
+      advice = 'Severe Toxic Emergency! Critical air toxicity causing intense physical strain. Keep cylinder running & seal premises.';
+      healthImpact = 'Severe Toxic • Critical hazard, extreme fatigue & exhaustion.';
     }
 
-    return Container(
+return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E22) : Colors.white,
@@ -914,21 +1020,17 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Dedicated Reactive Tooler Character (Custom SVG Vector)
+              // Dedicated Authentic Tooler Vector Character (No board, Scenario Reactive)
               AnimatedBuilder(
                 animation: _coughController,
                 builder: (context, _) {
-                  return SizedBox(
-                    width: 110,
-                    height: 120,
-                    child: CustomPaint(
-                      painter: _AqiReactiveCharacterPainter(
-                        mood: mood,
-                        theme: theme,
-                        animValue: _coughController.value,
-                        isDark: isDark,
-                      ),
-                    ),
+                  return _AqiToolerCharacter(
+                    mood: mood,
+                    theme: theme,
+                    isDark: isDark,
+                    animValue: _coughController.value,
+                    width: 118,
+                    height: 130,
                   );
                 },
               ),
@@ -1001,11 +1103,13 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
             child: Row(
               children: [
                 Icon(
-                  mood == _AqiCharacterMood.happyClean
+                  mood == _AqiCharacterMood.cleanAirBreathe
                       ? Icons.check_circle_rounded
-                      : (mood == _AqiCharacterMood.moderateCough
-                          ? Icons.info_outline_rounded
-                          : Icons.masks_rounded),
+                      : (mood == _AqiCharacterMood.mildCoughAutumn
+                          ? Icons.sentiment_neutral_rounded
+                          : (mood == _AqiCharacterMood.unhealthyMask || mood == _AqiCharacterMood.veryUnhealthySadMask
+                              ? Icons.masks_rounded
+                              : Icons.medical_services_rounded)),
                   size: 16,
                   color: weather.aqiColor,
                 ),
@@ -1024,117 +1128,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
               ],
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Quick Interactive AQI & Mascot Mood Test Strip
-          Row(
-            children: [
-              Text(
-                'Test Mood:',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w800,
-                  color: theme.textSecondary,
-                ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  physics: const BouncingScrollPhysics(),
-                  child: Row(
-                    children: [
-                      _buildAqiQuickButton('😊 Fresh (35)', 35, const Color(0xFF10B981), theme, isDark),
-                      _buildAqiQuickButton('😷 Cough (85)', 85, const Color(0xFFF59E0B), theme, isDark),
-                      _buildAqiQuickButton('🛡️ Mask (160)', 160, const Color(0xFFEF4444), theme, isDark),
-                      _buildAqiQuickButton('🫁 Oxygen (320)', 320, const Color(0xFF881337), theme, isDark),
-                      if (_simAqiOverride != null)
-                        _buildAqiResetButton(theme, isDark),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAqiQuickButton(
-    String label,
-    int aqiVal,
-    Color color,
-    StationeryTheme theme,
-    bool isDark,
-  ) {
-    final isSelected = (_simAqiOverride ?? _telemetry.data.aqi) == aqiVal;
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: InkWell(
-        onTap: () {
-          SoundService().playTap();
-          HapticFeedback.selectionClick();
-          setState(() => _simAqiOverride = aqiVal);
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? color.withValues(alpha: 0.18)
-                : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5)),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? color : theme.border.withValues(alpha: 0.4),
-              width: isSelected ? 1.4 : 1,
-            ),
-          ),
-          child: Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 9.5,
-              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
-              color: isSelected ? color : theme.text,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAqiResetButton(StationeryTheme theme, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 6),
-      child: InkWell(
-        onTap: () {
-          SoundService().playTap();
-          setState(() => _simAqiOverride = null);
-        },
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
-          decoration: BoxDecoration(
-            color: theme.primary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: theme.primary, width: 1),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.refresh_rounded, size: 10, color: theme.primary),
-              const SizedBox(width: 3),
-              Text(
-                'Live GPS',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9.5,
-                  fontWeight: FontWeight.w800,
-                  color: theme.primary,
-                ),
-              ),
-            ],
-          ),
-        ),
+                  ],
       ),
     );
   }
@@ -1792,7 +1786,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Weather & Disaster Simulator',
+                        'Weather Simulator',
                         style: GoogleFonts.plusJakartaSans(
                           fontSize: 17,
                           fontWeight: FontWeight.w800,
@@ -2631,347 +2625,1318 @@ class _VectorMoonPhasePainter extends CustomPainter {
 }
 
 // ---------------------------------------------------------------------------
-// AQI REACTIVE CHARACTER PAINTER (Custom 2D Vector Tooler Mascot)
-// - Happy/Fresh Air (AQI <= 50)
-// - Coughing/Moderate (AQI 51-100)
-// - Protective N95 Mask (AQI 101-200)
-// - Oxygen Mask + Oxygen Cylinder (AQI > 200)
+// AQI REACTIVE 6-STAGE CHARACTER SYSTEM (Authentic Tooler Vector Mascot)
+// 1. cleanAirBreathe:         AQI <= 50  (Khul ke saans, chest expansion, fresh air breeze, green leaves)
+// 2. mildCoughAutumn:         AQI 51-100 (Coughing spasm, hand to mouth, autumn red/amber leaves drifting)
+// 3. unhealthyMask:           AQI 101-150 (Protective N95 mask, wilting brown leaves)
+// 4. veryUnhealthySadMask:    AQI 151-200 (Visibly sad mask pose, drooping eye-bags, soot motes)
+// 5. hazardousOxygenCylinder: AQI 201-300 (Medical oxygen mask + oxygen tank & coiled tube, yellow smog)
+// 6. severeToxicWrinkled:     AQI > 300  (Deep facial wrinkles, emaciated gaunt, tremor, cylinder in red zone)
 // ---------------------------------------------------------------------------
 enum _AqiCharacterMood {
-  happyClean,
-  moderateCough,
+  cleanAirBreathe,
+  mildCoughAutumn,
   unhealthyMask,
-  hazardousOxygen,
+  veryUnhealthySadMask,
+  hazardousOxygenCylinder,
+  severeToxicWrinkled,
 }
 
-class _AqiReactiveCharacterPainter extends CustomPainter {
+class _AqiToolerCharacter extends StatefulWidget {
   final _AqiCharacterMood mood;
   final StationeryTheme theme;
-  final double animValue; // 0.0 to 1.0 bobbing
   final bool isDark;
+  final double animValue; // 0.0 to 1.0 from _coughController
+  final double width;
+  final double height;
 
-  _AqiReactiveCharacterPainter({
+  const _AqiToolerCharacter({
     required this.mood,
     required this.theme,
-    required this.animValue,
     required this.isDark,
+    required this.animValue,
+    this.width = 118,
+    this.height = 130,
+  });
+
+  @override
+  State<_AqiToolerCharacter> createState() => _AqiToolerCharacterState();
+}
+
+class _AqiToolerCharacterState extends State<_AqiToolerCharacter> {
+  static String? _rawCleanSvg;
+  static final Map<String, String> _themedCache = {};
+  String? _themedSvg;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSvg();
+  }
+
+  @override
+  void didUpdateWidget(covariant _AqiToolerCharacter oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.theme.mode != widget.theme.mode ||
+        oldWidget.theme.isDark != widget.theme.isDark ||
+        oldWidget.theme.primary != widget.theme.primary) {
+      _loadSvg();
+    }
+  }
+
+  Future<void> _loadSvg() async {
+    final cacheKey = '${widget.theme.mode}_${widget.theme.isDark}_${widget.theme.primary.toARGB32()}';
+    if (_themedCache.containsKey(cacheKey)) {
+      if (mounted) {
+        setState(() {
+          _themedSvg = _themedCache[cacheKey];
+        });
+      }
+      return;
+    }
+
+    if (_rawCleanSvg == null) {
+      try {
+        _rawCleanSvg = await rootBundle.loadString('assets/illustrations/character_weather_clean.svg');
+      } catch (e) {
+        return;
+      }
+    }
+
+    if (_rawCleanSvg != null) {
+      final hexPrimary = '#${(widget.theme.primary.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+      final hexLight = '#${(widget.theme.primary.withValues(alpha: 0.22).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+      final hexPantsBack = '#${(widget.theme.primary.withValues(alpha: 0.78).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
+
+      final processed = _rawCleanSvg!
+          .replaceAll('var(--char-accent, #9468E8)', hexPrimary)
+          .replaceAll('#9468E8', hexPrimary)
+          .replaceAll('#7E4EE0', hexPantsBack)
+          .replaceAll('#EDE9FE', hexLight)
+          .replaceAll('#C8B6FA', hexLight)
+          .replaceAll('#DDD6FE', hexLight);
+
+      _themedCache[cacheKey] = processed;
+      if (mounted) {
+        setState(() {
+          _themedSvg = processed;
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final w = widget.width;
+    final h = widget.height;
+
+    // Movement & posture variations according to 6 AQI mood stages:
+    Offset charOffset = Offset.zero;
+    double charAngle = 0.0;
+    double scaleX = 1.0;
+    double scaleY = 1.0;
+
+    switch (widget.mood) {
+      case _AqiCharacterMood.cleanAirBreathe:
+        // Deep relaxing rhythmic breathing: chest expands up and widens gently
+        final breath = math.sin(widget.animValue * math.pi * 2);
+        charOffset = Offset(0, -breath * 2.8);
+        scaleY = 1.0 + (breath * 0.026);
+        scaleX = 1.0 + (breath * 0.016);
+        break;
+
+      case _AqiCharacterMood.mildCoughAutumn:
+        // Cough spasm: rapid forward jolt and vibration
+        final jolt = math.sin(widget.animValue * math.pi * 6);
+        final isCoughPhase = widget.animValue > 0.15 && widget.animValue < 0.75;
+        if (isCoughPhase) {
+          charOffset = Offset(-jolt * 2.5, (jolt.abs()) * 2.0);
+          charAngle = -jolt * 0.026;
+        } else {
+          charOffset = Offset(0, math.sin(widget.animValue * math.pi * 2) * 0.8);
+        }
+        break;
+
+      case _AqiCharacterMood.unhealthyMask:
+        // Restricted breathing through mask
+        final breath = math.sin(widget.animValue * math.pi * 2);
+        charOffset = Offset(0, breath * 1.2);
+        break;
+
+      case _AqiCharacterMood.veryUnhealthySadMask:
+        // Sad drooping posture: slouched forward, drooping down
+        final breath = math.sin(widget.animValue * math.pi * 2);
+        charOffset = Offset(0, 2.2 + (breath * 0.8));
+        charAngle = -0.028; // sad posture slouch
+        scaleY = 0.985;
+        break;
+
+      case _AqiCharacterMood.hazardousOxygenCylinder:
+        // Heavy burdened breathing with medical oxygen support
+        final breath = math.sin(widget.animValue * math.pi * 2);
+        charOffset = Offset(0, 1.2 + (breath * 1.0));
+        scaleX = 0.98;
+        break;
+
+      case _AqiCharacterMood.severeToxicWrinkled:
+        // Severe toxic condition: "bahut zyada sukha hai aur bahut uski halat kharab hai"
+        // Emaciated / gaunt silhouette (scaleX: 0.90, scaleY: 0.97) + continuous shivering tremors
+        final tremor = math.sin(widget.animValue * math.pi * 12) * 1.1;
+        charOffset = Offset(tremor * 0.8, 3.2 + (tremor.abs() * 0.5));
+        charAngle = -0.042; // extreme exhausted slouch
+        scaleX = 0.90;
+        scaleY = 0.97;
+        break;
+    }
+
+    return SizedBox(
+      width: w,
+      height: h,
+      child: Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          // 1. Soft Ground Shadow underneath character feet
+          Positioned(
+            bottom: 3,
+            right: w * 0.10,
+            child: Container(
+              width: w * 0.58,
+              height: 6,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: (widget.isDark ? Colors.black : Colors.black26).withValues(alpha: 0.28),
+                    blurRadius: 8,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          // 2. Pure Authentic Tooler Vector Character (No board, themed)
+          if (_themedSvg != null)
+            Transform.translate(
+              offset: charOffset,
+              child: Transform.rotate(
+                angle: charAngle,
+                alignment: Alignment.bottomCenter,
+                child: Transform.scale(
+                  scaleX: scaleX,
+                  scaleY: scaleY,
+                  alignment: Alignment.bottomCenter,
+                  child: SvgPicture.string(
+                    _themedSvg!,
+                    width: w,
+                    height: h,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+
+          // 3. Scenario Overlays (Coughing puffs, Masks, Oxygen cylinder, O2 tube, smile, leaves, wrinkles)
+          Positioned.fill(
+            child: CustomPaint(
+              painter: _AqiScenarioOverlayPainter(
+                mood: widget.mood,
+                theme: widget.theme,
+                isDark: widget.isDark,
+                animValue: widget.animValue,
+                charOffset: charOffset,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AqiScenarioOverlayPainter extends CustomPainter {
+  final _AqiCharacterMood mood;
+  final StationeryTheme theme;
+  final bool isDark;
+  final double animValue;
+  final Offset charOffset;
+
+  _AqiScenarioOverlayPainter({
+    required this.mood,
+    required this.theme,
+    required this.isDark,
+    required this.animValue,
+    required this.charOffset,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
+    final scale = size.height / 827.0;
+    final renderedW = 510.0 * scale;
+    final dx0 = (size.width - renderedW) / 2.0;
 
-    // Bobbing offset for living animation
-    final bob = animValue * 3.0;
-
+    // Line / stroke styling
     final linePaint = Paint()
       ..color = isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
+      ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    final skinPaint = Paint()
-      ..color = const Color(0xFFFFDBAC)
-      ..style = PaintingStyle.fill;
-
-    final shirtPaint = Paint()
-      ..color = theme.primary
-      ..style = PaintingStyle.fill;
-
-    final hairPaint = Paint()
-      ..color = const Color(0xFF3F3F46)
-      ..style = PaintingStyle.fill;
-
-    // 1. OXYGEN CYLINDER TANK (Only in Hazardous mood)
-    if (mood == _AqiCharacterMood.hazardousOxygen) {
-      _drawOxygenCylinder(canvas, w, h, linePaint);
-    }
-
-    // 2. CHARACTER BODY / TORSO
-    final bodyRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.28, h * 0.44 - bob, w * 0.44, h * 0.42),
-      const Radius.circular(16),
+    // Landmark coordinates based on authentic character SVG viewBox
+    final faceCenter = Offset(
+      dx0 + (795.0 - 566.0) * scale + charOffset.dx,
+      (210.0 - 111.0) * scale + charOffset.dy,
     );
-    canvas.drawRRect(bodyRect, shirtPaint);
-    canvas.drawRRect(bodyRect, linePaint);
 
-    // 3. HEAD & NECK
-    final neck = Rect.fromLTWH(w * 0.43, h * 0.38 - bob, w * 0.14, h * 0.10);
-    canvas.drawRect(neck, skinPaint);
-    canvas.drawRect(neck, linePaint);
+    final mouthCenter = Offset(
+      dx0 + (805.0 - 566.0) * scale + charOffset.dx,
+      (243.0 - 111.0) * scale + charOffset.dy,
+    );
 
-    final headCenter = Offset(w * 0.50, h * 0.28 - bob);
-    final headRadius = w * 0.18;
-    canvas.drawCircle(headCenter, headRadius, skinPaint);
-    canvas.drawCircle(headCenter, headRadius, linePaint);
+    final groundY = (920.0 - 111.0) * scale;
 
-    // 4. HAIR CAP
-    final hair = Path();
-    hair.addArc(Rect.fromCircle(center: headCenter, radius: headRadius), -math.pi, math.pi);
-    hair.lineTo(headCenter.dx + headRadius, headCenter.dy - (headRadius * 0.2));
-    hair.quadraticBezierTo(headCenter.dx, headCenter.dy - (headRadius * 0.5), headCenter.dx - headRadius, headCenter.dy - (headRadius * 0.2));
-    hair.close();
-    canvas.drawPath(hair, hairPaint);
-    canvas.drawPath(hair, linePaint);
-
-    // 5. EYES & EXPRESSION
-    _drawEyesAndMouth(canvas, headCenter, headRadius, linePaint, skinPaint);
-
-    // 6. ARMS & ACCESSORIES (Mask, Cough cloud, Oxygen tube)
-    _drawAccessories(canvas, w, h, bob, headCenter, headRadius, linePaint);
-  }
-
-  void _drawEyesAndMouth(
-    Canvas canvas,
-    Offset headCenter,
-    double r,
-    Paint linePaint,
-    Paint skinPaint,
-  ) {
-    final eyeY = headCenter.dy + (r * 0.05);
-
-    if (mood == _AqiCharacterMood.happyClean) {
-      // Cheerful curved smiling eyes ^ ^
-      final eye1 = Path()
-        ..moveTo(headCenter.dx - 10, eyeY)
-        ..quadraticBezierTo(headCenter.dx - 6, eyeY - 4, headCenter.dx - 2, eyeY);
-      final eye2 = Path()
-        ..moveTo(headCenter.dx + 2, eyeY)
-        ..quadraticBezierTo(headCenter.dx + 6, eyeY - 4, headCenter.dx + 10, eyeY);
-      canvas.drawPath(eye1, linePaint);
-      canvas.drawPath(eye2, linePaint);
-
-      // Rosy blushing cheeks
-      final blush = Paint()..color = const Color(0xFFF43F5E).withValues(alpha: 0.4);
-      canvas.drawCircle(Offset(headCenter.dx - 8, eyeY + 6), 3.0, blush);
-      canvas.drawCircle(Offset(headCenter.dx + 8, eyeY + 6), 3.0, blush);
-
-      // Wide happy smile
-      final smile = Path()
-        ..moveTo(headCenter.dx - 6, eyeY + 7)
-        ..quadraticBezierTo(headCenter.dx, eyeY + 13, headCenter.dx + 6, eyeY + 7);
-      canvas.drawPath(smile, linePaint);
-    } else if (mood == _AqiCharacterMood.moderateCough) {
-      // Concerned squinting eyes > <
-      final eye1 = Path()
-        ..moveTo(headCenter.dx - 10, eyeY - 2)
-        ..lineTo(headCenter.dx - 6, eyeY)
-        ..lineTo(headCenter.dx - 10, eyeY + 2);
-      final eye2 = Path()
-        ..moveTo(headCenter.dx + 10, eyeY - 2)
-        ..lineTo(headCenter.dx + 6, eyeY)
-        ..lineTo(headCenter.dx + 10, eyeY + 2);
-      canvas.drawPath(eye1, linePaint);
-      canvas.drawPath(eye2, linePaint);
-
-      // Coughing open mouth "O"
-      final mouth = Rect.fromCircle(center: Offset(headCenter.dx, eyeY + 8), radius: 3.5);
-      canvas.drawOval(mouth, Paint()..color = const Color(0xFF7F1D1D));
-      canvas.drawOval(mouth, linePaint);
-    } else if (mood == _AqiCharacterMood.unhealthyMask) {
-      // Slanted worried eyebrows and dots for eyes
-      canvas.drawLine(
-        Offset(headCenter.dx - 10, eyeY - 5),
-        Offset(headCenter.dx - 3, eyeY - 2),
+    // -------------------------------------------------------------------------
+    // 1. OXYGEN CYLINDER TANK (For Stages 5 & 6)
+    // -------------------------------------------------------------------------
+    if (mood == _AqiCharacterMood.hazardousOxygenCylinder ||
+        mood == _AqiCharacterMood.severeToxicWrinkled) {
+      _drawOxygenCylinderAndTube(
+        canvas,
+        size,
+        scale,
+        dx0,
+        groundY,
+        mouthCenter,
         linePaint,
+        isCritical: mood == _AqiCharacterMood.severeToxicWrinkled,
       );
-      canvas.drawLine(
-        Offset(headCenter.dx + 10, eyeY - 5),
-        Offset(headCenter.dx + 3, eyeY - 2),
-        linePaint,
-      );
-      canvas.drawCircle(Offset(headCenter.dx - 6, eyeY), 1.6, linePaint..style = PaintingStyle.fill);
-      canvas.drawCircle(Offset(headCenter.dx + 6, eyeY), 1.6, linePaint);
-      linePaint.style = PaintingStyle.stroke;
+    }
 
-      // Sweating drop on temple
-      final sweat = Path()
-        ..moveTo(headCenter.dx + 12, eyeY - 8)
-        ..quadraticBezierTo(headCenter.dx + 15, eyeY - 4, headCenter.dx + 12, eyeY - 2)
-        ..quadraticBezierTo(headCenter.dx + 9, eyeY - 4, headCenter.dx + 12, eyeY - 8);
-      canvas.drawPath(sweat, Paint()..color = const Color(0xFF38BDF8));
-    } else {
-      // Hazardous mood: Heavy fatigue eye bags, sad slanted eyebrows
-      canvas.drawLine(
-        Offset(headCenter.dx - 10, eyeY - 5),
-        Offset(headCenter.dx - 3, eyeY - 2),
-        linePaint,
-      );
-      canvas.drawLine(
-        Offset(headCenter.dx + 10, eyeY - 5),
-        Offset(headCenter.dx + 3, eyeY - 2),
-        linePaint,
-      );
-      canvas.drawCircle(Offset(headCenter.dx - 6, eyeY), 1.5, linePaint..style = PaintingStyle.fill);
-      canvas.drawCircle(Offset(headCenter.dx + 6, eyeY), 1.5, linePaint);
-      linePaint.style = PaintingStyle.stroke;
+    // -------------------------------------------------------------------------
+    // 2. SCENARIOS & ENVIRONMENTAL OVERLAYS (6 Distinct Progressive Stages)
+    // -------------------------------------------------------------------------
+    switch (mood) {
+      case _AqiCharacterMood.cleanAirBreathe:
+        _drawCleanAirBreathe(canvas, size, faceCenter, mouthCenter, linePaint);
+        break;
 
-      // Eye fatigue rings
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(headCenter.dx - 6, eyeY + 2), radius: 3.5),
-        0,
-        math.pi,
-        false,
-        linePaint..strokeWidth = 1.0,
-      );
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(headCenter.dx + 6, eyeY + 2), radius: 3.5),
-        0,
-        math.pi,
-        false,
-        linePaint,
-      );
-      linePaint.strokeWidth = 1.8;
+      case _AqiCharacterMood.mildCoughAutumn:
+        _drawMildCoughAutumn(canvas, size, faceCenter, mouthCenter, linePaint);
+        break;
+
+      case _AqiCharacterMood.unhealthyMask:
+        _drawUnhealthyMask(canvas, size, faceCenter, mouthCenter, linePaint);
+        break;
+
+      case _AqiCharacterMood.veryUnhealthySadMask:
+        _drawVeryUnhealthySadMask(canvas, size, faceCenter, mouthCenter, linePaint);
+        break;
+
+      case _AqiCharacterMood.hazardousOxygenCylinder:
+        _drawHazardousOxygenMask(canvas, size, faceCenter, mouthCenter, linePaint);
+        break;
+
+      case _AqiCharacterMood.severeToxicWrinkled:
+        _drawSevereToxicWrinkled(canvas, size, faceCenter, mouthCenter, linePaint);
+        break;
     }
   }
 
-  void _drawAccessories(
+  // ---------------------------------------------------------------------------
+  // STAGE 1: CLEAN AIR BREATHE (AQI <= 50)
+  // Deep breathing, blushing cheeks, smile, fresh air breeze trails & green leaves
+  // ---------------------------------------------------------------------------
+  void _drawCleanAirBreathe(
     Canvas canvas,
-    double w,
-    double h,
-    double bob,
-    Offset headCenter,
-    double r,
+    Size size,
+    Offset faceCenter,
+    Offset mouthCenter,
     Paint linePaint,
   ) {
-    if (mood == _AqiCharacterMood.happyClean) {
-      // Arms raised celebrating clean fresh air
-      final leftArm = Path()
-        ..moveTo(w * 0.32, h * 0.48 - bob)
-        ..quadraticBezierTo(w * 0.16, h * 0.38 - bob, w * 0.14, h * 0.28 - bob);
-      final rightArm = Path()
-        ..moveTo(w * 0.68, h * 0.48 - bob)
-        ..quadraticBezierTo(w * 0.84, h * 0.38 - bob, w * 0.86, h * 0.28 - bob);
-      canvas.drawPath(leftArm, linePaint);
-      canvas.drawPath(rightArm, linePaint);
+    // 1. Rosy Blushing Cheeks
+    final blush = Paint()..color = const Color(0xFFF43F5E).withValues(alpha: 0.50);
+    canvas.drawCircle(Offset(faceCenter.dx - 7.0, faceCenter.dy + 3.0), 3.0, blush);
+    canvas.drawCircle(Offset(faceCenter.dx + 7.0, faceCenter.dy + 3.0), 3.0, blush);
 
-      // Floating sparkle & green fresh leaf symbol
-      final leaf = Path()
-        ..moveTo(w * 0.12, h * 0.18 - bob)
-        ..quadraticBezierTo(w * 0.06, h * 0.12 - bob, w * 0.16, h * 0.10 - bob)
-        ..quadraticBezierTo(w * 0.18, h * 0.16 - bob, w * 0.12, h * 0.18 - bob);
-      canvas.drawPath(leaf, Paint()..color = const Color(0xFF10B981));
-      canvas.drawPath(leaf, linePaint..strokeWidth = 1.2);
-      linePaint.strokeWidth = 1.8;
-    } else if (mood == _AqiCharacterMood.moderateCough) {
-      // Hand to mouth coughing
-      final arm = Path()
-        ..moveTo(w * 0.68, h * 0.54 - bob)
-        ..quadraticBezierTo(w * 0.66, h * 0.40 - bob, headCenter.dx + 8, headCenter.dy + 8);
-      canvas.drawPath(arm, linePaint);
+    // 2. Peaceful, Joyful Inhaling Closed Eyes (^ ^)
+    final eyePaint = Paint()
+      ..color = linePaint.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round;
 
-      // Coughing puff cloud "*cough*"
-      final coughCloud = Path();
-      final cx = headCenter.dx - 18;
-      final cy = headCenter.dy + 8;
-      coughCloud.addOval(Rect.fromCircle(center: Offset(cx, cy), radius: 5.5));
-      coughCloud.addOval(Rect.fromCircle(center: Offset(cx - 6, cy - 3), radius: 4.0));
-      coughCloud.addOval(Rect.fromCircle(center: Offset(cx - 8, cy + 4), radius: 3.5));
-      canvas.drawPath(
-        coughCloud,
-        Paint()..color = (isDark ? Colors.white : const Color(0xFF71717A)).withValues(alpha: 0.5),
+    final leftEye = Path()
+      ..moveTo(faceCenter.dx - 8.5, faceCenter.dy - 1.5)
+      ..quadraticBezierTo(faceCenter.dx - 6.0, faceCenter.dy - 4.5, faceCenter.dx - 3.5, faceCenter.dy - 1.5);
+    final rightEye = Path()
+      ..moveTo(faceCenter.dx + 3.5, faceCenter.dy - 1.5)
+      ..quadraticBezierTo(faceCenter.dx + 6.0, faceCenter.dy - 4.5, faceCenter.dx + 8.5, faceCenter.dy - 1.5);
+    canvas.drawPath(leftEye, eyePaint);
+    canvas.drawPath(rightEye, eyePaint);
+
+    // 3. Wide Relaxed Smiling Mouth
+    final smile = Path()
+      ..moveTo(mouthCenter.dx - 6.0, mouthCenter.dy - 1.0)
+      ..quadraticBezierTo(mouthCenter.dx, mouthCenter.dy + 5.0, mouthCenter.dx + 6.0, mouthCenter.dy - 1.0);
+    canvas.drawPath(smile, linePaint);
+
+    // 4. Fresh Air Breeze Currents (Swirling Wind Streams)
+    final breezeWave = math.sin(animValue * math.pi * 2);
+    final breezePaint = Paint()
+      ..color = const Color(0xFF06B6D4).withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    final breeze1 = Path()
+      ..moveTo(size.width * 0.10, size.height * 0.40 + (breezeWave * 3))
+      ..quadraticBezierTo(
+        size.width * 0.35,
+        size.height * 0.28 - (breezeWave * 4),
+        size.width * 0.55,
+        size.height * 0.38 + (breezeWave * 2),
+      )
+      ..quadraticBezierTo(
+        size.width * 0.75,
+        size.height * 0.46,
+        size.width * 0.92,
+        size.height * 0.32 - (breezeWave * 3),
       );
-      canvas.drawPath(coughCloud, linePaint..strokeWidth = 1.0);
-      linePaint.strokeWidth = 1.8;
-    } else if (mood == _AqiCharacterMood.unhealthyMask) {
-      // Protective White N95 Mask over nose and mouth
-      final mask = Path()
-        ..moveTo(headCenter.dx - (r * 0.65), headCenter.dy + 2)
-        ..lineTo(headCenter.dx, headCenter.dy - 1)
-        ..lineTo(headCenter.dx + (r * 0.65), headCenter.dy + 2)
-        ..lineTo(headCenter.dx + (r * 0.55), headCenter.dy + (r * 0.85))
-        ..lineTo(headCenter.dx - (r * 0.55), headCenter.dy + (r * 0.85))
-        ..close();
+    canvas.drawPath(breeze1, breezePaint);
 
-      canvas.drawPath(mask, Paint()..color = Colors.white);
-      canvas.drawPath(mask, linePaint);
+    final breeze2 = Path()
+      ..moveTo(size.width * 0.18, size.height * 0.55 - (breezeWave * 2))
+      ..quadraticBezierTo(
+        size.width * 0.45,
+        size.height * 0.62 + (breezeWave * 3),
+        size.width * 0.82,
+        size.height * 0.52 - (breezeWave * 2),
+      );
+    canvas.drawPath(
+      breeze2,
+      Paint()
+        ..color = const Color(0xFF10B981).withValues(alpha: 0.45)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.3
+        ..strokeCap = StrokeCap.round,
+    );
 
-      // Elastic straps behind ears
-      canvas.drawLine(
-        Offset(headCenter.dx - (r * 0.65), headCenter.dy + 2),
-        Offset(headCenter.dx - r, headCenter.dy - 2),
-        linePaint..strokeWidth = 1.2,
-      );
-      canvas.drawLine(
-        Offset(headCenter.dx + (r * 0.65), headCenter.dy + 2),
-        Offset(headCenter.dx + r, headCenter.dy - 2),
-        linePaint,
-      );
-      linePaint.strokeWidth = 1.8;
-    } else if (mood == _AqiCharacterMood.hazardousOxygen) {
-      // Medical Clear Oxygen Mask strapped on face
-      final maskRect = Rect.fromLTWH(
-        headCenter.dx - 10,
-        headCenter.dy + 2,
-        20,
-        14,
-      );
-      final mask = RRect.fromRectAndRadius(maskRect, const Radius.circular(6));
-      canvas.drawRRect(mask, Paint()..color = const Color(0xFF67E8F9).withValues(alpha: 0.65));
-      canvas.drawRRect(mask, linePaint);
+    // 5. Fluttering Vibrant Green Leaves
+    final leafFloat = math.sin(animValue * math.pi * 2) * 5.0;
+    _drawVibrantLeaf(
+      canvas,
+      Offset(size.width * 0.16, size.height * 0.32 + leafFloat),
+      rotation: -0.35 + (breezeWave * 0.15),
+      color: const Color(0xFF10B981),
+      linePaint: linePaint,
+    );
+    _drawVibrantLeaf(
+      canvas,
+      Offset(size.width * 0.84, size.height * 0.24 - (leafFloat * 0.8)),
+      rotation: 0.45 - (breezeWave * 0.12),
+      color: const Color(0xFF34D399),
+      linePaint: linePaint,
+    );
+    _drawVibrantLeaf(
+      canvas,
+      Offset(size.width * 0.78, size.height * 0.65 + (leafFloat * 0.6)),
+      rotation: -0.20,
+      color: const Color(0xFF059669),
+      linePaint: linePaint,
+    );
 
-      // Connecting clear tube running down to oxygen tank
-      final tube = Path()
-        ..moveTo(headCenter.dx, headCenter.dy + 14)
-        ..quadraticBezierTo(w * 0.40, h * 0.60, w * 0.20, h * 0.68);
-      canvas.drawPath(
-        tube,
+    // 6. Emerald Sparkles
+    _drawSparkle(canvas, Offset(size.width * 0.32, size.height * 0.22 - (leafFloat * 0.5)), const Color(0xFF34D399));
+    _drawSparkle(canvas, Offset(size.width * 0.88, size.height * 0.45 + (leafFloat * 0.5)), const Color(0xFF10B981));
+  }
+
+  // ---------------------------------------------------------------------------
+  // STAGE 2: MILD COUGH & AUTUMN LEAVES (AQI 51-100)
+  // Hand to mouth, squinting cough eyes, animated cough puffs & reddish/amber leaves
+  // ---------------------------------------------------------------------------
+  void _drawMildCoughAutumn(
+    Canvas canvas,
+    Size size,
+    Offset faceCenter,
+    Offset mouthCenter,
+    Paint linePaint,
+  ) {
+    // 1. Squinting Cough Eyes (> <)
+    final eyeY = faceCenter.dy - 3.0;
+    final leftEye = Path()
+      ..moveTo(faceCenter.dx - 9, eyeY - 2.5)
+      ..lineTo(faceCenter.dx - 5, eyeY)
+      ..lineTo(faceCenter.dx - 9, eyeY + 2.5);
+    final rightEye = Path()
+      ..moveTo(faceCenter.dx + 9, eyeY - 2.5)
+      ..lineTo(faceCenter.dx + 5, eyeY)
+      ..lineTo(faceCenter.dx + 9, eyeY + 2.5);
+    canvas.drawPath(leftEye, linePaint);
+    canvas.drawPath(rightEye, linePaint);
+
+    // 2. Open Cough Mouth "O"
+    final mouthRect = Rect.fromCenter(center: mouthCenter, width: 6.5, height: 7.0);
+    canvas.drawOval(mouthRect, Paint()..color = const Color(0xFF7F1D1D));
+    canvas.drawOval(mouthRect, linePaint..strokeWidth = 1.2);
+    linePaint.strokeWidth = 1.6;
+
+    // 3. Hand Raised Towards Mouth Covering the Cough!
+    final armPath = Path()
+      ..moveTo(mouthCenter.dx + 18, mouthCenter.dy + 20)
+      ..quadraticBezierTo(mouthCenter.dx + 14, mouthCenter.dy + 7, mouthCenter.dx + 1.5, mouthCenter.dy + 2.0);
+    canvas.drawPath(
+      armPath,
+      Paint()
+        ..color = isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.6
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawCircle(
+      Offset(mouthCenter.dx + 1.5, mouthCenter.dy + 2.0),
+      3.8,
+      Paint()..color = (isDark ? const Color(0xFF27272A) : Colors.white),
+    );
+    canvas.drawCircle(
+      Offset(mouthCenter.dx + 1.5, mouthCenter.dy + 2.0),
+      3.8,
+      linePaint..strokeWidth = 1.2,
+    );
+    linePaint.strokeWidth = 1.6;
+
+    // 4. Animated Cough Puff Clouds (shooting outward to left)
+    final p = (animValue * 1.5) % 1.0;
+    final cloudColor = (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF71717A));
+
+    void drawPuff(Offset center, double radius, double alpha) {
+      if (alpha <= 0.0) return;
+      final paint = Paint()
+        ..color = cloudColor.withValues(alpha: alpha)
+        ..style = PaintingStyle.fill;
+      final border = Paint()
+        ..color = linePaint.color.withValues(alpha: alpha * 0.6)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.9;
+
+      final puff = Path()
+        ..addOval(Rect.fromCircle(center: center, radius: radius))
+        ..addOval(Rect.fromCircle(center: center + const Offset(-2.5, -2), radius: radius * 0.7))
+        ..addOval(Rect.fromCircle(center: center + const Offset(2.0, 1.5), radius: radius * 0.65));
+      canvas.drawPath(puff, paint);
+      canvas.drawPath(puff, border);
+    }
+
+    drawPuff(
+      mouthCenter + Offset(-10 - (p * 12), -2 - (p * 4)),
+      4.2 + (p * 3.5),
+      (0.85 - (p * 0.7)).clamp(0.0, 1.0),
+    );
+    drawPuff(
+      mouthCenter + Offset(-20 - (p * 16), -6 - (p * 8)),
+      6.0 + (p * 4.5),
+      (0.65 - (p * 0.6)).clamp(0.0, 0.65),
+    );
+    drawPuff(
+      mouthCenter + Offset(-32 - (p * 18), -11 - (p * 10)),
+      7.5 + (p * 5.0),
+      (0.45 - (p * 0.5)).clamp(0.0, 0.45),
+    );
+
+    // Stylish "*cough!*" bubble
+    if (animValue > 0.2 && animValue < 0.8) {
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: '*cough!*',
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 8.5,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFFF59E0B),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      final bubbleRect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(
+          mouthCenter.dx - 36,
+          mouthCenter.dy - 20,
+          textPainter.width + 8,
+          textPainter.height + 4,
+        ),
+        const Radius.circular(6),
+      );
+      canvas.drawRRect(
+        bubbleRect,
+        Paint()..color = (isDark ? const Color(0xFF1E293B) : Colors.white).withValues(alpha: 0.9),
+      );
+      canvas.drawRRect(
+        bubbleRect,
         Paint()
-          ..color = const Color(0xFF06B6D4)
+          ..color = const Color(0xFFF59E0B)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.2,
+          ..strokeWidth = 1.0,
       );
-
-      // Hand holding the oxygen cylinder
-      final arm = Path()
-        ..moveTo(w * 0.32, h * 0.52 - bob)
-        ..lineTo(w * 0.22, h * 0.65);
-      canvas.drawPath(arm, linePaint);
+      textPainter.paint(canvas, Offset(mouthCenter.dx - 32, mouthCenter.dy - 18));
     }
+
+    // 5. Autumn Reddish & Amber Dried Leaves (User: "leaves red ho gaye, sookh gaye")
+    final leafFall = (animValue * size.height * 0.4);
+    _drawAutumnLeaf(
+      canvas,
+      Offset(size.width * 0.20, (size.height * 0.25 + leafFall) % size.height),
+      rotation: 0.6 + math.sin(animValue * math.pi * 2) * 0.2,
+      color: const Color(0xFFEF4444), // Crimson dried
+      linePaint: linePaint,
+    );
+    _drawAutumnLeaf(
+      canvas,
+      Offset(size.width * 0.82, (size.height * 0.15 + leafFall * 1.2) % size.height),
+      rotation: -0.4 - math.sin(animValue * math.pi * 2) * 0.25,
+      color: const Color(0xFFF97316), // Burnt orange
+      linePaint: linePaint,
+    );
+    _drawAutumnLeaf(
+      canvas,
+      Offset(size.width * 0.14, (size.height * 0.55 + leafFall * 0.8) % size.height),
+      rotation: 0.2,
+      color: const Color(0xFFD97706), // Golden dry amber
+      linePaint: linePaint,
+    );
   }
 
-  void _drawOxygenCylinder(Canvas canvas, double w, double h, Paint linePaint) {
-    // Medical Oxygen Cylinder Tank on the left side
-    final tankRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.08, h * 0.55, w * 0.16, h * 0.38),
-      const Radius.circular(8),
+  // ---------------------------------------------------------------------------
+  // STAGE 3: UNHEALTHY PROTECTIVE MASK (AQI 101-150)
+  // N95 face mask, concerned eyebrows, wilting brown leaves, slight dust
+  // ---------------------------------------------------------------------------
+  void _drawUnhealthyMask(
+    Canvas canvas,
+    Size size,
+    Offset faceCenter,
+    Offset mouthCenter,
+    Paint linePaint,
+  ) {
+    // 1. Concerned slanted eyebrows
+    canvas.drawLine(
+      Offset(faceCenter.dx - 10, faceCenter.dy - 5.5),
+      Offset(faceCenter.dx - 3, faceCenter.dy - 2.5),
+      linePaint,
     );
-    // Metallic medical green tank body
+    canvas.drawLine(
+      Offset(faceCenter.dx + 10, faceCenter.dy - 5.5),
+      Offset(faceCenter.dx + 3, faceCenter.dy - 2.5),
+      linePaint,
+    );
+
+    // 2. Protective N95 Face Mask
+    _drawN95MaskShape(canvas, mouthCenter, faceCenter, linePaint);
+
+    // 3. Mild sweat droplet on temple
+    final sw = Path()
+      ..moveTo(faceCenter.dx + 11.5, faceCenter.dy - 7.0)
+      ..quadraticBezierTo(faceCenter.dx + 13.5, faceCenter.dy - 3.5, faceCenter.dx + 11.5, faceCenter.dy - 2.0)
+      ..quadraticBezierTo(faceCenter.dx + 9.5, faceCenter.dy - 3.5, faceCenter.dx + 11.5, faceCenter.dy - 7.0);
+    canvas.drawPath(sw, Paint()..color = const Color(0xFF38BDF8));
+
+    // 4. Wilting Dried Brown Leaves falling down
+    final leafFall = (animValue * size.height * 0.35);
+    _drawAutumnLeaf(
+      canvas,
+      Offset(size.width * 0.18, (size.height * 0.30 + leafFall) % size.height),
+      rotation: 0.8,
+      color: const Color(0xFFB45309), // Dry brown
+      linePaint: linePaint,
+    );
+    _drawAutumnLeaf(
+      canvas,
+      Offset(size.width * 0.84, (size.height * 0.40 + leafFall) % size.height),
+      rotation: -0.7,
+      color: const Color(0xFF92400E),
+      linePaint: linePaint,
+    );
+
+    // 5. Faint grey dust specks
+    _drawDustParticle(canvas, Offset(size.width * 0.28, size.height * 0.22), 1.6);
+    _drawDustParticle(canvas, Offset(size.width * 0.74, size.height * 0.58), 1.4);
+  }
+
+  // ---------------------------------------------------------------------------
+  // STAGE 4: VERY UNHEALTHY SAD MASK (AQI 151-200)
+  // Visibly sad slumped posture, downturned brows, dark eye-bags, tear/sweat, soot particles
+  // ---------------------------------------------------------------------------
+  void _drawVeryUnhealthySadMask(
+    Canvas canvas,
+    Size size,
+    Offset faceCenter,
+    Offset mouthCenter,
+    Paint linePaint,
+  ) {
+    // 1. Noticeably SAD Downturned Eyebrows (\ /)
+    canvas.drawLine(
+      Offset(faceCenter.dx - 10, faceCenter.dy - 2.0),
+      Offset(faceCenter.dx - 3, faceCenter.dy - 6.0),
+      linePaint..strokeWidth = 1.8,
+    );
+    canvas.drawLine(
+      Offset(faceCenter.dx + 10, faceCenter.dy - 2.0),
+      Offset(faceCenter.dx + 3, faceCenter.dy - 6.0),
+      linePaint,
+    );
+    linePaint.strokeWidth = 1.6;
+
+    // 2. Heavy Dark Under-Eye Fatigue Bags
+    final eyeBagPaint = Paint()
+      ..color = (isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569)).withValues(alpha: 0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    final leftBag = Path()
+      ..moveTo(faceCenter.dx - 9.5, faceCenter.dy + 1.5)
+      ..quadraticBezierTo(faceCenter.dx - 6.0, faceCenter.dy + 4.2, faceCenter.dx - 2.5, faceCenter.dy + 1.5);
+    final rightBag = Path()
+      ..moveTo(faceCenter.dx + 2.5, faceCenter.dy + 1.5)
+      ..quadraticBezierTo(faceCenter.dx + 6.0, faceCenter.dy + 4.2, faceCenter.dx + 9.5, faceCenter.dy + 1.5);
+    canvas.drawPath(leftBag, eyeBagPaint);
+    canvas.drawPath(rightBag, eyeBagPaint);
+
+    // 3. Sad Protective N95 Face Mask
+    _drawN95MaskShape(canvas, mouthCenter, faceCenter, linePaint, sadCrease: true);
+
+    // 4. Large Distressed Sweat / Tear Droplet dripping down
+    final tear = Path()
+      ..moveTo(faceCenter.dx + 12.0, faceCenter.dy - 6.0)
+      ..quadraticBezierTo(faceCenter.dx + 14.5, faceCenter.dy - 1.5, faceCenter.dx + 12.0, faceCenter.dy + 1.0)
+      ..quadraticBezierTo(faceCenter.dx + 9.5, faceCenter.dy - 1.5, faceCenter.dx + 12.0, faceCenter.dy - 6.0);
+    canvas.drawPath(tear, Paint()..color = const Color(0xFF0284C7));
+
+    // 5. Crumbling Dead Leaf Fragments
+    final crumbFall = (animValue * size.height * 0.45);
+    _drawCrumbledLeaf(canvas, Offset(size.width * 0.16, (size.height * 0.35 + crumbFall) % size.height));
+    _drawCrumbledLeaf(canvas, Offset(size.width * 0.82, (size.height * 0.20 + crumbFall * 1.1) % size.height));
+
+    // 6. Floating Dark Soot & PM2.5 Dust Particles
+    final sootMove = math.sin(animValue * math.pi * 2) * 3;
+    _drawDustParticle(canvas, Offset(size.width * 0.22, size.height * 0.25 + sootMove), 2.2, color: const Color(0xFF52525B));
+    _drawDustParticle(canvas, Offset(size.width * 0.35, size.height * 0.65 - sootMove), 1.8, color: const Color(0xFF3F3F46));
+    _drawDustParticle(canvas, Offset(size.width * 0.78, size.height * 0.38 + sootMove), 2.5, color: const Color(0xFF52525B));
+    _drawDustParticle(canvas, Offset(size.width * 0.88, size.height * 0.70 - sootMove), 2.0, color: const Color(0xFF27272A));
+  }
+
+  // ---------------------------------------------------------------------------
+  // STAGE 5: HAZARDOUS OXYGEN MASK & CYLINDER TANK (AQI 201-300)
+  // Transparent medical oxygen cup mask + O2 cylinder on ground with flexible tube, yellow smog
+  // ---------------------------------------------------------------------------
+  void _drawHazardousOxygenMask(
+    Canvas canvas,
+    Size size,
+    Offset faceCenter,
+    Offset mouthCenter,
+    Paint linePaint,
+  ) {
+    // 1. Distressed, Tired Drooping Brows
+    canvas.drawLine(
+      Offset(faceCenter.dx - 10, faceCenter.dy - 5.5),
+      Offset(faceCenter.dx - 3, faceCenter.dy - 2.0),
+      linePaint,
+    );
+    canvas.drawLine(
+      Offset(faceCenter.dx + 10, faceCenter.dy - 5.5),
+      Offset(faceCenter.dx + 3, faceCenter.dy - 2.0),
+      linePaint,
+    );
+
+    // 2. Transparent Medical Oxygen Mask Cup
+    final maskRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(mouthCenter.dx, mouthCenter.dy + 2.0), width: 19.0, height: 14.0),
+      const Radius.circular(5),
+    );
     canvas.drawRRect(
-      tankRect,
-      Paint()..color = const Color(0xFF047857),
+      maskRect,
+      Paint()..color = const Color(0xFF06B6D4).withValues(alpha: 0.65),
     );
-    canvas.drawRRect(tankRect, linePaint);
+    canvas.drawRRect(maskRect, linePaint);
 
-    // Brass Regulator & Valve Top
-    final valve = Rect.fromLTWH(w * 0.12, h * 0.48, w * 0.08, h * 0.07);
-    canvas.drawRect(valve, Paint()..color = const Color(0xFFEAB308));
-    canvas.drawRect(valve, linePaint);
+    // Bottom inlet port
+    final barb = Rect.fromLTWH(mouthCenter.dx - 3.0, mouthCenter.dy + 8.5, 6.0, 3.5);
+    canvas.drawRect(barb, Paint()..color = const Color(0xFF0891B2));
+    canvas.drawRect(barb, linePaint..strokeWidth = 1.0);
+    linePaint.strokeWidth = 1.6;
 
-    // Pressure Gauge Circle
-    final gaugeCenter = Offset(w * 0.16, h * 0.46);
-    canvas.drawCircle(gaugeCenter, 4.0, Paint()..color = Colors.white);
-    canvas.drawCircle(gaugeCenter, 4.0, linePaint..strokeWidth = 1.0);
-    // Gauge needle
+    // Elastic head strap
+    canvas.drawLine(
+      Offset(mouthCenter.dx - 9.5, mouthCenter.dy + 2.0),
+      Offset(faceCenter.dx - 13.0, faceCenter.dy + 3.0),
+      linePaint..strokeWidth = 1.2,
+    );
+    linePaint.strokeWidth = 1.6;
+
+    // Distressed sweat droplets
+    final sw1 = Path()
+      ..moveTo(faceCenter.dx + 11.5, faceCenter.dy - 8.0)
+      ..quadraticBezierTo(faceCenter.dx + 13.5, faceCenter.dy - 4.5, faceCenter.dx + 11.5, faceCenter.dy - 3.0)
+      ..quadraticBezierTo(faceCenter.dx + 9.5, faceCenter.dy - 4.5, faceCenter.dx + 11.5, faceCenter.dy - 8.0);
+    canvas.drawPath(sw1, Paint()..color = const Color(0xFF38BDF8));
+
+    // 3. Yellowish Toxic Smog Haze Clouds in the background (No leaves!)
+    final smogPulse = math.sin(animValue * math.pi * 2) * 4;
+    final toxicCloudPaint = Paint()..color = const Color(0xFF78350F).withValues(alpha: 0.22);
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(size.width * 0.32, size.height * 0.40 + smogPulse), width: 55, height: 26),
+      toxicCloudPaint,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(size.width * 0.75, size.height * 0.55 - smogPulse), width: 65, height: 32),
+      toxicCloudPaint,
+    );
+
+    // Toxic floating particulate specks
+    _drawDustParticle(canvas, Offset(size.width * 0.25, size.height * 0.30), 2.2, color: const Color(0xFFD97706));
+    _drawDustParticle(canvas, Offset(size.width * 0.85, size.height * 0.35), 2.4, color: const Color(0xFFB45309));
+  }
+
+  // ---------------------------------------------------------------------------
+  // STAGE 6: SEVERE TOXIC WRINKLED & EXHAUSTED (AQI > 300)
+  // User: "Face me bahut jyada wrinkles hai, cylinder mask to hai hi, lekin wo bahut sukha hai aur halat kharab hai"
+  // Deep forehead wrinkles, crow's feet, sunken cheeks, shivering tremor, cylinder in RED empty zone
+  // ---------------------------------------------------------------------------
+  void _drawSevereToxicWrinkled(
+    Canvas canvas,
+    Size size,
+    Offset faceCenter,
+    Offset mouthCenter,
+    Paint linePaint,
+  ) {
+    // Wrinkle paint styling
+    final wrinklePaint = Paint()
+      ..color = (isDark ? const Color(0xFFE2E8F0) : const Color(0xFF27272A))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round;
+
+    // 1. Three Prominent Horizontal Forehead Worry / Exhaustion Wrinkles
+    final w1 = Path()
+      ..moveTo(faceCenter.dx - 8.5, faceCenter.dy - 12.0)
+      ..quadraticBezierTo(faceCenter.dx, faceCenter.dy - 13.5, faceCenter.dx + 8.5, faceCenter.dy - 12.0);
+    final w2 = Path()
+      ..moveTo(faceCenter.dx - 10.0, faceCenter.dy - 9.5)
+      ..quadraticBezierTo(faceCenter.dx, faceCenter.dy - 11.0, faceCenter.dx + 10.0, faceCenter.dy - 9.5);
+    final w3 = Path()
+      ..moveTo(faceCenter.dx - 8.0, faceCenter.dy - 7.0)
+      ..quadraticBezierTo(faceCenter.dx, faceCenter.dy - 8.2, faceCenter.dx + 8.0, faceCenter.dy - 7.0);
+    canvas.drawPath(w1, wrinklePaint);
+    canvas.drawPath(w2, wrinklePaint);
+    canvas.drawPath(w3, wrinklePaint);
+
+    // 2. Deep Furrowed Brow Vertical Stress Creases Between Eyes
+    canvas.drawLine(
+      Offset(faceCenter.dx - 2.0, faceCenter.dy - 6.5),
+      Offset(faceCenter.dx - 2.0, faceCenter.dy - 3.0),
+      wrinklePaint..strokeWidth = 1.2,
+    );
+    canvas.drawLine(
+      Offset(faceCenter.dx + 2.0, faceCenter.dy - 6.5),
+      Offset(faceCenter.dx + 2.0, faceCenter.dy - 3.0),
+      wrinklePaint,
+    );
+
+    // 3. Tired Weary Heavy Eyebrows
+    canvas.drawLine(
+      Offset(faceCenter.dx - 11, faceCenter.dy - 4.0),
+      Offset(faceCenter.dx - 3, faceCenter.dy - 2.0),
+      linePaint..strokeWidth = 1.8,
+    );
+    canvas.drawLine(
+      Offset(faceCenter.dx + 11, faceCenter.dy - 4.0),
+      Offset(faceCenter.dx + 3, faceCenter.dy - 2.0),
+      linePaint,
+    );
+    linePaint.strokeWidth = 1.6;
+
+    // 4. Heavy Crow's Feet Wrinkles radiating from outer corners of eyes
+    canvas.drawLine(
+      Offset(faceCenter.dx - 10.0, faceCenter.dy - 2.5),
+      Offset(faceCenter.dx - 13.5, faceCenter.dy - 4.5),
+      wrinklePaint..strokeWidth = 1.0,
+    );
+    canvas.drawLine(
+      Offset(faceCenter.dx - 10.0, faceCenter.dy - 1.5),
+      Offset(faceCenter.dx - 14.0, faceCenter.dy - 1.5),
+      wrinklePaint,
+    );
+    canvas.drawLine(
+      Offset(faceCenter.dx + 10.0, faceCenter.dy - 2.5),
+      Offset(faceCenter.dx + 13.5, faceCenter.dy - 4.5),
+      wrinklePaint,
+    );
+    canvas.drawLine(
+      Offset(faceCenter.dx + 10.0, faceCenter.dy - 1.5),
+      Offset(faceCenter.dx + 14.0, faceCenter.dy - 1.5),
+      wrinklePaint,
+    );
+
+    // 5. Deep Hollow Under-Eye Bags (Severe exhaustion circles)
+    final severeBagPaint = Paint()
+      ..color = (isDark ? const Color(0xFFCBD5E1) : const Color(0xFF334155))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3;
+    final leftDeepBag = Path()
+      ..moveTo(faceCenter.dx - 10.0, faceCenter.dy + 1.2)
+      ..quadraticBezierTo(faceCenter.dx - 6.0, faceCenter.dy + 4.8, faceCenter.dx - 2.0, faceCenter.dy + 1.2);
+    final rightDeepBag = Path()
+      ..moveTo(faceCenter.dx + 2.0, faceCenter.dy + 1.2)
+      ..quadraticBezierTo(faceCenter.dx + 6.0, faceCenter.dy + 4.8, faceCenter.dx + 10.0, faceCenter.dy + 1.2);
+    canvas.drawPath(leftDeepBag, severeBagPaint);
+    canvas.drawPath(rightDeepBag, severeBagPaint);
+
+    // 6. Gaunt Sunken Cheek Hollows ("sukha character / halat kharab")
+    final cheekHollowPaint = Paint()
+      ..color = (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B))
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2
+      ..strokeCap = StrokeCap.round;
+    // Left sunken cheek curve
+    final leftCheek = Path()
+      ..moveTo(faceCenter.dx - 11.5, faceCenter.dy + 4.0)
+      ..quadraticBezierTo(faceCenter.dx - 8.5, faceCenter.dy + 8.5, faceCenter.dx - 10.5, faceCenter.dy + 13.0);
+    // Right sunken cheek curve
+    final rightCheek = Path()
+      ..moveTo(faceCenter.dx + 11.5, faceCenter.dy + 4.0)
+      ..quadraticBezierTo(faceCenter.dx + 8.5, faceCenter.dy + 8.5, faceCenter.dx + 10.5, faceCenter.dy + 13.0);
+    canvas.drawPath(leftCheek, cheekHollowPaint);
+    canvas.drawPath(rightCheek, cheekHollowPaint);
+
+    // 7. Medical Oxygen Mask Cup strapped tightly
+    final maskRect = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(mouthCenter.dx, mouthCenter.dy + 2.0), width: 19.0, height: 14.0),
+      const Radius.circular(5),
+    );
+    canvas.drawRRect(
+      maskRect,
+      Paint()..color = const Color(0xFF0891B2).withValues(alpha: 0.75),
+    );
+    canvas.drawRRect(maskRect, linePaint);
+
+    // Inlet barb
+    final barb = Rect.fromLTWH(mouthCenter.dx - 3.0, mouthCenter.dy + 8.5, 6.0, 3.5);
+    canvas.drawRect(barb, Paint()..color = const Color(0xFF0E7490));
+    canvas.drawRect(barb, linePaint..strokeWidth = 1.0);
+    linePaint.strokeWidth = 1.6;
+
+    // Elastic head straps
+    canvas.drawLine(
+      Offset(mouthCenter.dx - 9.5, mouthCenter.dy + 2.0),
+      Offset(faceCenter.dx - 13.5, faceCenter.dy + 3.0),
+      linePaint..strokeWidth = 1.3,
+    );
+    canvas.drawLine(
+      Offset(mouthCenter.dx + 9.5, mouthCenter.dy + 2.0),
+      Offset(faceCenter.dx + 13.5, faceCenter.dy + 3.0),
+      linePaint,
+    );
+    linePaint.strokeWidth = 1.6;
+
+    // 8. Distressed Shivering Sweat Drops
+    final swDrop = Path()
+      ..moveTo(faceCenter.dx + 12.5, faceCenter.dy - 8.5)
+      ..quadraticBezierTo(faceCenter.dx + 15.0, faceCenter.dy - 4.0, faceCenter.dx + 12.5, faceCenter.dy - 2.0)
+      ..quadraticBezierTo(faceCenter.dx + 10.0, faceCenter.dy - 4.0, faceCenter.dx + 12.5, faceCenter.dy - 8.5);
+    canvas.drawPath(swDrop, Paint()..color = const Color(0xFF0284C7));
+
+    // 9. Dense Toxic Dark Smog Clouds & Swirling Ash Motes
+    final toxicSmog = Paint()..color = const Color(0xFF1C1917).withValues(alpha: 0.38);
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(size.width * 0.30, size.height * 0.38), width: 70, height: 32),
+      toxicSmog,
+    );
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(size.width * 0.78, size.height * 0.52), width: 75, height: 36),
+      toxicSmog,
+    );
+
+    // Floating Ash & Hazardous Particles
+    final ashWave = math.sin(animValue * math.pi * 3) * 2;
+    _drawDustParticle(canvas, Offset(size.width * 0.18, size.height * 0.28 + ashWave), 2.8, color: const Color(0xFF451A03));
+    _drawDustParticle(canvas, Offset(size.width * 0.34, size.height * 0.62 - ashWave), 2.4, color: const Color(0xFF7F1D1D));
+    _drawDustParticle(canvas, Offset(size.width * 0.82, size.height * 0.32 + ashWave), 3.0, color: const Color(0xFF1C1917));
+    _drawDustParticle(canvas, Offset(size.width * 0.90, size.height * 0.65 - ashWave), 2.2, color: const Color(0xFF78350F));
+
+    // 10. Warning Biohazard Aura (Red warning pulse around character)
+    final pulseAura = math.sin(animValue * math.pi * 2).abs();
+    canvas.drawCircle(
+      faceCenter + const Offset(0, 8),
+      32.0 + (pulseAura * 4.0),
+      Paint()
+        ..color = const Color(0xFFEF4444).withValues(alpha: 0.08 + (pulseAura * 0.08))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // MEDICAL OXYGEN CYLINDER TANK & COILED DELIVERY TUBE (Stages 5 & 6)
+  // ---------------------------------------------------------------------------
+  void _drawOxygenCylinderAndTube(
+    Canvas canvas,
+    Size size,
+    double scale,
+    double dx0,
+    double groundY,
+    Offset mouthCenter,
+    Paint linePaint, {
+    bool isCritical = false,
+  }) {
+    const tankX = 6.0;
+    const tankW = 20.0;
+    const bodyH = 40.0;
+    final tankBottomY = groundY;
+    final tankTopY = tankBottomY - bodyH;
+
+    // Cylinder Base Shadow
+    canvas.drawOval(
+      Rect.fromCenter(center: Offset(tankX + (tankW / 2), tankBottomY), width: tankW + 4, height: 5),
+      Paint()..color = Colors.black.withValues(alpha: 0.35),
+    );
+
+    // Cylinder Body (Metallic Deep Green Hospital Medical Grade)
+    final cylinderBody = RRect.fromRectAndRadius(
+      Rect.fromLTWH(tankX, tankTopY, tankW, bodyH),
+      const Radius.circular(5),
+    );
+    final bodyGradient = LinearGradient(
+      colors: isCritical
+          ? const [
+              Color(0xFF064E3B),
+              Color(0xFF047857),
+              Color(0xFF475569),
+              Color(0xFF064E3B),
+            ]
+          : const [
+              Color(0xFF064E3B),
+              Color(0xFF047857),
+              Color(0xFF10B981),
+              Color(0xFF064E3B),
+            ],
+      stops: const [0.0, 0.35, 0.65, 1.0],
+    );
+    canvas.drawRRect(
+      cylinderBody,
+      Paint()..shader = bodyGradient.createShader(cylinderBody.outerRect),
+    );
+    canvas.drawRRect(cylinderBody, linePaint);
+
+    // Cylinder Neck Dome Cap
+    final dome = Path()
+      ..moveTo(tankX, tankTopY + 2)
+      ..quadraticBezierTo(tankX + (tankW / 2), tankTopY - 7, tankX + tankW, tankTopY + 2)
+      ..close();
+    canvas.drawPath(dome, Paint()..color = const Color(0xFF059669));
+    canvas.drawPath(dome, linePaint);
+
+    // Brass Neck Regulator Valve
+    final valveRect = Rect.fromLTWH(tankX + (tankW / 2) - 4.5, tankTopY - 13, 9.0, 7.0);
+    canvas.drawRect(valveRect, Paint()..color = const Color(0xFFEAB308));
+    canvas.drawRect(valveRect, linePaint..strokeWidth = 1.0);
+
+    // Top protective collar ring
+    final collar = Rect.fromLTWH(tankX + (tankW / 2) - 3.0, tankTopY - 16, 6.0, 3.5);
+    canvas.drawRect(collar, Paint()..color = const Color(0xFF94A3B8));
+    canvas.drawRect(collar, linePaint);
+
+    // Pressure Gauge Dial Meter (Round dial on right of valve)
+    final gaugeCenter = Offset(tankX + tankW + 2.0, tankTopY - 10.0);
+    canvas.drawCircle(gaugeCenter, 4.5, Paint()..color = Colors.white);
+    canvas.drawCircle(gaugeCenter, 4.5, linePaint);
+    // Green safe zone / Red danger zone arcs
+    canvas.drawArc(
+      Rect.fromCircle(center: gaugeCenter, radius: 3.5),
+      -math.pi * 0.8,
+      math.pi * 0.6,
+      false,
+      Paint()
+        ..color = const Color(0xFF10B981)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+    canvas.drawArc(
+      Rect.fromCircle(center: gaugeCenter, radius: 3.5),
+      -math.pi * 0.2,
+      math.pi * 0.4,
+      false,
+      Paint()
+        ..color = const Color(0xFFEF4444)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+
+    // Gauge Needle
+    final needleEnd = isCritical
+        ? Offset(gaugeCenter.dx + 2.2, gaugeCenter.dy + 2.0) // Empty Red Zone
+        : Offset(gaugeCenter.dx - 1.5, gaugeCenter.dy - 2.2); // Normal Operating Zone
     canvas.drawLine(
       gaugeCenter,
-      Offset(gaugeCenter.dx + 2, gaugeCenter.dy - 2),
-      Paint()..color = const Color(0xFFEF4444)..strokeWidth = 1.2,
+      needleEnd,
+      Paint()
+        ..color = const Color(0xFFEF4444)
+        ..strokeWidth = 1.3
+        ..strokeCap = StrokeCap.round,
     );
-    linePaint.strokeWidth = 1.8;
+
+    // Critical warning pulse
+    if (isCritical) {
+      final warnPulse = math.sin(animValue * math.pi * 4).abs();
+      canvas.drawCircle(
+        gaugeCenter,
+        6.0,
+        Paint()
+          ..color = const Color(0xFFEF4444).withValues(alpha: 0.3 * warnPulse)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
+      );
+    }
+
+    // Prominent "O₂" Medical Badge on Tank Body
+    final o2Painter = TextPainter(
+      text: TextSpan(
+        text: 'O₂',
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 9.5,
+          fontWeight: FontWeight.w900,
+          color: Colors.white,
+          letterSpacing: -0.5,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    o2Painter.paint(
+      canvas,
+      Offset(tankX + (tankW - o2Painter.width) / 2, tankTopY + 14),
+    );
+
+    // -------------------------------------------------------------------------
+    // FLEXIBLE CONNECTING OXYGEN DELIVERY TUBE
+    // From cylinder valve outlet -> gracefully sweeps into the character mask!
+    // -------------------------------------------------------------------------
+    final tubeStart = Offset(tankX + (tankW / 2) + 1.0, tankTopY - 10.0);
+    final tubeEnd = Offset(mouthCenter.dx, mouthCenter.dy + 10.0);
+
+    final tube = Path()
+      ..moveTo(tubeStart.dx, tubeStart.dy)
+      ..cubicTo(
+        size.width * 0.28,
+        size.height * 0.50,
+        size.width * 0.42,
+        size.height * 0.32,
+        tubeEnd.dx,
+        tubeEnd.dy,
+      );
+
+    // Tube outer glow / turquoise medical casing
+    canvas.drawPath(
+      tube,
+      Paint()
+        ..color = isCritical ? const Color(0xFF0891B2) : const Color(0xFF06B6D4)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round,
+    );
+    // Tube inner transparent core
+    canvas.drawPath(
+      tube,
+      Paint()
+        ..color = const Color(0xFFE0F2FE).withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+
+    // Animated oxygen pulse bubble flowing along tube
+    final pulseT = animValue % 1.0;
+    final p0 = tubeStart;
+    final p1 = Offset(size.width * 0.28, size.height * 0.50);
+    final p2 = Offset(size.width * 0.42, size.height * 0.32);
+    final p3 = tubeEnd;
+    final oneMinusT = 1.0 - pulseT;
+    final pulseX = (math.pow(oneMinusT, 3) * p0.dx) +
+        (3 * math.pow(oneMinusT, 2) * pulseT * p1.dx) +
+        (3 * oneMinusT * math.pow(pulseT, 2) * p2.dx) +
+        (math.pow(pulseT, 3) * p3.dx);
+    final pulseY = (math.pow(oneMinusT, 3) * p0.dy) +
+        (3 * math.pow(oneMinusT, 2) * pulseT * p1.dy) +
+        (3 * oneMinusT * math.pow(pulseT, 2) * p2.dy) +
+        (math.pow(pulseT, 3) * p3.dy);
+
+    canvas.drawCircle(
+      Offset(pulseX, pulseY),
+      2.2,
+      Paint()..color = isCritical ? const Color(0xFF67E8F9) : const Color(0xFF38BDF8),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // HELPER SHAPE RENDERERS
+  // ---------------------------------------------------------------------------
+  void _drawN95MaskShape(
+    Canvas canvas,
+    Offset mouthCenter,
+    Offset faceCenter,
+    Paint linePaint, {
+    bool sadCrease = false,
+  }) {
+    final mask = Path()
+      ..moveTo(mouthCenter.dx - 9.5, mouthCenter.dy - 2.5)
+      ..lineTo(mouthCenter.dx, mouthCenter.dy - 6.5) // nose bridge apex
+      ..lineTo(mouthCenter.dx + 9.5, mouthCenter.dy - 2.5)
+      ..lineTo(mouthCenter.dx + 8.5, mouthCenter.dy + 8.5) // right chin
+      ..lineTo(mouthCenter.dx - 8.5, mouthCenter.dy + 8.5) // left chin
+      ..close();
+
+    // Clean white mask body with 3D contour
+    canvas.drawPath(mask, Paint()..color = const Color(0xFFF8FAFC));
+    canvas.drawPath(mask, linePaint);
+
+    // Center vertical contour fold seam
+    if (sadCrease) {
+      final crease = Path()
+        ..moveTo(mouthCenter.dx, mouthCenter.dy - 6.5)
+        ..quadraticBezierTo(mouthCenter.dx - 1.5, mouthCenter.dy + 1.0, mouthCenter.dx, mouthCenter.dy + 8.5);
+      canvas.drawPath(
+        crease,
+        Paint()
+          ..color = const Color(0xFF94A3B8)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0,
+      );
+    } else {
+      canvas.drawLine(
+        Offset(mouthCenter.dx, mouthCenter.dy - 6.5),
+        Offset(mouthCenter.dx, mouthCenter.dy + 8.5),
+        Paint()
+          ..color = const Color(0xFF94A3B8)
+          ..strokeWidth = 1.0,
+      );
+    }
+
+    // Metallic nose-bridge clip accent
+    canvas.drawLine(
+      Offset(mouthCenter.dx - 4.5, mouthCenter.dy - 5.0),
+      Offset(mouthCenter.dx + 4.5, mouthCenter.dy - 5.0),
+      Paint()
+        ..color = const Color(0xFFCBD5E1)
+        ..strokeWidth = 1.6
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Dual elastic head / ear loop straps
+    linePaint.strokeWidth = 1.1;
+    canvas.drawLine(
+      Offset(mouthCenter.dx - 9.5, mouthCenter.dy - 2.5),
+      Offset(faceCenter.dx - 12.0, faceCenter.dy - 1.5),
+      linePaint,
+    );
+    canvas.drawLine(
+      Offset(mouthCenter.dx - 8.5, mouthCenter.dy + 6.0),
+      Offset(faceCenter.dx - 11.0, faceCenter.dy + 8.0),
+      linePaint,
+    );
+    linePaint.strokeWidth = 1.6;
+  }
+
+  void _drawVibrantLeaf(
+    Canvas canvas,
+    Offset center, {
+    required double rotation,
+    required Color color,
+    required Paint linePaint,
+  }) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(rotation);
+
+    final leaf = Path()
+      ..moveTo(0, -6)
+      ..quadraticBezierTo(5, -3, 0, 6)
+      ..quadraticBezierTo(-5, -3, 0, -6)
+      ..close();
+
+    canvas.drawPath(leaf, Paint()..color = color);
+    canvas.drawPath(
+      leaf,
+      linePaint
+        ..strokeWidth = 0.9
+        ..color = (isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B)).withValues(alpha: 0.6),
+    );
+
+    // Center vein
+    canvas.drawLine(
+      const Offset(0, -5),
+      const Offset(0, 5),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.5)
+        ..strokeWidth = 0.8,
+    );
+
+    canvas.restore();
+  }
+
+  void _drawAutumnLeaf(
+    Canvas canvas,
+    Offset center, {
+    required double rotation,
+    required Color color,
+    required Paint linePaint,
+  }) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(rotation);
+
+    // Curled autumn leaf contour
+    final leaf = Path()
+      ..moveTo(0, -6.5)
+      ..quadraticBezierTo(6, -2, 1, 6.5)
+      ..quadraticBezierTo(-4, 0, 0, -6.5)
+      ..close();
+
+    canvas.drawPath(leaf, Paint()..color = color);
+    canvas.drawPath(
+      leaf,
+      linePaint
+        ..strokeWidth = 0.9
+        ..color = (isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B)).withValues(alpha: 0.5),
+    );
+    canvas.restore();
+  }
+
+  void _drawCrumbledLeaf(Canvas canvas, Offset center) {
+    final p = Paint()..color = const Color(0xFF78350F);
+    canvas.drawCircle(center, 1.8, p);
+    canvas.drawCircle(center + const Offset(2.2, -1.5), 1.2, p);
+    canvas.drawCircle(center + const Offset(-1.8, 2.0), 1.0, p);
+  }
+
+  void _drawSparkle(Canvas canvas, Offset center, Color color) {
+    final sp = Path()
+      ..moveTo(center.dx, center.dy - 3.5)
+      ..lineTo(center.dx + 2.2, center.dy)
+      ..lineTo(center.dx, center.dy + 3.5)
+      ..lineTo(center.dx - 2.2, center.dy)
+      ..close();
+    canvas.drawPath(sp, Paint()..color = color);
+  }
+
+  void _drawDustParticle(Canvas canvas, Offset center, double radius, {Color? color}) {
+    final p = Paint()..color = (color ?? const Color(0xFF71717A)).withValues(alpha: 0.75);
+    canvas.drawCircle(center, radius, p);
   }
 
   @override
-  bool shouldRepaint(covariant _AqiReactiveCharacterPainter old) =>
+  bool shouldRepaint(covariant _AqiScenarioOverlayPainter old) =>
       old.mood != mood ||
       old.animValue != animValue ||
+      old.charOffset != charOffset ||
       old.isDark != isDark ||
       old.theme != theme;
 }
 
-// ---------------------------------------------------------------------------
 // PROMINENT LARGE ANIMATED WEATHER SVG ICON (SUN, MOON, CLOUD, RAIN, THUNDER, FLOOD, TWISTER)
 // ---------------------------------------------------------------------------
 class _BigAnimatedWeatherIcon extends StatelessWidget {

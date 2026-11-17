@@ -689,10 +689,10 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       {
         'id': 'weather',
-        'title': 'Weather & Atmosphere',
+        'title': 'Weather',
         'subtitle': 'Live weather, 14-day trend, AQI mascot & lunar trajectory',
         'category': 'Time & Tasks',
-        'tag': 'Atmosphere & AQI',
+        'tag': 'Weather & AQI',
         'iconType': 'weather',
         'isFeatured': true,
         'features': [
