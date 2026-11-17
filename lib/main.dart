@@ -27,15 +27,26 @@ void main() async {
     NotificationService().init();
   }
 
-  // Set system navigation and status bar style
-  SystemChrome.setSystemUIOverlayStyle(
-    const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.dark,
-    ),
-  );
+  // True full-screen edge-to-edge display (draws seamlessly behind notch/punch-hole & nav bar)
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  _applySystemUiStyle(initialTheme.isDark);
 
   runApp(ToolerApp(initialTheme: initialTheme, popupToolId: popupToolId));
+}
+
+void _applySystemUiStyle(bool isDark) {
+  SystemChrome.setSystemUIOverlayStyle(
+    SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarContrastEnforced: false,
+      systemStatusBarContrastEnforced: false,
+    ),
+  );
 }
 
 class ToolerApp extends StatefulWidget {
@@ -66,6 +77,7 @@ class _ToolerAppState extends State<ToolerApp> {
 
   void _onThemeChanged(StationeryThemeMode mode) async {
     final theme = await StorageService().loadTheme();
+    _applySystemUiStyle(theme.isDark);
     setState(() {
       _currentTheme = theme;
     });
@@ -74,6 +86,18 @@ class _ToolerAppState extends State<ToolerApp> {
   @override
   Widget build(BuildContext context) {
     final bool isPopup = widget.popupToolId != null && widget.popupToolId!.isNotEmpty;
+    final bool isDark = _currentTheme.isDark;
+    final overlayStyle = SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarContrastEnforced: false,
+      systemStatusBarContrastEnforced: false,
+    );
+
     final themeData = ThemeData(
       useMaterial3: true,
       canvasColor: isPopup ? Colors.transparent : _currentTheme.bg,
@@ -82,29 +106,32 @@ class _ToolerAppState extends State<ToolerApp> {
         seedColor: _currentTheme.primary,
         surface: _currentTheme.cardBg,
         onSurface: _currentTheme.text,
-        brightness: _currentTheme.isDark ? Brightness.dark : Brightness.light,
+        brightness: isDark ? Brightness.dark : Brightness.light,
       ),
     );
 
-    return MaterialApp(
-      title: 'Tooler',
-      debugShowCheckedModeBanner: false,
-      color: isPopup ? Colors.transparent : null,
-      theme: themeData,
-      home: isPopup
-          ? WidgetPopupScreen(
-              initialToolId: widget.popupToolId!,
-              theme: _currentTheme,
-            )
-          : AnimatedTheme(
-              data: themeData,
-              duration: const Duration(milliseconds: 320),
-              curve: Curves.easeInOutCubic,
-              child: HomeScreen(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlayStyle,
+      child: MaterialApp(
+        title: 'Tooler',
+        debugShowCheckedModeBanner: false,
+        color: isPopup ? Colors.transparent : null,
+        theme: themeData,
+        home: isPopup
+            ? WidgetPopupScreen(
+                initialToolId: widget.popupToolId!,
                 theme: _currentTheme,
-                onThemeChanged: _onThemeChanged,
+              )
+            : AnimatedTheme(
+                data: themeData,
+                duration: const Duration(milliseconds: 320),
+                curve: Curves.easeInOutCubic,
+                child: HomeScreen(
+                  theme: _currentTheme,
+                  onThemeChanged: _onThemeChanged,
+                ),
               ),
-            ),
+      ),
     );
   }
 }

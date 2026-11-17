@@ -107,6 +107,9 @@
         </receiver>
 
         <meta-data
+            android:name="android.max_aspect"
+            android:value="2.4" />
+        <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>

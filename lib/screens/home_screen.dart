@@ -828,6 +828,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Scaffold(
         backgroundColor: theme.bg,
         body: SafeArea(
+          bottom: false,
           child: Column(
             children: [
               // 1. Top Bar with Logo & Settings Button
