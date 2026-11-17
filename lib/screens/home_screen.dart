@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
+import '../services/weather_telemetry_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
 import '../widgets_3d/tooler_character.dart';
@@ -63,6 +66,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isSearchFocused = false;
   ToolerCharacterPose _heroPose = ToolerCharacterPose.workingLaptop;
 
+  Timer? _clockTimer;
+  DateTime _now = DateTime.now();
+
   void _cycleHeroPose() {
     final nextIdx = (_heroPose.index + 1) % ToolerCharacterPose.values.length;
     setState(() {
@@ -83,6 +89,14 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    WeatherTelemetryService().init();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) {
+        setState(() {
+          _now = DateTime.now();
+        });
+      }
+    });
     _initTools();
     _loadFavorites();
     _searchController.addListener(() {
@@ -108,6 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   void dispose() {
+    _clockTimer?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollController.dispose();
@@ -915,24 +930,178 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'What are you\nlooking for?',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        height: 1.25,
-                        letterSpacing: -0.5,
-                        color: theme.text,
-                      ),
+                    // 1. Live Real-Time Clock (Hour : Minute : Second AM/PM)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          DateFormat('hh:mm').format(_now),
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 27,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -1.0,
+                            color: theme.text,
+                          ),
+                        ),
+                        Text(
+                          ':${DateFormat('ss').format(_now)}',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: theme.primary,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                          decoration: BoxDecoration(
+                            color: theme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            DateFormat('a').format(_now),
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: theme.primary,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 3),
+
+                    // 2. Date, Day & Year
                     Text(
-                      'Fast & minimal smart utility kit',
+                      DateFormat('EEEE • dd MMMM yyyy').format(_now),
                       style: GoogleFonts.plusJakartaSans(
                         fontSize: 12,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.2,
                         color: theme.textSecondary,
                       ),
+                    ),
+                    const SizedBox(height: 7),
+
+                    // 3. Live Weather, Location & AQI Pill Row
+                    AnimatedBuilder(
+                      animation: WeatherTelemetryService(),
+                      builder: (context, _) {
+                        final weather = WeatherTelemetryService().data;
+                        final isRefreshing = WeatherTelemetryService().isFetching;
+
+                        return BouncyTap(
+                          onTap: () {
+                            SoundService().playTap();
+                            WeatherTelemetryService().fetchTelemetry();
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: isDark ? const Color(0xFF1E1E22) : Colors.white.withValues(alpha: 0.85),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isDark ? const Color(0xFF333338) : theme.lavenderBubble,
+                                width: 0.9,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.03),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // Pulsing Weather Icon
+                                Icon(
+                                  WeatherTelemetryService().getWeatherIcon(weather.weatherCode, weather.isDay),
+                                  size: 14,
+                                  color: weather.isDay ? const Color(0xFFF59E0B) : theme.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${weather.temperatureC.round()}°C',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w800,
+                                    color: theme.text,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '•',
+                                  style: TextStyle(fontSize: 10, color: theme.textSecondary),
+                                ),
+                                const SizedBox(width: 4),
+                                // Location City
+                                ConstrainedBox(
+                                  constraints: const BoxConstraints(maxWidth: 80),
+                                  child: Text(
+                                    weather.city,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: theme.text,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                // Real-time AQI Badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                  decoration: BoxDecoration(
+                                    color: weather.aqiColor.withValues(alpha: 0.14),
+                                    borderRadius: BorderRadius.circular(5),
+                                    border: Border.all(
+                                      color: weather.aqiColor.withValues(alpha: 0.4),
+                                      width: 0.7,
+                                    ),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 4.5,
+                                        height: 4.5,
+                                        decoration: BoxDecoration(
+                                          color: weather.aqiColor,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 3.5),
+                                      Text(
+                                        'AQI ${weather.aqi}',
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: weather.aqiColor,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isRefreshing) ...[
+                                  const SizedBox(width: 4),
+                                  SizedBox(
+                                    width: 8,
+                                    height: 8,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 1.2,
+                                      color: theme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),

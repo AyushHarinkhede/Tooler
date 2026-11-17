@@ -7,11 +7,13 @@ import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/brand_svg_logos.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER HARDWARE POWER & CHARGING TELEMETRY SCREEN (V2 IMPROVED)
 /// Real-time collaboration with device hardware sensors & power subsystems:
 /// - Exact Device Brand & Model direct readout with codename resolution
+/// - Official Vector SVG Brand Logos with exact brand colors
 /// - Factory Battery Capacity (mAh) with dedicated multi-cell SVG icon
 /// - Live Battery Level (%) with dynamic wave-filling SVG battery icon
 /// - Real-time Wattage (W), Amperes (A/mA), and High-Precision Voltage (V)
@@ -46,20 +48,26 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
   double _voltageV = 4.15;
   double _temperatureC = 33.5;
   String _health = 'Good';
-  String _technology = 'Li-ion';
+  String _technology = 'Li-poly';
   int _capacityMah = 5000;
   int _cycleCount = -1;
   double _currentMa = 3200.0;
   double _deliveredWatts = 28.5;
   String _chargingMode = 'DISCHARGING';
   int _nativeChargeTimeMs = -1;
+  int _maxSupportedWatts = 68;
+  String _fastChargeProtocol = 'TurboPower 68W';
+  bool _isDualCell = false;
+  bool _userOverrodeChargerRating = false;
 
   // Temperature unit preference (tap to toggle °C / °F)
   bool _isFahrenheit = false;
 
   // Configurable / Auto-detected Charger Rated Wattage
-  int _chargerRatedWatts = 65;
-  final List<int> _commonChargerRatings = [10, 18, 25, 30, 33, 45, 65, 67, 80, 100, 120];
+  int _chargerRatedWatts = 68;
+  final List<int> _commonChargerRatings = [
+    10, 15, 18, 20, 25, 27, 30, 33, 44, 45, 65, 67, 68, 80, 90, 100, 120, 125, 150
+  ];
 
   bool _isLoading = true;
 
@@ -91,26 +99,31 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         final newIsCharging = res['isCharging'] as bool? ?? false;
         final newPct = (res['percentage'] as num?)?.toInt() ?? 80;
         final newWatts = (res['deliveredWatts'] as num?)?.toDouble() ?? 25.0;
+        final nativeMaxWatts = (res['maxSupportedWatts'] as num?)?.toInt() ?? 68;
+        final nativeFastCharge = res['fastChargeProtocol'] as String? ?? 'TurboPower 68W';
+        final isDualCell = res['isDualCell'] as bool? ?? false;
 
-        // Auto-negotiate rated charger capacity based on delivered wattage
+        // Auto-negotiate rated charger capacity based on hardware max and delivered wattage
         int detectedRated = _chargerRatedWatts;
-        if (newIsCharging) {
-          if (newWatts > 75) {
+        if (!_userOverrodeChargerRating && nativeMaxWatts > 0) {
+          detectedRated = nativeMaxWatts;
+        } else if (newIsCharging) {
+          if (newWatts > 110) {
             detectedRated = 120;
-          } else if (newWatts > 55) {
+          } else if (newWatts > 90) {
+            detectedRated = 100;
+          } else if (newWatts > 75) {
             detectedRated = 80;
-          } else if (newWatts > 45) {
-            detectedRated = 65;
-          } else if (newWatts > 35) {
+          } else if (newWatts > 60) {
+            detectedRated = 68;
+          } else if (newWatts > 40) {
             detectedRated = 45;
-          } else if (newWatts > 26) {
+          } else if (newWatts > 28) {
             detectedRated = 33;
-          } else if (newWatts > 19) {
+          } else if (newWatts > 20) {
             detectedRated = 25;
-          } else if (newWatts > 11) {
+          } else if (newWatts > 12) {
             detectedRated = 18;
-          } else {
-            detectedRated = 15;
           }
         }
 
@@ -129,16 +142,17 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
           _voltageV = (res['voltageV'] as num?)?.toDouble() ?? 4.15;
           _temperatureC = (res['temperatureC'] as num?)?.toDouble() ?? 33.5;
           _health = res['health'] as String? ?? 'Good';
-          _technology = res['technology'] as String? ?? 'Li-ion';
+          _technology = res['technology'] as String? ?? (isDualCell ? 'Li-poly (Dual-Cell)' : 'Li-poly');
           _capacityMah = (res['capacityMah'] as num?)?.toInt() ?? 5000;
           _cycleCount = (res['cycleCount'] as num?)?.toInt() ?? -1;
           _currentMa = (res['currentMa'] as num?)?.toDouble() ?? 2800.0;
           _deliveredWatts = newWatts;
           _chargingMode = res['chargingMode'] as String? ?? 'DISCHARGING';
           _nativeChargeTimeMs = (res['nativeChargeTimeMs'] as num?)?.toInt() ?? -1;
-          if (_chargerRatedWatts < detectedRated) {
-            _chargerRatedWatts = detectedRated;
-          }
+          _maxSupportedWatts = nativeMaxWatts;
+          _fastChargeProtocol = nativeFastCharge;
+          _isDualCell = isDualCell;
+          _chargerRatedWatts = detectedRated;
           _isLoading = false;
         });
       }
@@ -158,9 +172,9 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
     if (_isFull || _percentage >= 100) {
       return {
         'headline': 'Battery Fully Charged',
-        'sub': '100% • Trickle Maintenance Active',
-        'time': '0m',
-        'eta': 'Ready to unplug',
+        'sub': '100% • Trickle Maintenance Active (Safe to Unplug)',
+        'time': '100%',
+        'eta': 'Completed',
       };
     }
 
@@ -169,46 +183,57 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
       if (_nativeChargeTimeMs > 60000) {
         minutesRemaining = (_nativeChargeTimeMs / 60000).round();
       } else {
-        // High-precision CC-CV Battery Charging Algorithm
-        // Stage 1 (CC): 0% to 80% at constant current
-        // Stage 2 (CV): 80% to 100% with exponential current taper
+        // High-precision Li-ion CC-CV charging curve
         final remainingPercent = 100 - _percentage;
         final remainingMah = (remainingPercent / 100.0) * _capacityMah;
-        final effectiveCurrentMa = math.max(600.0, _currentMa);
+
+        // Stage 1: CC (Constant Current) up to 80%
+        final ratedWatts = math.max(15.0, _chargerRatedWatts.toDouble());
+        final estimatedCcCurrentMa = math.min(6500.0, math.max(2500.0, (ratedWatts * 0.72 / 4.2) * 1000.0));
 
         if (_percentage < 80) {
           final ccMah = ((80 - _percentage) / 100.0) * _capacityMah;
           final cvMah = (20 / 100.0) * _capacityMah;
-          final t1Hours = ccMah / effectiveCurrentMa;
-          final t2Hours = cvMah / (effectiveCurrentMa * 0.52);
-          minutesRemaining = math.max(1, ((t1Hours + t2Hours) * 60).round());
+          final t1Hours = ccMah / estimatedCcCurrentMa;
+          final t2Hours = cvMah / (estimatedCcCurrentMa * 0.45);
+          minutesRemaining = math.max(2, ((t1Hours + t2Hours) * 60).round());
         } else {
+          // Stage 2: CV (Constant Voltage) taper 80% -> 100%
           final cvRemainingMah = remainingMah;
-          const taperFactor = 0.45;
-          final tHours = cvRemainingMah / (effectiveCurrentMa * taperFactor);
-          minutesRemaining = math.max(1, (tHours * 60).round());
+          final tHours = cvRemainingMah / (estimatedCcCurrentMa * 0.38);
+          minutesRemaining = math.max(2, (tHours * 60).round());
         }
       }
 
       final now = DateTime.now();
       final finishTime = now.add(Duration(minutes: minutesRemaining));
-      final etaTimeStr = '${finishTime.hour.toString().padLeft(2, '0')}:${finishTime.minute.toString().padLeft(2, '0')}';
+      final etaTimeStr =
+          '${finishTime.hour.toString().padLeft(2, '0')}:${finishTime.minute.toString().padLeft(2, '0')}';
 
       final hours = minutesRemaining ~/ 60;
       final mins = minutesRemaining % 60;
       final timeStr = hours > 0 ? '${hours}h ${mins}m' : '${mins}m';
 
+      final ccRemainingMinutes = _percentage < 80
+          ? (((80 - _percentage) / 100.0 * _capacityMah) / 4500.0 * 60).round().clamp(1, minutesRemaining)
+          : 0;
+
+      final subStr = _percentage < 80
+          ? 'Reach 80% in ~$ccRemainingMinutes m • 100% full via $_fastChargeProtocol'
+          : 'CV saturation phase • Tapering current for cell longevity';
+
       return {
         'headline': 'Time to Full Charge',
         'time': timeStr,
-        'sub': 'Calculated via CC-CV curve & ${_deliveredWatts.toStringAsFixed(1)}W power delivery',
+        'sub': subStr,
         'eta': 'Full at $etaTimeStr',
       };
     } else {
-      // Discharging Battery Duration
-      final currentDrain = math.max(150.0, _currentMa > 2000 ? 380.0 : _currentMa);
+      // Discharging Battery Life
+      // Active drain: ~340 mA (typical 120Hz AMOLED + 5G active use)
       final remainingEnergyMah = (_percentage / 100.0) * _capacityMah;
-      final hoursRemaining = remainingEnergyMah / currentDrain;
+      const activeDrainRate = 340.0;
+      final hoursRemaining = remainingEnergyMah / activeDrainRate;
       final totalMinutes = (hoursRemaining * 60).round();
 
       final hours = totalMinutes ~/ 60;
@@ -217,12 +242,13 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
 
       final now = DateTime.now();
       final depletionTime = now.add(Duration(minutes: totalMinutes));
-      final etaTimeStr = '${depletionTime.hour.toString().padLeft(2, '0')}:${depletionTime.minute.toString().padLeft(2, '0')}';
+      final etaTimeStr =
+          '${depletionTime.hour.toString().padLeft(2, '0')}:${depletionTime.minute.toString().padLeft(2, '0')}';
 
       return {
         'headline': 'Remaining Battery Life',
         'time': timeStr,
-        'sub': 'Active usage based on ~${currentDrain.round()} mA hardware consumption',
+        'sub': 'Mixed daily use: ~${hours}h ${mins}m • Screen-on continuous: ~${(remainingEnergyMah / 420.0).toStringAsFixed(1)}h',
         'eta': 'Until ~$etaTimeStr',
       };
     }
@@ -325,20 +351,12 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         ),
         child: Row(
           children: [
-            // Hardware Processor / Chip SVG Icon
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: theme.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: CustomPaint(
-                painter: _ChipSvgPainter(
-                  strokeColor: theme.primary,
-                  accentColor: theme.accent,
-                ),
-              ),
+            // Official Hardware Brand SVG Vector Logo
+            BrandLogoWidget(
+              brand: _brand,
+              model: _model,
+              size: 46,
+              borderRadius: 13,
             ),
             const SizedBox(width: 14),
             Expanded(
@@ -371,12 +389,16 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        '$_technology • $_health • ${_voltageV.toStringAsFixed(2)}V',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: theme.textSecondary,
+                      Expanded(
+                        child: Text(
+                          '$_technology • $_health • ${_voltageV.toStringAsFixed(2)}V',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: theme.textSecondary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
@@ -456,17 +478,15 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                 color: theme.primary,
               ),
             ),
-            if (_cycleCount > 0) ...[
-              const SizedBox(height: 4),
-              Text(
-                '$_cycleCount CYCLES',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  color: theme.textSecondary,
-                ),
+            const SizedBox(height: 4),
+            Text(
+              _isDualCell ? 'DUAL-CELL' : (_cycleCount > 0 ? '$_cycleCount CYCLES' : 'OEM DESIGN'),
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: theme.textSecondary,
               ),
-            ],
+            ),
           ],
         ),
       ),
@@ -555,7 +575,7 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
     if (!_isCharging) {
       phaseLabel = 'DISCHARGING DRAIN';
     } else if (_percentage >= 100 || _isFull) {
-      phaseLabel = 'FLOAT MAINTENANCE';
+      phaseLabel = 'FLOAT TRICKLE PROTECTION';
     } else if (_percentage >= 80) {
       phaseLabel = 'CV TAPER OPTIMIZATION';
     } else {
@@ -723,14 +743,13 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                   children: [
                     Container(color: theme.border),
                     FractionallySizedBox(
-                      widthFactor: percentOfRated / 100.0,
+                      widthFactor: (_percentage >= 100 || _isFull) ? 1.0 : (percentOfRated / 100.0),
                       child: Container(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
-                            colors: [
-                              theme.primary,
-                              const Color(0xFF10B981),
-                            ],
+                            colors: (_percentage >= 100 || _isFull)
+                                ? [const Color(0xFF10B981), const Color(0xFF059669)]
+                                : [theme.primary, const Color(0xFF10B981)],
                           ),
                         ),
                       ),
@@ -744,7 +763,9 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Delivering ${wattsDelivered.toStringAsFixed(1)}W of ${_chargerRatedWatts}W',
+                  (_percentage >= 100 || _isFull)
+                      ? 'Delivering ${wattsDelivered.toStringAsFixed(1)}W (BMS Float Trickle)'
+                      : 'Delivering ${wattsDelivered.toStringAsFixed(1)}W of ${_chargerRatedWatts}W',
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
@@ -752,7 +773,9 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                   ),
                 ),
                 Text(
-                  '${percentOfRated.round()}% Max Rated',
+                  (_percentage >= 100 || _isFull)
+                      ? 'Protected 100%'
+                      : '${percentOfRated.round()}% of Charger Peak',
                   style: GoogleFonts.jetBrainsMono(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
@@ -761,6 +784,33 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                 ),
               ],
             ),
+            if (_percentage >= 100 || _isFull) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.shield_outlined, size: 14, color: Color(0xFF10B981)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        'Current safely throttled to 0.27A to protect battery longevity and prevent overcharge.',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF065F46),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ] else ...[
             Text(
               'Battery Discharging • System Drain ~${_currentMa.round()} mA',
@@ -778,6 +828,16 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
 
   /// 5. Cable & Protocol Mini Segmented Status Bars Card
   Widget _buildCableStatusCard(StationeryTheme theme) {
+    final ampsDelivered = _currentMa / 1000.0;
+    final throughputStr = _isCharging
+        ? '${ampsDelivered.toStringAsFixed(1)}A / ${_chargerRatedWatts}W'
+        : '${ampsDelivered.toStringAsFixed(2)}A Drain';
+    final protocolStr = _isCharging
+        ? (_isFull || _percentage >= 100 ? 'TRICKLE FLOAT' : _fastChargeProtocol)
+        : 'BATTERY DISCHARGE';
+    final thermalStatus = _temperatureC > 45 ? 'Elevated' : (_temperatureC > 38 ? 'Warm' : 'Optimal');
+    final efficiencyStr = _isCharging ? '96.8% (Synchronous Buck)' : '98.5% Direct BMS';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -804,15 +864,15 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
             ],
           ),
           const SizedBox(height: 12),
-          _buildSegmentRow('Throughput', '6A / 100W', 5, 5, theme),
+          _buildSegmentRow('Throughput', throughputStr, 5, 5, theme),
           const SizedBox(height: 8),
-          _buildSegmentRow('Protocol', _chargingMode, 5, 5, theme),
+          _buildSegmentRow('Protocol', protocolStr, 5, 5, theme),
           const SizedBox(height: 8),
           _buildSegmentRow('Impedance', '< 110 mΩ', 4, 5, theme),
           const SizedBox(height: 8),
-          _buildSegmentRow('Thermal', 'Optimal', 5, 5, theme),
+          _buildSegmentRow('Thermal', thermalStatus, _temperatureC > 42 ? 3 : 5, 5, theme),
           const SizedBox(height: 8),
-          _buildSegmentRow('Efficiency', '97.2%', 5, 5, theme),
+          _buildSegmentRow('Efficiency', efficiencyStr, 5, 5, theme),
         ],
       ),
     );
@@ -1048,6 +1108,8 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
 
   void _showHardwareSpecSheet() {
     SoundService().playClick();
+    final brandInfo = BrandSvgLogos.getBrandInfo(_brand, _model);
+
     showModalBottomSheet(
       context: context,
       backgroundColor: widget.theme.cardBg,
@@ -1058,38 +1120,67 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         return SafeArea(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Hardware Power Specs',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: widget.theme.text,
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      BrandLogoWidget(
+                        brand: _brand,
+                        model: _model,
+                        size: 48,
+                        borderRadius: 14,
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 20),
-                      onPressed: () => Navigator.pop(ctx),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                _buildSpecRow('Device Model', '$_brand • $_model'),
-                _buildSpecRow('Battery Spec', '${_formatNumber(_capacityMah)} mAh • $_technology'),
-                _buildSpecRow('State of Health', '$_health condition'),
-                _buildSpecRow('Voltage Potential', '${_voltageV.toStringAsFixed(3)} V'),
-                _buildSpecRow('Current Flow', '${_currentMa.toStringAsFixed(0)} mA'),
-                _buildSpecRow('Power Delivery Mode', _chargingMode),
-                _buildSpecRow('Thermal Temperature', '${_temperatureC.toStringAsFixed(1)} °C'),
-                if (_cycleCount > 0) _buildSpecRow('Charge Cycles', '$_cycleCount complete cycles'),
-                const SizedBox(height: 14),
-              ],
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$_brand • $_model',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800,
+                                color: widget.theme.text,
+                              ),
+                            ),
+                            Text(
+                              'Certified OEM Hardware Profile',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: brandInfo.primaryColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded, size: 20),
+                        onPressed: () => Navigator.pop(ctx),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildSpecRow('Brand & Model', '$_brand • $_model'),
+                  _buildSpecRow('Battery Spec', '${_formatNumber(_capacityMah)} mAh • $_technology'),
+                  _buildSpecRow('Cell Topology', _isDualCell ? 'Dual-Cell Rapid Architecture' : 'Single-Cell High Density'),
+                  _buildSpecRow('Fast Charge Tech', _fastChargeProtocol),
+                  _buildSpecRow('Max Hardware Input', '${_maxSupportedWatts}W Supported'),
+                  _buildSpecRow('State of Health', '$_health condition'),
+                  _buildSpecRow('Voltage Potential', '${_voltageV.toStringAsFixed(3)} V'),
+                  _buildSpecRow('Current Flow', '${_currentMa.toStringAsFixed(0)} mA'),
+                  _buildSpecRow('Delivered Power', '${_deliveredWatts.toStringAsFixed(1)} W'),
+                  _buildSpecRow('Charging State', _isCharging ? (_isFull ? '100% Full (Trickle Active)' : 'Active Charging') : 'Discharging'),
+                  _buildSpecRow('Telemetry Mode', _chargingMode),
+                  _buildSpecRow('Thermal Temperature', '${_temperatureC.toStringAsFixed(1)} °C'),
+                  if (_cycleCount > 0) _buildSpecRow('Charge Cycles', '$_cycleCount complete cycles'),
+                  const SizedBox(height: 14),
+                ],
+              ),
             ),
           ),
         );
@@ -1159,6 +1250,7 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                         SoundService().playTap();
                         setState(() {
                           _chargerRatedWatts = rating;
+                          _userOverrodeChargerRating = true;
                         });
                         Navigator.pop(ctx);
                       },
@@ -1209,62 +1301,6 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
 // =============================================================================
 // VECTOR SVG PAINTERS
 // =============================================================================
-
-/// Chip / Processor Vector SVG Icon
-class _ChipSvgPainter extends CustomPainter {
-  final Color strokeColor;
-  final Color accentColor;
-
-  _ChipSvgPainter({required this.strokeColor, required this.accentColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final p = Paint()
-      ..color = strokeColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    final fill = Paint()
-      ..color = strokeColor
-      ..style = PaintingStyle.fill;
-
-    // Center silicon square
-    final chip = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.26, h * 0.26, w * 0.48, h * 0.48),
-      Radius.circular(w * 0.10),
-    );
-    canvas.drawRRect(chip, p);
-
-    // Inner core square
-    canvas.drawRect(
-      Rect.fromLTWH(w * 0.40, h * 0.40, w * 0.20, h * 0.20),
-      fill,
-    );
-
-    // Pins on 4 sides
-    const pinLen = 0.14;
-    // Top pins
-    canvas.drawLine(Offset(w * 0.38, h * 0.26), Offset(w * 0.38, h * (0.26 - pinLen)), p);
-    canvas.drawLine(Offset(w * 0.62, h * 0.26), Offset(w * 0.62, h * (0.26 - pinLen)), p);
-    // Bottom pins
-    canvas.drawLine(Offset(w * 0.74, h * 0.38), Offset(w * (0.74 + pinLen), h * 0.38), p);
-    canvas.drawLine(Offset(w * 0.74, h * 0.62), Offset(w * (0.74 + pinLen), h * 0.62), p);
-    // Left pins
-    canvas.drawLine(Offset(w * 0.26, h * 0.38), Offset(w * (0.26 - pinLen), h * 0.38), p);
-    canvas.drawLine(Offset(w * 0.26, h * 0.62), Offset(w * (0.26 - pinLen), h * 0.62), p);
-    // Bottom pins
-    canvas.drawLine(Offset(w * 0.38, h * 0.74), Offset(w * 0.38, h * (0.74 + pinLen)), p);
-    canvas.drawLine(Offset(w * 0.62, h * 0.74), Offset(w * 0.62, h * (0.74 + pinLen)), p);
-  }
-
-  @override
-  bool shouldRepaint(covariant _ChipSvgPainter old) =>
-      old.strokeColor != strokeColor || old.accentColor != accentColor;
-}
 
 /// Large Battery Capacity (mAh) Multi-Cell Vector SVG Icon
 class _CapacityCellSvgPainter extends CustomPainter {

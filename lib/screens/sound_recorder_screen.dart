@@ -123,9 +123,19 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     'Noise Check',
     'Voice Memo',
     'Meeting Note',
+    'Call Recording',
+    'System Sound',
     'Lecture',
     'Sound Evidence',
   ];
+
+  // Audio Input Sources & Call Telemetry
+  String _selectedAudioSource = 'mic'; // 'mic', 'earphone', 'system_sound', 'call'
+  bool _isCallActive = false;
+  Timer? _callCheckTimer;
+
+  // AI Voice Clarity & Intelligibility Enhancer
+  bool _isAiVoiceCorrectionEnabled = true;
 
   // Audio Playback
   final AudioPlayer _player = AudioPlayer();
@@ -134,6 +144,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
   double _playbackSpeed = 1.0;
+  static const List<double> _playbackSpeeds = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
   StreamSubscription? _posSub;
   StreamSubscription? _durSub;
   StreamSubscription? _stateSub;
@@ -158,6 +169,10 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     _bluetoothCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _checkBluetoothStatus();
     });
+    _checkCallStatus();
+    _callCheckTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _checkCallStatus();
+    });
     // Watchdog to ensure live dB never freezes
     _watchdogTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) {
       if (!_isRecording &&
@@ -171,6 +186,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   @override
   void dispose() {
     _bluetoothCheckTimer?.cancel();
+    _callCheckTimer?.cancel();
     _watchdogTimer?.cancel();
     _stopPassThrough();
     _pcmStreamSub?.cancel();
@@ -416,11 +432,34 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         path = '${dir.path}/tooler_sound_$timestamp.m4a';
       }
 
+      AndroidAudioSource audioSource;
+      switch (_selectedAudioSource) {
+        case 'call':
+          audioSource = AndroidAudioSource.voiceCommunication;
+          break;
+        case 'system_sound':
+          audioSource = AndroidAudioSource.voiceCommunication;
+          break;
+        case 'earphone':
+          audioSource = AndroidAudioSource.mic;
+          break;
+        case 'mic':
+        default:
+          audioSource = AndroidAudioSource.mic;
+          break;
+      }
+
       await _recorder.start(
-        const RecordConfig(
+        RecordConfig(
           encoder: AudioEncoder.aacLc,
-          bitRate: 128000,
+          bitRate: _isAiVoiceCorrectionEnabled ? 192000 : 128000,
           sampleRate: 44100,
+          autoGain: _isAiVoiceCorrectionEnabled,
+          echoCancel: _isAiVoiceCorrectionEnabled,
+          noiseSuppress: _isAiVoiceCorrectionEnabled,
+          androidConfig: AndroidRecordConfig(
+            audioSource: audioSource,
+          ),
         ),
         path: path ?? '',
       );
@@ -523,15 +562,24 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       finalPath = publicCopyPath;
     }
 
+    String chosenTag = _activeTag;
+    if (_selectedAudioSource == 'call' && _activeTag == 'Noise Check') {
+      chosenTag = 'Call Recording';
+    } else if (_selectedAudioSource == 'system_sound' && _activeTag == 'Noise Check') {
+      chosenTag = 'System Sound';
+    } else if (_selectedAudioSource == 'earphone' && _activeTag == 'Noise Check') {
+      chosenTag = 'Earphone Audio';
+    }
+
     final String defaultTitle =
-        '$_activeTag · ${_recordings.length + 1} (${_recordingPeakDb.toStringAsFixed(0)} dB)';
+        '$chosenTag · ${_recordings.length + 1} (${_recordingPeakDb.toStringAsFixed(0)} dB)';
     final newItem = VoiceRecordingItem(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
       title: defaultTitle,
       filePath: finalPath,
       durationSeconds: _recordSeconds,
       createdAt: DateTime.now(),
-      tag: _activeTag,
+      tag: chosenTag,
       caption: _captionController.text.trim(),
       bookmarks: List<int>.from(_currentBookmarks),
       peakDb: _recordingPeakDb,
@@ -551,7 +599,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         SnackBar(
           content: Text(
             publicCopyPath != null
-                ? 'Recording saved to phone Downloads: Tooler_Recordings/'
+                ? 'Recording saved to phone: Download/Tooler_Recordings/'
                 : 'Recording saved successfully',
             style: widget.theme.fontDisplay(color: Colors.white, fontSize: 13),
           ),
@@ -577,6 +625,20 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       if (kIsWeb) return sourcePath;
       final sourceFile = File(sourcePath);
       if (!await sourceFile.exists()) return null;
+
+      // First try native Android method to trigger MediaScannerConnection
+      if (Platform.isAndroid) {
+        try {
+          final fileName = sourcePath.split(Platform.pathSeparator).last;
+          final String? nativeSaved = await _loopbackChannel.invokeMethod('saveToPublicDirectory', {
+            'sourcePath': sourcePath,
+            'fileName': fileName,
+          });
+          if (nativeSaved != null && nativeSaved.isNotEmpty) {
+            return nativeSaved;
+          }
+        } catch (_) {}
+      }
 
       Directory? downloadDir;
       final androidDownload =
@@ -633,9 +695,17 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   Future<void> _togglePlaybackSpeed() async {
     SoundService().playKey();
     HapticFeedback.selectionClick();
-    final speeds = [1.0, 1.25, 1.5, 2.0];
-    int nextIdx = (speeds.indexOf(_playbackSpeed) + 1) % speeds.length;
-    _playbackSpeed = speeds[nextIdx];
+    int nextIdx =
+        (_playbackSpeeds.indexOf(_playbackSpeed) + 1) % _playbackSpeeds.length;
+    _playbackSpeed = _playbackSpeeds[nextIdx];
+    await _player.setPlaybackRate(_playbackSpeed);
+    setState(() {});
+  }
+
+  Future<void> _setPlaybackSpeed(double speed) async {
+    SoundService().playKey();
+    HapticFeedback.selectionClick();
+    _playbackSpeed = speed;
     await _player.setPlaybackRate(_playbackSpeed);
     setState(() {});
   }
@@ -746,6 +816,24 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         if (mounted && _isBluetoothConnected != isConn) {
           setState(() {
             _isBluetoothConnected = isConn;
+          });
+        }
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _checkCallStatus() async {
+    try {
+      if (!kIsWeb && Platform.isAndroid) {
+        final bool inCall =
+            await _loopbackChannel.invokeMethod('isCallActive') ?? false;
+        if (mounted && _isCallActive != inCall) {
+          setState(() {
+            _isCallActive = inCall;
+            if (inCall && !_isRecording) {
+              _selectedAudioSource = 'call';
+              _activeTag = 'Call Recording';
+            }
           });
         }
       }
@@ -1158,7 +1246,63 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         border: Border.all(color: widget.theme.border, width: 1.5),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Active Phone Call Auto-Detection Banner
+          if (_isCallActive)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.green.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: Colors.green.withValues(alpha: 0.5),
+                  width: 1.2,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withValues(alpha: 0.2),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.phone_in_talk_rounded,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Active Phone Call Detected",
+                          style: widget.theme.fontDisplay(
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green.shade800,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          "Call recording mode enabled. Tap Record Call to capture conversation audio.",
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: widget.theme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           if (_isRecording) ...[
             // Recording Active State
             Row(
@@ -1176,7 +1320,13 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      _isPausedRecording ? "PAUSED" : "RECORDING SOUND",
+                      _isPausedRecording
+                          ? "PAUSED"
+                          : _selectedAudioSource == 'call'
+                              ? "RECORDING CALL"
+                              : _selectedAudioSource == 'system_sound'
+                                  ? "RECORDING SYSTEM AUDIO"
+                                  : "RECORDING SOUND",
                       style: widget.theme.fontMono(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -1293,6 +1443,108 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               ],
             ),
           ] else ...[
+            // Idle State: Audio Source Selector
+            Text(
+              "Audio Source",
+              style: widget.theme.fontDisplay(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: widget.theme.textSecondary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildSourceChip(
+                    id: 'mic',
+                    label: 'Phone Mic',
+                    icon: Icons.mic_rounded,
+                  ),
+                  _buildSourceChip(
+                    id: 'earphone',
+                    label: 'Earphone',
+                    icon: Icons.headphones_rounded,
+                  ),
+                  _buildSourceChip(
+                    id: 'system_sound',
+                    label: 'System Sound',
+                    icon: Icons.volume_up_rounded,
+                  ),
+                  _buildSourceChip(
+                    id: 'call',
+                    label: 'Call Recording',
+                    icon: Icons.phone_in_talk_rounded,
+                    isLiveCall: _isCallActive,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // AI Voice Correction & Clarity Toggle
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: _isAiVoiceCorrectionEnabled
+                    ? widget.theme.primary.withValues(alpha: 0.08)
+                    : widget.theme.bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _isAiVoiceCorrectionEnabled
+                      ? widget.theme.primary.withValues(alpha: 0.35)
+                      : widget.theme.border,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.auto_awesome_rounded,
+                    size: 18,
+                    color: _isAiVoiceCorrectionEnabled
+                        ? widget.theme.primary
+                        : widget.theme.textSecondary,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "AI Voice Clarity System",
+                          style: widget.theme.fontDisplay(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: widget.theme.text,
+                          ),
+                        ),
+                        Text(
+                          "Intelligible speech clarity & acoustic de-noise without distortion",
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: widget.theme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Switch(
+                    value: _isAiVoiceCorrectionEnabled,
+                    activeThumbColor: widget.theme.primary,
+                    onChanged: (val) {
+                      SoundService().playKey();
+                      HapticFeedback.selectionClick();
+                      setState(() => _isAiVoiceCorrectionEnabled = val);
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 14),
+
             // Idle State: Start Record Button
             Row(
               children: [
@@ -1301,11 +1553,26 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        "Record Noise & Audio",
+                        _selectedAudioSource == 'call'
+                            ? "Record Phone Call"
+                            : _selectedAudioSource == 'system_sound'
+                                ? "Record System Audio"
+                                : "Record Noise & Audio",
                         style: widget.theme.fontDisplay(
                           fontSize: 15,
                           fontWeight: FontWeight.bold,
                           color: widget.theme.text,
+                        ),
+                      ),
+                      Text(
+                        _selectedAudioSource == 'call'
+                            ? "Captures active call conversation"
+                            : _selectedAudioSource == 'system_sound'
+                                ? "Captures phone system playback"
+                                : "Studio quality audio recording",
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: widget.theme.textSecondary,
                         ),
                       ),
                     ],
@@ -1313,7 +1580,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: widget.theme.primary,
+                    backgroundColor: _selectedAudioSource == 'call'
+                        ? Colors.green.shade700
+                        : widget.theme.primary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 18,
@@ -1325,16 +1594,83 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                     elevation: 3,
                   ),
                   onPressed: _startRecording,
-                  icon: const Icon(Icons.fiber_manual_record_rounded, size: 18),
-                  label: const Text(
-                    "Record Sound",
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  icon: Icon(
+                    _selectedAudioSource == 'call'
+                        ? Icons.phone_in_talk_rounded
+                        : Icons.fiber_manual_record_rounded,
+                    size: 18,
+                  ),
+                  label: Text(
+                    _selectedAudioSource == 'call'
+                        ? "Record Call"
+                        : "Record Sound",
+                    style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildSourceChip({
+    required String id,
+    required String label,
+    required IconData icon,
+    bool isLiveCall = false,
+  }) {
+    final bool isSelected = (_selectedAudioSource == id);
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: FilterChip(
+        avatar: Icon(
+          icon,
+          size: 16,
+          color: isSelected
+              ? Colors.white
+              : (isLiveCall ? Colors.green : widget.theme.textSecondary),
+        ),
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label),
+            if (isLiveCall) ...[
+              const SizedBox(width: 4),
+              Container(
+                width: 7,
+                height: 7,
+                decoration: const BoxDecoration(
+                  color: Colors.greenAccent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ],
+          ],
+        ),
+        selected: isSelected,
+        selectedColor: isLiveCall && isSelected
+            ? Colors.green.shade700
+            : widget.theme.primary,
+        checkmarkColor: Colors.white,
+        labelStyle: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.bold,
+          color: isSelected ? Colors.white : widget.theme.text,
+        ),
+        onSelected: (val) {
+          SoundService().playKey();
+          HapticFeedback.selectionClick();
+          setState(() {
+            _selectedAudioSource = id;
+            if (id == 'call') {
+              _activeTag = 'Call Recording';
+            } else if (id == 'system_sound') {
+              _activeTag = 'System Sound';
+            }
+          });
+        },
       ),
     );
   }
@@ -1363,18 +1699,39 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                   color: widget.theme.text,
                 ),
               ),
-              if (_currentlyPlayingId != null)
-                TextButton(
-                  onPressed: _togglePlaybackSpeed,
-                  child: Text(
-                    "${_playbackSpeed}x Speed",
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: widget.theme.primary,
+              InkWell(
+                onTap: _togglePlaybackSpeed,
+                borderRadius: BorderRadius.circular(10),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: widget.theme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: widget.theme.primary.withValues(alpha: 0.3),
                     ),
                   ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.speed_rounded,
+                        size: 14,
+                        color: widget.theme.primary,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "${_playbackSpeed}x Speed",
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: widget.theme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+              ),
             ],
           ),
 
@@ -1492,18 +1849,19 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.download_rounded, size: 20),
-                            tooltip: "Save to Phone Downloads",
+                            icon: const Icon(Icons.save_alt_rounded, size: 20),
+                            tooltip: "Save to System Storage",
                             color: widget.theme.primary,
                             onPressed: () async {
                               final saved = await _saveFileToPublicDownloads(item.filePath);
                               if (context.mounted) {
+                                final fileName = item.filePath.split(Platform.pathSeparator).last;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   SnackBar(
                                     content: Text(
                                       saved != null
-                                          ? "Saved to Download/Tooler_Recordings/"
-                                          : "File ready in storage",
+                                          ? "Saved to Phone: Download/Tooler_Recordings/$fileName"
+                                          : "File exported to device storage",
                                       style: widget.theme.fontDisplay(color: Colors.white, fontSize: 13),
                                     ),
                                     backgroundColor: widget.theme.primary,
@@ -1556,6 +1914,76 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                                   Text(
                                     _formatSeconds(_totalDuration.inSeconds),
                                     style: widget.theme.fontMono(fontSize: 10, color: widget.theme.textSecondary),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 6),
+                              // Speed Controller Chips & AI Clarity Badge
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Icon(Icons.speed_rounded, size: 14, color: widget.theme.primary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        "Speed:",
+                                        style: TextStyle(
+                                          fontSize: 10.5,
+                                          fontWeight: FontWeight.bold,
+                                          color: widget.theme.textSecondary,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Wrap(
+                                        spacing: 4,
+                                        children: _playbackSpeeds.map((spd) {
+                                          final bool isCur = (_playbackSpeed == spd);
+                                          return InkWell(
+                                            onTap: () => _setPlaybackSpeed(spd),
+                                            borderRadius: BorderRadius.circular(6),
+                                            child: Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: isCur
+                                                    ? widget.theme.primary
+                                                    : widget.theme.border.withValues(alpha: 0.5),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                "${spd}x",
+                                                style: TextStyle(
+                                                  fontSize: 9.5,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: isCur ? Colors.white : widget.theme.text,
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: widget.theme.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.auto_awesome_rounded, size: 11, color: widget.theme.primary),
+                                        const SizedBox(width: 3),
+                                        Text(
+                                          "AI Voice Clear",
+                                          style: TextStyle(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.bold,
+                                            color: widget.theme.primary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),

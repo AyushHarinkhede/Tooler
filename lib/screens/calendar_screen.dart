@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../theme/stationery_theme.dart';
@@ -45,6 +46,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
   List<CalendarEventModel> _events = [];
   bool _isLoading = true;
   bool _notifyIntlDays = true;
+  String _selectedCategoryFilter = 'All';
 
   @override
   void initState() {
@@ -747,6 +749,76 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // ---------------------------------------------------------------------------
+  // HELPER METHODS
+  // ---------------------------------------------------------------------------
+  int _getRowCountForMonth(DateTime month) {
+    final firstDayOffset = DateTime(month.year, month.month, 1).weekday % 7;
+    final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
+    return (firstDayOffset + daysInMonth <= 35) ? 5 : 6;
+  }
+
+  String _getRelativeDateBadge(DateTime targetDate) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final target = DateTime(targetDate.year, targetDate.month, targetDate.day);
+    final diff = target.difference(today).inDays;
+
+    if (diff == 0) return 'Today 📍';
+    if (diff == 1) return 'Tomorrow ⏳';
+    if (diff == -1) return 'Yesterday';
+    if (diff > 1) {
+      if (diff < 30) return 'In $diff days ⏳';
+      final months = (diff / 30).round();
+      return 'In $months mo';
+    } else {
+      final pastDays = diff.abs();
+      if (pastDays < 30) return '$pastDays d ago';
+      final months = (pastDays / 30).round();
+      return '$months mo ago';
+    }
+  }
+
+  String _getYearAndWeekString(DateTime targetDate) {
+    final dayOfYear = targetDate.difference(DateTime(targetDate.year, 1, 1)).inDays + 1;
+    final totalDays = DateTime(targetDate.year, 12, 31).difference(DateTime(targetDate.year, 1, 1)).inDays + 1;
+    final weekNum = ((dayOfYear - targetDate.weekday + 10) / 7).floor().clamp(1, 53);
+    return 'Day $dayOfYear of $totalDays • Week $weekNum';
+  }
+
+  void _copyDateSummary() {
+    SoundService().playClick();
+    final formattedDate = DateFormat('EEEE, d MMMM yyyy').format(_selectedDate);
+    final intlDay = _getIntlDay(_selectedDate);
+    final events = _getEventsForDate(_selectedDate);
+
+    final buffer = StringBuffer();
+    buffer.writeln('📅 $formattedDate');
+    buffer.writeln(_getYearAndWeekString(_selectedDate));
+    if (intlDay != null) {
+      buffer.writeln('✨ Observance: ${intlDay.title}');
+      buffer.writeln('ℹ️ ${intlDay.description}');
+    }
+    if (events.isNotEmpty) {
+      buffer.writeln('📝 Personal Reminders (${events.length}):');
+      for (final e in events) {
+        final timeStr = DateFormat('hh:mm a').format(DateTime(2026, 1, 1, e.reminderHour, e.reminderMinute));
+        buffer.writeln('• [${e.tag}] ${e.title} at $timeStr${e.note.isNotEmpty ? " (${e.note})" : ""}');
+      }
+    }
+
+    Clipboard.setData(ClipboardData(text: buffer.toString().trim()));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Copied date summary for $formattedDate'),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // MAIN BUILD
   // ---------------------------------------------------------------------------
   @override
@@ -759,34 +831,26 @@ class _CalendarScreenState extends State<CalendarScreen> {
       );
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildCalendarHeader(theme),
-        const SizedBox(height: 8),
-        _buildWeekdayHeader(theme),
-        const SizedBox(height: 6),
-        // Swipeable Month Grid View
-        SizedBox(
-          height: 275,
-          child: PageView.builder(
-            controller: _pageController,
-            onPageChanged: (page) {
-              setState(() {
-                _currentPage = page;
-                _currentMonth = _getMonthForPage(page);
-              });
-            },
-            itemBuilder: (ctx, page) {
-              final monthDate = _getMonthForPage(page);
-              return _buildMonthGrid(theme, monthDate);
-            },
-          ),
-        ),
-        const SizedBox(height: 12),
-        // Selected Date Details & Observances
-        _buildSelectedDateDetails(theme),
-      ],
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildCalendarHeader(theme),
+          const SizedBox(height: 10),
+          _buildWeekdayHeader(theme),
+          const SizedBox(height: 8),
+          // Swipeable Month View with Dynamic Height (Zero Bottom Cut-Off)
+          _buildSwipeableMonthView(theme),
+          const SizedBox(height: 14),
+          // Horizontal Month Observance Horizon Carousel
+          _buildMonthObservancesCarousel(theme),
+          const SizedBox(height: 14),
+          // Selected Date Details, Celebrations & Personal Notes
+          _buildSelectedDateDetails(theme),
+        ],
+      ),
     );
   }
 
@@ -940,173 +1004,363 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   // ---------------------------------------------------------------------------
-  // 3. MONTH GRID (6 rows x 7 cols)
+  // 3. SWIPEABLE MONTH VIEW (Dynamic Height, Zero Bottom Cut-Off)
+  // ---------------------------------------------------------------------------
+  Widget _buildSwipeableMonthView(StationeryTheme theme) {
+    final rowCount = _getRowCountForMonth(_currentMonth);
+    final targetHeight = (rowCount == 5) ? 254.0 : 304.0;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 240),
+      curve: Curves.easeOutCubic,
+      height: targetHeight,
+      child: PageView.builder(
+        controller: _pageController,
+        onPageChanged: (page) {
+          final newMonth = _getMonthForPage(page);
+          setState(() {
+            _currentPage = page;
+            _currentMonth = newMonth;
+            // Auto-sync selected date with browsed month
+            final now = DateTime.now();
+            if (newMonth.year == now.year && newMonth.month == now.month) {
+              _selectedDate = DateTime(now.year, now.month, now.day);
+            } else {
+              final maxDays = DateTime(newMonth.year, newMonth.month + 1, 0).day;
+              final safeDay = _selectedDate.day.clamp(1, maxDays);
+              _selectedDate = DateTime(newMonth.year, newMonth.month, safeDay);
+            }
+          });
+        },
+        itemBuilder: (ctx, page) {
+          final monthDate = _getMonthForPage(page);
+          return _buildMonthGrid(theme, monthDate);
+        },
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. MONTH GRID (Structured Rows, Exact Height, Never Cut Off)
   // ---------------------------------------------------------------------------
   Widget _buildMonthGrid(StationeryTheme theme, DateTime month) {
     final daysInMonth = DateTime(month.year, month.month + 1, 0).day;
     final firstDayOffset = DateTime(month.year, month.month, 1).weekday % 7; // 0=Sun .. 6=Sat
     final prevMonthDays = DateTime(month.year, month.month, 0).day;
+    final totalCells = (firstDayOffset + daysInMonth <= 35) ? 35 : 42;
+    final numRows = totalCells ~/ 7;
 
     final now = DateTime.now();
 
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: 42,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 7,
-        childAspectRatio: 1.15,
-        crossAxisSpacing: 4,
-        mainAxisSpacing: 4,
-      ),
-      itemBuilder: (ctx, i) {
-        final col = i % 7;
-        final isSunday = (col == 0);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: List.generate(numRows, (r) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 5),
+          child: Row(
+            children: List.generate(7, (c) {
+              final i = r * 7 + c;
+              final isSunday = (c == 0);
 
-        if (i < firstDayOffset) {
-          // Previous month padding
-          final prevDay = prevMonthDays - firstDayOffset + i + 1;
-          return Center(
-            child: Text(
-              '$prevDay',
-              style: TextStyle(
-                fontSize: 11,
-                color: isSunday ? const Color(0xFFE74C3C).withValues(alpha: 0.3) : theme.textSecondary.withValues(alpha: 0.25),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          );
-        }
+              if (i < firstDayOffset) {
+                // Previous month padding
+                final prevDay = prevMonthDays - firstDayOffset + i + 1;
+                return Expanded(
+                  child: Container(
+                    height: 44,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$prevDay',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isSunday
+                            ? const Color(0xFFE74C3C).withValues(alpha: 0.30)
+                            : theme.textSecondary.withValues(alpha: 0.25),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                );
+              }
 
-        final dayNum = i - firstDayOffset + 1;
-        if (dayNum > daysInMonth) {
-          // Next month padding
-          final nextDay = dayNum - daysInMonth;
-          return Center(
-            child: Text(
-              '$nextDay',
-              style: TextStyle(
-                fontSize: 11,
-                color: isSunday ? const Color(0xFFE74C3C).withValues(alpha: 0.3) : theme.textSecondary.withValues(alpha: 0.25),
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          );
-        }
+              final dayNum = i - firstDayOffset + 1;
+              if (dayNum > daysInMonth) {
+                // Next month padding
+                final nextDay = dayNum - daysInMonth;
+                return Expanded(
+                  child: Container(
+                    height: 44,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '$nextDay',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isSunday
+                            ? const Color(0xFFE74C3C).withValues(alpha: 0.30)
+                            : theme.textSecondary.withValues(alpha: 0.25),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                );
+              }
 
-        // Active day in current month
-        final cellDate = DateTime(month.year, month.month, dayNum);
-        final isToday = (cellDate.year == now.year && cellDate.month == now.month && cellDate.day == now.day);
-        final isSelected = (cellDate.year == _selectedDate.year && cellDate.month == _selectedDate.month && cellDate.day == _selectedDate.day);
+              // Active day in current month
+              final cellDate = DateTime(month.year, month.month, dayNum);
+              final isToday = (cellDate.year == now.year &&
+                  cellDate.month == now.month &&
+                  cellDate.day == now.day);
+              final isSelected = (cellDate.year == _selectedDate.year &&
+                  cellDate.month == _selectedDate.month &&
+                  cellDate.day == _selectedDate.day);
 
-        final intlDay = _getIntlDay(cellDate);
-        final events = _getEventsForDate(cellDate);
-        final hasPersonal = events.isNotEmpty;
+              final intlDay = _getIntlDay(cellDate);
+              final events = _getEventsForDate(cellDate);
+              final hasPersonal = events.isNotEmpty;
 
-        // Container decoration logic as requested:
-        // "uss day ko Uss chote date container ko Ui colour ka bana do baaki ke number Ui theme colour ke honge or sunday ka font ya number red hoga id uss din koi special ocation aata hai to number red but uska chota container Ui theme colour ka"
-        Color containerBg;
-        Border border;
+              Color containerBg;
+              Border border;
 
-        if (intlDay != null) {
-          containerBg = theme.primary.withValues(alpha: isSelected ? 0.26 : 0.16);
-          border = Border.all(
-            color: theme.primary,
-            width: isSelected ? 2.0 : 1.2,
-          );
-        } else if (isSelected) {
-          containerBg = theme.primary.withValues(alpha: 0.10);
-          border = Border.all(color: theme.primary, width: 2.0);
-        } else if (isToday) {
-          containerBg = theme.cardBg;
-          border = Border.all(color: theme.primary.withValues(alpha: 0.6), width: 1.4);
-        } else {
-          containerBg = theme.cardBg;
-          border = Border.all(color: theme.border.withValues(alpha: 0.5), width: 0.8);
-        }
+              if (intlDay != null) {
+                containerBg =
+                    theme.primary.withValues(alpha: isSelected ? 0.28 : 0.16);
+                border = Border.all(
+                  color: theme.primary,
+                  width: isSelected ? 2.0 : 1.2,
+                );
+              } else if (isSelected) {
+                containerBg = theme.primary.withValues(alpha: 0.12);
+                border = Border.all(color: theme.primary, width: 2.0);
+              } else if (isToday) {
+                containerBg = theme.cardBg;
+                border = Border.all(
+                    color: theme.primary.withValues(alpha: 0.65), width: 1.4);
+              } else {
+                containerBg = theme.cardBg;
+                border = Border.all(
+                    color: theme.border.withValues(alpha: 0.60), width: 0.9);
+              }
 
-        // Number color logic:
-        // Sunday is ALWAYS pure red!
-        Color numColor;
-        if (isSunday) {
-          numColor = const Color(0xFFE74C3C); // Pure Red
-        } else if (intlDay != null) {
-          numColor = theme.primary;
-        } else {
-          numColor = theme.text;
-        }
+              // Sunday font/number is ALWAYS Pure Red #E74C3C
+              Color numColor;
+              if (isSunday) {
+                numColor = const Color(0xFFE74C3C);
+              } else if (intlDay != null) {
+                numColor = theme.primary;
+              } else if (isSelected) {
+                numColor = theme.primaryDark;
+              } else {
+                numColor = theme.text;
+              }
 
-        return BouncyTap(
-          onTap: () {
-            SoundService().playClick();
-            setState(() => _selectedDate = cellDate);
-          },
-          scaleFraction: 0.92,
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            decoration: BoxDecoration(
-              color: containerBg,
-              borderRadius: BorderRadius.circular(10),
-              border: border,
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: theme.primary.withValues(alpha: 0.18),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      )
-                    ]
-                  : null,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  '$dayNum',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
-                    fontWeight: (isSunday || isToday || intlDay != null || isSelected) ? FontWeight.w800 : FontWeight.w600,
-                    color: numColor,
+              return Expanded(
+                child: BouncyTap(
+                  onTap: () {
+                    SoundService().playClick();
+                    setState(() => _selectedDate = cellDate);
+                  },
+                  scaleFraction: 0.92,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    height: 44,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    decoration: BoxDecoration(
+                      color: containerBg,
+                      borderRadius: BorderRadius.circular(10),
+                      border: border,
+                      boxShadow: isSelected
+                          ? [
+                              BoxShadow(
+                                color: theme.primary.withValues(alpha: 0.20),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              )
+                            ]
+                          : null,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          '$dayNum',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: (isSunday ||
+                                    isToday ||
+                                    intlDay != null ||
+                                    isSelected)
+                                ? FontWeight.w800
+                                : FontWeight.w600,
+                            color: numColor,
+                          ),
+                        ),
+                        const SizedBox(height: 1),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (intlDay != null)
+                              Icon(
+                                intlDay.icon,
+                                size: 11,
+                                color: isSunday
+                                    ? const Color(0xFFE74C3C)
+                                    : theme.primary,
+                              ),
+                            if (intlDay != null && hasPersonal)
+                              const SizedBox(width: 2),
+                            if (hasPersonal)
+                              Container(
+                                width: 4.5,
+                                height: 4.5,
+                                decoration: BoxDecoration(
+                                  color: events.first.tagColor,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-                const SizedBox(height: 1),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (intlDay != null)
-                      Icon(
-                        intlDay.icon,
-                        size: 11,
-                        color: isSunday ? const Color(0xFFE74C3C) : theme.primary,
-                      ),
-                    if (intlDay != null && hasPersonal) const SizedBox(width: 2),
-                    if (hasPersonal)
-                      Container(
-                        width: 4,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: events.first.tagColor,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+              );
+            }),
           ),
         );
-      },
+      }),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // 4. SELECTED DATE DETAILS, CELEBRATION BANNER & PERSONAL NOTES LIST
+  // 5. MONTH OBSERVANCES HORIZON CAROUSEL (Quick Discovery Chips)
+  // ---------------------------------------------------------------------------
+  Widget _buildMonthObservancesCarousel(StationeryTheme theme) {
+    final monthDays = kInternationalDays
+        .where((d) => d.month == _currentMonth.month)
+        .toList()
+      ..sort((a, b) => a.day.compareTo(b.day));
+
+    if (monthDays.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.stars_rounded, size: 16, color: theme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    "${DateFormat('MMMM').format(_currentMonth)} Observances (${monthDays.length})",
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w800,
+                      color: theme.text,
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                'Tap to inspect',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: theme.textSecondary,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          height: 36,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            itemCount: monthDays.length,
+            separatorBuilder: (_, __) => const SizedBox(width: 8),
+            itemBuilder: (context, idx) {
+              final d = monthDays[idx];
+              final isSelected = (_selectedDate.month == d.month && _selectedDate.day == d.day);
+              final isSunday = (DateTime(_currentMonth.year, d.month, d.day).weekday == 7);
+
+              return BouncyTap(
+                onTap: () {
+                  SoundService().playClick();
+                  setState(() {
+                    _selectedDate = DateTime(_currentMonth.year, d.month, d.day);
+                  });
+                },
+                scaleFraction: 0.94,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? theme.primary
+                        : theme.primary.withValues(alpha: isSunday ? 0.18 : 0.10),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected
+                          ? theme.primary
+                          : (isSunday ? const Color(0xFFE74C3C) : theme.primary.withValues(alpha: 0.40)),
+                      width: isSelected ? 1.5 : 1.0,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        d.icon,
+                        size: 14,
+                        color: isSelected
+                            ? Colors.white
+                            : (isSunday ? const Color(0xFFE74C3C) : theme.primary),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        "${DateFormat.MMM().format(_currentMonth)} ${d.day} • ${d.title}",
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 11,
+                          fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                          color: isSelected ? Colors.white : theme.text,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 6. SELECTED DATE DETAILS, CELEBRATION BANNER & PERSONAL NOTES LIST
   // ---------------------------------------------------------------------------
   Widget _buildSelectedDateDetails(StationeryTheme theme) {
     final intlDay = _getIntlDay(_selectedDate);
-    final events = _getEventsForDate(_selectedDate);
+    final allEventsForDate = _getEventsForDate(_selectedDate);
+    final events = (_selectedCategoryFilter == 'All')
+        ? allEventsForDate
+        : allEventsForDate.where((e) => e.tag == _selectedCategoryFilter).toList();
+
     final formattedDate = DateFormat('EEEE, d MMMM yyyy').format(_selectedDate);
     final isSunday = (_selectedDate.weekday == 7);
+    final relativeBadge = _getRelativeDateBadge(_selectedDate);
+    final yearWeekInfo = _getYearAndWeekString(_selectedDate);
+
+    // Available categories in the events for quick filtering
+    final distinctTags = allEventsForDate.map((e) => e.tag).toSet().toList();
 
     return Container(
       width: double.infinity,
@@ -1126,54 +1380,127 @@ class _CalendarScreenState extends State<CalendarScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Header: Date, Relative Badge, Day of Year & Action Buttons
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.event_note_rounded,
+                          size: 18,
+                          color: isSunday ? const Color(0xFFE74C3C) : theme.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            formattedDate,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: isSunday ? const Color(0xFFE74C3C) : theme.text,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: theme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            relativeBadge,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: theme.primary,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          yearWeekInfo,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            color: theme.textSecondary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.event_note_rounded,
-                    size: 18,
-                    color: isSunday ? const Color(0xFFE74C3C) : theme.primary,
+                  // Copy Date Summary Button
+                  BouncyTap(
+                    onTap: _copyDateSummary,
+                    scaleFraction: 0.90,
+                    child: Container(
+                      padding: const EdgeInsets.all(7),
+                      decoration: BoxDecoration(
+                        color: theme.bg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: theme.border, width: 1.2),
+                      ),
+                      child: Icon(
+                        Icons.copy_rounded,
+                        size: 14,
+                        color: theme.textSecondary,
+                      ),
+                    ),
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    formattedDate,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: isSunday ? const Color(0xFFE74C3C) : theme.text,
+                  const SizedBox(width: 6),
+                  // Add Note Button
+                  BouncyTap(
+                    onTap: () => _openAddEventModal(),
+                    scaleFraction: 0.92,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: theme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.primary.withValues(alpha: 0.25),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add_rounded, size: 14, color: Colors.white),
+                          SizedBox(width: 3),
+                          Text(
+                            'Add Note',
+                            style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
-              ),
-              BouncyTap(
-                onTap: () => _openAddEventModal(),
-                scaleFraction: 0.92,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: theme.primary,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add_rounded, size: 14, color: Colors.white),
-                      SizedBox(width: 3),
-                      Text(
-                        'Add Note',
-                        style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
               ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // International Celebration Day Card
+          // International / National Celebration Day Card
           if (intlDay != null) ...[
             Container(
               padding: const EdgeInsets.all(12),
@@ -1243,8 +1570,27 @@ class _CalendarScreenState extends State<CalendarScreen> {
             const SizedBox(height: 12),
           ],
 
+          // Category Filter Chips if multiple notes exist
+          if (allEventsForDate.length > 1 && distinctTags.length > 1) ...[
+            SizedBox(
+              height: 28,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  _buildTagFilterChip(theme, 'All', allEventsForDate.length),
+                  ...distinctTags.map((tag) {
+                    final count = allEventsForDate.where((e) => e.tag == tag).length;
+                    return _buildTagFilterChip(theme, tag, count);
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+
           // Personal Notes & Reminders List
-          if (events.isEmpty) ...[
+          if (allEventsForDate.isEmpty) ...[
             if (intlDay == null)
               Container(
                 width: double.infinity,
@@ -1259,8 +1605,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ToolerCharacter(
                       pose: ToolerCharacterPose.projectRoadmap,
                       theme: theme,
-                      width: 140,
-                      height: 105,
+                      width: 130,
+                      height: 95,
                       animate: true,
                     ),
                     const SizedBox(height: 8),
@@ -1373,6 +1719,40 @@ class _CalendarScreenState extends State<CalendarScreen> {
             }),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildTagFilterChip(StationeryTheme theme, String tag, int count) {
+    final isSelected = (_selectedCategoryFilter == tag);
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: BouncyTap(
+        onTap: () {
+          SoundService().playClick();
+          setState(() => _selectedCategoryFilter = tag);
+        },
+        scaleFraction: 0.94,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+          decoration: BoxDecoration(
+            color: isSelected ? theme.primary : theme.bg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? theme.primary : theme.border,
+              width: isSelected ? 1.4 : 1.0,
+            ),
+          ),
+          child: Text(
+            '$tag ($count)',
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: FontWeight.bold,
+              color: isSelected ? Colors.white : theme.textSecondary,
+            ),
+          ),
+        ),
       ),
     );
   }

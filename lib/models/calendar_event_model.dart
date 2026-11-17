@@ -178,6 +178,13 @@ const List<InternationalDay> kInternationalDays = [
   ),
   InternationalDay(
     month: 1,
+    day: 26,
+    title: "Republic Day & International Customs Day",
+    description: "Commemorating national constitutional sovereignty and global cross-border trade facilitation.",
+    icon: Icons.flag_rounded,
+  ),
+  InternationalDay(
+    month: 1,
     day: 27,
     title: "International Holocaust Remembrance Day",
     description: "Global day of solemn commemoration honoring the victims of the Holocaust.",
@@ -226,6 +233,13 @@ const List<InternationalDay> kInternationalDays = [
     title: "International Mother Language Day",
     description: "UNESCO observance promoting linguistic diversity, multilingualism, and cultural preservation.",
     icon: Icons.translate_rounded,
+  ),
+  InternationalDay(
+    month: 2,
+    day: 28,
+    title: "National Science Day",
+    description: "Commemorating the landmark discovery of the Raman Effect by Nobel laureate Sir C. V. Raman.",
+    icon: Icons.biotech_rounded,
   ),
 
   // March
@@ -293,6 +307,13 @@ const List<InternationalDay> kInternationalDays = [
     title: "International Day of Human Space Flight",
     description: "Celebrating the dawn of the space exploration era for peaceful advancement of mankind.",
     icon: Icons.rocket_launch_rounded,
+  ),
+  InternationalDay(
+    month: 4,
+    day: 14,
+    title: "Dr. B. R. Ambedkar Remembrance Day",
+    description: "Honoring the chief architect of the Indian Constitution, champion of social justice and equality.",
+    icon: Icons.menu_book_rounded,
   ),
   InternationalDay(
     month: 4,
@@ -444,6 +465,13 @@ const List<InternationalDay> kInternationalDays = [
   ),
   InternationalDay(
     month: 8,
+    day: 15,
+    title: "Independence Day & Global Liberty Day",
+    description: "Commemorating national freedom, sovereign democracy, and the triumphant spirit of liberty.",
+    icon: Icons.celebration_rounded,
+  ),
+  InternationalDay(
+    month: 8,
     day: 19,
     title: "World Humanitarian Day",
     description: "Honoring brave humanitarian aid workers who provide life-saving assistance in global crises.",
@@ -451,6 +479,13 @@ const List<InternationalDay> kInternationalDays = [
   ),
 
   // September
+  InternationalDay(
+    month: 9,
+    day: 5,
+    title: "National Teachers' Day & International Day of Charity",
+    description: "Honoring exemplary educators, knowledge mentors, and selfless philanthropic social care.",
+    icon: Icons.school_rounded,
+  ),
   InternationalDay(
     month: 9,
     day: 8,
@@ -497,6 +532,13 @@ const List<InternationalDay> kInternationalDays = [
   ),
   InternationalDay(
     month: 10,
+    day: 2,
+    title: "International Day of Non-Violence (Mahatma Gandhi Jayanti)",
+    description: "UN world observance honoring Mahatma Gandhi's universal ideals of truth, non-violence, and peace.",
+    icon: Icons.spa_rounded,
+  ),
+  InternationalDay(
+    month: 10,
     day: 4,
     title: "World Animal Day",
     description: "Global mission for animal rights, ethical welfare, and compassionate protection.",
@@ -530,6 +572,13 @@ const List<InternationalDay> kInternationalDays = [
     description: "Commemorating the founding of the UN Charter and multilateral collaboration for humanity.",
     icon: Icons.flag_rounded,
   ),
+  InternationalDay(
+    month: 10,
+    day: 31,
+    title: "National Unity Day (Rashtriya Ekta Diwas) & World Cities Day",
+    description: "Honoring Sardar Vallabhbhai Patel's unification of India and promoting sustainable global cities.",
+    icon: Icons.security_rounded,
+  ),
 
   // November
   InternationalDay(
@@ -545,6 +594,13 @@ const List<InternationalDay> kInternationalDays = [
     title: "World Kindness Day",
     description: "Promoting empathy, common goodwill, and positive acts of kindness across communities.",
     icon: Icons.favorite_border_rounded,
+  ),
+  InternationalDay(
+    month: 11,
+    day: 14,
+    title: "Children's Day (Bal Diwas) & World Diabetes Day",
+    description: "Celebrating youth potential, children's creative future, and universal diabetes healthcare.",
+    icon: Icons.face_rounded,
   ),
   InternationalDay(
     month: 11,
@@ -610,6 +666,13 @@ const List<InternationalDay> kInternationalDays = [
     title: "International Human Solidarity Day",
     description: "Celebrating global unity in diversity and joint multilateral action against poverty.",
     icon: Icons.handshake_rounded,
+  ),
+  InternationalDay(
+    month: 12,
+    day: 22,
+    title: "National Mathematics Day",
+    description: "Celebrating the birth anniversary and profound mathematical genius of Srinivasa Ramanujan.",
+    icon: Icons.calculate_rounded,
   ),
   InternationalDay(
     month: 12,
