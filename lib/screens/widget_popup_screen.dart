@@ -48,8 +48,6 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
 
   late String _activeToolId;
   late AnimationController _entryController;
-  late Animation<Offset> _slideAnim;
-  late Animation<double> _fadeAnim;
   bool _isClosing = false;
 
   @override
@@ -59,20 +57,8 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
 
     _entryController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 280),
-      reverseDuration: const Duration(milliseconds: 190),
-    );
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.14),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(
-      parent: _entryController,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
-    ));
-    _fadeAnim = CurvedAnimation(
-      parent: _entryController,
-      curve: Curves.easeOut,
+      duration: const Duration(milliseconds: 440),
+      reverseDuration: const Duration(milliseconds: 280),
     );
     _entryController.forward();
 
@@ -267,21 +253,16 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
       },
       child: Material(
         color: Colors.transparent,
-        child: FadeTransition(
-          opacity: _fadeAnim,
-          child: SlideTransition(
-            position: _slideAnim,
-            child: ToolerHoverSheet(
-              key: ValueKey<String>(_activeToolId),
-              title: meta.title,
-              subtitle: meta.subtitle,
-              tag: meta.tag,
-              theme: widget.theme,
-              isDirectHomeOverlay: true,
-              onClose: _closePopup,
-              child: meta.child,
-            ),
-          ),
+        child: ToolerHoverSheet(
+          key: ValueKey<String>(_activeToolId),
+          title: meta.title,
+          subtitle: meta.subtitle,
+          tag: meta.tag,
+          theme: widget.theme,
+          isDirectHomeOverlay: true,
+          sheetAnimation: _entryController,
+          onClose: _closePopup,
+          child: meta.child,
         ),
       ),
     );
