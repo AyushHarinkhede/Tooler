@@ -12,13 +12,19 @@ import '../games/flappy_bird_game.dart';
 import '../games/space_shooter_game.dart';
 import '../games/brain_games_widget.dart';
 import '../games/merge_2048_game.dart';
+import '../games/brick_breaker_game.dart';
+import '../games/minesweeper_game.dart';
+import '../games/connect_four_game.dart';
 
 enum GameType {
   racing,
   flappy,
   shooter,
+  brickBreaker,
   brain,
   merge2048,
+  minesweeper,
+  connectFour,
   tictactoe,
   snake,
   ludo,
@@ -1795,8 +1801,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       {'type': GameType.racing, 'label': 'Turbo Race', 'icon': Icons.directions_car_filled_rounded},
       {'type': GameType.flappy, 'label': 'Flappy Bird', 'icon': Icons.flutter_dash_rounded},
       {'type': GameType.shooter, 'label': 'Space Shooter', 'icon': Icons.rocket_launch_rounded},
+      {'type': GameType.brickBreaker, 'label': 'Brick Breaker', 'icon': Icons.sports_tennis_rounded},
       {'type': GameType.brain, 'label': 'Brain Lab', 'icon': Icons.psychology_rounded},
       {'type': GameType.merge2048, 'label': '2048', 'icon': Icons.apps_rounded},
+      {'type': GameType.minesweeper, 'label': 'Minesweeper', 'icon': Icons.brightness_low_rounded},
+      {'type': GameType.connectFour, 'label': 'Connect 4', 'icon': Icons.grid_view_rounded},
       {'type': GameType.tictactoe, 'label': 'Tic-Tac-Toe', 'icon': Icons.grid_3x3_rounded},
       {'type': GameType.snake, 'label': 'Snake Pro', 'icon': Icons.gesture_rounded},
       {'type': GameType.ludo, 'label': 'Real Ludo', 'icon': Icons.casino_rounded},
@@ -1903,10 +1912,16 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         return '60FPS Physics · Medals · Endless Sky';
       case GameType.shooter:
         return 'Galaxy Waves · Triple Shot · Shield';
+      case GameType.brickBreaker:
+        return 'Arkanoid · Explosive Bombs · Powerups';
       case GameType.brain:
         return 'Memory Grid · Color Trap · Speed Math';
       case GameType.merge2048:
         return 'Swipe 4×4 · Undo · Neon Tiles';
+      case GameType.minesweeper:
+        return 'Safe First Tap · Dig & Flag · 10 Mines';
+      case GameType.connectFour:
+        return '7×6 Gravity Grid · vs Smart AI / 2 Players';
       case GameType.tictactoe:
         return 'Playing as $_playerSymbol | ${_vsComputer ? "vs AI (${_aiDifficulty.toUpperCase()})" : "2 Players"}';
       case GameType.snake:
@@ -2061,8 +2076,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
       case GameType.racing:
       case GameType.flappy:
       case GameType.shooter:
+      case GameType.brickBreaker:
       case GameType.brain:
       case GameType.merge2048:
+      case GameType.minesweeper:
+      case GameType.connectFour:
         return const SizedBox.shrink();
       case GameType.tictactoe:
         return _buildTttOptions();
@@ -2576,10 +2594,16 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
         return FlappyBirdGame(theme: widget.theme);
       case GameType.shooter:
         return SpaceShooterGame(theme: widget.theme);
+      case GameType.brickBreaker:
+        return BrickBreakerGame(theme: widget.theme);
       case GameType.brain:
         return BrainGamesWidget(theme: widget.theme);
       case GameType.merge2048:
         return Merge2048Game(theme: widget.theme);
+      case GameType.minesweeper:
+        return MinesweeperGame(theme: widget.theme);
+      case GameType.connectFour:
+        return ConnectFourGame(theme: widget.theme);
       case GameType.tictactoe:
         return _buildTicTacToeView();
       case GameType.snake:
