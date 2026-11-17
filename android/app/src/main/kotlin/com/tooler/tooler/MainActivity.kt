@@ -472,7 +472,7 @@ open class MainActivity : FlutterActivity() {
             }
         }
 
-        // FM Radio Hardware Antenna, Output Routing & Recording Export Channel
+        // FM Radio Hardware Antenna, Receiver Detection, Output Routing & Recording Export Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FM_RADIO_CHANNEL).setMethodCallHandler { call, result ->
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
             when (call.method) {
@@ -481,16 +481,89 @@ open class MainActivity : FlutterActivity() {
                     val hasWired = btState["isWiredConnected"] == true
                     val hasBt = btState["isBluetoothConnected"] == true
                     val devName = (btState["deviceName"] as? String) ?: ""
-                    val hasFmChip = try {
-                        File("/dev/radio0").exists() ||
-                            File("/dev/fm").exists() ||
-                            packageManager.hasSystemFeature("android.hardware.fm")
-                    } catch (_: Exception) {
-                        false
+
+                    // Deep hardware FM receiver probe across kernel nodes, Android AudioDeviceInfo, features & OEM packages
+                    var receiverDetail = "No Hardware FM Receiver Chip"
+                    var hasKernelFm = false
+                    var hasTunerInput = false
+                    var oemFmPkg = ""
+
+                    try {
+                        val fmNodes = listOf("/dev/radio0", "/dev/fm", "/dev/fm_radio", "/dev/iris_radio")
+                        val foundNode = fmNodes.firstOrNull { File(it).exists() }
+                        if (foundNode != null) {
+                            hasKernelFm = true
+                            receiverDetail = "FM Receiver Chip ($foundNode)"
+                        } else if (
+                            packageManager.hasSystemFeature("android.hardware.fm") ||
+                            packageManager.hasSystemFeature("android.hardware.fm.receiver") ||
+                            packageManager.hasSystemFeature("com.motorola.hardware.fm")
+                        ) {
+                            hasKernelFm = true
+                            receiverDetail = "Built-in Android FM Receiver"
+                        }
+                    } catch (_: Exception) {}
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        try {
+                            val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+                            if (inputs.any { it.type == AudioDeviceInfo.TYPE_FM_TUNER }) {
+                                hasTunerInput = true
+                                if (!hasKernelFm) receiverDetail = "Hardware FM Tuner Audio Input"
+                            }
+                        } catch (_: Exception) {}
                     }
+
+                    val oemPackages = listOf(
+                        "com.android.fmradio",
+                        "com.miui.fm",
+                        "com.caf.fmradio",
+                        "com.sec.android.app.fm",
+                        "com.mediatek.fmradio",
+                        "com.transsion.fmradio",
+                        "com.oplus.fmradio",
+                        "com.oneplus.fmradio",
+                        "com.motorola.fmplayer",
+                        "com.asus.fmradio",
+                        "com.sonyericsson.fmradio",
+                        "com.lenovo.fm",
+                        "com.huawei.android.FMRadio"
+                    )
+                    for (pkg in oemPackages) {
+                        try {
+                            val launch = packageManager.getLaunchIntentForPackage(pkg)
+                            if (launch != null) {
+                                oemFmPkg = pkg
+                                if (!hasKernelFm && !hasTunerInput) {
+                                    receiverDetail = "Device Hardware FM Receiver"
+                                }
+                                break
+                            }
+                        } catch (_: Exception) {}
+                    }
+
+                    val hasFmReceiver = hasKernelFm || hasTunerInput || oemFmPkg.isNotEmpty()
+
+                    // Detect exact wired device label (3.5mm vs USB-C)
+                    var wiredLabel = "Wired Earphone (FM Antenna)"
+                    if (hasWired && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        try {
+                            val outs = audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                            if (outs.any { it.type == AudioDeviceInfo.TYPE_USB_HEADSET }) {
+                                wiredLabel = "USB-C Headset"
+                            } else if (outs.any {
+                                    it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
+                                        it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+                                }
+                            ) {
+                                wiredLabel = "Wired 3.5mm (Antenna)"
+                            }
+                        } catch (_: Exception) {}
+                    }
+
                     val activeOutput = when {
                         fmSpeakerOverride -> "Phone Speaker"
-                        hasWired -> "Wired Earphone (FM Antenna)"
+                        hasWired -> wiredLabel
                         hasBt -> if (devName.isNotEmpty()) devName else "Bluetooth Audio"
                         else -> "Phone Speaker"
                     }
@@ -498,13 +571,35 @@ open class MainActivity : FlutterActivity() {
                         mapOf(
                             "hasWiredAntenna" to hasWired,
                             "hasBluetoothAudio" to hasBt,
-                            "hasFmChip" to hasFmChip,
+                            "hasFmChip" to hasFmReceiver,
+                            "hasFmReceiver" to hasFmReceiver,
+                            "fmReceiverDetail" to receiverDetail,
+                            "oemFmPackage" to oemFmPkg,
                             "bluetoothEnabled" to (btState["bluetoothEnabled"] == true),
                             "deviceName" to devName,
                             "activeOutputName" to activeOutput,
                             "outputRoute" to if (fmSpeakerOverride) "speaker" else "headset"
                         )
                     )
+                }
+                "launchHardwareFm" -> {
+                    val pkg = call.argument<String>("packageName") ?: ""
+                    try {
+                        if (pkg.isNotEmpty()) {
+                            val intent = packageManager.getLaunchIntentForPackage(pkg)
+                            if (intent != null) {
+                                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                startActivity(intent)
+                                result.success(true)
+                            } else {
+                                result.success(false)
+                            }
+                        } else {
+                            result.success(false)
+                        }
+                    } catch (_: Exception) {
+                        result.success(false)
+                    }
                 }
                 "setAudioOutputRoute" -> {
                     val route = call.argument<String>("route") ?: "headset"
@@ -525,18 +620,33 @@ open class MainActivity : FlutterActivity() {
                             }
                         } else {
                             fmSpeakerOverride = false
-                            audioManager.mode = AudioManager.MODE_NORMAL
                             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                                 audioManager.clearCommunicationDevice()
                             } else {
                                 @Suppress("DEPRECATION")
                                 audioManager.isSpeakerphoneOn = false
                             }
+                            audioManager.mode = AudioManager.MODE_NORMAL
                         }
                         result.success(true)
                     } catch (_: Exception) {
                         result.success(false)
                     }
+                }
+                "resetAudioRoute" -> {
+                    try {
+                        fmSpeakerOverride = false
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                            audioManager.clearCommunicationDevice()
+                        } else {
+                            @Suppress("DEPRECATION")
+                            audioManager.isSpeakerphoneOn = false
+                        }
+                        if (!ToolerAudioService.isLoopbackRunning) {
+                            audioManager.mode = AudioManager.MODE_NORMAL
+                        }
+                    } catch (_: Exception) {}
+                    result.success(true)
                 }
                 "saveRadioRecording" -> {
                     val sourcePath = call.argument<String>("sourcePath") ?: ""
