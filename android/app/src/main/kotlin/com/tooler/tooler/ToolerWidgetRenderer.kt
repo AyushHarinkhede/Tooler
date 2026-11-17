@@ -753,4 +753,166 @@ object ToolerWidgetRenderer {
 
         return bmp
     }
+
+    fun renderTasksIconBitmap(sizePx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.08f
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.bubbleBg
+            style = Paint.Style.FILL
+        }
+
+        // Background squircle bubble
+        canvas.drawRoundRect(RectF(s * 0.08f, s * 0.08f, s * 0.92f, s * 0.92f), s * 0.26f, s * 0.26f, fill)
+
+        // Clipboard / notepad outline
+        val pad = RectF(s * 0.24f, s * 0.22f, s * 0.76f, s * 0.82f)
+        canvas.drawRoundRect(pad, s * 0.08f, s * 0.08f, stroke)
+
+        // Checklist lines
+        val linePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.07f
+            strokeCap = Paint.Cap.ROUND
+        }
+        canvas.drawLine(s * 0.42f, s * 0.40f, s * 0.68f, s * 0.40f, linePaint)
+        canvas.drawLine(s * 0.42f, s * 0.55f, s * 0.68f, s * 0.55f, linePaint)
+        canvas.drawLine(s * 0.42f, s * 0.70f, s * 0.68f, s * 0.70f, linePaint)
+
+        // Checkmarks
+        val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.065f
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+        val chk1 = Path().apply {
+            moveTo(s * 0.30f, s * 0.40f)
+            lineTo(s * 0.34f, s * 0.43f)
+            lineTo(s * 0.38f, s * 0.37f)
+        }
+        canvas.drawPath(chk1, checkPaint)
+
+        val chk2 = Path().apply {
+            moveTo(s * 0.30f, s * 0.55f)
+            lineTo(s * 0.34f, s * 0.58f)
+            lineTo(s * 0.38f, s * 0.52f)
+        }
+        canvas.drawPath(chk2, checkPaint)
+
+        return bmp
+    }
+
+    fun renderAddTaskIconBitmap(sizePx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.bubbleBg
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.46f, bgPaint)
+
+        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.06f
+        }
+        canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.46f, borderPaint)
+
+        val plusPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.11f
+            strokeCap = Paint.Cap.ROUND
+        }
+        canvas.drawLine(s * 0.28f, s * 0.50f, s * 0.72f, s * 0.50f, plusPaint)
+        canvas.drawLine(s * 0.50f, s * 0.28f, s * 0.50f, s * 0.72f, plusPaint)
+
+        return bmp
+    }
+
+    fun renderTaskCheckmarkBitmap(sizePx: Int, completed: Boolean, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        if (completed) {
+            val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = palette.primary
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.42f, fillPaint)
+
+            val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = if (palette.isDark) Color.BLACK else Color.WHITE
+                style = Paint.Style.STROKE
+                strokeWidth = s * 0.12f
+                strokeCap = Paint.Cap.ROUND
+                strokeJoin = Paint.Join.ROUND
+            }
+            val checkPath = Path().apply {
+                moveTo(s * 0.32f, s * 0.50f)
+                lineTo(s * 0.45f, s * 0.64f)
+                lineTo(s * 0.70f, s * 0.36f)
+            }
+            canvas.drawPath(checkPath, checkPaint)
+        } else {
+            val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = palette.bubbleBg
+                style = Paint.Style.FILL
+            }
+            canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.40f, bgPaint)
+
+            val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = palette.primary
+                style = Paint.Style.STROKE
+                strokeWidth = s * 0.10f
+                strokeCap = Paint.Cap.ROUND
+            }
+            canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.40f, strokePaint)
+        }
+
+        return bmp
+    }
+
+    fun renderTaskEmptyIconBitmap(sizePx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.bubbleBg
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.44f, bgPaint)
+
+        val checkPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.11f
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+        val checkPath = Path().apply {
+            moveTo(s * 0.32f, s * 0.50f)
+            lineTo(s * 0.46f, s * 0.65f)
+            lineTo(s * 0.72f, s * 0.35f)
+        }
+        canvas.drawPath(checkPath, checkPaint)
+
+        return bmp
+    }
 }

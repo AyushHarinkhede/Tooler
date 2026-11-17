@@ -157,6 +157,13 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
           tag: 'Finance',
           child: CurrencyScreen(theme: t),
         );
+      case 'tasks_add':
+        return _PopupToolMeta(
+          title: 'New Task & Note',
+          subtitle: 'Create Quick Checklist or Note',
+          tag: 'Organize',
+          child: TasksScreen(theme: t, autoOpenComposer: true),
+        );
       case 'tasks':
         return _PopupToolMeta(
           title: 'Tasks & Notes',

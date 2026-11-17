@@ -154,6 +154,20 @@
                 android:resource="@xml/tooler_widget_step_info" />
         </receiver>
 
+        <!-- Home Screen Resizable Tasks & Notes Widget -->
+        <receiver
+            android:name=".ToolerTasksWidgetProvider"
+            android:exported="true"
+            android:label="Tooler Tasks &amp; Notes">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.tooler.tooler.ACTION_TASK_TOGGLE_COMPLETE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tooler_widget_tasks_info" />
+        </receiver>
+
         <!-- Flutter Local Notifications Receivers for Real-time & Background Alarms -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">

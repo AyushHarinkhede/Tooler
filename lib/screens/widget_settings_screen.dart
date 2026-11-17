@@ -3,12 +3,14 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
 import '../models/counter_model.dart';
+import '../models/task_model.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/widget_service.dart';
 import '../services/pedometer_sensor_service.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import 'tasks_screen.dart';
 
 class WidgetSettingsScreen extends StatefulWidget {
   final StationeryTheme theme;
@@ -23,7 +25,7 @@ class WidgetSettingsScreen extends StatefulWidget {
 }
 
 class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
-  String _selectedRatio = '4x1'; // '4x1', 'steps', '2x2', or '1x1'
+  String _selectedRatio = '4x1'; // '4x1', 'tasks', 'steps', '2x2', or '1x1'
   String _colorMode = 'app';     // 'app' or 'system'
   String _favToolId = 'calc';
   WidgetSystemColors? _systemColors;
@@ -34,6 +36,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
   int _counterValue = 0;
   int _counterStep = 1;
   List<CounterItem> _userCounters = [];
+  List<TaskItem> _userTasks = [];
 
   int _todaySteps = 0;
   double _stepDistanceKm = 0.0;
@@ -74,6 +77,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
   Future<void> _loadInitial() async {
     await WidgetService().loadPrefs();
     final counters = await StorageService().loadCounters();
+    final tasks = await StorageService().loadTasks();
     final sys = await WidgetService().getSystemColors(widget.theme);
     final pedometer = PedometerSensorService();
     if (mounted) {
@@ -83,6 +87,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
         _favToolId = WidgetService().favToolId;
         _systemColors = sys;
         _userCounters = counters;
+        _userTasks = tasks;
         _todaySteps = pedometer.todaySteps;
         _stepDistanceKm = pedometer.distanceKm;
         _stepAvgSpeed = pedometer.avgSpeedKmh;
@@ -104,6 +109,30 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
         }
       });
     }
+  }
+
+  void _togglePreviewTask(int id) async {
+    SoundService().playTaskComplete();
+    HapticFeedback.lightImpact();
+    setState(() {
+      final idx = _userTasks.indexWhere((t) => t.id == id);
+      if (idx != -1) {
+        _userTasks[idx].completed = !_userTasks[idx].completed;
+      }
+    });
+    await StorageService().saveTasks(_userTasks);
+    await WidgetService().syncToNative(widget.theme);
+  }
+
+  void _addNewTaskFromPreview() {
+    SoundService().playClick();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => TasksScreen(theme: widget.theme, autoOpenComposer: true),
+      ),
+    ).then((_) {
+      _loadInitial();
+    });
   }
 
   void _updatePreviewCounter(int delta) {
@@ -253,11 +282,13 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
             ok
                 ? (_selectedRatio == '4x1'
                     ? 'Tap "Add" to place Tooler 4×1 Quick Bar on Home Screen!'
-                    : (_selectedRatio == 'steps'
-                        ? 'Tap "Add" to place Tooler Step Counter on Home Screen!'
-                        : (_selectedRatio == '2x2'
-                            ? 'Tap "Add" to place Tooler 2×2 Tally Counter on Home Screen!'
-                            : 'Tap "Add" to place your 1×1 Icon Shortcut on Home Screen!')))
+                    : (_selectedRatio == 'tasks'
+                        ? 'Tap "Add" to place Resizable Tasks Widget on Home Screen!'
+                        : (_selectedRatio == 'steps'
+                            ? 'Tap "Add" to place Tooler Step Counter on Home Screen!'
+                            : (_selectedRatio == '2x2'
+                                ? 'Tap "Add" to place Tooler 2×2 Tally Counter on Home Screen!'
+                                : 'Tap "Add" to place your 1×1 Icon Shortcut on Home Screen!'))))
                 : 'Long-press your phone Home Screen → Widgets → Tooler to place it.',
             style: GoogleFonts.plusJakartaSans(
               color: Colors.white,
@@ -282,6 +313,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
     final Color previewBubble = useSystem ? _systemColors!.bubbleBg : theme.lavenderBubble;
     final Color previewPrimary = useSystem ? _systemColors!.primary : theme.primary;
     final Color previewBorder = useSystem ? _systemColors!.border : theme.border;
+    final Color previewInk = useSystem ? _systemColors!.ink : theme.text;
     final bool previewIsDark = useSystem ? _systemColors!.isDark : theme.isDark;
 
     final selectedSection = _allSections.firstWhere(
@@ -361,9 +393,11 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                         child: Text(
                           _selectedRatio == '4x1'
                               ? '4 × 1 Bar'
-                              : (_selectedRatio == 'steps'
-                                  ? 'Steps 2×2'
-                                  : (_selectedRatio == '2x2' ? 'Tally 2×2' : '1 × 1 Icon')),
+                              : (_selectedRatio == 'tasks'
+                                  ? 'Tasks & Notes'
+                                  : (_selectedRatio == 'steps'
+                                      ? 'Steps 2×2'
+                                      : (_selectedRatio == '2x2' ? 'Tally 2×2' : '1 × 1 Icon'))),
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 10.5,
                             fontWeight: FontWeight.w700,
@@ -375,7 +409,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                   ),
                   const SizedBox(height: 22),
 
-                  // Render 4x1, steps, 2x2, or 1x1 Widget Preview
+                  // Render 4x1, tasks, steps, 2x2, or 1x1 Widget Preview
                   if (_selectedRatio == '4x1')
                     Container(
                       height: 76,
@@ -430,6 +464,15 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                           ),
                         ],
                       ),
+                    )
+                  else if (_selectedRatio == 'tasks')
+                    _buildPreviewTasksWidget(
+                      previewCardBg: previewCardBg,
+                      previewBorder: previewBorder,
+                      previewBubble: previewBubble,
+                      previewPrimary: previewPrimary,
+                      previewInk: previewInk,
+                      previewIsDark: previewIsDark,
                     )
                   else if (_selectedRatio == 'steps')
                     Container(
@@ -727,11 +770,13 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                   Text(
                     _selectedRatio == '4x1'
                         ? 'Calculator · Calendar · Weather · All Tools'
-                        : (_selectedRatio == 'steps'
-                            ? 'Step Counter · Steps, Distance, Avg Speed & Calories with live hardware telemetry'
-                            : (_selectedRatio == '2x2'
-                                ? 'Interactive Tally Counter · Tap + / - directly from phone Home Screen'
-                                : 'Icon-only shortcut · Opens ${selectedSection['title']} hover page')),
+                        : (_selectedRatio == 'tasks'
+                            ? 'Resizable Tasks & Notes Widget · Complete tasks & add new ones directly from Home Screen'
+                            : (_selectedRatio == 'steps'
+                                ? 'Step Counter · Steps, Distance, Avg Speed & Calories with live hardware telemetry'
+                                : (_selectedRatio == '2x2'
+                                    ? 'Interactive Tally Counter · Tap + / - directly from phone Home Screen'
+                                    : 'Icon-only shortcut · Opens ${selectedSection['title']} hover page'))),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
@@ -745,7 +790,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
 
             const SizedBox(height: 18),
 
-            // 2. Ratio Selector (4x1 vs Steps vs Tally vs 1x1)
+            // 2. Ratio Selector (4x1 vs Tasks vs Steps vs Tally vs 1x1)
             _buildSectionCard(
               title: 'Widget Ratio & Type',
               child: Column(
@@ -764,11 +809,11 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildChoiceTile(
-                          label: 'Steps 2×2',
-                          subtitle: 'Fitness Pedometer',
-                          icon: Icons.directions_walk_rounded,
-                          isSelected: _selectedRatio == 'steps',
-                          onTap: () => _updateConfig(ratio: 'steps'),
+                          label: 'Tasks & Notes',
+                          subtitle: 'Resizable List',
+                          icon: Icons.checklist_rounded,
+                          isSelected: _selectedRatio == 'tasks',
+                          onTap: () => _updateConfig(ratio: 'tasks'),
                         ),
                       ),
                     ],
@@ -778,6 +823,16 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                     children: [
                       Expanded(
                         child: _buildChoiceTile(
+                          label: 'Steps 2×2',
+                          subtitle: 'Fitness Pedometer',
+                          icon: Icons.directions_walk_rounded,
+                          isSelected: _selectedRatio == 'steps',
+                          onTap: () => _updateConfig(ratio: 'steps'),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildChoiceTile(
                           label: 'Tally 2×2',
                           subtitle: 'Counter & Ginti',
                           icon: Icons.exposure_plus_1_rounded,
@@ -785,7 +840,11 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                           onTap: () => _updateConfig(ratio: '2x2'),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
                       Expanded(
                         child: _buildChoiceTile(
                           label: '1 × 1 Icon',
@@ -1028,11 +1087,13 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                 label: Text(
                   _selectedRatio == '4x1'
                       ? 'Add 4×1 Widget to Home Screen'
-                      : (_selectedRatio == 'steps'
-                          ? 'Add Step Counter Widget to Home Screen'
-                          : (_selectedRatio == '2x2'
-                              ? 'Add 2×2 Counter Widget to Home Screen'
-                              : 'Add 1×1 Widget to Home Screen')),
+                      : (_selectedRatio == 'tasks'
+                          ? 'Add Tasks Widget to Home Screen'
+                          : (_selectedRatio == 'steps'
+                              ? 'Add Step Counter Widget to Home Screen'
+                              : (_selectedRatio == '2x2'
+                                  ? 'Add 2×2 Counter Widget to Home Screen'
+                                  : 'Add 1×1 Widget to Home Screen'))),
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 15,
                     fontWeight: FontWeight.w800,
@@ -1173,6 +1234,206 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildPreviewTasksWidget({
+    required Color previewCardBg,
+    required Color previewBorder,
+    required Color previewBubble,
+    required Color previewPrimary,
+    required Color previewInk,
+    required bool previewIsDark,
+  }) {
+    final pendingTasks = _userTasks.where((t) => !t.completed).toList();
+    final visibleCount = pendingTasks.length.clamp(0, 3);
+
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxWidth: 340),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: previewCardBg,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: previewBorder, width: 1.5),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: previewIsDark ? 0.35 : 0.08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Row
+          Row(
+            children: [
+              Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: previewBubble,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Center(
+                  child: Icon(
+                    Icons.checklist_rounded,
+                    size: 16,
+                    color: previewPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'TASKS & NOTES',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: previewInk,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: previewPrimary.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  pendingTasks.isEmpty ? 'ALL DONE' : '${pendingTasks.length} PENDING',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w700,
+                    color: previewPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              BouncyTap(
+                onTap: _addNewTaskFromPreview,
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: previewPrimary,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.add_rounded,
+                      size: 18,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Divider(color: previewBorder.withValues(alpha: 0.6), height: 1),
+          const SizedBox(height: 8),
+
+          // Tasks List
+          if (pendingTasks.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 18),
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline_rounded,
+                      size: 26,
+                      color: previewPrimary,
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'No pending tasks!\nTap + to create one',
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w600,
+                        color: previewInk.withValues(alpha: 0.6),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          else ...[
+            for (int i = 0; i < visibleCount; i++) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(
+                  children: [
+                    BouncyTap(
+                      onTap: () => _togglePreviewTask(pendingTasks[i].id),
+                      child: Container(
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          color: previewBubble,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: previewPrimary, width: 1.5),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            pendingTasks[i].text.isNotEmpty
+                                ? pendingTasks[i].text
+                                : pendingTasks[i].notes,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                              color: previewInk,
+                            ),
+                          ),
+                          Text(
+                            pendingTasks[i].notes.isNotEmpty && pendingTasks[i].text.isNotEmpty
+                                ? pendingTasks[i].notes
+                                : '${pendingTasks[i].category} • ${pendingTasks[i].priority}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: previewInk.withValues(alpha: 0.6),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+            if (pendingTasks.length > 3) ...[
+              const SizedBox(height: 4),
+              Center(
+                child: Text(
+                  '+ ${pendingTasks.length - 3} more tasks in app',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: previewPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ],
       ),
     );
   }

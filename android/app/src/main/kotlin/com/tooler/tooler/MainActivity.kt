@@ -839,6 +839,7 @@ open class MainActivity : FlutterActivity() {
                         ToolerFavWidgetProvider.updateAllWidgets(applicationContext)
                         ToolerCounterWidgetProvider.updateAllWidgets(applicationContext)
                         ToolerStepWidgetProvider.updateAllWidgets(applicationContext)
+                        ToolerTasksWidgetProvider.updateAllWidgets(applicationContext)
                         result.success(true)
                     } catch (e: Exception) {
                         result.error("WIDGET_SAVE_ERROR", e.message, null)
@@ -854,6 +855,7 @@ open class MainActivity : FlutterActivity() {
                                     "1x1" -> ComponentName(this, ToolerFavWidgetProvider::class.java)
                                     "2x2" -> ComponentName(this, ToolerCounterWidgetProvider::class.java)
                                     "steps", "step" -> ComponentName(this, ToolerStepWidgetProvider::class.java)
+                                    "tasks", "task", "notes" -> ComponentName(this, ToolerTasksWidgetProvider::class.java)
                                     else -> ComponentName(this, ToolerQuickBarWidgetProvider::class.java)
                                 }
                                 val pinned = appWidgetManager.requestPinAppWidget(provider, null, null)

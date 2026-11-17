@@ -8,6 +8,7 @@ import '../models/task_model.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/widget_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_character.dart';
 
@@ -28,13 +29,18 @@ import '../widgets_3d/tooler_character.dart';
 
 class TasksScreen extends StatefulWidget {
   final StationeryTheme theme;
-  const TasksScreen({super.key, required this.theme});
+  final bool autoOpenComposer;
+  const TasksScreen({
+    super.key,
+    required this.theme,
+    this.autoOpenComposer = false,
+  });
 
   @override
   State<TasksScreen> createState() => _TasksScreenState();
 }
 
-class _TasksScreenState extends State<TasksScreen> {
+class _TasksScreenState extends State<TasksScreen> with WidgetsBindingObserver {
   List<TaskItem> _tasks = [];
   bool _isLoading = true;
 
@@ -69,13 +75,29 @@ class _TasksScreenState extends State<TasksScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadTasks();
+    if (widget.autoOpenComposer) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _openTaskEditor();
+        }
+      });
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchCtrl.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadTasks();
+    }
   }
 
   Future<void> _loadTasks() async {
@@ -90,6 +112,7 @@ class _TasksScreenState extends State<TasksScreen> {
 
   Future<void> _persistTasks() async {
     await StorageService().saveTasks(_tasks);
+    await WidgetService().syncToNative(widget.theme);
   }
 
   // ---------------------------------------------------------------------------

@@ -870,7 +870,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                   ),
                                 ),
                                 Text(
-                                  '4×1 Bar, 2×2 Step Counter, 2×2 Tally & 1×1 Icon',
+                                  '4×1 Bar, Tasks & Notes, Steps, Tally & 1×1 Icon',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: GoogleFonts.plusJakartaSans(
