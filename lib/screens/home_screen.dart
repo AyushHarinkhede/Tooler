@@ -31,6 +31,7 @@ import 'sound_recorder_screen.dart';
 import 'character_illustrations_screen.dart';
 import 'power_screen.dart';
 import 'security_screen.dart';
+import 'fm_radio_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -611,6 +612,28 @@ class _HomeScreenState extends State<HomeScreen> {
           'awaaz', 'shor', 'dhwani',
         ],
         'builder': (context) => SoundRecorderScreen(theme: widget.theme),
+      },
+      {
+        'id': 'radio',
+        'title': 'FM Radio',
+        'subtitle': 'Retro FM tuner, area auto-scan, recording & 3D Global Globe',
+        'category': 'Time & Tasks',
+        'tag': 'Global FM',
+        'iconType': 'radio',
+        'isFeatured': false,
+        'features': [
+          {'name': 'Retro 2D FM Radio Deck', 'desc': 'Theme-matched retro radio with telescopic antenna, analog 87.5-108 MHz dial & channel switches'},
+          {'name': 'Area Auto-Scan & Manual Add', 'desc': 'One-tap area station finder, direct station switch, manual station add & favorites'},
+          {'name': 'Wired Antenna / BT / Speaker Routing', 'desc': 'Live output routing between wired earphone antenna, Bluetooth headset & phone speaker'},
+          {'name': 'Global 3D Globe & Live Recorder', 'desc': 'Interactive rotating 3D Earth map with live worldwide radio API & direct MP3 stream recorder'},
+        ],
+        'keywords': [
+          'fm radio', 'radio', 'fm', 'tuner', 'antenna', 'wired radio', 'bluetooth radio',
+          'global radio', 'world radio', '3d globe', 'globe', 'stations', 'auto scan',
+          'record radio', 'mirchi', 'red fm', 'radio city', 'akashvani', 'vividh bharati',
+          'music', 'live radio', 'gaana', 'channel',
+        ],
+        'builder': (context) => FmRadioScreen(theme: widget.theme),
       },
       {
         'id': 'illustrations',

@@ -23,6 +23,7 @@ import 'sound_recorder_screen.dart';
 import 'character_illustrations_screen.dart';
 import 'power_screen.dart';
 import 'security_screen.dart';
+import 'fm_radio_screen.dart';
 
 /// Direct Transparent Home Screen Floating Hover Page launched by Android Widgets.
 /// Floats directly on top of the user's phone Home Screen / Wallpaper without
@@ -223,6 +224,13 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
           subtitle: 'Lightweight Fast Web Browser',
           tag: 'Web',
           child: BrowserScreen(theme: t),
+        );
+      case 'radio':
+        return _PopupToolMeta(
+          title: 'FM Radio',
+          subtitle: 'Retro FM Tuner & Global 3D Radio',
+          tag: 'Tuner',
+          child: FmRadioScreen(theme: t),
         );
       case 'illustrations':
         return _PopupToolMeta(

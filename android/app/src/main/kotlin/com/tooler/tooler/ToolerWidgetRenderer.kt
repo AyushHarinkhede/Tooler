@@ -490,6 +490,16 @@ object ToolerWidgetRenderer {
                 canvas.drawOval(RectF(s * 0.38f, s * 0.23f, s * 0.62f, s * 0.77f), accentStroke)
                 canvas.drawLine(s * 0.24f, s * 0.50f, s * 0.76f, s * 0.50f, stroke)
             }
+            "radio" -> {
+                // Telescopic antenna + retro radio body + speaker grille + tuning dial
+                canvas.drawLine(s * 0.34f, s * 0.39f, s * 0.68f, s * 0.22f, stroke)
+                canvas.drawCircle(s * 0.68f, s * 0.22f, s * 0.038f, accentFill)
+                canvas.drawRoundRect(RectF(s * 0.22f, s * 0.39f, s * 0.78f, s * 0.76f), s * 0.08f, s * 0.08f, stroke)
+                canvas.drawCircle(s * 0.39f, s * 0.58f, s * 0.105f, stroke)
+                canvas.drawCircle(s * 0.39f, s * 0.58f, s * 0.032f, accentFill)
+                canvas.drawLine(s * 0.56f, s * 0.50f, s * 0.71f, s * 0.50f, accentStroke)
+                canvas.drawCircle(s * 0.64f, s * 0.64f, s * 0.048f, accentFill)
+            }
             "age" -> {
                 // Birthday cake + candle flame
                 canvas.drawRoundRect(RectF(s * 0.26f, s * 0.48f, s * 0.74f, s * 0.75f), s * 0.07f, s * 0.07f, stroke)

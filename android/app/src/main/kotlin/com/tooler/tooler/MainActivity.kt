@@ -46,7 +46,10 @@ open class MainActivity : FlutterActivity() {
     private val SECURITY_EVENTS_CHANNEL = "com.tooler.tooler/security_scan_events"
     private val BROWSER_DL_CHANNEL = "com.tooler.tooler/browser_download"
     private val BROWSER_DL_EVENTS_CHANNEL = "com.tooler.tooler/browser_download_events"
+    private val FM_RADIO_CHANNEL = "com.tooler.tooler/fm_radio"
     private val WIDGET_CHANNEL = "com.tooler.tooler/widgets"
+
+    private var fmSpeakerOverride = false
 
     private var securityEngine: ToolerSecurityEngine? = null
     private var browserDownloader: ToolerBrowserDownloader? = null
@@ -464,6 +467,82 @@ open class MainActivity : FlutterActivity() {
                         val meta = dlEngine.probeUrlMeta(url, referer, userAgent, cookie)
                         runOnUiThread { result.success(meta) }
                     }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // FM Radio Hardware Antenna, Output Routing & Recording Export Channel
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, FM_RADIO_CHANNEL).setMethodCallHandler { call, result ->
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            when (call.method) {
+                "getRadioHardwareStatus" -> {
+                    val btState = getBluetoothAudioState(audioManager)
+                    val hasWired = btState["isWiredConnected"] == true
+                    val hasBt = btState["isBluetoothConnected"] == true
+                    val devName = (btState["deviceName"] as? String) ?: ""
+                    val hasFmChip = try {
+                        File("/dev/radio0").exists() ||
+                            File("/dev/fm").exists() ||
+                            packageManager.hasSystemFeature("android.hardware.fm")
+                    } catch (_: Exception) {
+                        false
+                    }
+                    val activeOutput = when {
+                        fmSpeakerOverride -> "Phone Speaker"
+                        hasWired -> "Wired Earphone (FM Antenna)"
+                        hasBt -> if (devName.isNotEmpty()) devName else "Bluetooth Audio"
+                        else -> "Phone Speaker"
+                    }
+                    result.success(
+                        mapOf(
+                            "hasWiredAntenna" to hasWired,
+                            "hasBluetoothAudio" to hasBt,
+                            "hasFmChip" to hasFmChip,
+                            "bluetoothEnabled" to (btState["bluetoothEnabled"] == true),
+                            "deviceName" to devName,
+                            "activeOutputName" to activeOutput,
+                            "outputRoute" to if (fmSpeakerOverride) "speaker" else "headset"
+                        )
+                    )
+                }
+                "setAudioOutputRoute" -> {
+                    val route = call.argument<String>("route") ?: "headset"
+                    try {
+                        if (route == "speaker") {
+                            fmSpeakerOverride = true
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                val spk = audioManager.availableCommunicationDevices.firstOrNull {
+                                    it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                                }
+                                if (spk != null) {
+                                    audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+                                    audioManager.setCommunicationDevice(spk)
+                                }
+                            } else {
+                                @Suppress("DEPRECATION")
+                                audioManager.isSpeakerphoneOn = true
+                            }
+                        } else {
+                            fmSpeakerOverride = false
+                            audioManager.mode = AudioManager.MODE_NORMAL
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                audioManager.clearCommunicationDevice()
+                            } else {
+                                @Suppress("DEPRECATION")
+                                audioManager.isSpeakerphoneOn = false
+                            }
+                        }
+                        result.success(true)
+                    } catch (_: Exception) {
+                        result.success(false)
+                    }
+                }
+                "saveRadioRecording" -> {
+                    val sourcePath = call.argument<String>("sourcePath") ?: ""
+                    val fileName = call.argument<String>("fileName") ?: "radio_clip.mp3"
+                    val savedPath = saveAudioToPublicStorage(sourcePath, fileName)
+                    result.success(savedPath)
                 }
                 else -> result.notImplemented()
             }

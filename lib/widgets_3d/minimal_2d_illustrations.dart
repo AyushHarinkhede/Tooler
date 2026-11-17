@@ -578,6 +578,10 @@ class _IllustrationPainter extends CustomPainter {
       case 'shield':
         _drawSecurity(canvas, w, h, p, fillAccent);
         break;
+      case 'radio':
+      case 'fm':
+        _drawRadio(canvas, w, h, p, fillAccent);
+        break;
       case 'all_tools':
       case 'tools':
         _drawAllTools(canvas, w, h, p, fillAccent);
@@ -1100,6 +1104,28 @@ class _IllustrationPainter extends CustomPainter {
 
     // Top protective accent pip
     canvas.drawCircle(Offset(w * 0.50, h * 0.28), w * 0.04, fill);
+  }
+
+  void _drawRadio(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    // Angled minimal telescopic antenna with accent tip dot
+    canvas.drawLine(Offset(w * 0.28, h * 0.36), Offset(w * 0.68, h * 0.16), p);
+    canvas.drawCircle(Offset(w * 0.68, h * 0.16), w * 0.036, fill);
+
+    // Clean rounded retro radio casing
+    final body = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.18, h * 0.36, w * 0.64, h * 0.44),
+      Radius.circular(w * 0.11),
+    );
+    canvas.drawRRect(body, p);
+
+    // Subtle frequency dial line across top-right
+    canvas.drawLine(Offset(w * 0.46, h * 0.50), Offset(w * 0.72, h * 0.50), p);
+    // Accent tuning knob on bottom-right
+    canvas.drawCircle(Offset(w * 0.64, h * 0.66), w * 0.068, fill);
+    canvas.drawCircle(Offset(w * 0.64, h * 0.66), w * 0.068, p);
+
+    // Minimal speaker circle on left
+    canvas.drawCircle(Offset(w * 0.33, h * 0.58), w * 0.09, p);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {

@@ -31,6 +31,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
     {'id': 'calendar', 'title': 'Calendar', 'iconType': 'calendar'},
     {'id': 'games', 'title': 'Games', 'iconType': 'games'},
     {'id': 'recorder', 'title': 'Noise & Rec', 'iconType': 'recorder'},
+    {'id': 'radio', 'title': 'FM Radio', 'iconType': 'radio'},
     {'id': 'power', 'title': 'Power', 'iconType': 'power'},
     {'id': 'compass', 'title': 'Compass', 'iconType': 'compass'},
     {'id': 'converters', 'title': 'Converters', 'iconType': 'converters'},
