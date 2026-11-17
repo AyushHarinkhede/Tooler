@@ -317,39 +317,33 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
               final weather = _getEffectiveWeather();
               final rawData = _telemetry.data;
 
-              return Column(
-                children: [
-                  // 1. App Bar Header
-                  _buildTopBar(theme, isDark),
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // 1. Modern Themed Hero Container (No landscape/river, SVG Sun/Moon/Cloud/Thunder/Rain + Lunar Trajectory arc, Character in center, Weather Degree, AQI in UI font, PM rating, Live Location, zero extra captions)
+                    _buildModernWeatherHeroCard(theme, isDark, weather, rawData),
+                    const SizedBox(height: 14),
 
-                  // 2. Scrollable Body
-                  Expanded(
-                    child: SingleChildScrollView(
-                      physics: const BouncingScrollPhysics(),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          // 1. Modern Themed Hero Container (No landscape/river, SVG Sun/Moon/Cloud/Thunder/Rain + Lunar Trajectory arc, Character in center, Weather Degree, AQI in UI font, PM rating, Live Location, zero extra captions)
-                          _buildModernWeatherHeroCard(theme, isDark, weather, rawData),
-                          const SizedBox(height: 14),
+                    // 2. Sleek Moon Phase Bar (Single bar with Aaj ka Moon Phase, tap to open 7/8 moon phases circular orbit hover sheet)
+                    _buildMoonPhaseBar(theme, isDark, rawData.moonPhase),
+                    const SizedBox(height: 14),
 
-                          // 2. Sleek Moon Phase Bar (Single bar with Aaj ka Moon Phase, tap to open 7/8 moon phases circular orbit hover sheet)
-                          _buildMoonPhaseBar(theme, isDark, rawData.moonPhase),
-                          const SizedBox(height: 14),
+                    // 3. Simple Clean Graph (Hourly 24h & 14-Day Past/Future trends with toggle)
+                    _buildForecastGraphCard(theme, isDark, rawData),
+                    const SizedBox(height: 14),
 
-                          // 3. Simple Clean Graph (Hourly 24h & 14-Day Past/Future trends with toggle)
-                          _buildForecastGraphCard(theme, isDark, rawData),
-                          const SizedBox(height: 14),
+                    // 4. Detailed Atmospheric Metrics Grid
+                    _buildMetricsGrid(theme, isDark, rawData, weather),
+                    const SizedBox(height: 14),
 
-                          // 4. Detailed Atmospheric Metrics Grid
-                          _buildMetricsGrid(theme, isDark, rawData, weather),
-                          const SizedBox(height: 24),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
+                    // 5. Dedicated Weather Controls Bar (Separately below, with °C/°F and 3-dots options menu)
+                    _buildWeatherControlsBar(theme, isDark),
+                    const SizedBox(height: 24),
+                  ],
+                ),
               );
             },
           ),
@@ -357,257 +351,253 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildTopBar(StationeryTheme theme, bool isDark) {
+  // ---------------------------------------------------------------------------
+  // DEDICATED WEATHER CONTROLS BAR (Shown separately below as requested)
+  // ---------------------------------------------------------------------------
+  Widget _buildWeatherControlsBar(StationeryTheme theme, bool isDark) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E22) : Colors.white.withValues(alpha: 0.95),
-        border: Border(bottom: BorderSide(color: theme.border.withValues(alpha: 0.5), width: 1.2)),
-      ),
-      child: Row(
-        children: [
-          // Back Button
-          InkWell(
-            onTap: () {
-              SoundService().playTap();
-              Navigator.pop(context);
-            },
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF2A2A30) : theme.lavenderBubble,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: theme.border, width: 1.2),
-              ),
-              child: Icon(Icons.arrow_back_ios_new_rounded, size: 16, color: theme.text),
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          // Weather Icon & Title
-          Expanded(
-            child: Row(
-              children: [
-                Minimal2DIcon(
-                  type: 'weather',
-                  size: 34,
-                  bubbleColor: theme.lavenderBubble,
-                  accentColor: theme.primary,
-                  isDark: isDark,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Weather',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                              color: theme.text,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: theme.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'LIVE',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 9,
-                                fontWeight: FontWeight.w900,
-                                color: theme.primary,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        'Live Forecast & Air Quality',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w500,
-                          color: theme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Single Clean Three-Dot Menu Button (Contains °C/°F Toggle, Refresh & Weather Simulator)
-          PopupMenuButton<String>(
-            icon: Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF2A2A30) : theme.lavenderBubble,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: theme.border, width: 1.2),
-              ),
-              child: Icon(Icons.more_vert_rounded, size: 18, color: theme.text),
-            ),
-            tooltip: 'Weather Options',
-            color: isDark ? const Color(0xFF1E1E22) : Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: theme.border, width: 1.2),
-            ),
-            elevation: 8,
-            onSelected: (value) {
-              if (value == 'unit') {
-                SoundService().playClick();
-                HapticFeedback.selectionClick();
-                setState(() => _useFahrenheit = !_useFahrenheit);
-              } else if (value == 'refresh') {
-                SoundService().playTap();
-                HapticFeedback.lightImpact();
-                _telemetry.fetchTelemetry();
-              } else if (value == 'simulator') {
-                SoundService().playSpecialClick();
-                _showSimulationSheet(theme, isDark);
-              } else if (value == 'reset') {
-                SoundService().playTap();
-                setState(() {
-                  _simMode = WeatherSimMode.live;
-                  _simAqiOverride = null;
-                });
-              }
-            },
-            itemBuilder: (context) => [
-              // 1. Temperature Unit Toggle (°C / °F)
-              PopupMenuItem<String>(
-                value: 'unit',
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.thermostat_rounded,
-                      size: 18,
-                      color: theme.primary,
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        _useFahrenheit ? 'Switch to °Celsius' : 'Switch to °Fahrenheit',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: theme.text,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: theme.primary.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        _useFahrenheit ? '°F' : '°C',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          color: theme.primary,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(height: 1),
-
-              // 2. Refresh Weather
-              PopupMenuItem<String>(
-                value: 'refresh',
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.refresh_rounded,
-                      size: 18,
-                      color: Color(0xFF0284C7),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Refresh Weather',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: theme.text,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const PopupMenuDivider(height: 1),
-
-              // 3. Weather Simulator
-              PopupMenuItem<String>(
-                value: 'simulator',
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.tune_rounded,
-                      size: 18,
-                      color: Color(0xFFF59E0B),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'Weather Simulator',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: theme.text,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 4. Reset Option (Visible when simulator mode or AQI override is active)
-              if (_simMode != WeatherSimMode.live || _simAqiOverride != null) ...[
-                const PopupMenuDivider(height: 1),
-                PopupMenuItem<String>(
-                  value: 'reset',
-                  child: Row(
-                    children: [
-                      const Icon(
-                        Icons.restore_rounded,
-                        size: 18,
-                        color: Color(0xFF10B981),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          'Reset to Live Weather',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: const Color(0xFF10B981),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ],
+        color: isDark ? const Color(0xFF1E1E22) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: theme.border, width: 1.2),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
+      child: Row(
+        children: [
+          Minimal2DIcon(
+            type: 'weather',
+            size: 28,
+            bubbleColor: theme.lavenderBubble,
+            accentColor: theme.primary,
+            isDark: isDark,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Weather Controls',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                    color: theme.text,
+                  ),
+                ),
+                Text(
+                  '°C/°F, Live Refresh & Simulator',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: theme.textSecondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Quick °C / °F Toggle Button Chip
+          InkWell(
+            onTap: () {
+              SoundService().playClick();
+              HapticFeedback.selectionClick();
+              setState(() => _useFahrenheit = !_useFahrenheit);
+            },
+            borderRadius: BorderRadius.circular(9),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: isDark ? const Color(0xFF2A2A30) : theme.lavenderBubble,
+                borderRadius: BorderRadius.circular(9),
+                border: Border.all(color: theme.border, width: 1),
+              ),
+              child: Text(
+                _useFahrenheit ? '°F' : '°C',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: theme.primary,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Full Options 3-Dots Menu Button
+          _buildThreeDotMenu(theme, isDark),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // THREE-DOT MENU BUTTON (Unit Toggle, Refresh, Weather Simulator, Reset)
+  // ---------------------------------------------------------------------------
+  Widget _buildThreeDotMenu(StationeryTheme theme, bool isDark, {bool isCompact = false}) {
+    return PopupMenuButton<String>(
+      icon: Container(
+        padding: EdgeInsets.all(isCompact ? 5 : 7),
+        decoration: BoxDecoration(
+          color: (isDark ? const Color(0xFF2A2A30) : theme.lavenderBubble).withValues(alpha: isCompact ? 0.9 : 1.0),
+          borderRadius: BorderRadius.circular(isCompact ? 8 : 10),
+          border: Border.all(color: theme.border, width: 1.1),
+        ),
+        child: Icon(Icons.more_vert_rounded, size: isCompact ? 16 : 18, color: theme.text),
+      ),
+      tooltip: 'Weather Options',
+      color: isDark ? const Color(0xFF1E1E22) : Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: theme.border, width: 1.2),
+      ),
+      elevation: 8,
+      onSelected: (value) {
+        if (value == 'unit') {
+          SoundService().playClick();
+          HapticFeedback.selectionClick();
+          setState(() => _useFahrenheit = !_useFahrenheit);
+        } else if (value == 'refresh') {
+          SoundService().playTap();
+          HapticFeedback.lightImpact();
+          _telemetry.fetchTelemetry();
+        } else if (value == 'simulator') {
+          SoundService().playSpecialClick();
+          _showSimulationSheet(theme, isDark);
+        } else if (value == 'reset') {
+          SoundService().playTap();
+          setState(() {
+            _simMode = WeatherSimMode.live;
+            _simAqiOverride = null;
+          });
+        }
+      },
+      itemBuilder: (context) => [
+        // 1. Temperature Unit Toggle (°C / °F)
+        PopupMenuItem<String>(
+          value: 'unit',
+          child: Row(
+            children: [
+              Icon(
+                Icons.thermostat_rounded,
+                size: 18,
+                color: theme.primary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _useFahrenheit ? 'Switch to °Celsius' : 'Switch to °Fahrenheit',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: theme.text,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  _useFahrenheit ? '°F' : '°C',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    color: theme.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+
+        // 2. Refresh Weather
+        PopupMenuItem<String>(
+          value: 'refresh',
+          child: Row(
+            children: [
+              const Icon(
+                Icons.refresh_rounded,
+                size: 18,
+                color: Color(0xFF0284C7),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Refresh Weather',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: theme.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+
+        // 3. Weather Simulator
+        PopupMenuItem<String>(
+          value: 'simulator',
+          child: Row(
+            children: [
+              const Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: Color(0xFFF59E0B),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Weather Simulator',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: theme.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // 4. Reset Option (Visible when simulator mode or AQI override is active)
+        if (_simMode != WeatherSimMode.live || _simAqiOverride != null) ...[
+          const PopupMenuDivider(height: 1),
+          PopupMenuItem<String>(
+            value: 'reset',
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.restore_rounded,
+                  size: 18,
+                  color: Color(0xFF10B981),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Reset to Live Weather',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF10B981),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -736,38 +726,45 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                   ),
                 ),
 
-                // Top Right: Live Location Badge
+                // Top Right: Live Location Badge & Menu Button
                 Positioned(
                   top: 12,
                   right: 14,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: (isDark ? const Color(0xFF1E1E22) : Colors.white).withValues(alpha: 0.88),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: theme.border.withValues(alpha: 0.6), width: 1),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.08),
-                          blurRadius: 4,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: (isDark ? const Color(0xFF1E1E22) : Colors.white).withValues(alpha: 0.88),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: theme.border.withValues(alpha: 0.6), width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.08),
+                              blurRadius: 4,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF38BDF8)),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${weather.city}, ${weather.country}',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w700,
-                            color: theme.text,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF38BDF8)),
+                            const SizedBox(width: 4),
+                            Text(
+                              '${weather.city}, ${weather.country}',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: theme.text,
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      ),
+                      const SizedBox(width: 6),
+                      _buildThreeDotMenu(theme, isDark, isCompact: true),
+                    ],
                   ),
                 ),
               ],

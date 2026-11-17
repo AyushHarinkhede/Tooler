@@ -1238,38 +1238,43 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawWeather(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // 1. Radiant Glowing Golden Sun Orb with Corona Rays (Upper right)
-    final sunCenter = Offset(w * 0.64, h * 0.32);
-    final sunRadius = w * 0.14;
+    // 1. Radiant Minimal Sun Peeking Behind Cloud (Upper Right)
+    final sunCenter = Offset(w * 0.64, h * 0.36);
+    final sunRadius = w * 0.15;
 
-    // Sun orb body
+    // Elegant minimal sunbeams
+    final rayPaint = Paint()
+      ..color = p.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+
+    for (int i = 0; i < 4; i++) {
+      final angle = -math.pi * 0.58 + (i * (math.pi * 0.52 / 3));
+      final p1 = Offset(
+        sunCenter.dx + math.cos(angle) * (sunRadius + w * 0.05),
+        sunCenter.dy + math.sin(angle) * (sunRadius + w * 0.05),
+      );
+      final p2 = Offset(
+        sunCenter.dx + math.cos(angle) * (sunRadius + w * 0.13),
+        sunCenter.dy + math.sin(angle) * (sunRadius + w * 0.13),
+      );
+      canvas.drawLine(p1, p2, rayPaint);
+    }
+
+    // Sun Disc Body (Accent Fill + Line Outline)
     canvas.drawCircle(sunCenter, sunRadius, fill);
     canvas.drawCircle(sunCenter, sunRadius, p);
 
-    // 5 dynamic radial sunbeams radiating outward
-    for (int i = 0; i < 5; i++) {
-      final angle = -math.pi * 0.36 + (i * (math.pi * 0.68 / 4));
-      final p1 = Offset(
-        sunCenter.dx + math.cos(angle) * (w * 0.18),
-        sunCenter.dy + math.sin(angle) * (w * 0.18),
-      );
-      final p2 = Offset(
-        sunCenter.dx + math.cos(angle) * (w * 0.26),
-        sunCenter.dy + math.sin(angle) * (w * 0.26),
-      );
-      canvas.drawLine(p1, p2, p..strokeWidth = 1.4);
-    }
-    p.strokeWidth = 1.7;
-
-    // 2. Modern Volumetric Meteorological Cloud
+    // 2. Modern Minimalist Vector Cloud (Foreground)
     final cloud = Path();
-    cloud.moveTo(w * 0.22, h * 0.65);
-    cloud.lineTo(w * 0.74, h * 0.65);
-    cloud.arcToPoint(Offset(w * 0.82, h * 0.53), radius: Radius.circular(w * 0.12));
-    cloud.arcToPoint(Offset(w * 0.66, h * 0.38), radius: Radius.circular(w * 0.15));
-    cloud.arcToPoint(Offset(w * 0.38, h * 0.40), radius: Radius.circular(w * 0.17));
-    cloud.arcToPoint(Offset(w * 0.18, h * 0.53), radius: Radius.circular(w * 0.13));
-    cloud.arcToPoint(Offset(w * 0.22, h * 0.65), radius: Radius.circular(w * 0.10));
+    cloud.moveTo(w * 0.24, h * 0.68);
+    cloud.lineTo(w * 0.74, h * 0.68);
+    cloud.arcToPoint(Offset(w * 0.82, h * 0.56), radius: Radius.circular(w * 0.12));
+    cloud.arcToPoint(Offset(w * 0.64, h * 0.44), radius: Radius.circular(w * 0.14));
+    cloud.arcToPoint(Offset(w * 0.38, h * 0.46), radius: Radius.circular(w * 0.17));
+    cloud.arcToPoint(Offset(w * 0.18, h * 0.58), radius: Radius.circular(w * 0.13));
+    cloud.arcToPoint(Offset(w * 0.24, h * 0.68), radius: Radius.circular(w * 0.10));
     cloud.close();
 
     final bgFill = Paint()
@@ -1278,39 +1283,14 @@ class _IllustrationPainter extends CustomPainter {
     canvas.drawPath(cloud, bgFill);
     canvas.drawPath(cloud, p);
 
-    // 3. Dynamic Weather Dual Elements: Stylized Electric Bolt + Cyan Droplet
-    // Golden lightning bolt
-    final bolt = Path()
-      ..moveTo(w * 0.45, h * 0.59)
-      ..lineTo(w * 0.37, h * 0.73)
-      ..lineTo(w * 0.45, h * 0.73)
-      ..lineTo(w * 0.35, h * 0.89);
-    canvas.drawPath(
-      bolt,
-      Paint()
-        ..color = const Color(0xFFF59E0B)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.8
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.miter,
-    );
-
-    // Teardrop Raindrop in vibrant sky cyan
-    final dropCenter = Offset(w * 0.62, h * 0.77);
-    final drop = Path()
-      ..moveTo(dropCenter.dx, dropCenter.dy - (w * 0.08))
-      ..quadraticBezierTo(dropCenter.dx + (w * 0.05), dropCenter.dy - (w * 0.01), dropCenter.dx + (w * 0.04), dropCenter.dy + (w * 0.04))
-      ..arcToPoint(Offset(dropCenter.dx - (w * 0.04), dropCenter.dy + (w * 0.04)), radius: Radius.circular(w * 0.04))
-      ..quadraticBezierTo(dropCenter.dx - (w * 0.05), dropCenter.dy - (w * 0.01), dropCenter.dx, dropCenter.dy - (w * 0.08))
-      ..close();
-    canvas.drawPath(drop, Paint()..color = const Color(0xFF38BDF8));
-    canvas.drawPath(
-      drop,
-      Paint()
-        ..color = strokeColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.0,
-    );
+    // 3. Subtle Gentle Atmospheric Breeze Lines (Minimalist accents)
+    final breeze = Paint()
+      ..color = p.color.withValues(alpha: isDark ? 0.4 : 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.32, h * 0.78), Offset(w * 0.54, h * 0.78), breeze);
+    canvas.drawLine(Offset(w * 0.42, h * 0.85), Offset(w * 0.62, h * 0.85), breeze);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {
