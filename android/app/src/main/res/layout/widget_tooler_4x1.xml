@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_4x1_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="2dp">
+
+    <ImageView
+        android:id="@+id/widget_4x1_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:contentDescription="Tooler Quick Bar" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <ImageView
+            android:id="@+id/widget_btn_calc"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitCenter"
+            android:padding="3dp"
+            android:background="@drawable/widget_tile_ripple"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Calculator" />
+
+        <ImageView
+            android:id="@+id/widget_btn_calendar"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitCenter"
+            android:padding="3dp"
+            android:background="@drawable/widget_tile_ripple"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Calendar" />
+
+        <ImageView
+            android:id="@+id/widget_btn_games"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitCenter"
+            android:padding="3dp"
+            android:background="@drawable/widget_tile_ripple"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="Games" />
+
+        <ImageView
+            android:id="@+id/widget_btn_all"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:scaleType="fitCenter"
+            android:padding="3dp"
+            android:background="@drawable/widget_tile_ripple"
+            android:clickable="true"
+            android:focusable="true"
+            android:contentDescription="All Tools" />
+
+    </LinearLayout>
+</FrameLayout>

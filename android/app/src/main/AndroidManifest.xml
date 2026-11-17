@@ -43,6 +43,18 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+
+        <!-- Transparent Direct Home Screen Hover Overlay Activity for Widgets -->
+        <activity
+            android:name=".WidgetPopupActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="com.tooler.tooler.widgetpopup"
+            android:excludeFromRecents="true"
+            android:theme="@style/TransparentOverlayTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize" />
         
         <!-- Persistent Foreground Service for Background Audio Recording & Live Monitor -->
         <service
@@ -51,6 +63,31 @@
             android:exported="false"
             android:foregroundServiceType="microphone"
             android:stopWithTask="false" />
+
+        <!-- Home Screen Widgets: 4x1 Quick Bar & 1x1 Favorite Icon Shortcut -->
+        <receiver
+            android:name=".ToolerQuickBarWidgetProvider"
+            android:exported="true"
+            android:label="Tooler Quick Bar (4×1)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tooler_widget_4x1_info" />
+        </receiver>
+
+        <receiver
+            android:name=".ToolerFavWidgetProvider"
+            android:exported="true"
+            android:label="Tooler Shortcut (1×1)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tooler_widget_1x1_info" />
+        </receiver>
 
         <!-- Flutter Local Notifications Receivers for Real-time & Background Alarms -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />

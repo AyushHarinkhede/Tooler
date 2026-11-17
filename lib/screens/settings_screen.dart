@@ -5,9 +5,11 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
+import '../services/widget_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_character.dart';
+import 'widget_settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
 /// REDESIGNED MINIMAL SETTINGS SCREEN
@@ -77,6 +79,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     SoundService().playClick();
     setState(() => _isDark = val);
     await StorageService().saveTheme(_isDark, _accent);
+    final updatedTheme = await StorageService().loadTheme();
+    await WidgetService().syncToNative(updatedTheme);
     final nextMode = _isDark
         ? StationeryThemeMode.blueprintChalkboard
         : (_accent == ToolerAccent.rose
@@ -89,6 +93,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     SoundService().playClick();
     setState(() => _accent = accent);
     await StorageService().saveTheme(_isDark, _accent);
+    final updatedTheme = await StorageService().loadTheme();
+    await WidgetService().syncToNative(updatedTheme);
     final nextMode = _isDark
         ? StationeryThemeMode.blueprintChalkboard
         : (accent == ToolerAccent.rose
@@ -649,6 +655,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildAccentTile('Ocean Sky', const Color(0xFF0EA5E9), ToolerAccent.sky),
                   _buildAccentTile('Sunset Amber', const Color(0xFFF59E0B), ToolerAccent.amber),
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 18),
+
+            // 2.5 Home Screen Widgets (4x1 Quick Bar & 1x1 Favorite Icon Shortcut)
+            _buildSectionCard(
+              title: 'Widgets',
+              child: BouncyTap(
+                onTap: () {
+                  SoundService().playClick();
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => WidgetSettingsScreen(theme: theme),
+                    ),
+                  );
+                },
+                scaleFraction: 0.97,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: theme.lavenderCard,
+                              borderRadius: BorderRadius.circular(13),
+                            ),
+                            child: Icon(
+                              Icons.widgets_rounded,
+                              size: 21,
+                              color: theme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Home Screen Widgets',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: theme.text,
+                                  ),
+                                ),
+                                Text(
+                                  '4×1 Quick Bar & 1×1 Fav Icon · App / System Theme',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 11.5,
+                                    color: theme.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Icon(
+                      Icons.arrow_forward_ios_rounded,
+                      size: 16,
+                      color: theme.textSecondary,
+                    ),
+                  ],
+                ),
               ),
             ),
 

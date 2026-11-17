@@ -6,6 +6,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/weather_telemetry_service.dart';
+import '../services/widget_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
 import '../widgets_3d/tooler_character.dart';
@@ -99,6 +100,10 @@ class _HomeScreenState extends State<HomeScreen> {
     });
     _initTools();
     _loadFavorites();
+    WidgetService().init(
+      theme: widget.theme,
+      onWidgetLaunch: _handleWidgetLaunch,
+    );
     _searchController.addListener(() {
       setState(() {
         _searchQuery = _searchController.text.trim().toLowerCase();
@@ -109,6 +114,40 @@ class _HomeScreenState extends State<HomeScreen> {
         _isSearchFocused = _searchFocusNode.hasFocus;
       });
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.theme.primary != widget.theme.primary ||
+        oldWidget.theme.isDark != widget.theme.isDark) {
+      WidgetService().syncToNative(widget.theme);
+    }
+  }
+
+  void _handleWidgetLaunch(String toolId) {
+    if (!mounted) return;
+    // Pop any open sheet or settings screen first
+    Navigator.of(context).popUntil((route) => route.isFirst);
+
+    if (toolId == 'all') {
+      // Switch cleanly to main Tooler Home Screen (All Tools)
+      setState(() {
+        _selectedCategory = 'All';
+        _searchController.clear();
+      });
+      return;
+    }
+
+    // Open the selected tool directly in its Pop-up Hover Page
+    final matches = _tools.where((t) => t['id'] == toolId).toList();
+    if (matches.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _openTool(matches.first);
+        }
+      });
+    }
   }
 
   Future<void> _loadFavorites() async {

@@ -1,6 +1,8 @@
 package com.tooler.tooler
 
 import android.app.ActivityManager
+import android.appwidget.AppWidgetManager
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -27,11 +29,16 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.concurrent.thread
 
-class MainActivity : FlutterActivity() {
+open class MainActivity : FlutterActivity() {
     private val LOOPBACK_CHANNEL = "com.tooler.tooler/audio_loopback"
     private val SOUND_CHANNEL = "com.tooler.tooler/native_sound"
     private val POWER_CHANNEL = "com.tooler.tooler/power_telemetry"
     private val SECURITY_CHANNEL = "com.tooler.tooler/security_scan"
+    private val WIDGET_CHANNEL = "com.tooler.tooler/widgets"
+
+    // Home Screen Widget deep-link routing state
+    protected var widgetMethodChannel: MethodChannel? = null
+    protected var pendingWidgetToolId: String? = null
 
     // Audio loopback monitor state
     private var isLoopbackRunning = false
@@ -49,6 +56,23 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         enableHighRefreshRate()
+        captureWidgetIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        captureWidgetIntent(intent)
+    }
+
+    private fun captureWidgetIntent(intent: Intent?) {
+        val toolId = intent?.getStringExtra(ToolerWidgetRenderer.EXTRA_WIDGET_TOOL_ID)
+        if (!toolId.isNullOrEmpty()) {
+            pendingWidgetToolId = toolId
+            // Clear extra so configuration changes don't re-trigger
+            intent.removeExtra(ToolerWidgetRenderer.EXTRA_WIDGET_TOOL_ID)
+            widgetMethodChannel?.invokeMethod("onWidgetLaunch", toolId)
+        }
     }
 
     override fun onResume() {
@@ -227,6 +251,107 @@ class MainActivity : FlutterActivity() {
                     } catch (e: Exception) {
                         result.error("ERROR", e.message, null)
                     }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Home Screen Widgets Channel (4x1 Quick Bar & 1x1 Favorite Shortcut)
+        val wChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WIDGET_CHANNEL)
+        widgetMethodChannel = wChannel
+        wChannel.setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getInitialWidgetTool" -> {
+                    val tool = pendingWidgetToolId
+                    pendingWidgetToolId = null
+                    result.success(tool)
+                }
+                "saveAndRefreshWidgets" -> {
+                    try {
+                        val prefs = getSharedPreferences(ToolerWidgetRenderer.PREFS_NAME, Context.MODE_PRIVATE)
+                        val editor = prefs.edit()
+                        call.argument<String>("colorMode")?.let {
+                            editor.putString(ToolerWidgetRenderer.KEY_COLOR_MODE, it)
+                        }
+                        call.argument<String>("favToolId")?.let {
+                            editor.putString(ToolerWidgetRenderer.KEY_FAV_TOOL_ID, it)
+                        }
+                        call.argument<Number>("appCardBg")?.let {
+                            editor.putInt(ToolerWidgetRenderer.KEY_APP_CARD_BG, it.toInt())
+                        }
+                        call.argument<Number>("appBubble")?.let {
+                            editor.putInt(ToolerWidgetRenderer.KEY_APP_BUBBLE, it.toInt())
+                        }
+                        call.argument<Number>("appPrimary")?.let {
+                            editor.putInt(ToolerWidgetRenderer.KEY_APP_PRIMARY, it.toInt())
+                        }
+                        call.argument<Number>("appText")?.let {
+                            editor.putInt(ToolerWidgetRenderer.KEY_APP_TEXT, it.toInt())
+                        }
+                        call.argument<Number>("appBorder")?.let {
+                            editor.putInt(ToolerWidgetRenderer.KEY_APP_BORDER, it.toInt())
+                        }
+                        call.argument<Boolean>("appIsDark")?.let {
+                            editor.putBoolean(ToolerWidgetRenderer.KEY_APP_IS_DARK, it)
+                        }
+                        editor.apply()
+
+                        ToolerQuickBarWidgetProvider.updateAllWidgets(applicationContext)
+                        ToolerFavWidgetProvider.updateAllWidgets(applicationContext)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("WIDGET_SAVE_ERROR", e.message, null)
+                    }
+                }
+                "pinWidget" -> {
+                    val ratio = call.argument<String>("ratio") ?: "4x1"
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        try {
+                            val appWidgetManager = AppWidgetManager.getInstance(this)
+                            if (appWidgetManager.isRequestPinAppWidgetSupported) {
+                                val provider = if (ratio == "1x1") {
+                                    ComponentName(this, ToolerFavWidgetProvider::class.java)
+                                } else {
+                                    ComponentName(this, ToolerQuickBarWidgetProvider::class.java)
+                                }
+                                val pinned = appWidgetManager.requestPinAppWidget(provider, null, null)
+                                result.success(pinned)
+                            } else {
+                                result.success(false)
+                            }
+                        } catch (e: Exception) {
+                            result.success(false)
+                        }
+                    } else {
+                        result.success(false)
+                    }
+                }
+                "getSystemWidgetColors" -> {
+                    val pal = ToolerWidgetRenderer.getSystemPalette(this)
+                    result.success(
+                        mapOf(
+                            "cardBg" to pal.cardBg,
+                            "bubbleBg" to pal.bubbleBg,
+                            "primary" to pal.primary,
+                            "ink" to pal.ink,
+                            "border" to pal.border,
+                            "isDark" to pal.isDark
+                        )
+                    )
+                }
+                "closePopup" -> {
+                    result.success(true)
+                    finish()
+                    @Suppress("DEPRECATION")
+                    overridePendingTransition(0, android.R.anim.fade_out)
+                }
+                "openMainApp" -> {
+                    val launch = Intent(this, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    startActivity(launch)
+                    result.success(true)
+                    finish()
                 }
                 else -> result.notImplemented()
             }

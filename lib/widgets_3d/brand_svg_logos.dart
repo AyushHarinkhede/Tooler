@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 /// ---------------------------------------------------------------------------
-/// TOOLER BRAND SVG LOGOS & HARDWARE IDENTITY SUITE
-/// Official vector SVG logos, brand color palettes, and charging specs for:
+/// TOOLER OFFICIAL BRAND SVG LOGOS & HARDWARE IDENTITY SUITE
+/// Authentic vector SVG logos (Simple Icons & Wikimedia Commons official paths),
+/// official brand colors, and fast-charge specs for 27+ smartphone brands:
 /// SAMSUNG, Apple, Motorola, Google, LG, Oppo, Vivo, OnePlus, Nothing, CMF,
 /// Xiaomi / Mi, Redmi, Realme, POCO, iQOO, Infinix, Tecno, Lava, Nokia,
-/// HMD, Sony, Asus, Huawei, itel / AI+, and Android Generic Fallback.
+/// HMD / HMT, Sony, Asus, Huawei, Honor, Lenovo, itel, Ai+, and Android.
 /// ---------------------------------------------------------------------------
 
 class BrandInfo {
@@ -32,325 +33,34 @@ class BrandInfo {
 }
 
 class BrandSvgLogos {
-  // ---------------------------------------------------------------------------
-  // 1. MOTOROLA (Batwing 'M' Circle Emblem in Motorola Navy/Cyan)
-  // ---------------------------------------------------------------------------
-  static const String motorolaSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="50" cy="50" r="48" fill="#001435"/>
-  <circle cx="50" cy="50" r="44" fill="#001435" stroke="#0076CE" stroke-width="2.5"/>
-  <!-- Motorola Batwing M -->
-  <path d="M 23 68 C 24 55, 30 40, 39 33 C 43 29, 47 31, 50 44 C 53 31, 57 29, 61 33 C 70 40, 76 55, 77 68 C 72 63, 67 60, 61 60 C 56 60, 52 64, 50 71 C 48 64, 44 60, 39 60 C 33 60, 28 63, 23 68 Z" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 2. SAMSUNG (Royal Blue Ellipse with Iconic SAMSUNG Logotype)
-  // ---------------------------------------------------------------------------
-  static const String samsungSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#1428A0"/>
-  <!-- Samsung Ellipse & Wordmark Accent -->
-  <ellipse cx="50" cy="50" rx="42" ry="24" fill="#1428A0" stroke="#FFFFFF" stroke-width="2.2" transform="rotate(-12 50 50)"/>
-  <!-- Bold Samsung S-Curve Emblem -->
-  <path d="M 33 45 C 33 41, 38 39, 44 39 C 51 39, 54 42, 54 44 C 54 48, 49 49, 43 51 C 36 53, 31 55, 31 60 C 31 66, 38 69, 46 69 C 54 69, 59 66, 60 61 L 53 61 C 52 63, 49 65, 45 65 C 39 65, 37 63, 37 61 C 37 57, 42 56, 49 54 C 56 52, 61 50, 61 44 C 61 38, 55 35, 45 35 C 36 35, 27 39, 26 45 Z" fill="#FFFFFF"/>
-  <path d="M 64 36 L 70 36 L 76 56 L 70 56 L 68 50 L 64 50 L 64 36 Z" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 3. APPLE (Iconic Silhouette with Angled Leaf & Right Bite)
-  // ---------------------------------------------------------------------------
-  static const String appleSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#1A1A1A"/>
-  <!-- Apple Leaf -->
-  <path d="M 57 18 C 61 14, 64 12, 62 8 C 58 8, 53 11, 50 15 C 47 19, 49 23, 50 23 C 51 23, 54 21, 57 18 Z" fill="#FFFFFF"/>
-  <!-- Apple Body with Bite -->
-  <path d="M 64 45 C 64 37, 70 33, 70 33 C 66 27, 59 26, 57 26 C 50 26, 46 30, 42 30 C 38 30, 34 26, 28 26 C 18 26, 9 34, 9 49 C 9 60, 14 74, 21 84 C 25 89, 29 94, 34 94 C 39 94, 41 91, 46 91 C 51 91, 53 94, 58 94 C 63 94, 67 89, 71 84 C 75 78, 78 70, 78 70 C 78 70, 64 65, 64 45 Z" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 4. GOOGLE (Official 4-Color 'G' Vector)
-  // ---------------------------------------------------------------------------
-  static const String googleSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#F8FAFC"/>
-  <rect width="100" height="100" rx="22" fill="none" stroke="#E2E8F0" stroke-width="2"/>
-  <!-- Blue Bar & Top-Right -->
-  <path d="M 85 50 C 85 47, 84.6 44.5, 84 42 L 50 42 L 50 58 L 70 58 C 69 63, 66 67, 61 70 L 61 80 L 75 80 C 83 72, 85 62, 85 50 Z" fill="#4285F4"/>
-  <!-- Green Bottom Arc -->
-  <path d="M 50 86 C 60 86, 69 82, 75 77 L 61 67 C 58 69, 54 70, 50 70 C 40 70, 32 64, 29 55 L 15 55 L 15 66 C 21 78, 34 86, 50 86 Z" fill="#34A853"/>
-  <!-- Yellow Left Arc -->
-  <path d="M 29 55 C 28 52, 28 48, 28 45 C 28 42, 28 38, 29 35 L 15 35 C 12 41, 12 49, 15 55 Z" fill="#FBBC05"/>
-  <!-- Red Top Arc -->
-  <path d="M 50 20 C 56 20, 61 22, 65 26 L 76 15 C 69 9, 60 6, 50 6 C 34 6, 21 14, 15 26 L 29 37 C 32 28, 40 20, 50 20 Z" fill="#EA4335"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 5. LG (Heritage Burgundy Red Circle Face with 'L' Nose & 'G' Perimeter)
-  // ---------------------------------------------------------------------------
-  static const String lgSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="50" cy="50" r="48" fill="#A50034"/>
-  <!-- LG Face Outline (G) -->
-  <path d="M 50 22 C 34.5 22, 22 34.5, 22 50 C 22 65.5, 34.5 78, 50 78 C 65.5 78, 78 65.5, 78 50 L 52 50" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- LG Nose (L) -->
-  <path d="M 39 37 L 39 63 L 53 63" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
-  <!-- LG Eye Dot -->
-  <circle cx="34" cy="40" r="4" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 6. OPPO (Signature Forest Green Continuous Dual-Oval Loops)
-  // ---------------------------------------------------------------------------
-  static const String oppoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#046A38"/>
-  <!-- Left O -->
-  <ellipse cx="36" cy="50" rx="18" ry="24" fill="none" stroke="#FFFFFF" stroke-width="6"/>
-  <!-- Right O -->
-  <ellipse cx="64" cy="50" rx="18" ry="24" fill="none" stroke="#FFFFFF" stroke-width="6"/>
-  <!-- Center Union Indicator -->
-  <path d="M 46 50 L 54 50" stroke="#046A38" stroke-width="8"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 7. VIVO (Electric Blue Angled Geometric V Monogram)
-  // ---------------------------------------------------------------------------
-  static const String vivoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#008CD6"/>
-  <!-- Stylized vivo Dual Angled Wings V -->
-  <path d="M 20 28 L 42 74 C 44 78, 47 80, 50 80 C 53 80, 56 78, 58 74 L 80 28 L 68 28 L 50 66 L 32 28 Z" fill="#FFFFFF"/>
-  <circle cx="50" cy="28" r="5" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 8. ONEPLUS (Iconic Red Squircle with '1+' Monogram)
-  // ---------------------------------------------------------------------------
-  static const String oneplusSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#EB0028"/>
-  <rect x="14" y="14" width="72" height="72" rx="14" fill="none" stroke="#FFFFFF" stroke-width="5"/>
-  <!-- The numeral 1 -->
-  <path d="M 37 36 L 44 32 L 44 68 L 36 68 M 44 68 L 52 68" stroke="#FFFFFF" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <!-- The plus sign + -->
-  <path d="M 68 28 L 68 44 M 60 36 L 76 36" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round" fill="none"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 9. NOTHING (Dot-Matrix Glyph / Minimal Monogram in Dark & Red)
-  // ---------------------------------------------------------------------------
-  static const String nothingSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#111111"/>
-  <!-- Dot matrix glyph layout -->
-  <circle cx="28" cy="28" r="4.5" fill="#FFFFFF"/>
-  <circle cx="42" cy="28" r="4.5" fill="#FFFFFF"/>
-  <circle cx="58" cy="28" r="4.5" fill="#FFFFFF"/>
-  <circle cx="72" cy="28" r="4.5" fill="#D71920"/>
-  <circle cx="28" cy="42" r="4.5" fill="#FFFFFF"/>
-  <circle cx="72" cy="42" r="4.5" fill="#FFFFFF"/>
-  <circle cx="28" cy="58" r="4.5" fill="#FFFFFF"/>
-  <circle cx="42" cy="58" r="4.5" fill="#FFFFFF"/>
-  <circle cx="58" cy="58" r="4.5" fill="#FFFFFF"/>
-  <circle cx="72" cy="58" r="4.5" fill="#FFFFFF"/>
-  <circle cx="28" cy="72" r="4.5" fill="#FFFFFF"/>
-  <circle cx="72" cy="72" r="4.5" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 10. CMF (CMF by Nothing Vibrant Orange Dot Badge)
-  // ---------------------------------------------------------------------------
-  static const String cmfSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#FA551E"/>
-  <circle cx="50" cy="50" r="32" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-dasharray="2,6"/>
-  <circle cx="50" cy="50" r="16" fill="#FFFFFF"/>
-  <circle cx="50" cy="50" r="6" fill="#FA551E"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 11. XIAOMI / MI (Orange Squircle with Authentic Stylized 'mi' Glyph)
-  // ---------------------------------------------------------------------------
-  static const String xiaomiSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="28" fill="#FF6900"/>
-  <!-- Authentic Xiaomi 'mi' Glyph -->
-  <!-- Left stem -->
-  <rect x="25" y="32" width="7" height="36" rx="3.5" fill="#FFFFFF"/>
-  <!-- Middle arch & stem -->
-  <path d="M 32 45 C 32 38, 38 32, 47 32 C 56 32, 60 38, 60 45 L 60 68 L 53 68 L 53 46 C 53 41, 51 38, 46 38 C 41 38, 39 41, 39 46 L 39 68 L 32 68 Z" fill="#FFFFFF"/>
-  <!-- Center isolated bar -->
-  <rect x="42" y="44" width="6" height="24" rx="3" fill="#FF6900"/>
-  <!-- 'i' stem and dot -->
-  <rect x="68" y="42" width="7" height="26" rx="3.5" fill="#FFFFFF"/>
-  <rect x="68" y="32" width="7" height="7" rx="3.5" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 12. REDMI (Crimson Red Badge with Bold Geometric Redmi 'R')
-  // ---------------------------------------------------------------------------
-  static const String redmiSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#E53935"/>
-  <!-- Bold Geometric Redmi 'R' -->
-  <path d="M 28 26 L 54 26 C 65 26, 73 33, 73 42 C 73 50, 66 57, 56 58 L 74 76 L 61 76 L 46 60 L 39 60 L 39 76 L 28 76 Z M 39 36 L 39 50 L 53 50 C 58 50, 62 47, 62 43 C 62 39, 58 36, 53 36 Z" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 13. REALME (Vibrant Yellow Rounded Square with Stylized 'R')
-  // ---------------------------------------------------------------------------
-  static const String realmeSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#FFC915"/>
-  <!-- Black Geometric letter 'R' -->
-  <path d="M 28 24 L 56 24 C 67 24, 74 31, 74 41 C 74 49, 68 55, 59 57 L 76 76 L 62 76 L 48 59 L 41 59 L 41 76 L 28 76 Z M 41 35 L 41 49 L 54 49 C 59 49, 63 46, 63 42 C 63 37, 59 35, 54 35 Z" fill="#111111"/>
-  <!-- Vibrant Yellow Accent Dot -->
-  <circle cx="74" cy="24" r="5" fill="#111111"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 14. POCO (POCO Iconic Vibrant Yellow Badge with Bold Wordmark)
-  // ---------------------------------------------------------------------------
-  static const String pocoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#FFD600"/>
-  <!-- POCO Bold Typography -->
-  <!-- P -->
-  <path d="M 16 34 L 32 34 C 38 34, 42 38, 42 43 C 42 48, 38 52, 32 52 L 23 52 L 23 66 L 16 66 Z M 23 40 L 23 46 L 31 46 C 34 46, 36 44, 36 43 C 36 41, 34 40, 31 40 Z" fill="#111111"/>
-  <!-- O -->
-  <ellipse cx="50" cy="50" rx="10" ry="16" fill="none" stroke="#111111" stroke-width="6"/>
-  <!-- C -->
-  <path d="M 80 40 C 77 36, 73 34, 68 34 C 60 34, 55 41, 55 50 C 55 59, 60 66, 68 66 C 73 66, 77 64, 80 60" fill="none" stroke="#111111" stroke-width="6" stroke-linecap="round"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 15. IQOO (Racing Amber Speed Badge with Angular Monogram)
-  // ---------------------------------------------------------------------------
-  static const String iqooSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#F9AA00"/>
-  <!-- iQOO Speed Monogram -->
-  <!-- i -->
-  <circle cx="20" cy="36" r="4.5" fill="#111111"/>
-  <rect x="16" y="45" width="8" height="23" rx="3" fill="#111111"/>
-  <!-- Q -->
-  <ellipse cx="44" cy="56" rx="12" ry="12" fill="none" stroke="#111111" stroke-width="6"/>
-  <path d="M 48 60 L 58 72" stroke="#111111" stroke-width="6" stroke-linecap="round"/>
-  <!-- O -->
-  <ellipse cx="74" cy="56" rx="12" ry="12" fill="none" stroke="#111111" stroke-width="6"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 16. INFINIX (Bright Emerald Green Badge with Futuristic Infinity Emblem)
-  // ---------------------------------------------------------------------------
-  static const String infinixSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#00C269"/>
-  <!-- Futuristic Infinity ∞ Monogram -->
-  <path d="M 33 34 C 23 34, 16 41, 16 50 C 16 59, 23 66, 33 66 C 43 66, 49 57, 50 50 C 51 43, 57 34, 67 34 C 77 34, 84 41, 84 50 C 84 59, 77 66, 67 66 C 57 66, 51 57, 50 50 C 49 43, 43 34, 33 34 Z" fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 17. TECNO (Electric Blue Badge with Bold Geometric 'T' Crest)
-  // ---------------------------------------------------------------------------
-  static const String tecnoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#0066FF"/>
-  <!-- Bold Geometric 'T' Crest -->
-  <path d="M 22 28 L 78 28 L 78 40 L 57 40 L 57 76 L 43 76 L 43 40 L 22 40 Z" fill="#FFFFFF"/>
-  <circle cx="50" cy="84" r="3.5" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 18. LAVA (Pure Red Badge with Dynamic Flame / Peak Monogram)
-  // ---------------------------------------------------------------------------
-  static const String lavaSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#E60000"/>
-  <!-- Dynamic Lava Dual Flame / Peak -->
-  <path d="M 32 74 L 18 74 L 38 24 L 50 24 L 39 52 L 48 52 L 40 74 Z" fill="#FFFFFF"/>
-  <path d="M 58 74 L 50 74 L 66 32 L 78 32 L 67 56 L 76 56 L 68 74 Z" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 19. NOKIA (Classic Pure Blue Geometric 'NOKIA' Logotype Emblem)
-  // ---------------------------------------------------------------------------
-  static const String nokiaSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#124191"/>
-  <!-- Classic Nokia Geometric N Monogram -->
-  <path d="M 26 74 L 26 26 L 42 26 L 64 60 L 64 26 L 74 26 L 74 74 L 58 74 L 36 40 L 36 74 Z" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 20. HMD / HMT (Modern Jet Black & Coral Geometric 'HMD' Monogram)
-  // ---------------------------------------------------------------------------
-  static const String hmdSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#111111"/>
-  <!-- H -->
-  <path d="M 18 32 L 26 32 L 26 46 L 36 46 L 36 32 L 44 32 L 44 68 L 36 68 L 36 54 L 26 54 L 26 68 L 18 68 Z" fill="#FFFFFF"/>
-  <!-- M -->
-  <path d="M 48 32 L 56 32 L 62 52 L 68 32 L 76 32 L 76 68 L 69 68 L 69 44 L 64 60 L 60 60 L 55 44 L 55 68 L 48 68 Z" fill="#FF4D6D"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 21. SONY (Classic Dark Badge with Sony Typographic Serif Mark)
-  // ---------------------------------------------------------------------------
-  static const String sonySvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#000000"/>
-  <!-- Sony S & O Monogram -->
-  <path d="M 22 41 C 24 37, 29 35, 34 35 C 41 35, 45 38, 45 42 C 45 46, 40 48, 35 50 C 28 52, 23 54, 23 60 C 23 66, 29 69, 36 69 C 43 69, 47 65, 47 62 L 41 62 C 40 64, 38 65, 35 65 C 31 65, 29 63, 29 60 C 29 57, 33 55, 39 53 C 46 51, 51 49, 51 42 C 51 36, 45 32, 35 32 C 28 32, 22 36, 21 41 Z" fill="#FFFFFF"/>
-  <ellipse cx="68" cy="51" rx="14" ry="17" fill="none" stroke="#FFFFFF" stroke-width="5.5"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 22. ASUS (Tech Blue Badge with ASUS Horizontal-Slit 'A' Monogram)
-  // ---------------------------------------------------------------------------
-  static const String asusSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#00539B"/>
-  <!-- ASUS Iconic Sliced 'A' -->
-  <path d="M 46 22 L 20 78 L 33 78 L 42 58 L 58 58 L 67 78 L 80 78 L 54 22 Z M 50 38 L 55 50 L 45 50 Z" fill="#FFFFFF"/>
-  <rect x="36" y="52" width="28" height="4" fill="#00539B"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 23. HUAWEI (Imperial Red Badge with Famous 8-Petal Blooming Lotus Fan)
-  // ---------------------------------------------------------------------------
-  static const String huaweiSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#ED1C24"/>
-  <!-- Huawei Radiating Fan Petals -->
-  <!-- Center Petal -->
-  <path d="M 50 20 C 47 30, 47 45, 50 54 C 53 45, 53 30, 50 20 Z" fill="#FFFFFF"/>
-  <!-- Left Petal 1 -->
-  <path d="M 40 23 C 39 33, 43 46, 48 54 C 47 45, 45 32, 40 23 Z" fill="#FFFFFF"/>
-  <!-- Right Petal 1 -->
-  <path d="M 60 23 C 55 32, 53 45, 52 54 C 57 46, 61 33, 60 23 Z" fill="#FFFFFF"/>
-  <!-- Left Petal 2 -->
-  <path d="M 31 31 C 32 40, 39 50, 46 56 C 43 47, 39 37, 31 31 Z" fill="#FFFFFF"/>
-  <!-- Right Petal 2 -->
-  <path d="M 69 31 C 61 37, 57 47, 54 56 C 61 50, 68 40, 69 31 Z" fill="#FFFFFF"/>
-  <!-- Left Petal 3 -->
-  <path d="M 24 43 C 27 50, 36 57, 44 59 C 39 52, 34 44, 24 43 Z" fill="#FFFFFF"/>
-  <!-- Right Petal 3 -->
-  <path d="M 76 43 C 66 44, 61 52, 56 59 C 64 57, 73 50, 76 43 Z" fill="#FFFFFF"/>
-  <!-- Bottom Foundation Arch -->
-  <path d="M 28 68 C 42 63, 58 63, 72 68 C 65 74, 35 74, 28 68 Z" fill="#FFFFFF"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 24. ITEL / AI+ (Vibrant Red itel Badge with Dynamic Curve & Monogram)
-  // ---------------------------------------------------------------------------
-  static const String itelSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#FF2B2B"/>
-  <!-- itel Dynamic Monogram -->
-  <circle cx="28" cy="38" r="4" fill="#FFFFFF"/>
-  <rect x="24" y="46" width="8" height="24" rx="4" fill="#FFFFFF"/>
-  <path d="M 44 36 L 44 46 L 54 46 L 54 52 L 44 52 L 44 64 C 44 67, 46 68, 49 68 L 54 68 L 54 74 L 46 74 C 39 74, 36 70, 36 63 L 36 36 Z" fill="#FFFFFF"/>
-  <!-- Dynamic AI+ Star -->
-  <circle cx="72" cy="46" r="14" fill="none" stroke="#FFFFFF" stroke-width="4"/>
-  <path d="M 72 38 L 72 54 M 64 46 L 80 46" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
-</svg>''';
-
-  // ---------------------------------------------------------------------------
-  // 25. ANDROID GENERIC FALLBACK (Android Green Robot Head)
-  // ---------------------------------------------------------------------------
-  static const String androidGenericSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <rect width="100" height="100" rx="22" fill="#3DDC84"/>
-  <!-- Left Antenna -->
-  <line x1="33" y1="31" x2="25" y2="19" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
-  <!-- Right Antenna -->
-  <line x1="67" y1="31" x2="75" y2="19" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round"/>
-  <!-- Android Head Dome -->
-  <path d="M 20 54 C 20 37, 33 24, 50 24 C 67 24, 80 37, 80 54 Z" fill="#FFFFFF"/>
-  <!-- Left Eye -->
-  <circle cx="36" cy="42" r="3.5" fill="#3DDC84"/>
-  <!-- Right Eye -->
-  <circle cx="64" cy="42" r="3.5" fill="#3DDC84"/>
-  <!-- Android Body Line -->
-  <rect x="20" y="58" width="60" height="18" rx="8" fill="#FFFFFF"/>
-</svg>''';
+  static const String motorolaSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#001435"/><g transform="translate(12,12) scale(3.1667)"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12C24.002 5.375 18.632.002 12.007 0H12zm7.327 18.065s-.581-2.627-1.528-4.197c-.514-.857-1.308-1.553-2.368-1.532-.745 0-1.399.423-2.2 1.553-.469.77-.882 1.573-1.235 2.403 0 0-.29-.675-.63-1.343a8.038 8.038 0 0 0-.605-1.049c-.804-1.13-1.455-1.539-2.2-1.553-1.049-.021-1.854.675-2.364 1.528-.948 1.574-1.528 4.197-1.528 4.197h-.864l4.606-15.12 3.56 11.804.024.021.024-.021 3.56-11.804 4.61 15.113h-.862z" fill="#FFFFFF"/></g></svg>''';
+  static const String samsungSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#1428A0"/><g transform="translate(6,6) scale(3.6667)"><path d="M19.8166 10.2808l.0459 2.6934h-.023l-.7793-2.6934h-1.2837v3.3925h.8481l-.0458-2.785h.023l.8366 2.785h1.2264v-3.3925zm-16.149 0l-.6418 3.427h.9284l.4699-3.1175h.0229l.4585 3.1174h.9169l-.6304-3.4269zm5.1805 0l-.424 2.6132h-.023l-.424-2.6132H6.5788l-.0688 3.427h.8596l.023-3.0832h.0114l.573 3.0831h.8711l.5731-3.083h.023l.0228 3.083h.8596l-.0802-3.4269zm-7.2664 2.4527c.0343.0802.0229.1949.0114.2522-.0229.1146-.1031.2292-.3324.2292-.2177 0-.3438-.126-.3438-.3095v-.3323H0v.2636c0 .7679.6074.9971 1.2493.9971.6189 0 1.1346-.2178 1.2149-.7794.0458-.298.0114-.4928 0-.5616-.1605-.722-1.467-.9283-1.5588-1.3295-.0114-.0688-.0114-.1375 0-.1834.023-.1146.1032-.2292.3095-.2292.2063 0 .321.126.321.3095v.2063h.8595v-.2407c0-.745-.6762-.8596-1.1576-.8596-.6074 0-1.1117.2063-1.2034.7564-.023.149-.0344.2866.0114.4585.1376.7106 1.364.9169 1.5358 1.3524m11.152 0c.0343.0803.0228.1834.0114.2522-.023.1146-.1032.2292-.3324.2292-.2178 0-.3438-.126-.3438-.3095v-.3323h-.917v.2636c0 .7564.596.9857 1.2379.9857.6189 0 1.1232-.2063 1.2034-.7794.0459-.298.0115-.4814 0-.5616-.1375-.7106-1.4327-.9284-1.5243-1.318-.0115-.0688-.0115-.1376 0-.1835.0229-.1146.1031-.2292.3094-.2292.1948 0 .321.126.321.3095v.2063h.848v-.2407c0-.745-.6647-.8596-1.146-.8596-.6075 0-1.1004.1948-1.192.7564-.023.149-.023.2866.0114.4585.1376.7106 1.341.9054 1.513 1.3524m2.8882.4585c.2407 0 .3094-.1605.3323-.2522.0115-.0343.0115-.0917.0115-.126v-2.533h.871v2.4642c0 .0688 0 .1948-.0114.2292-.0573.6419-.5616.8482-1.192.8482-.6303 0-1.1346-.2063-1.192-.8482 0-.0344-.0114-.1604-.0114-.2292v-2.4642h.871v2.533c0 .0458 0 .0916.0115.126 0 .0917.0688.2522.3095.2522m7.1518-.0344c.2522 0 .3324-.1605.3553-.2522.0115-.0343.0115-.0917.0115-.126v-.4929h-.3553v-.5043H24v.917c0 .0687 0 .1145-.0115.2292-.0573.6303-.596.8481-1.2034.8481-.6075 0-1.1461-.2178-1.2034-.8481-.0115-.1147-.0115-.1605-.0115-.2293v-1.444c0-.0574.0115-.172.0115-.2293.0802-.6419.596-.8482 1.2034-.8482s1.1347.2063 1.2034.8482c.0115.1031.0115.2292.0115.2292v.1146h-.8596v-.1948s0-.0803-.0115-.1261c-.0114-.0802-.0802-.2521-.3438-.2521-.2521 0-.321.1604-.3438.2521-.0115.0458-.0115.1032-.0115.1605v1.5702c0 .0458 0 .0916.0115.126 0 .0917.0917.2522.3323.2522" fill="#FFFFFF"/></g></svg>''';
+  static const String appleSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#1A1A1F"/><g transform="translate(17,17) scale(2.75)"><path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" fill="#FFFFFF"/></g></svg>''';
+  static const String googleSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2"/><g transform="translate(16,16) scale(2.8333)"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/><path d="M1 1h22v22H1z" fill="none"/></g></svg>''';
+  static const String lgSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="50" fill="#A50034"/><g transform="translate(12,12) scale(3.1667)"><path d="M14.522 14.078h3.27v1.33h-4.847v-6.83h1.577v5.5zm6.74-1.274h1.284v1.195c-.236.09-.698.18-1.137.18-1.42 0-1.893-.721-1.893-2.186 0-1.398.45-2.221 1.869-2.221.791 0 1.24.248 1.612.722l.982-.903c-.6-.855-1.646-1.114-2.629-1.114-2.208 0-3.368 1.205-3.368 3.504 0 2.288 1.047 3.528 3.358 3.528 1.06 0 2.096-.27 2.66-.665V11.53h-2.739v1.274zM5.291 6.709a5.29 5.29 0 1 1 0 10.582 5.291 5.291 0 1 1 0-10.582m3.16 8.457a4.445 4.445 0 0 0 1.31-3.161v-.242l-.22.001H6.596v.494h2.662l-.001.015a3.985 3.985 0 0 1-3.965 3.708 3.95 3.95 0 0 1-2.811-1.165 3.952 3.952 0 0 1-1.164-2.811c0-1.061.414-2.059 1.164-2.81a3.951 3.951 0 0 1 2.81-1.164l.252.003v-.495l-.251-.003a4.475 4.475 0 0 0-4.47 4.469c0 1.194.465 2.316 1.309 3.161a4.444 4.444 0 0 0 3.16 1.31 4.444 4.444 0 0 0 3.162-1.31m-2.91-1.297V9.644H5.04v4.72h1.556v-.495H5.543zm-1.265-3.552a.676.676 0 1 0-.675.674.676.676 0 0 0 .675-.674" fill="#FFFFFF"/></g></svg>''';
+  static const String oppoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#046A38"/><g transform="translate(7,7) scale(3.5833)"><path d="M2.85 12.786h-.001C1.639 12.774.858 12.2.858 11.321s.781-1.452 1.99-1.465c1.21.013 1.992.588 1.992 1.465s-.782 1.453-1.99 1.465zm.034-3.638h-.073C1.156 9.175 0 10.068 0 11.32s1.156 2.147 2.811 2.174h.073c1.655-.027 2.811-.921 2.811-2.174S4.54 9.175 2.885 9.148zm18.27 3.638c-1.21-.012-1.992-.587-1.992-1.465s.782-1.452 1.991-1.465c1.21.013 1.991.588 1.991 1.465s-.781 1.453-1.99 1.465zm.035-3.638h-.073c-1.655.027-2.811.92-2.811 2.173s1.156 2.147 2.81 2.174h.074C22.844 13.468 24 12.574 24 11.32s-1.156-2.146-2.811-2.173zm-6.126 3.638c-1.21-.012-1.99-.587-1.99-1.465s.78-1.452 1.99-1.465c1.21.013 1.991.588 1.991 1.465s-.781 1.453-1.99 1.465zm.036-3.638h-.073c-.789.013-1.464.222-1.955.574v-.37h-.857v5.5h.857v-1.931c.49.351 1.166.56 1.954.574h.074c1.655-.027 2.81-.921 2.81-2.174s-1.155-2.146-2.81-2.173zm-6.144 3.638c-1.21-.012-1.99-.587-1.99-1.465s.78-1.452 1.99-1.465c1.21.013 1.991.588 1.991 1.465s-.781 1.453-1.99 1.465zm.037-3.638H8.92c-.789.013-1.464.222-1.955.574v-.37h-.856v5.5h.856v-1.931c.491.351 1.166.56 1.955.574a3.728 3.728 0 0 0 .073 0c1.655-.027 2.811-.921 2.811-2.174s-1.156-2.146-2.81-2.173z" fill="#FFFFFF"/></g></svg>''';
+  static const String vivoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#415FFF"/><g transform="translate(7,7) scale(3.5833)"><path d="M19.604 14.101c-1.159 0-1.262-.95-1.262-1.24 0-.29.103-1.242 1.262-1.242h2.062c1.16 0 1.263.951 1.263 1.242 0 .29-.104 1.24-1.263 1.24m-2.062-3.527c-2.142 0-2.333 1.752-2.333 2.287 0 .535.19 2.286 2.333 2.286h2.062c2.143 0 2.334-1.751 2.334-2.286 0-.535-.19-2.287-2.334-2.287m-5.477.107c-.286 0-.345.05-.456.213-.11.164-2.022 3.082-2.022 3.082-.06.09-.126.126-.206.126-.08 0-.145-.036-.206-.126 0 0-1.912-2.918-2.022-3.082-.11-.164-.17-.213-.456-.213h-.668c-.154 0-.224.12-.127.267l2.283 3.467c.354.521.614.732 1.196.732s.842-.21 1.196-.732l2.284-3.467c.096-.146.026-.267-.128-.267m-8.876.284c0-.203.08-.284.283-.284h.505c.203 0 .283.08.283.283v3.9c0 .202-.08.283-.283.283h-.505c-.203 0-.283-.08-.283-.283zm-1.769-.285c-.287 0-.346.05-.456.213-.11.164-2.022 3.082-2.022 3.082-.061.09-.126.126-.206.126-.08 0-.145-.036-.206-.126 0 0-1.912-2.918-2.023-3.082-.11-.164-.169-.213-.455-.213H.175c-.171 0-.224.12-.127.267l2.283 3.467c.355.521.615.732 1.197.732.582 0 .842-.21 1.196-.732l2.283-3.467c.097-.146.044-.267-.127-.267m1.055-.893c-.165-.164-.165-.295 0-.46l.351-.351c.165-.165.296-.165.46 0l.352.351c.165.165.165.296 0 .46l-.352.352c-.164.165-.295.165-.46 0z" fill="#FFFFFF"/></g></svg>''';
+  static const String oneplusSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#F5010C"/><g transform="translate(14,14) scale(3)"><path d="M0 3.74V24h20.26V12.428h-2.256v9.317H2.254V5.995h9.318V3.742zM18.004 0v3.74h-3.758v2.256h3.758v3.758h2.255V5.996H24V3.74h-3.758V0zm-6.45 18.756V8.862H9.562c0 .682-.228 1.189-.577 1.504-.367.297-.91.437-1.556.437h-.245v1.625h2.133v6.31h2.237z" fill="#FFFFFF"/></g></svg>''';
+  static const String nothingSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#111111"/><circle cx="86" cy="16" r="4.2" fill="#D71920"/><circle cx="7" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="15.6" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="7" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="9.15" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="15.6" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="7" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="11.3" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="15.6" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="7" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="13.45" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="15.6" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="7" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="15.6" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="22.26" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="24.42" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="26.56" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="20.11" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="28.71" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="20.11" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="28.71" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="20.11" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="28.71" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="22.26" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="24.42" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="26.56" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="33.23" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="35.38" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="37.53" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="39.68" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="41.83" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="37.53" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="37.53" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="37.53" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="37.53" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="46.34" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="54.94" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="46.34" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="54.94" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="46.34" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="48.5" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="50.64" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="52.8" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="54.94" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="46.34" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="54.94" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="46.34" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="54.94" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="59.46" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="61.61" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="63.76" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="61.61" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="61.61" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="61.61" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="59.46" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="61.61" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="63.76" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="68.27" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="76.87" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="68.27" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="70.42" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="76.87" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="68.27" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="72.57" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="76.87" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="68.27" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="74.72" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="76.87" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="68.27" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="76.87" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="83.54" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="85.69" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="87.84" cy="45.7" r="0.88" fill="#FFFFFF"/><circle cx="81.39" cy="47.85" r="0.88" fill="#FFFFFF"/><circle cx="81.39" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="85.69" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="87.84" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="89.99" cy="50" r="0.88" fill="#FFFFFF"/><circle cx="81.39" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="89.99" cy="52.15" r="0.88" fill="#FFFFFF"/><circle cx="83.54" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="85.69" cy="54.3" r="0.88" fill="#FFFFFF"/><circle cx="87.84" cy="54.3" r="0.88" fill="#FFFFFF"/></svg>''';
+  static const String cmfSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#FA551E"/><g transform="translate(8,28.803) scale(0.1972)"><path d="M30.39 83.53C30.39 91.92 23.59 98.72 15.2 98.72C6.81002 98.72 0.0200195 91.92 0.0200195 83.53C0.0200195 75.14 6.82002 68.34 15.21 68.34C23.6 68.34 30.4 75.14 30.4 83.53" fill="#FFFFFF"/><path d="M30.39 113.9C30.39 122.29 23.59 129.09 15.2 129.09C6.81002 129.09 0.0200195 122.29 0.0200195 113.9C0.0200195 105.51 6.82002 98.71 15.21 98.71C23.6 98.71 30.4 105.51 30.4 113.9" fill="#FFFFFF"/><path d="M50.6403 53.15C50.6403 61.54 43.8403 68.34 35.4503 68.34C27.0603 68.34 20.2603 61.54 20.2603 53.15C20.2603 44.76 27.0603 37.96 35.4503 37.96C43.8403 37.96 50.6403 44.76 50.6403 53.15Z" fill="#FFFFFF"/><path d="M50.6403 144.28C50.6403 152.67 43.8403 159.47 35.4503 159.47C27.0603 159.47 20.2603 152.67 20.2603 144.28C20.2603 135.89 27.0603 129.09 35.4503 129.09C43.8403 129.09 50.6403 135.89 50.6403 144.28Z" fill="#FFFFFF"/><path d="M70.8903 53.15C70.8903 61.54 64.0903 68.34 55.7003 68.34C47.3103 68.34 40.5103 61.54 40.5103 53.15C40.5103 44.76 47.3103 37.96 55.7003 37.96C64.0903 37.96 70.8903 44.76 70.8903 53.15Z" fill="#FFFFFF"/><path d="M70.8903 144.28C70.8903 152.67 64.0903 159.47 55.7003 159.47C47.3103 159.47 40.5103 152.67 40.5103 144.28C40.5103 135.89 47.3103 129.09 55.7003 129.09C64.0903 129.09 70.8903 135.89 70.8903 144.28Z" fill="#FFFFFF"/><path d="M91.1403 53.15C91.1403 61.54 84.3403 68.34 75.9503 68.34C67.5603 68.34 60.7603 61.54 60.7603 53.15C60.7603 44.76 67.5603 37.96 75.9503 37.96C84.3403 37.96 91.1403 44.76 91.1403 53.15Z" fill="#FFFFFF"/><path d="M91.1403 144.28C91.1403 152.67 84.3403 159.47 75.9503 159.47C67.5603 159.47 60.7603 152.67 60.7603 144.28C60.7603 135.89 67.5603 129.09 75.9503 129.09C84.3403 129.09 91.1403 135.89 91.1403 144.28Z" fill="#FFFFFF"/><path d="M111.39 53.15C111.39 61.54 104.59 68.34 96.2002 68.34C87.8102 68.34 81.0103 61.54 81.0103 53.15C81.0103 44.76 87.8102 37.96 96.2002 37.96C104.59 37.96 111.39 44.76 111.39 53.15Z" fill="#FFFFFF"/><path d="M111.39 144.28C111.39 152.67 104.59 159.47 96.2002 159.47C87.8102 159.47 81.0103 152.67 81.0103 144.28C81.0103 135.89 87.8102 129.09 96.2002 129.09C104.59 129.09 111.39 135.89 111.39 144.28Z" fill="#FFFFFF"/><path d="M172.1 53.15C172.1 61.54 165.3 68.34 156.91 68.34C148.52 68.34 141.72 61.54 141.72 53.15C141.72 44.76 148.52 37.96 156.91 37.96C165.3 37.96 172.1 44.76 172.1 53.15Z" fill="#FFFFFF"/><path d="M172.1 83.53C172.1 91.92 165.3 98.72 156.91 98.72C148.52 98.72 141.72 91.92 141.72 83.53C141.72 75.14 148.52 68.34 156.91 68.34C165.3 68.34 172.1 75.14 172.1 83.53Z" fill="#FFFFFF"/><path d="M172.1 113.9C172.1 122.29 165.3 129.09 156.91 129.09C148.52 129.09 141.72 122.29 141.72 113.9C141.72 105.51 148.52 98.71 156.91 98.71C165.3 98.71 172.1 105.51 172.1 113.9Z" fill="#FFFFFF"/><path d="M172.1 144.28C172.1 152.67 165.3 159.47 156.91 159.47C148.52 159.47 141.72 152.67 141.72 144.28C141.72 135.89 148.52 129.09 156.91 129.09C165.3 129.09 172.1 135.89 172.1 144.28Z" fill="#FFFFFF"/><path d="M192.35 53.15C192.35 61.54 185.55 68.34 177.16 68.34C168.77 68.34 161.97 61.54 161.97 53.15C161.97 44.76 168.77 37.96 177.16 37.96C185.55 37.96 192.35 44.76 192.35 53.15Z" fill="#FFFFFF"/><path d="M212.59 53.15C212.59 61.54 205.79 68.34 197.4 68.34C189.01 68.34 182.21 61.54 182.21 53.15C182.21 44.76 189.01 37.96 197.4 37.96C205.79 37.96 212.59 44.76 212.59 53.15Z" fill="#FFFFFF"/><path d="M232.84 53.15C232.84 61.54 226.04 68.34 217.65 68.34C209.26 68.34 202.46 61.54 202.46 53.15C202.46 44.76 209.26 37.96 217.65 37.96C226.04 37.96 232.84 44.76 232.84 53.15Z" fill="#FFFFFF"/><path d="M232.84 83.53C232.84 91.92 226.04 98.72 217.65 98.72C209.26 98.72 202.46 91.92 202.46 83.53C202.46 75.14 209.26 68.34 217.65 68.34C226.04 68.34 232.84 75.14 232.84 83.53Z" fill="#FFFFFF"/><path d="M232.84 113.9C232.84 122.29 226.04 129.09 217.65 129.09C209.26 129.09 202.46 122.29 202.46 113.9C202.46 105.51 209.26 98.71 217.65 98.71C226.04 98.71 232.84 105.51 232.84 113.9Z" fill="#FFFFFF"/><path d="M232.84 144.28C232.84 152.67 226.04 159.47 217.65 159.47C209.26 159.47 202.46 152.67 202.46 144.28C202.46 135.89 209.26 129.09 217.65 129.09C226.04 129.09 232.84 135.89 232.84 144.28Z" fill="#FFFFFF"/><path d="M253.09 53.15C253.09 61.54 246.29 68.34 237.9 68.34C229.51 68.34 222.71 61.54 222.71 53.15C222.71 44.76 229.51 37.96 237.9 37.96C246.29 37.96 253.09 44.76 253.09 53.15Z" fill="#FFFFFF"/><path d="M273.34 53.15C273.34 61.54 266.54 68.34 258.15 68.34C249.76 68.34 242.96 61.54 242.96 53.15C242.96 44.76 249.76 37.96 258.15 37.96C266.54 37.96 273.34 44.76 273.34 53.15Z" fill="#FFFFFF"/><path d="M293.59 83.53C293.59 91.92 286.79 98.72 278.4 98.72C270.01 98.72 263.21 91.92 263.21 83.53C263.21 75.14 270.01 68.34 278.4 68.34C286.79 68.34 293.59 75.14 293.59 83.53Z" fill="#FFFFFF"/><path d="M293.59 113.9C293.59 122.29 286.79 129.09 278.4 129.09C270.01 129.09 263.21 122.29 263.21 113.9C263.21 105.51 270.01 98.71 278.4 98.71C286.79 98.71 293.59 105.51 293.59 113.9Z" fill="#FFFFFF"/><path d="M293.59 144.28C293.59 152.67 286.79 159.47 278.4 159.47C270.01 159.47 263.21 152.67 263.21 144.28C263.21 135.89 270.01 129.09 278.4 129.09C286.79 129.09 293.59 135.89 293.59 144.28Z" fill="#FFFFFF"/><path d="M344.22 53.15C344.22 61.54 337.42 68.34 329.03 68.34C320.64 68.34 313.84 61.54 313.84 53.15C313.84 44.76 320.64 37.96 329.03 37.96C337.42 37.96 344.22 44.76 344.22 53.15Z" fill="#FFFFFF"/><path d="M364.47 53.15C364.47 61.54 357.67 68.34 349.28 68.34C340.89 68.34 334.09 61.54 334.09 53.15C334.09 44.76 340.89 37.96 349.28 37.96C357.67 37.96 364.47 44.76 364.47 53.15Z" fill="#FFFFFF"/><path d="M364.47 83.53C364.47 91.92 357.67 98.72 349.28 98.72C340.89 98.72 334.09 91.92 334.09 83.53C334.09 75.14 340.89 68.34 349.28 68.34C357.67 68.34 364.47 75.14 364.47 83.53Z" fill="#FFFFFF"/><path d="M364.47 113.9C364.47 122.29 357.67 129.09 349.28 129.09C340.89 129.09 334.09 122.29 334.09 113.9C334.09 105.51 340.89 98.71 349.28 98.71C357.67 98.71 364.47 105.51 364.47 113.9Z" fill="#FFFFFF"/><path d="M364.47 144.28C364.47 152.67 357.67 159.47 349.28 159.47C340.89 159.47 334.09 152.67 334.09 144.28C334.09 135.89 340.89 129.09 349.28 129.09C357.67 129.09 364.47 135.89 364.47 144.28Z" fill="#FFFFFF"/><path d="M384.71 15.19C384.71 23.58 377.91 30.38 369.52 30.38C361.13 30.38 354.33 23.58 354.33 15.19C354.33 6.8 361.13 0 369.52 0C377.91 0 384.71 6.8 384.71 15.19Z" fill="#FFFFFF"/><path d="M384.71 53.15C384.71 61.54 377.91 68.34 369.52 68.34C361.13 68.34 354.33 61.54 354.33 53.15C354.33 44.76 361.13 37.96 369.52 37.96C377.91 37.96 384.71 44.76 384.71 53.15Z" fill="#FFFFFF"/><path d="M404.96 15.19C404.96 23.58 398.16 30.38 389.77 30.38C381.38 30.38 374.58 23.58 374.58 15.19C374.58 6.8 381.38 0 389.77 0C398.16 0 404.96 6.8 404.96 15.19Z" fill="#FFFFFF"/><path d="M404.96 53.15C404.96 61.54 398.16 68.34 389.77 68.34C381.38 68.34 374.58 61.54 374.58 53.15C374.58 44.76 381.38 37.96 389.77 37.96C398.16 37.96 404.96 44.76 404.96 53.15Z" fill="#FFFFFF"/><path d="M425.21 15.19C425.21 23.58 418.41 30.38 410.02 30.38C401.63 30.38 394.83 23.58 394.83 15.19C394.83 6.8 401.63 0 410.02 0C418.41 0 425.21 6.8 425.21 15.19Z" fill="#FFFFFF"/><path d="M425.21 53.15C425.21 61.54 418.41 68.34 410.02 68.34C401.63 68.34 394.83 61.54 394.83 53.15C394.83 44.76 401.63 37.96 410.02 37.96C418.41 37.96 425.21 44.76 425.21 53.15Z" fill="#FFFFFF"/></g></svg>''';
+  static const String xiaomiSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#FF6900"/><g transform="translate(15,15) scale(2.9167)"><path d="M12 0C8.016 0 4.756.255 2.493 2.516.23 4.776 0 8.033 0 12.012c0 3.98.23 7.235 2.494 9.497C4.757 23.77 8.017 24 12 24c3.983 0 7.243-.23 9.506-2.491C23.77 19.247 24 15.99 24 12.012c0-3.984-.233-7.243-2.502-9.504C19.234.252 15.978 0 12 0zM4.906 7.405h5.624c1.47 0 3.007.068 3.764.827.746.746.827 2.233.83 3.676v4.54a.15.15 0 0 1-.152.147h-1.947a.15.15 0 0 1-.152-.148V11.83c-.002-.806-.048-1.634-.464-2.051-.358-.36-1.026-.441-1.72-.458H7.158a.15.15 0 0 0-.151.147v6.98a.15.15 0 0 1-.152.148H4.906a.15.15 0 0 1-.15-.148V7.554a.15.15 0 0 1 .15-.149zm12.131 0h1.949a.15.15 0 0 1 .15.15v8.892a.15.15 0 0 1-.15.148h-1.949a.15.15 0 0 1-.151-.148V7.554a.15.15 0 0 1 .151-.149zM8.92 10.948h2.046c.083 0 .15.066.15.147v5.352a.15.15 0 0 1-.15.148H8.92a.15.15 0 0 1-.152-.148v-5.352a.15.15 0 0 1 .152-.147Z" fill="#FFFFFF"/></g></svg>''';
+  static const String redmiSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#E53935"/><g transform="translate(6.776,36.826) scale(0.172)"><path d="M278.619,63.376c-6.651-2.09-12.736-3.229-18.065-3.229c-17.874,0-28.148,11.786-28.148,35.752 c0,22.063,11.605,35.368,31.002,35.368c4.563,0,9.7-0.761,15.211-2.283V63.376z M298.59,141.538 c-12.554,4.755-24.721,7.226-35.752,7.226c-30.241,0-52.108-17.874-52.108-52.864c0-33.661,18.64-52.87,46.784-52.87 c6.464,0,13.497,1.14,20.914,3.236V9.749l20.162-5.322V141.538z M487.998,33.145c7.417,0,13.307-5.71,13.307-13.126 c0-7.223-5.89-13.117-13.307-13.117c-7.611,0-13.314,5.895-13.314,13.117C474.684,27.435,480.387,33.145,487.998,33.145 M152.3,59.764c-15.216,0-25.865,10.84-25.865,28.144h50.585C177.02,71.744,169.033,59.764,152.3,59.764 M477.729,48.739h20.157 v95.845h-20.157V48.739z M437.741,144.584v-62.57c0-15.779-7.225-22.059-19.018-22.059c-7.417,0-14.264,3.232-19.966,8.18v76.449 H378.6v-62.57c0-15.779-9.7-22.059-22.437-22.059c-7.042,0-12.554,1.709-16.734,4.949v79.68h-20.161V54.439 c9.509-7.605,24.72-11.41,38.987-11.41c13.307,0,24.339,3.617,31.568,11.031c10.079-7.036,21.483-11.031,33.276-11.031 c22.059,0,34.805,11.602,34.805,35.182v66.372H437.741z M195.842,103.693h-69.407c0,18.257,12.928,27.574,29.475,27.574 c13.124,0,21.68-2.092,35.561-7.608v16.549c-10.271,5.133-23.198,8.556-35.753,8.556c-30.806,0-51.155-16.734-51.155-53.626 c0-34.421,19.971-52.108,47.736-52.108C182.531,43.03,196.795,63.951,195.842,103.693 M70.904,46.266 c0-14.266-9.888-22.63-27.004-22.63H21.462v45.445h22.437C61.016,69.081,70.904,60.717,70.904,46.266 M72.426,144.584L45.23,85.82 H21.462v58.764H1.305V6.901H49.99c25.673,0,42.216,15.782,42.216,38.029c0,17.308-10.079,31-26.243,37.85l30.236,61.804H72.426z" fill="#FFFFFF"/></g></svg>''';
+  static const String realmeSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#FFC915"/><g transform="translate(4,36.2) scale(1.15)"><path d="m 33.02,7.14889 c 1.25334,0 2.46223,0.42444 3.37778,1.17556 V 7.32 h 1.71778 v 10.93111 h -1.71778 v -1 C 35.49778,17.99778 34.28889,18.42 33.02,18.42 31.46445,18.42 30.04889,17.84445 29.03556,16.8 28.03112,15.76889 27.48,14.34667 27.48,12.79333 27.48,11.23778 28.03334,9.81111 29.03556,8.77556 30.05112,7.72667 31.46667,7.14889 33.02,7.14889 Z m -11.89111,-0.04 c 1.40667,0 2.68223,0.51333 3.59556,1.44889 0.97111,0.99555 1.48889,2.39333 1.5,4.04667 v 0.56222 h -8.84667 c 0.10667,2.05333 1.67334,3.57778 3.71111,3.57778 1.46223,0 2.50889,-0.62445 3.29556,-1.96445 l 0.0956,-0.16222 1.48889,0.95778 -0.0867,0.14889 c -1.00889,1.73555 -2.66667,2.65333 -4.79556,2.65333 -3.21111,0 -5.45333,-2.31333 -5.45333,-5.62445 0,-3.27111 2.31111,-5.64444 5.49555,-5.64444 z m 45.69556,0 c 1.40667,0 2.68222,0.51333 3.59555,1.44889 0.97112,0.99555 1.48889,2.39333 1.5,4.04667 v 0.56222 h -8.84666 c 0.10666,2.05333 1.67333,3.57778 3.71111,3.57778 1.46222,0 2.50889,-0.62445 3.29555,-1.96445 l 0.0956,-0.16222 1.48889,0.95778 -0.0867,0.14889 c -1.00889,1.73555 -2.66666,2.65333 -4.79555,2.65333 -3.21111,0 -5.45334,-2.31333 -5.45556,-5.62445 0,-3.27111 2.31333,-5.64444 5.49778,-5.64444 z M 14.97112,7.29778 V 8.93111 H 9.99334 v 9.31778 H 8.25556 V 7.29778 Z m 40.84,-0.14889 c 2.48888,0 4.03555,1.70889 4.03555,4.46 v 6.62 h -1.73778 v -6.62 c 0,-1.71778 -0.98444,-2.82667 -2.50889,-2.82667 -1.96,0 -2.65777,1.35111 -2.65777,2.61556 v 6.83333 h -1.73778 v -6.62 c 0,-1.74444 -0.95333,-2.82666 -2.48889,-2.82666 -1.26444,0 -2.61556,0.98222 -2.61556,2.44444 v 6.99556 H 44.36223 V 7.29556 H 46.1 v 1.06 c 0.71778,-0.78223 1.74,-1.20667 2.93334,-1.20667 1.76666,0 2.73333,0.89333 3.25333,1.74 0.79111,-1.10889 2.05778,-1.74 3.52445,-1.74 z M 42.10667,4.07111 V 18.22889 H 40.36889 V 4.07111 Z m -9.17333,4.81778 c -2.11778,0 -3.71556,1.68 -3.71556,3.90667 0,2.21555 1.59778,3.88444 3.71556,3.88666 2.19778,0 3.67333,-1.56222 3.67333,-3.88666 0,-2.33556 -1.47555,-3.90667 -3.67333,-3.90667 z M 21.08889,8.74 c -1.75111,0 -3.21333,1.16445 -3.63111,2.85778 h 7 C 24.15112,9.88 22.82223,8.74 21.08889,8.74 Z m 45.69334,0 c -1.75111,0 -3.21334,1.16445 -3.63111,2.85778 h 7 C 69.84445,9.88 68.51556,8.74 66.78223,8.74 Z" fill="#111111"/></g></svg>''';
+  static const String pocoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#FFD403"/><g transform="translate(-14.374,7.251) scale(0.2515)"><path d="M378.086,217.915c-12.268,0-37.428-3.1-37.428-47.676 c0-44.583,25.16-47.683,37.428-47.683s37.428,3.1,37.428,47.683C415.514,214.815,390.354,217.915,378.086,217.915 M378.086,137.287c-14.028,0-15.979,12.966-15.979,32.953c0,19.663,1.95,32.956,15.979,32.956 c14.027,0,15.992-13.365,15.992-32.956C394.078,150.831,392.113,137.287,378.086,137.287 M327.284,140.662 c-0.334,0.888-1.279,1.357-2.197,1.103c-2.633-0.731-8.119-2.041-13.823-2.041c-17.404,0-23.255,13.188-23.255,30.522 c0,17.342,5.851,30.686,23.255,30.686c5.704,0,11.205-1.294,13.823-2.037c0.918-0.254,1.863,0.219,2.197,1.092L331.242,210 c0.351,0.887-0.042,1.877-0.887,2.291c-3.507,1.71-12.777,5.639-24.303,5.639c-31.098,0-39.393-23.45-39.393-47.683 c0-24.229,8.295-47.675,39.393-47.675c11.54,0,20.81,3.929,24.303,5.642c0.858,0.415,1.237,1.408,0.901,2.285L327.284,140.662z M215.908,217.915c-12.267,0-37.428-3.1-37.428-47.676c0-44.583,25.161-47.683,37.428-47.683c12.274,0,37.427,3.1,37.427,47.683 C253.335,214.815,228.182,217.915,215.908,217.915 M215.908,137.287c-14.021,0-15.978,12.966-15.978,32.953 c0,19.663,1.958,32.956,15.978,32.956S231.9,189.83,231.9,170.239C231.9,150.831,229.928,137.287,215.908,137.287 M134.351,183.558c-8.076,0-12.369-0.101-14.654-0.203c-1.163-0.052-2.124,0.858-2.124,2.009l-0.007,29.992 c0,1.381-1.135,2.517-2.547,2.517H98.837c-1.404,0-2.539-1.136-2.539-2.517v-89.481c0-1.215,0.975-2.216,2.212-2.259 c0,0,21.049-0.761,35.841-1.059c19.354-0.385,30.96,12.944,30.96,30.505C165.311,170.614,153.705,183.558,134.351,183.558 M128.734,138.113c-4.766,0-7.589,0.054-9.189,0.105c-1.106,0.029-1.972,0.924-1.972,2.012v25.659 c0,1.087,0.866,1.982,1.972,2.019c1.6,0.047,4.423,0.106,9.189,0.106c11.656,0,18.167-4.737,18.167-14.952 S140.391,138.113,128.734,138.113" fill="#111111" fill-rule="evenodd"/></g></svg>''';
+  static const String iqooSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#F9AA00"/><g transform="translate(7,39.652) scale(0.2516)"><path d="M 0,2.531906 V 4.3671121e-4 H 2.6243988 V 2.531906 Z M 0,15.404697 V 5.0619196 H 2.6243988 V 15.404697 Z M 15.801175,2.531906 c -2.959429,0 -5.357456,2.3145694 -5.357456,5.1677493 0,2.8546357 2.398027,5.1692047 5.357456,5.1692047 v 2.53147 c -4.408205,0 -7.981855,-3.448563 -7.981855,-7.7006747 0,-4.2521115 3.57365,-7.69921858879 7.981855,-7.69921858879 4.409714,0 7.981854,3.44710708879 7.981854,7.69921858879 H 21.16014 c 0,-2.8531799 -2.399537,-5.1677493 -5.358965,-5.1677493 z m 15.801929,5.1673126 c 0,2.8546354 2.399537,5.1692054 5.357456,5.1692054 2.959428,0 5.358965,-2.31457 5.358965,-5.1692054 0,-2.8531799 -2.399537,-5.1677493 -5.358965,-5.1677493 -2.957919,0 -5.357456,2.3145694 -5.357456,5.1677493 z m -2.624399,0 C 28.978705,3.4471071 32.552355,0 36.96056,0 c 4.408205,0 7.983364,3.4471071 7.983364,7.6992186 0,4.2535674 -3.575159,7.7006744 -7.983364,7.7006744 -4.408205,0 -7.981855,-3.447107 -7.981855,-7.7006744 z m 23.784086,0 c 0,2.8546354 2.398027,5.1692054 5.357456,5.1692054 2.959428,0 5.357456,-2.31457 5.357456,-5.1692054 0,-2.8531799 -2.398028,-5.1677493 -5.357456,-5.1677493 -2.959429,0 -5.357456,2.3145694 -5.357456,5.1677493 z M 58.120247,0 c 3.9947,0 7.305759,2.8313443 7.891306,6.5273768 0.06037,0.3828502 0.09206,0.7744346 0.09206,1.1732975 0,4.2521117 -3.575159,7.6992187 -7.983364,7.6992187 -4.408205,0 -7.983364,-3.447107 -7.983364,-7.7006744 C 50.136883,3.4471071 53.712042,0 58.120247,0 Z m -42.491114,9.3208729 1.860772,-1.7861489 6.51195,6.314844 -1.860773,1.784693 z" fill="#111111"/></g></svg>''';
+  static const String infinixSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#00C269"/><g transform="translate(6,40.428) scale(0.1324)"><path d="M433.4,41.9h-54.6c0,0-9.9,0-13.5,7.2v-7.2h-24.4v101.6h24.4V78.1c0-8,6.5-14.5,14.5-14.5H426 c8,0,14.5,6.5,14.5,14.5v65.4h23.9V70.8C464.5,70.8,462.7,41.9,433.4,41.9" fill="#FFFFFF"/><rect x="5" y="12.6" width="24.4" height="130.9" fill="#FFFFFF"/><rect x="291.6" y="41.8" width="24.5" height="101.8" fill="#FFFFFF"/><rect x="489.2" y="41.9" width="24.4" height="101.6" fill="#FFFFFF"/><path d="M146.6,41.9H92c0,0-9.9,0-13.5,7.2v-7.2H54.1v101.6h24.4V78.1c0-8,6.5-14.5,14.5-14.5h46.3 c8,0,14.5,6.5,14.5,14.5v65.4h23.9V70.8C177.8,70.8,176,41.9,146.6,41.9" fill="#FFFFFF"/><rect x="291.6" y="1.5" width="24.5" height="21.1" fill="#FFFFFF"/><rect x="489.2" y="1.5" width="24.4" height="21.1" fill="#FFFFFF"/><path d="M237.3,25.1c1.5-1.6,3.5-2.5,5.9-2.5h27.3V1.5h-21.6c-0.3,0.1-3.5-0.1-7.8,0.1c-0.2,0-0.3,0-0.4,0 c-9,0-17.5,3.3-22.9,9c-4.6,4.8-6.9,11.5-6.9,16.8c0,10.4,0,14.5,0,14.5h-31.7c0,0,8.7,3.2,14.7,21.7h17v79.9H235V63.6h35.4V41.9 h-18.1H235V33c0-0.6,0-1.2,0.1-1.8c0-0.2-0.1-0.4-0.1-0.5c0-1.7,0.6-3.3,1.5-4.6C236.8,25.7,237,25.4,237.3,25.1" fill="#FFFFFF"/></g></svg>''';
+  static const String tecnoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#0064FE"/><g transform="translate(7,41.342) scale(0.5772)"><path d="M109.57-0.04H87.88v29.79h7.91V3.97h8.97c2.14,0,3.9,1.75,3.9,3.9v21.88h7.91V6.95 C116.56,3.11,113.41-0.04,109.57-0.04z" fill="#FFFFFF" fill-rule="evenodd"/><path d="M141.77-0.04h-14.7c-3.84,0-6.99,3.15-6.99,6.99v15.81c0,3.84,3.15,6.99,6.99,6.99h14.7 c3.85,0,6.99-3.15,6.99-6.99V6.95C148.77,3.11,145.62-0.04,141.77-0.04L141.77-0.04z M136.96,3.97c2.14,0,3.9,1.75,3.9,3.9v13.98 c0,2.14-1.75,3.9-3.9,3.9h-5.07c-2.14,0-3.9-1.75-3.9-3.9V7.87c0-2.14,1.75-3.9,3.9-3.9H136.96z" fill="#FFFFFF" fill-rule="evenodd"/><path d="M39-0.04l17.42,0v4.01H43.81c-2.14,0-3.89,1.75-3.89,3.9v0.76c0,2.14,1.75,3.9,3.89,3.9 h12.61v4.01h-16.5v5.31c0,2.14,1.75,3.9,3.89,3.9h12.61v4.01H39c-3.84,0-6.99-3.15-6.99-6.99V6.95C32.01,3.11,35.16-0.04,39-0.04z" fill="#FFFFFF" fill-rule="evenodd"/><path d="M66.94-0.04h17.42v4.01H71.75c-2.14,0-3.9,1.75-3.9,3.9v13.98c0,2.14,1.75,3.9,3.9,3.9 h12.61v4.01H66.94c-3.85,0-6.99-3.15-6.99-6.99V6.95C59.95,3.11,63.09-0.04,66.94-0.04z" fill="#FFFFFF" fill-rule="evenodd"/><path d="M28.48-0.04H-0.19v4.01h10.39v25.78h7.91V7.87c0-2.14,1.75-3.89,3.89-3.9h6.5V-0.04z" fill="#FFFFFF" fill-rule="evenodd"/></g></svg>''';
+  static const String lavaSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#E60000"/><g transform="translate(6,42) scale(0.16)"><path d="m39.982 0h-39.982v74.952c0 13.839 11.163 25.033 25.032 25.033h55.218c6.2285 0 11.67-2.9399 15.472-7.3056l23.26-27.723h-79zm160.12 46.891 38.489 45.803c3.7651 4.3657 9.2435 7.3056 15.472 7.3056h41.666l-76.39-90.975c-4.6107-5.4682-11.472-9.0107-19.237-9.0107-7.7213 0-14.582 3.5426-19.149 9.0107l-76.353 90.975h41.666c6.1697 0 11.648-2.9399 15.391-7.3056zm127.26 6.2472-38.467-45.825c-3.7651-4.3951-9.2876-7.313-15.435-7.313h-41.702l76.448 90.967c4.5298 5.4829 11.472 9.0107 19.156 9.0107 7.7213 0 14.56-3.5279 19.193-9.0107l76.39-90.967h-41.658c-6.2138 0-11.692 2.9178-15.457 7.313zm127.09-6.2472 38.445 45.803c3.6989 4.3657 9.2068 7.3056 15.457 7.3056h41.644l-76.353-90.975c-4.6328-5.4682-11.508-9.0107-19.193-9.0107-7.7507 0-14.604 3.5426-19.215 9.0107l-76.412 90.975h41.702c6.1697 0 11.655-2.9399 15.413-7.3056z" fill="#FFFFFF"/></g></svg>''';
+  static const String nokiaSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#124191"/><g transform="translate(7,7) scale(3.5833)"><path d="M16.59 9.348v5.304h.796V9.348Zm-8.497-.09c-1.55 0-2.752 1.127-2.752 2.742 0 1.687 1.202 2.742 2.752 2.742 1.55 0 2.754-1.055 2.751-2.742a2.72 2.72 0 0 0-2.751-2.742ZM10.05 12c0 1.195-.876 1.987-1.957 1.987-1.082 0-1.958-.792-1.958-1.987 0-1.174.876-1.987 1.958-1.987 1.08 0 1.957.813 1.957 1.987zM0 9.176v5.476h.812v-3.619l4.218 3.79v-1.135zM11.442 12l2.952 2.652h1.184L12.622 12l2.956-2.652h-1.184ZM24 14.652h-.875l-.64-1.175h-2.898l-.64 1.175h-.875l1.06-1.958h2.937l-1.465-2.72.432-.798Z" fill="#FFFFFF"/></g></svg>''';
+  static const String hmdSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#111111"/><g transform="translate(7.762,37.292) scale(0.1037)"><path d="m 107.74563,48.665 c -19.00838,0.21 -37.86088,6.41125 -52.033255,19.36 -1.418875,1.29625 -3.69825,0.31125 -3.69825,-1.61125 l 0,-64.21375 C 52.014125,0.985 51.02875,0 49.8135,0 L 2.199712,0 C 0.984863,0 0,0.985 0,2.2 l 0,234.93771 c 0,1.21583 0.984863,2.20118 2.199712,2.20118 l 47.613788,0 c 1.21525,0 2.200625,-0.98535 2.200625,-2.20118 0,0 0,-90.20746 0.0054,-90.20746 -0.001,-0.0929 -0.0054,-0.18263 -0.0054,-0.2755 0,-26.09325 14.245125,-52.41975 46.070375,-52.41975 28.21175,0 46.44425,20.57625 46.44425,52.41975 0,0.0655 -0.004,0.128 0.007,0.19287 l 0,90.29107 c 0,1.21485 0.98374,2.2002 2.19999,2.2002 l 49.92501,0 c 1.21625,0 2.20124,-0.98535 2.20124,-2.2002 0,0 0,-90.29107 -0.0125,-90.29107 0.002,-0.19287 0.0125,-0.38037 0.0125,-0.57275 C 198.86299,94.0425 163.002,48.34 108.22112,48.66 c -0.15862,0.001 -0.31737,0.002 -0.476,0.005" fill="#FFFFFF"/><path d="M 490.77249,64.96625 C 478.84375,54.42625 461.94374,48.6225 443.185,48.6225 c -37.36625,0 -54.19,20.3825 -59.58876,28.89875 -0.97624,1.54125 -3.20999,1.47875 -4.1575,-0.0813 -11.0125,-18.1275 -30.35875,-28.8175 -52.5775,-28.8175 -31.64749,0 -50.61625,19.7925 -57.145,28.0375 -1.10875,1.39875 -3.32875,0.95 -3.82625,-0.765 l -5.8025,-19.9575 c -0.27375,-0.93875 -1.13375,-1.585 -2.1125,-1.585 l -37.815,0 c -1.215,0 -2.2,0.985 -2.2,2.2 l 0,180.58619 c 0,1.21485 0.985,2.2002 2.2,2.2002 l 49.5525,0 c 1.215,0 2.2,-0.98535 2.2,-2.2002 l 0,-104.61232 c 0,-17.51012 11.70625,-35.23637 34.085,-35.23637 20.5475,0 33.3125,13.2075 33.3125,34.46975 l 0,105.37894 c 0,1.21485 0.98375,2.2002 2.19875,2.2002 l 48.77125,0 c 1.215,0 2.2,-0.98535 2.2,-2.2002 l 0,-104.99607 c 0,-17.32137 11.8425,-34.85262 34.47625,-34.85262 20.30625,0 32.92125,13.2075 32.92125,34.46975 l 0,105.37894 c 0,1.21485 0.985,2.2002 2.2,2.2002 l 47.6125,0 c 1.215,0 2.20125,-0.98535 2.20125,-2.2002 l 0,-118.36244 c 0,-23.32 -7.105,-41.42625 -21.11875,-53.81" fill="#FFFFFF"/><path d="m 677.49,146.44237 -0.006,0 c 10e-4,0.0937 0.006,-0.009 0.006,0.084 0,26.2075 -14.3075,52.6475 -46.27125,52.6475 -28.33501,0 -46.64626,-20.66512 -46.64626,-52.6475 0,-0.0649 0.004,-0.0727 0.004,-0.13862 l -0.007,0 c 0,0.0459 10e-4,0.0922 0.002,0.13862 l -0.006,0 0,-0.13862 0.004,0 c -10e-4,-0.0455 -0.004,-0.0914 -0.004,-0.13775 0,-26.207 14.3075,-52.6475 46.27125,-52.6475 28.335,0 46.64625,20.665 46.64625,52.6475 0,0.065 -0.004,0.1275 -0.004,0.19237 l 0.005,0 0.006,-0.0546 0,0.0546 z M 729.8975,2.345 c 0,-0.155 -0.0163,-0.30625 -0.0462,-0.4525 C 729.6488,0.89 728.7638,0.135 727.6888,0.135 l -47.82125,0 c -1.22,0 -2.21,0.99 -2.21,2.21 l 0,64.49375 c 0,1.93 -2.29,2.92 -3.71501,1.61875 -28.11249,-25.68 -74.33375,-25.08 -104.62874,-3.39875 -33.42376,23.92125 -46.12875,68.64 -36,107.6825 9.65125,37.19875 41.86,64.88621 79.5175,70.92479 38.77125,6.21777 80.0775,-8.75587 101.62125,-42.42329 10.46375,-16.354 15.4425,-35.68413 15.4425,-55.02013 0,-0.4975 -0.025,-0.98525 -0.035,-1.47987 l 0.0375,0 0,-142.39775 M 787.63,225.94137 c -2.33125,-1.9565 -4.205,-3.98137 -6.06,-6.37887 -0.2275,-0.29488 -0.325,-0.91263 0.27875,-1.38375 l 3.44,-2.67875 c 0.4975,-0.38763 1.2,-0.35738 1.6575,0.0776 1.125,1.06988 3.0875,2.92388 3.3475,3.13625 1.8825,1.53613 3.94125,2.855 6.12,3.92975 2.9175,1.43988 6.06125,2.41163 9.27875,2.9165 0.5675,0.0897 1.15,-0.1465 1.495,-0.6065 4.8875,-6.48725 7.63875,-14.67387 7.19,-23.521 -0.90875,-17.894 -15.2125,-32.64262 -33.075,-34.04387 -22.18375,-1.74125 -40.5575,16.625 -38.82875,38.80612 1.365,17.5175 15.57625,31.69627 33.095,33.03659 8.31,0.63476 16.075,-1.56152 22.45,-5.71386 0.4975,-0.32374 0.40875,-1.07135 -0.1375,-1.30373 -3.69875,-1.57912 -7.17,-3.6875 -10.25125,-6.2725" fill="#FFFFFF"/></g></svg>''';
+  static const String sonySvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#000000"/><g transform="translate(6,6) scale(3.6667)"><path d="M8.5505 9.8881c.921 0 1.6574.2303 2.2209.7423.3848.3485.5999.8454.5939 1.3665a1.9081 1.9081 0 0 1-.5939 1.3726c-.5272.4848-1.3483.7423-2.221.7423-.8725 0-1.6785-.2575-2.2148-.7423-.3908-.3485-.609-.8484-.603-1.3726 0-.518.2182-1.015.603-1.3665.5-.4545 1.3847-.7423 2.2149-.7423zm.003 3.6692c.4606 0 .8878-.1606 1.1878-.4575.2999-.2999.4332-.6605.4332-1.1029 0-.4242-.1484-.821-.4333-1.1029-.2938-.2908-.7332-.4545-1.1877-.4545s-.8938.1637-1.1907.4545c-.2848.2818-.4333.6787-.4333 1.103-.006.409.1485.806.4333 1.1029.2969.2939.7332.4575 1.1907.4575zm-4.8418-1.9665c.1605.0424.315.094.4666.1636a1.352 1.352 0 0 1 .3787.2576c.197.206.309.4817.306.7665a.9643.9643 0 0 1-.3787.7788 2.0662 2.0662 0 0 1-.709.3485 3.7231 3.7231 0 0 1-1.1938.1697c-.352 0-.5467-.0406-.8138-.0962l-.077-.016c-.294-.0666-.5817-.1575-.8575-.2787a.0695.0695 0 0 0-.0424-.0121c-.0454 0-.0818.0394-.0818.0848v.203H.1212v-1.4786h.5242a.7559.7559 0 0 0 .1363.418c.2121.2607.4394.3607.6575.4395.3666.1212.7514.1848 1.1362.1969.5526 0 .8756-.134.9455-.163l.009-.0037.0062-.0023c.0616-.0226.3119-.1143.3119-.3916 0-.2743-.2338-.334-.387-.373l-.022-.0058c-.1708-.046-.562-.0872-.9897-.1323l-.1526-.016c-.4848-.0515-.9696-.1273-1.1968-.1758-.4977-.1097-.6942-.2917-.816-.4045l-.0082-.0076A1.0192 1.0192 0 0 1 0 11.1608c0-.497.3394-.797.7575-.9817.4454-.2.9756-.288 1.4392-.288.8211.0031 1.4877.2697 1.727.394.097.0515.1455-.0121.1455-.0606v-.1484h.5272v1.2876h-.4727a.9056.9056 0 0 0-.2939-.4909 1.289 1.289 0 0 0-.297-.1787c-.3968-.1667-.821-.2515-1.2513-.2455-.4423 0-.8665.085-1.0786.2153-.1333.0818-.2.1848-.2.306 0 .1727.1454.2424.2182.2636.1967.0597.6328.103.972.1369.0736.0073.1426.0142.2036.0206.3272.0334 1.012.1243 1.315.2zm18.1673-.9966v-.4787H24v.4696h-.4757c-.1727 0-.2424.0334-.3727.1788l-1.4271 1.63a.098.098 0 0 0-.0182.0698v.7423a1.106 1.106 0 0 0 .0121.103.1496.1496 0 0 0 .1.0909.9368.9368 0 0 0 .1303.009h.4848v.4698h-2.5724v-.4697h.4606a.9343.9343 0 0 0 .1302-.0091.1627.1627 0 0 0 .1031-.091.5626.5626 0 0 0 .009-.1v-.7422c0-.0242 0-.0242-.0333-.0636a606.7592 606.7592 0 0 0-1.4119-1.6028c-.0758-.0788-.2061-.2061-.406-.2061h-.4576v-.4696h2.5876v.4696h-.3121c-.0697 0-.1182.0697-.0576.1455 0 0 .8696 1.0392.8787 1.0513.0091.0122.0152.0122.0273.003.0121-.009.8938-1.0453.8999-1.0543a.0912.0912 0 0 0-.0182-.1273.1095.1095 0 0 0-.0606-.0182zm-6.284-.0031h.4848c.2212 0 .2606.0848.2636.2909l.0273 1.5664-2.5815-2.324H11.944v.4697h.412c.297 0 .3182.1636.3182.309v2.2138c.0004.1285.0009.295-.1818.295h-.506v.4667h2.1634v-.4697h-.5273c-.212 0-.2211-.097-.2242-.303v-1.8816l2.9724 2.6511h.7575l-.0394-2.9966c.003-.218.0182-.2908.2424-.2908h.4726v-.4697H15.595Z" fill="#FFFFFF"/></g></svg>''';
+  static const String asusSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#00539B"/><g transform="translate(6,6) scale(3.6667)"><path d="M23.904 10.788V9.522h-4.656c-.972 0-1.41.6-1.482 1.182v.018-1.2h-1.368v1.266h1.362zm-6.144.456l-1.368-.078v1.458c0 .456-.228.594-1.02.594H14.28c-.654 0-.93-.186-.93-.594v-1.596l-1.386-.102v1.812h-.03c-.078-.528-.276-1.14-1.596-1.23L6 11.22c0 .666.474 1.062 1.218 1.14l3.024.306c.24.018.414.09.414.288 0 .216-.18.24-.456.24H5.946V11.22l-1.386-.09v3.348h5.646c1.26 0 1.662-.654 1.722-1.2h.03c.156.864.912 1.2 2.19 1.2h1.41c1.494 0 2.202-.456 2.202-1.524zm4.398.258l-4.338-.258c0 .666.438 1.11 1.182 1.17l3.09.24c.24.018.384.078.384.276 0 .186-.168.258-.516.258h-4.212v1.29h4.302c1.356 0 1.95-.474 1.95-1.554 0-.972-.534-1.338-1.842-1.422zm-10.194-1.98h1.386v1.266h-1.386zM3.798 11.07l-1.506-.15L0 14.478h1.686zm7.914-1.548h-4.23c-.984 0-1.416.612-1.518 1.2v-1.2H3.618c-.33 0-.486.102-.642.33l-.648.936h9.384Z" fill="#FFFFFF"/></g></svg>''';
+  static const String huaweiSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#CF0A2C"/><g transform="translate(13,13) scale(3.0833)"><path d="M3.67 6.14S1.82 7.91 1.72 9.78v.35c.08 1.51 1.22 2.4 1.22 2.4 1.83 1.79 6.26 4.04 7.3 4.55 0 0 .06.03.1-.01l.02-.04v-.04C7.52 10.8 3.67 6.14 3.67 6.14zM9.65 18.6c-.02-.08-.1-.08-.1-.08l-7.38.26c.8 1.43 2.15 2.53 3.56 2.2.96-.25 3.16-1.78 3.88-2.3.06-.05.04-.09.04-.09zm.08-.78C6.49 15.63.21 12.28.21 12.28c-.15.46-.2.9-.21 1.3v.07c0 1.07.4 1.82.4 1.82.8 1.69 2.34 2.2 2.34 2.2.7.3 1.4.31 1.4.31.12.02 4.4 0 5.54 0 .05 0 .08-.05.08-.05v-.06c0-.03-.03-.05-.03-.05zM9.06 3.19a3.42 3.42 0 00-2.57 3.15v.41c.03.6.16 1.05.16 1.05.66 2.9 3.86 7.65 4.55 8.65.05.05.1.03.1.03a.1.1 0 00.06-.1c1.06-10.6-1.11-13.42-1.11-13.42-.32.02-1.19.23-1.19.23zm8.299 2.27s-.49-1.8-2.44-2.28c0 0-.57-.14-1.17-.22 0 0-2.18 2.81-1.12 13.43.01.07.06.08.06.08.07.03.1-.03.1-.03.72-1.03 3.9-5.76 4.55-8.64 0 0 .36-1.4.02-2.34zm-2.92 13.07s-.07 0-.09.05c0 0-.01.07.03.1.7.51 2.85 2 3.88 2.3 0 0 .16.05.43.06h.14c.69-.02 1.9-.37 3-2.26l-7.4-.25zm7.83-8.41c.14-2.06-1.94-3.97-1.94-3.98 0 0-3.85 4.66-6.67 10.8 0 0-.03.08.02.13l.04.01h.06c1.06-.53 5.46-2.77 7.28-4.54 0 0 1.15-.93 1.21-2.42zm1.52 2.14s-6.28 3.37-9.52 5.55c0 0-.05.04-.03.11 0 0 .03.06.07.06 1.16 0 5.56 0 5.67-.02 0 0 .57-.02 1.27-.29 0 0 1.56-.5 2.37-2.27 0 0 .73-1.45.17-3.14z" fill="#FFFFFF"/></g></svg>''';
+  static const String honorSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#0072CE"/><g transform="translate(6,6) scale(3.6667)"><path d="M2.601 9.753v1.823H.807V9.753H0v4.498h.807v-1.874h1.794v1.874h.807V9.753h-.807Zm18.671.801h.898c.369 0 .667.297.667.662a.665.665 0 0 1-.667.663h-.898v-1.325Zm-.806-.801v4.498h.806v-2.002l1.68 2.002H24l-1.376-1.64a1.462 1.462 0 0 0-.444-2.858h-1.716.002Zm-7.63-.014v2.807l-1.959-2.807h-.644v4.498h.807v-2.82l1.968 2.82h.633V9.739h-.805Zm-7.532 2.26c0-.832.68-1.506 1.517-1.506A1.51 1.51 0 0 1 8.337 12c0 .832-.679 1.506-1.516 1.506-.403 0-.789-.159-1.073-.441A1.504 1.504 0 0 1 5.304 12v-.001ZM4.497 12c0 .933.566 1.774 1.434 2.132.869.357 1.868.16 2.533-.5.664-.66.863-1.653.503-2.515a2.324 2.324 0 0 0-2.146-1.425 2.316 2.316 0 0 0-2.323 2.307L4.497 12Zm11.04-.001a1.513 1.513 0 0 1 1.518-1.506c.838 0 1.516.675 1.516 1.507a1.513 1.513 0 0 1-1.518 1.506c-.402 0-.788-.159-1.072-.441a1.5 1.5 0 0 1-.444-1.066ZM14.73 12c0 .933.566 1.774 1.434 2.132.868.357 1.868.16 2.532-.5.665-.66.864-1.653.504-2.515a2.325 2.325 0 0 0-2.147-1.425 2.316 2.316 0 0 0-2.323 2.307V12Z" fill="#FFFFFF"/></g></svg>''';
+  static const String lenovoSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#E2231A"/><g transform="translate(7,7) scale(3.5833)"><path d="M21.044 12.288c0 .5-.343.867-.815.867-.464 0-.827-.38-.827-.867 0-.51.343-.868.815-.868.464 0 .827.381.827.868zm-14.305-.92a.787.787 0 0 0-.651.307.991.991 0 0 0-.172.738l1.479-.614a.708.708 0 0 0-.656-.43zm6.963.052c-.472 0-.816.358-.816.868 0 .486.364.867.828.867.472 0 .815-.368.815-.867 0-.487-.363-.868-.827-.868zM24 7.997v8.006H0V7.997h24zM5.01 13.05H3.088V9.825H2.23v4.003h2.78v-.777zm1.137-.094l2.163-.897a1.667 1.667 0 0 0-.37-.86c-.284-.33-.704-.505-1.216-.505-.931 0-1.633.686-1.633 1.593 0 .93.704 1.593 1.726 1.593.572 0 1.158-.272 1.432-.589l-.535-.411c-.357.264-.56.326-.885.326-.292 0-.52-.09-.682-.25zm5.57-1.039c0-.709-.507-1.223-1.252-1.223a1.28 1.28 0 0 0-1.005.494v-.442h-.846v3.081h.846v-1.753c0-.316.245-.651.698-.651.35 0 .712.243.712.651v1.753h.847v-1.91zm3.647.37c0-.904-.725-1.593-1.65-1.593-.933 0-1.663.7-1.663 1.593 0 .903.726 1.592 1.651 1.592.932 0 1.662-.7 1.662-1.592zm2.066 1.54l1.268-3.081h-.967l-.765 2.099-.765-2.1h-.966l1.268 3.081h.927zm4.449-1.54c0-.904-.725-1.593-1.65-1.593-.932 0-1.662.7-1.662 1.593 0 .903.725 1.592 1.65 1.592.932 0 1.662-.7 1.662-1.592z" fill="#FFFFFF"/></g></svg>''';
+  static const String itelSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#FF073C"/><g transform="translate(-1.6,24.2) scale(1.72)"><path d="M33 11.8C31.5 11.8 30.2 12.8 29.8 14H35.3C35.3 12.7 34.4 11.8 33 11.8Z" fill="#FFFFFF"/><path d="M29.6 0C16.6 0 6 5.4 6 13.5C6 18.7 10.4 23.3 17 25.9L16.3 29.7C35.6 31.3 53.3 25.2 53.3 13.7C53.2 4 40.2 0 29.6 0ZM27.2 9.4L26.6 12.3H24.1L23.3 16.5C23.1 17.7 23.6 18.5 24.7 18.5H25.4L24.8 21.4H24C20.8 21.4 19.6 19.3 20.1 16.5L22 6.7H25.2L24.7 9.5H27.2V9.4ZM32 18.7C33.1 18.7 33.8 18.3 34.4 17.5H37.7C36.7 19.9 34.5 21.2 31.8 21.2C28.1 21.2 25.9 18.2 26.7 14.4C27.3 11.2 29.7 9.3 33.1 9.3C37.2 9.3 39.3 12.4 38.1 16.4H29.5C29.4 17.8 30.5 18.7 32 18.7ZM20.2 9.4H17L17.5 6.6H20.7L20.2 9.4ZM20 10.6L17.9 21.2H14.7L16.8 10.6H20ZM44 21.2H43.2C40.2 21.2 38.8 19.3 39.3 16.3L41.2 6.5H44.4L42.5 16.4C42.3 17.6 42.8 18.4 43.9 18.4H44.6L44 21.2Z" fill="#FFFFFF"/><path d="M31.8 21.2C34.5 21.2 36.7 19.9 37.7 17.5H34.4C33.8 18.3 33.1 18.7 32 18.7C30.6 18.7 29.5 17.7 29.4 16.4H38C39.3 12.4 37.2 9.29999 33 9.29999C29.6 9.29999 27.2 11.2 26.6 14.4C25.9 18.3 28.1 21.2 31.8 21.2ZM33 11.8C34.5 11.8 35.4 12.7 35.4 14H29.9C30.2 12.8 31.4 11.8 33 11.8Z" fill="#FFFFFF"/><path d="M24 21.2H24.8L25.4 18.3H24.7C23.6 18.3 23.1 17.5 23.3 16.3L24.1 12.1H26.6L27.2 9.20002H24.7L25.2 6.40002H22L20.1 16.2C19.6 19.1 20.8 21.2 24 21.2Z" fill="#FFFFFF"/><path d="M43.1 21.2H44L44.6 18.3H43.9C42.8 18.3 42.2 17.5 42.5 16.3L44.4 6.40002H41.2L39.3 16.2C38.7 19.3 40.1 21.2 43.1 21.2Z" fill="#FFFFFF"/><path d="M20.8 6.5H17.6L17.1 9.4H20.2L20.8 6.5Z" fill="#FFFFFF"/><path d="M20 10.6H16.8L14.7 21.2H17.9L20 10.6Z" fill="#FFFFFF"/></g></svg>''';
+  static const String aiPlusSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#12141C"/><path d="M16 68 L30 32 L39 32 L53 68 L44 68 L41 60 L28 60 L25 68 Z M30.5 53 L38.5 53 L34.5 41.5 Z" fill="#FFFFFF"/><circle cx="60.5" cy="34.5" r="4.2" fill="#FFFFFF"/><rect x="56.5" y="43" width="8" height="25" rx="2" fill="#FFFFFF"/><path d="M77 35 L77 55 M67 45 L87 45" stroke="#FF2E3B" stroke-width="6.5" stroke-linecap="round"/></svg>''';
+  static const String androidGenericSvg = '''<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" rx="22" fill="#3DDC84"/><g transform="translate(13,13) scale(3.0833)"><path d="M18.4395 5.5586c-.675 1.1664-1.352 2.3318-2.0274 3.498-.0366-.0155-.0742-.0286-.1113-.043-1.8249-.6957-3.484-.8-4.42-.787-1.8551.0185-3.3544.4643-4.2597.8203-.084-.1494-1.7526-3.021-2.0215-3.4864a1.1451 1.1451 0 0 0-.1406-.1914c-.3312-.364-.9054-.4859-1.379-.203-.475.282-.7136.9361-.3886 1.5019 1.9466 3.3696-.0966-.2158 1.9473 3.3593.0172.031-.4946.2642-1.3926 1.0177C2.8987 12.176.452 14.772 0 18.9902h24c-.119-1.1108-.3686-2.099-.7461-3.0683-.7438-1.9118-1.8435-3.2928-2.7402-4.1836a12.1048 12.1048 0 0 0-2.1309-1.6875c.6594-1.122 1.312-2.2559 1.9649-3.3848.2077-.3615.1886-.7956-.0079-1.1191a1.1001 1.1001 0 0 0-.8515-.5332c-.5225-.0536-.9392.3128-1.0488.5449zm-.0391 8.461c.3944.5926.324 1.3306-.1563 1.6503-.4799.3197-1.188.0985-1.582-.4941-.3944-.5927-.324-1.3307.1563-1.6504.4727-.315 1.1812-.1086 1.582.4941zM7.207 13.5273c.4803.3197.5506 1.0577.1563 1.6504-.394.5926-1.1038.8138-1.584.4941-.48-.3197-.5503-1.0577-.1563-1.6504.4008-.6021 1.1087-.8106 1.584-.4941z" fill="#FFFFFF"/></g></svg>''';
 
   // ---------------------------------------------------------------------------
   // BRAND REPOSITORY & INTELLIGENT HARDWARE RESOLVER
@@ -360,7 +70,7 @@ class BrandSvgLogos {
     final m = rawModel.toUpperCase().trim();
 
     // 1. MOTOROLA
-    if (b.contains('MOTO') || b.contains('MOTOROLA') || m.contains('EDGE') || m.contains('MOTO')) {
+    if (b.contains('MOTO') || b.contains('MOTOROLA') || m.contains('EDGE') || m.contains('MOTO') || m.contains('RAZR')) {
       return const BrandInfo(
         key: 'MOTOROLA',
         displayName: 'MOTOROLA',
@@ -401,36 +111,36 @@ class BrandSvgLogos {
       );
     }
 
-    // 4. GOOGLE
+    // 4. GOOGLE PIXEL
     if (b.contains('GOOGLE') || m.contains('PIXEL')) {
       return const BrandInfo(
         key: 'GOOGLE',
         displayName: 'Google',
         primaryColor: Color(0xFF4285F4),
         accentColor: Color(0xFF34A853),
-        badgeBgColor: Color(0xFFF1F5F9),
+        badgeBgColor: Color(0xFFF8FAFC),
         svgString: googleSvg,
-        defaultFastChargeTech: 'USB-PD 3.0 PPS',
+        defaultFastChargeTech: 'USB-PD PPS',
         defaultMaxWatts: 30,
       );
     }
 
-    // 5. ONEPLUS
-    if (b.contains('ONEPLUS') || m.contains('ONEPLUS') || m.contains('NORD')) {
+    // 5. CMF BY NOTHING (Check before Nothing!)
+    if (b.contains('CMF') || m.contains('CMF')) {
       return const BrandInfo(
-        key: 'ONEPLUS',
-        displayName: 'OnePlus',
-        primaryColor: Color(0xFFEB0028),
-        accentColor: Color(0xFFB3001E),
-        badgeBgColor: Color(0xFFFDF2F2),
-        svgString: oneplusSvg,
-        defaultFastChargeTech: 'SUPERVOOC',
-        defaultMaxWatts: 100,
+        key: 'CMF',
+        displayName: 'CMF',
+        primaryColor: Color(0xFFFA551E),
+        accentColor: Color(0xFFD63B0A),
+        badgeBgColor: Color(0xFFFFF2EE),
+        svgString: cmfSvg,
+        defaultFastChargeTech: 'Fast Charging',
+        defaultMaxWatts: 33,
       );
     }
 
     // 6. NOTHING
-    if (b.contains('NOTHING') || m.contains('NOTHING') || m.contains('PHONE (1)') || m.contains('PHONE (2)')) {
+    if (b.contains('NOTHING') || m.contains('A063') || m.contains('A065') || m.contains('A142') || m.contains('NOTHING')) {
       return const BrandInfo(
         key: 'NOTHING',
         displayName: 'NOTHING',
@@ -438,32 +148,46 @@ class BrandSvgLogos {
         accentColor: Color(0xFFD71920),
         badgeBgColor: Color(0xFFF4F4F5),
         svgString: nothingSvg,
-        defaultFastChargeTech: 'Fast Charging',
+        defaultFastChargeTech: 'PD 3.0 Fast Charge',
         defaultMaxWatts: 45,
       );
     }
 
-    // 7. CMF
-    if (b.contains('CMF') || m.contains('CMF')) {
+    // 7. ONEPLUS
+    if (b.contains('ONEPLUS') || m.contains('ONEPLUS') || m.startsWith('CPH2') || m.startsWith('LE2') || m.startsWith('NE2')) {
       return const BrandInfo(
-        key: 'CMF',
-        displayName: 'CMF by Nothing',
-        primaryColor: Color(0xFFFA551E),
-        accentColor: Color(0xFFD83B08),
-        badgeBgColor: Color(0xFFFFF4EE),
-        svgString: cmfSvg,
-        defaultFastChargeTech: 'Fast Charging',
-        defaultMaxWatts: 33,
+        key: 'ONEPLUS',
+        displayName: 'OnePlus',
+        primaryColor: Color(0xFFF5010C),
+        accentColor: Color(0xFFB8001D),
+        badgeBgColor: Color(0xFFFFEEF0),
+        svgString: oneplusSvg,
+        defaultFastChargeTech: 'SUPERVOOC',
+        defaultMaxWatts: 100,
       );
     }
 
-    // 8. REDMI
+    // 8. POCO (Check before Xiaomi!)
+    if (b.contains('POCO') || m.contains('POCO')) {
+      return const BrandInfo(
+        key: 'POCO',
+        displayName: 'POCO',
+        primaryColor: Color(0xFFFFD403),
+        accentColor: Color(0xFF111111),
+        badgeBgColor: Color(0xFFFFFBEB),
+        svgString: pocoSvg,
+        defaultFastChargeTech: 'Turbo Charging',
+        defaultMaxWatts: 67,
+      );
+    }
+
+    // 9. REDMI (Check before Xiaomi!)
     if (b.contains('REDMI') || m.contains('REDMI')) {
       return const BrandInfo(
         key: 'REDMI',
         displayName: 'Redmi',
         primaryColor: Color(0xFFE53935),
-        accentColor: Color(0xFFC62828),
+        accentColor: Color(0xFFB71C1C),
         badgeBgColor: Color(0xFFFFF0F0),
         svgString: redmiSvg,
         defaultFastChargeTech: 'HyperCharge',
@@ -471,87 +195,73 @@ class BrandSvgLogos {
       );
     }
 
-    // 9. POCO
-    if (b.contains('POCO') || m.contains('POCO')) {
-      return const BrandInfo(
-        key: 'POCO',
-        displayName: 'POCO',
-        primaryColor: Color(0xFFFFD600),
-        accentColor: Color(0xFF111111),
-        badgeBgColor: Color(0xFFFFFDE7),
-        svgString: pocoSvg,
-        defaultFastChargeTech: 'HyperCharge',
-        defaultMaxWatts: 67,
-      );
-    }
-
     // 10. XIAOMI / MI
-    if (b.contains('XIAOMI') || b.contains('XIOMI') || b == 'MI' || m.contains('XIAOMI') || m.startsWith('MI ')) {
+    if (b.contains('XIAOMI') || b.contains('XIOMI') || b == 'MI' || b.startsWith('MI ') || m.contains('XIAOMI') || m.startsWith('MI ')) {
       return const BrandInfo(
         key: 'XIAOMI',
         displayName: 'Xiaomi',
         primaryColor: Color(0xFFFF6900),
-        accentColor: Color(0xFFD85500),
-        badgeBgColor: Color(0xFFFFF3E0),
+        accentColor: Color(0xFFE05A00),
+        badgeBgColor: Color(0xFFFFF4EC),
         svgString: xiaomiSvg,
         defaultFastChargeTech: 'HyperCharge',
         defaultMaxWatts: 90,
       );
     }
 
-    // 11. REALME
-    if (b.contains('REALME') || m.contains('REALME') || m.contains('NARZO')) {
-      return const BrandInfo(
-        key: 'REALME',
-        displayName: 'realme',
-        primaryColor: Color(0xFFFFC915),
-        accentColor: Color(0xFF111111),
-        badgeBgColor: Color(0xFFFFFBEA),
-        svgString: realmeSvg,
-        defaultFastChargeTech: 'SUPERVOOC',
-        defaultMaxWatts: 67,
-      );
-    }
-
-    // 12. IQOO
+    // 11. IQOO (Check before Vivo!)
     if (b.contains('IQOO') || m.contains('IQOO')) {
       return const BrandInfo(
         key: 'IQOO',
         displayName: 'iQOO',
         primaryColor: Color(0xFFF9AA00),
-        accentColor: Color(0xFFFF6F00),
-        badgeBgColor: Color(0xFFFFF8E1),
+        accentColor: Color(0xFF111111),
+        badgeBgColor: Color(0xFFFFF8E6),
         svgString: iqooSvg,
         defaultFastChargeTech: 'FlashCharge',
         defaultMaxWatts: 120,
       );
     }
 
-    // 13. VIVO
+    // 12. VIVO
     if (b.contains('VIVO') || m.contains('VIVO')) {
       return const BrandInfo(
         key: 'VIVO',
         displayName: 'vivo',
-        primaryColor: Color(0xFF008CD6),
-        accentColor: Color(0xFF006BB3),
-        badgeBgColor: Color(0xFFE6F4FB),
+        primaryColor: Color(0xFF415FFF),
+        accentColor: Color(0xFF2843CC),
+        badgeBgColor: Color(0xFFEEF2FF),
         svgString: vivoSvg,
         defaultFastChargeTech: 'FlashCharge',
         defaultMaxWatts: 80,
       );
     }
 
+    // 13. REALME (Check before Oppo!)
+    if (b.contains('REALME') || m.contains('REALME') || m.startsWith('RMX')) {
+      return const BrandInfo(
+        key: 'REALME',
+        displayName: 'realme',
+        primaryColor: Color(0xFFFFC915),
+        accentColor: Color(0xFF111111),
+        badgeBgColor: Color(0xFFFFFAEB),
+        svgString: realmeSvg,
+        defaultFastChargeTech: 'SUPERVOOC',
+        defaultMaxWatts: 67,
+      );
+    }
+
     // 14. OPPO
-    if (b.contains('OPPO') || m.contains('OPPO') || m.contains('RENO') || m.contains('FIND')) {
+    if (b.contains('OPPO') || m.contains('OPPO') || m.startsWith('CPH')) {
       return const BrandInfo(
         key: 'OPPO',
         displayName: 'OPPO',
         primaryColor: Color(0xFF046A38),
-        accentColor: Color(0xFF004D26),
-        badgeBgColor: Color(0xFFE8F5E9),
+        accentColor: Color(0xFF024E29),
+        badgeBgColor: Color(0xFFEDF7F2),
         svgString: oppoSvg,
         defaultFastChargeTech: 'SUPERVOOC',
-        defaultMaxWatts: 67,
+        defaultMaxWatts: 80,
       );
     }
 
@@ -561,8 +271,8 @@ class BrandSvgLogos {
         key: 'INFINIX',
         displayName: 'Infinix',
         primaryColor: Color(0xFF00C269),
-        accentColor: Color(0xFF009651),
-        badgeBgColor: Color(0xFFE8F8F0),
+        accentColor: Color(0xFF009952),
+        badgeBgColor: Color(0xFFEAFBF3),
         svgString: infinixSvg,
         defaultFastChargeTech: 'All-Round FastCharge',
         defaultMaxWatts: 45,
@@ -570,34 +280,48 @@ class BrandSvgLogos {
     }
 
     // 16. TECNO
-    if (b.contains('TECNO') || b.contains('TECHNO') || m.contains('TECNO') || m.contains('POVA') || m.contains('CAMON')) {
+    if (b.contains('TECNO') || b.contains('TECHNO') || m.contains('TECNO')) {
       return const BrandInfo(
         key: 'TECNO',
         displayName: 'TECNO',
-        primaryColor: Color(0xFF0066FF),
-        accentColor: Color(0xFF0047BA),
-        badgeBgColor: Color(0xFFEFF5FF),
+        primaryColor: Color(0xFF0064FE),
+        accentColor: Color(0xFF0047B3),
+        badgeBgColor: Color(0xFFEEF4FF),
         svgString: tecnoSvg,
-        defaultFastChargeTech: 'FastCharge',
+        defaultFastChargeTech: 'Ultra Charge',
         defaultMaxWatts: 45,
       );
     }
 
-    // 17. ITEL / AI+
-    if (b.contains('ITEL') || b.contains('AI+') || b.contains('AI PLUS') || m.contains('ITEL')) {
+    // 17. AI+ (NxtQuantum)
+    if (b.contains('AI+') || b.contains('AI PLUS') || b.contains('NXTQUANTUM') || m.contains('AI+')) {
       return const BrandInfo(
-        key: 'ITEL',
-        displayName: 'itel',
-        primaryColor: Color(0xFFFF2B2B),
-        accentColor: Color(0xFFD61A1A),
-        badgeBgColor: Color(0xFFFFEEEE),
-        svgString: itelSvg,
-        defaultFastChargeTech: 'HyperCharge',
+        key: 'AI+',
+        displayName: 'Ai+',
+        primaryColor: Color(0xFFFF2E3B),
+        accentColor: Color(0xFF12141C),
+        badgeBgColor: Color(0xFFFFF0F1),
+        svgString: aiPlusSvg,
+        defaultFastChargeTech: 'Fast Charge',
         defaultMaxWatts: 33,
       );
     }
 
-    // 18. LAVA
+    // 18. ITEL
+    if (b.contains('ITEL') || m.contains('ITEL')) {
+      return const BrandInfo(
+        key: 'ITEL',
+        displayName: 'itel',
+        primaryColor: Color(0xFFFF073C),
+        accentColor: Color(0xFFD6002E),
+        badgeBgColor: Color(0xFFFFEEF2),
+        svgString: itelSvg,
+        defaultFastChargeTech: 'PowerCharge',
+        defaultMaxWatts: 33,
+      );
+    }
+
+    // 19. LAVA
     if (b.contains('LAVA') || m.contains('LAVA') || m.contains('AGNI') || m.contains('BLAZE')) {
       return const BrandInfo(
         key: 'LAVA',
@@ -607,11 +331,11 @@ class BrandSvgLogos {
         badgeBgColor: Color(0xFFFFEAEA),
         svgString: lavaSvg,
         defaultFastChargeTech: 'Super Fast Charge',
-        defaultMaxWatts: 33,
+        defaultMaxWatts: 66,
       );
     }
 
-    // 19. NOKIA
+    // 20. NOKIA
     if (b.contains('NOKIA') || m.contains('NOKIA')) {
       return const BrandInfo(
         key: 'NOKIA',
@@ -625,13 +349,13 @@ class BrandSvgLogos {
       );
     }
 
-    // 20. HMD / HMT
+    // 21. HMD / HMT
     if (b.contains('HMD') || b.contains('HMT') || m.contains('HMD')) {
       return const BrandInfo(
         key: 'HMD',
         displayName: 'HMD',
         primaryColor: Color(0xFF111111),
-        accentColor: Color(0xFFFF4D6D),
+        accentColor: Color(0xFF333333),
         badgeBgColor: Color(0xFFF5F5F7),
         svgString: hmdSvg,
         defaultFastChargeTech: 'Quick Charge',
@@ -639,7 +363,7 @@ class BrandSvgLogos {
       );
     }
 
-    // 21. SONY
+    // 22. SONY
     if (b.contains('SONY') || m.contains('XPERIA')) {
       return const BrandInfo(
         key: 'SONY',
@@ -653,7 +377,7 @@ class BrandSvgLogos {
       );
     }
 
-    // 22. ASUS
+    // 23. ASUS
     if (b.contains('ASUS') || m.contains('ROG') || m.contains('ZENFONE')) {
       return const BrandInfo(
         key: 'ASUS',
@@ -667,21 +391,49 @@ class BrandSvgLogos {
       );
     }
 
-    // 23. HUAWEI / HUWAI
-    if (b.contains('HUAWEI') || b.contains('HUWAI') || b.contains('HONOR') || m.contains('HUAWEI') || m.contains('MATE') || m.contains('PURA')) {
+    // 24. HONOR
+    if (b.contains('HONOR') || m.contains('HONOR')) {
+      return const BrandInfo(
+        key: 'HONOR',
+        displayName: 'HONOR',
+        primaryColor: Color(0xFF0072CE),
+        accentColor: Color(0xFF004F94),
+        badgeBgColor: Color(0xFFEEF6FC),
+        svgString: honorSvg,
+        defaultFastChargeTech: 'SuperCharge',
+        defaultMaxWatts: 66,
+      );
+    }
+
+    // 25. HUAWEI / HUWAI
+    if (b.contains('HUAWEI') || b.contains('HUWAI') || m.contains('HUAWEI') || m.contains('MATE') || m.contains('PURA')) {
       return const BrandInfo(
         key: 'HUAWEI',
         displayName: 'HUAWEI',
-        primaryColor: Color(0xFFED1C24),
-        accentColor: Color(0xFFC00F15),
-        badgeBgColor: Color(0xFFFDF0F0),
+        primaryColor: Color(0xFFCF0A2C),
+        accentColor: Color(0xFFA00822),
+        badgeBgColor: Color(0xFFFDF0F2),
         svgString: huaweiSvg,
         defaultFastChargeTech: 'SuperCharge',
         defaultMaxWatts: 66,
       );
     }
 
-    // 24. LG
+    // 26. LENOVO
+    if (b.contains('LENOVO') || m.contains('LENOVO')) {
+      return const BrandInfo(
+        key: 'LENOVO',
+        displayName: 'Lenovo',
+        primaryColor: Color(0xFFE2231A),
+        accentColor: Color(0xFFB51B14),
+        badgeBgColor: Color(0xFFFFEFEF),
+        svgString: lenovoSvg,
+        defaultFastChargeTech: 'TurboPower',
+        defaultMaxWatts: 68,
+      );
+    }
+
+    // 27. LG
     if (b.contains('LG') || b.contains('LGE') || m.contains('LG')) {
       return const BrandInfo(
         key: 'LG',
@@ -695,7 +447,7 @@ class BrandSvgLogos {
       );
     }
 
-    // 25. ANDROID GENERIC FALLBACK
+    // 28. ANDROID GENERIC FALLBACK
     return BrandInfo(
       key: 'ANDROID',
       displayName: b.isNotEmpty && b != 'UNKNOWN' ? b : 'Android',
@@ -711,8 +463,8 @@ class BrandSvgLogos {
 
 /// ---------------------------------------------------------------------------
 /// Dedicated Brand Logo Avatar Widget
-/// Displays the authentic SVG vector brand logo with rounded corners, subtle
-/// border, and brand tinted background.
+/// Renders the authentic official vector SVG brand badge edge-to-edge with
+/// crisp anti-aliasing, rounded corners, and brand-tinted subtle shadow.
 /// ---------------------------------------------------------------------------
 class BrandLogoWidget extends StatelessWidget {
   final String brand;
@@ -738,30 +490,28 @@ class BrandLogoWidget extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: info.badgeBgColor,
         borderRadius: BorderRadius.circular(borderRadius),
         border: showBorder
             ? Border.all(
-                color: info.primaryColor.withValues(alpha: 0.35),
-                width: 1.2,
+                color: info.primaryColor.withValues(alpha: 0.3),
+                width: 1.0,
               )
             : null,
         boxShadow: [
           BoxShadow(
-            color: info.primaryColor.withValues(alpha: 0.12),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+            color: info.primaryColor.withValues(alpha: 0.16),
+            blurRadius: 8,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
-      padding: EdgeInsets.all(size * 0.10),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius * 0.75),
+        borderRadius: BorderRadius.circular(borderRadius - 0.5),
         child: SvgPicture.string(
           info.svgString,
-          width: size * 0.80,
-          height: size * 0.80,
-          fit: BoxFit.contain,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
         ),
       ),
     );

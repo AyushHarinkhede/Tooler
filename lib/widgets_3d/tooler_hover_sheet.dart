@@ -31,6 +31,8 @@ class ToolerHoverSheet extends StatefulWidget {
   final StationeryTheme theme;
   final Widget child;
   final VoidCallback? onFavorite;
+  final VoidCallback? onClose;
+  final bool isDirectHomeOverlay;
 
   const ToolerHoverSheet({
     super.key,
@@ -40,6 +42,8 @@ class ToolerHoverSheet extends StatefulWidget {
     required this.theme,
     required this.child,
     this.onFavorite,
+    this.onClose,
+    this.isDirectHomeOverlay = false,
   });
 
   static Future<T?> show<T>({
@@ -142,6 +146,14 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
     _loadFavoriteStatus();
   }
 
+  void _dismissSheet() {
+    if (widget.onClose != null) {
+      widget.onClose!();
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.pop(context);
+    }
+  }
+
   void _toggleFullScreen() {
     SoundService().playClick();
     HapticFeedback.lightImpact();
@@ -241,7 +253,7 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
             });
           } else {
             // In hover mode: dragging down dismisses the sheet back to home screen
-            Navigator.pop(context);
+            _dismissSheet();
           }
         } else if (_dragOffsetY < -25 || velocity < -220) {
           // Push up -> Full screen view
@@ -321,17 +333,19 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
         backgroundColor: Colors.transparent,
         body: Stack(
           children: [
-            // 1. Full-screen Live Blur Backdrop (Frosted glass showing home screen, hardware accelerated)
-            Positioned.fill(
-              child: RepaintBoundary(
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                  child: Container(
-                    color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+            // 1. Backdrop: When floating directly over device Home Screen, keep pure alpha transparency
+            // so the user's actual phone wallpaper & icons remain cleanly visible through Android's dim.
+            if (!widget.isDirectHomeOverlay)
+              Positioned.fill(
+                child: RepaintBoundary(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+                    child: Container(
+                      color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.12),
+                    ),
                   ),
                 ),
               ),
-            ),
 
             // 2. Sliding Hover Sheet with top empty space
             SafeArea(
@@ -340,7 +354,7 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
               child: Column(
                 children: [
                   // Top Empty Space in Hover Mode (~topInset + 54px):
-                  // Allows user to see live blurred home screen and taps/swipes dismiss smoothly.
+                  // Allows user to see live home screen and taps/swipes dismiss smoothly.
                   // Collapses to 0 in full-screen mode.
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 260),
@@ -353,13 +367,13 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                             behavior: HitTestBehavior.opaque,
                             onTap: () {
                               SoundService().playClick();
-                              Navigator.pop(context);
+                              _dismissSheet();
                             },
                             onVerticalDragEnd: (details) {
                               if ((details.primaryVelocity ?? 0) > 100) {
                                 SoundService().playClick();
                                 HapticFeedback.mediumImpact();
-                                Navigator.pop(context);
+                                _dismissSheet();
                               }
                             },
                             child: Container(color: Colors.transparent),
@@ -418,7 +432,7 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                                     BouncyTap(
                                       onTap: () {
                                         SoundService().playClick();
-                                        Navigator.pop(context);
+                                        _dismissSheet();
                                       },
                                       scaleFraction: 0.90,
                                       child: Container(
