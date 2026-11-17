@@ -25,6 +25,7 @@ import 'power_screen.dart';
 import 'security_screen.dart';
 import 'fm_radio_screen.dart';
 import 'weather_screen.dart';
+import 'step_counter_screen.dart';
 
 /// Direct Transparent Home Screen Floating Hover Page launched by Android Widgets.
 /// Floats directly on top of the user's phone Home Screen / Wallpaper without
@@ -197,6 +198,13 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
           subtitle: 'Multi-Counter Tracker',
           tag: 'Count',
           child: CountersScreen(theme: t),
+        );
+      case 'steps':
+        return _PopupToolMeta(
+          title: 'Step Counter',
+          subtitle: 'Hardware Pedometer, Distance & Speed',
+          tag: 'Fitness',
+          child: StepCounterScreen(theme: t),
         );
       case 'age':
         return _PopupToolMeta(

@@ -639,4 +639,118 @@ object ToolerWidgetRenderer {
 
         return bmp
     }
+
+    fun renderStepShoeIconBitmap(sizePx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.09f
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.bubbleBg
+            style = Paint.Style.FILL
+        }
+
+        // Background squircle bubble
+        canvas.drawRoundRect(RectF(s * 0.08f, s * 0.08f, s * 0.92f, s * 0.92f), s * 0.26f, s * 0.26f, fill)
+
+        // Shoe outline: sole and upper
+        val shoePath = Path().apply {
+            moveTo(s * 0.24f, s * 0.68f)
+            lineTo(s * 0.78f, s * 0.68f)
+            quadTo(s * 0.84f, s * 0.68f, s * 0.80f, s * 0.56f)
+            lineTo(s * 0.62f, s * 0.44f)
+            lineTo(s * 0.48f, s * 0.32f)
+            lineTo(s * 0.34f, s * 0.38f)
+            lineTo(s * 0.24f, s * 0.56f)
+            close()
+        }
+        canvas.drawPath(shoePath, stroke)
+
+        // Speed motion trail dots
+        val dotPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.FILL
+        }
+        canvas.drawCircle(s * 0.16f, s * 0.48f, s * 0.04f, dotPaint)
+        canvas.drawCircle(s * 0.14f, s * 0.64f, s * 0.035f, dotPaint)
+
+        return bmp
+    }
+
+    fun renderDistanceMetricIconBitmap(sizePx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.11f
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        // Map pin / waypoint arrow
+        val path = Path().apply {
+            moveTo(s * 0.20f, s * 0.80f)
+            lineTo(s * 0.82f, s * 0.50f)
+            lineTo(s * 0.52f, s * 0.42f)
+            lineTo(s * 0.44f, s * 0.18f)
+            close()
+        }
+        canvas.drawPath(path, stroke)
+        return bmp
+    }
+
+    fun renderSpeedMetricIconBitmap(sizePx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = palette.primary
+            style = Paint.Style.STROKE
+            strokeWidth = s * 0.10f
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        // Speedometer arc
+        canvas.drawArc(RectF(s * 0.15f, s * 0.15f, s * 0.85f, s * 0.85f), 150f, 240f, false, stroke)
+
+        // Needle pointing up-right
+        canvas.drawLine(s * 0.50f, s * 0.50f, s * 0.70f, s * 0.35f, stroke)
+        canvas.drawCircle(s * 0.50f, s * 0.50f, s * 0.07f, stroke)
+
+        return bmp
+    }
+
+    fun renderFlameMetricIconBitmap(sizePx: Int, palette: WidgetPalette): Bitmap {
+        val bmp = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bmp)
+        val s = sizePx.toFloat()
+
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.parseColor("#F97316") // Vivid calorie flame orange
+            style = Paint.Style.FILL
+        }
+
+        // Flame silhouette
+        val flame = Path().apply {
+            moveTo(s * 0.50f, s * 0.14f)
+            quadTo(s * 0.68f, s * 0.36f, s * 0.68f, s * 0.54f)
+            quadTo(s * 0.68f, s * 0.82f, s * 0.50f, s * 0.84f)
+            quadTo(s * 0.32f, s * 0.82f, s * 0.32f, s * 0.54f)
+            quadTo(s * 0.32f, s * 0.38f, s * 0.50f, s * 0.14f)
+            close()
+        }
+        canvas.drawPath(flame, fill)
+
+        return bmp
+    }
 }

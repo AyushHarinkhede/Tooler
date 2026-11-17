@@ -141,6 +141,19 @@
                 android:resource="@xml/tooler_widget_2x2_info" />
         </receiver>
 
+        <!-- Home Screen 2x2 Step Counter & Fitness Widget -->
+        <receiver
+            android:name=".ToolerStepWidgetProvider"
+            android:exported="true"
+            android:label="Tooler Step Counter (2×2)">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/tooler_widget_step_info" />
+        </receiver>
+
         <!-- Flutter Local Notifications Receivers for Real-time & Background Alarms -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver" />
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver">
