@@ -6,8 +6,25 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../widgets_3d/tooler_character.dart';
+import '../games/turbo_racing_game.dart';
+import '../games/flappy_bird_game.dart';
+import '../games/space_shooter_game.dart';
+import '../games/brain_games_widget.dart';
+import '../games/merge_2048_game.dart';
 
-enum GameType { tictactoe, snake, ludo, snakesAndLadders, uno, tetris }
+enum GameType {
+  racing,
+  flappy,
+  shooter,
+  brain,
+  merge2048,
+  tictactoe,
+  snake,
+  ludo,
+  snakesAndLadders,
+  uno,
+  tetris,
+}
 enum GameOutcome { win, lose, draw }
 
 class GamesScreen extends StatefulWidget {
@@ -19,7 +36,7 @@ class GamesScreen extends StatefulWidget {
 }
 
 class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin {
-  GameType _activeGame = GameType.tictactoe;
+  GameType _activeGame = GameType.racing;
   bool _isOptionsExpanded = false;
 
   late AnimationController _ludoHopController;
@@ -1759,6 +1776,11 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   Widget _buildGameTabBar() {
     final games = [
+      {'type': GameType.racing, 'label': 'Turbo Race', 'icon': Icons.directions_car_filled_rounded},
+      {'type': GameType.flappy, 'label': 'Flappy Bird', 'icon': Icons.flutter_dash_rounded},
+      {'type': GameType.shooter, 'label': 'Space Shooter', 'icon': Icons.rocket_launch_rounded},
+      {'type': GameType.brain, 'label': 'Brain Lab', 'icon': Icons.psychology_rounded},
+      {'type': GameType.merge2048, 'label': '2048', 'icon': Icons.apps_rounded},
       {'type': GameType.tictactoe, 'label': 'Tic-Tac-Toe', 'icon': Icons.grid_3x3_rounded},
       {'type': GameType.snake, 'label': 'Snake Pro', 'icon': Icons.gesture_rounded},
       {'type': GameType.ludo, 'label': 'Real Ludo', 'icon': Icons.casino_rounded},
@@ -1836,6 +1858,16 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   String _getGameOptionsSummary() {
     switch (_activeGame) {
+      case GameType.racing:
+        return '3-Lane Highway · Nitro Boost · Coins';
+      case GameType.flappy:
+        return '60FPS Physics · Medals · Endless Sky';
+      case GameType.shooter:
+        return 'Galaxy Waves · Triple Shot · Shield';
+      case GameType.brain:
+        return 'Memory Grid · Color Trap · Speed Math';
+      case GameType.merge2048:
+        return 'Swipe 4×4 · Undo · Neon Tiles';
       case GameType.tictactoe:
         return 'Playing as $_playerSymbol | ${_vsComputer ? "vs AI (${_aiDifficulty.toUpperCase()})" : "2 Players"}';
       case GameType.snake:
@@ -1987,6 +2019,12 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
   Widget _buildCurrentGameOptionsContent() {
     switch (_activeGame) {
+      case GameType.racing:
+      case GameType.flappy:
+      case GameType.shooter:
+      case GameType.brain:
+      case GameType.merge2048:
+        return const SizedBox.shrink();
       case GameType.tictactoe:
         return _buildTttOptions();
       case GameType.snake:
@@ -2493,6 +2531,16 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   // =========================================================================
   Widget _buildActiveGameView() {
     switch (_activeGame) {
+      case GameType.racing:
+        return TurboRacingGame(theme: widget.theme);
+      case GameType.flappy:
+        return FlappyBirdGame(theme: widget.theme);
+      case GameType.shooter:
+        return SpaceShooterGame(theme: widget.theme);
+      case GameType.brain:
+        return BrainGamesWidget(theme: widget.theme);
+      case GameType.merge2048:
+        return Merge2048Game(theme: widget.theme);
       case GameType.tictactoe:
         return _buildTicTacToeView();
       case GameType.snake:
