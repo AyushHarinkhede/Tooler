@@ -11,6 +11,7 @@ import '../services/sound_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_hover_sheet.dart';
 import '../widgets_3d/tooler_logo.dart';
+import '../widgets_3d/tooler_character.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER MINIMAL SMART WEB BROWSER & UNIVERSAL MEDIA DOWNLOADER
@@ -2068,7 +2069,7 @@ class _BrowserScreenState extends State<BrowserScreen> {
               ),
             ),
 
-            // 4. Below Search Bar to the Side: VPN Icon (if ON) & Incognito Icon (if ON) — NOTHING ELSE!
+            // 4. Below Search Bar to the Side: VPN Icon (if ON) & Incognito Icon (if ON)
             if (_isVpnActive || _isIncognitoMode) ...[
               const SizedBox(height: 11),
               Align(
@@ -2135,6 +2136,19 @@ class _BrowserScreenState extends State<BrowserScreen> {
                 ),
               ),
             ],
+
+            const SizedBox(height: 28),
+
+            // 5. Vector SVG Character — Ergonomic Chair & Tablet (Thinking)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(22),
+              child: ToolerCharacter.thinking(
+                theme: theme,
+                width: 240,
+                height: 212,
+                animate: true,
+              ),
+            ),
           ],
         ),
       ),
