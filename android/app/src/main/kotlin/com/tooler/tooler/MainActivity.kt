@@ -37,9 +37,12 @@ open class MainActivity : FlutterActivity() {
     private val POWER_CHANNEL = "com.tooler.tooler/power_telemetry"
     private val SECURITY_CHANNEL = "com.tooler.tooler/security_scan"
     private val SECURITY_EVENTS_CHANNEL = "com.tooler.tooler/security_scan_events"
+    private val BROWSER_DL_CHANNEL = "com.tooler.tooler/browser_download"
+    private val BROWSER_DL_EVENTS_CHANNEL = "com.tooler.tooler/browser_download_events"
     private val WIDGET_CHANNEL = "com.tooler.tooler/widgets"
 
     private var securityEngine: ToolerSecurityEngine? = null
+    private var browserDownloader: ToolerBrowserDownloader? = null
 
     // Home Screen Widget deep-link routing state
     protected var widgetMethodChannel: MethodChannel? = null
@@ -367,6 +370,52 @@ open class MainActivity : FlutterActivity() {
                         } catch (_: Exception) {
                             result.success(false)
                         }
+                    }
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // Universal Web Browser Media Download Engine (MediaStore + Cookies + HLS)
+        val dlEngine = ToolerBrowserDownloader(applicationContext)
+        browserDownloader = dlEngine
+
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, BROWSER_DL_EVENTS_CHANNEL).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    dlEngine.progressSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    dlEngine.progressSink = null
+                }
+            }
+        )
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, BROWSER_DL_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "downloadMedia" -> {
+                    val url = call.argument<String>("url") ?: ""
+                    val name = call.argument<String>("name") ?: "download"
+                    val type = call.argument<String>("type") ?: "file"
+                    val referer = call.argument<String>("referer")
+                    val userAgent = call.argument<String>("userAgent")
+                    val cookie = call.argument<String>("cookie")
+                    if (url.isBlank()) {
+                        result.error("INVALID_URL", "URL is empty", null)
+                    } else {
+                        dlEngine.startDownload(url, name, type, referer, userAgent, cookie)
+                        result.success(true)
+                    }
+                }
+                "probeMeta" -> {
+                    val url = call.argument<String>("url") ?: ""
+                    val referer = call.argument<String>("referer")
+                    val userAgent = call.argument<String>("userAgent")
+                    val cookie = call.argument<String>("cookie")
+                    thread(isDaemon = true) {
+                        val meta = dlEngine.probeUrlMeta(url, referer, userAgent, cookie)
+                        runOnUiThread { result.success(meta) }
                     }
                 }
                 else -> result.notImplemented()
