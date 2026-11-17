@@ -45,7 +45,7 @@ class WeatherScreen extends StatefulWidget {
 class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateMixin {
   final WeatherTelemetryService _telemetry = WeatherTelemetryService();
   bool _useFahrenheit = false;
-  int _forecastTab = 0; // 0: All 14 Days, 1: Past 7 Days, 2: Next 7 Days
+  int _forecastTab = 0; // 0: Hourly 24h, 1: 14 Days, 2: Past 7 Days, 3: Next 7 Days
   WeatherSimMode _simMode = WeatherSimMode.live;
   int? _simAqiOverride;
 
@@ -330,23 +330,19 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Atmospheric Animated Landscape Canvas
-                          _buildAtmosphericLandscape(theme, isDark, weather, rawData),
-                          const SizedBox(height: 18),
+                          // 1. Modern Themed Hero Container (No landscape/river, SVG Sun/Moon/Cloud/Thunder/Rain + Lunar Trajectory arc, Character in center, Weather Degree, AQI in UI font, PM rating, Live Location, zero extra captions)
+                          _buildModernWeatherHeroCard(theme, isDark, weather, rawData),
+                          const SizedBox(height: 14),
 
-                          // Dedicated AQI Reactive Character Card
-                          _buildAqiCharacterCard(theme, isDark, weather, rawData),
-                          const SizedBox(height: 18),
+                          // 2. Sleek Moon Phase Bar (Single bar with Aaj ka Moon Phase, tap to open 7/8 moon phases circular orbit hover sheet)
+                          _buildMoonPhaseBar(theme, isDark, rawData.moonPhase),
+                          const SizedBox(height: 14),
 
-                          // Astronomical Moon Phase Detail Card
-                          _buildMoonPhaseCard(theme, isDark, rawData.moonPhase),
-                          const SizedBox(height: 18),
+                          // 3. Simple Clean Graph (Hourly 24h & 14-Day Past/Future trends with toggle)
+                          _buildForecastGraphCard(theme, isDark, rawData),
+                          const SizedBox(height: 14),
 
-                          // 14-Day History & Forecast Visualizer
-                          _buildForecastHistoryCard(theme, isDark, rawData),
-                          const SizedBox(height: 18),
-
-                          // Detailed Atmospheric Metrics Grid
+                          // 4. Detailed Atmospheric Metrics Grid
                           _buildMetricsGrid(theme, isDark, rawData, weather),
                           const SizedBox(height: 24),
                         ],
@@ -616,9 +612,12 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
   }
 
   // ---------------------------------------------------------------------------
-  // 1. TOP ATMOSPHERIC LANDSCAPE CANVAS
+  // 1. MODERN THEMED WEATHER HERO CARD
+  // - Top: Celestial Lunar / Solar Trajectory Arc + SVG Sun/Moon/Cloud/Thunder/Rain/Disasters
+  // - Middle: Tooler Reactive Vector Mascot + Temperature, AQI in UI font, PM rating, Location
+  // - Zero extra captions or verbose text!
   // ---------------------------------------------------------------------------
-  Widget _buildAtmosphericLandscape(
+  Widget _buildModernWeatherHeroCard(
     StationeryTheme theme,
     bool isDark,
     _EffectiveWeather weather,
@@ -627,749 +626,386 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     final displayTemp = _toDisplayTemp(weather.tempC).round();
     final displayUnit = _tempUnit();
 
+    // Progressive 6-Stage Character AQI Logic
+    final _AqiCharacterMood mood;
+    if (weather.aqi <= 50) {
+      mood = _AqiCharacterMood.cleanAirBreathe;
+    } else if (weather.aqi <= 100) {
+      mood = _AqiCharacterMood.mildCoughAutumn;
+    } else if (weather.aqi <= 150) {
+      mood = _AqiCharacterMood.unhealthyMask;
+    } else if (weather.aqi <= 200) {
+      mood = _AqiCharacterMood.veryUnhealthySadMask;
+    } else if (weather.aqi <= 300) {
+      mood = _AqiCharacterMood.hazardousOxygenCylinder;
+    } else {
+      mood = _AqiCharacterMood.severeToxicWrinkled;
+    }
+
     return Container(
-      height: 330,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
+        color: isDark ? const Color(0xFF1E1E22) : Colors.white,
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: theme.border, width: 1.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.08),
+            color: Colors.black.withValues(alpha: isDark ? 0.35 : 0.06),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Custom Atmospheric Landscape CustomPainter
-          Positioned.fill(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([
-                _animController,
-                _lightningController,
-                _floodController,
-                _twisterController,
-              ]),
-              builder: (context, _) {
-                return CustomPaint(
-                  painter: _AtmosphericLandscapePainter(
-                    weather: weather,
-                    moonPhase: raw.moonPhase,
-                    animProgress: _animController.value,
-                    lightningProgress: _lightningController.value,
-                    floodProgress: _floodController.value,
-                    twisterProgress: _twisterController.value,
-                    isDark: isDark,
-                  ),
-                );
-              },
-            ),
-          ),
-
-          // Weather Condition & Disaster Warning Pill at Top Left
-          Positioned(
-            top: 14,
-            left: 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    weather.isTwister
-                        ? Icons.cyclone_rounded
-                        : (weather.isFlood
-                            ? Icons.flood_rounded
-                            : (weather.isThunder
-                                ? Icons.thunderstorm_rounded
-                                : (weather.isRain
-                                    ? Icons.water_drop_rounded
-                                    : (weather.isDay
-                                        ? Icons.wb_sunny_rounded
-                                        : Icons.nightlight_round)))),
-                    size: 15,
-                    color: weather.isTwister || weather.isFlood
-                        ? const Color(0xFFEF4444)
-                        : (weather.isDay ? const Color(0xFFFBBF24) : const Color(0xFFE0E7FF)),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    weather.condition,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // City Location Badge at Top Right
-          Positioned(
-            top: 14,
-            right: 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.25), width: 1),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.location_on_rounded, size: 14, color: Color(0xFF38BDF8)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${weather.city}, ${weather.country}',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Center Temperature & Status Display
-          Align(
-            alignment: const Alignment(0, -0.15),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+          // Upper Visuals: Animated Celestial Trajectory Arc + SVG Sun/Moon/Cloud/Thunder/Rain/Disasters
+          SizedBox(
+            height: 124,
+            child: Stack(
               children: [
-                // Prominent Large Animated Weather SVG Icon
-                _BigAnimatedWeatherIcon(
-                  weather: weather,
-                  moonPhase: raw.moonPhase,
-                  animProgress: _animController.value,
-                  lightningProgress: _lightningController.value,
-                  floodProgress: _floodController.value,
-                  twisterProgress: _twisterController.value,
-                ),
-                const SizedBox(height: 6),
-
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '$displayTemp',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 68,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        shadows: [
-                          Shadow(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            offset: const Offset(0, 3),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10, left: 2),
-                      child: Text(
-                        displayUnit,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white.withValues(alpha: 0.9),
-                          shadows: [
-                            Shadow(
-                              color: Colors.black.withValues(alpha: 0.6),
-                              offset: const Offset(0, 2),
-                              blurRadius: 6,
-                            ),
-                          ],
+                Positioned.fill(
+                  child: AnimatedBuilder(
+                    animation: Listenable.merge([
+                      _animController,
+                      _lightningController,
+                      _floodController,
+                      _twisterController,
+                    ]),
+                    builder: (context, _) {
+                      return CustomPaint(
+                        painter: _CelestialSkySvgPainter(
+                          weather: weather,
+                          moonPhase: raw.moonPhase,
+                          animProgress: _animController.value,
+                          lightningProgress: _lightningController.value,
+                          floodProgress: _floodController.value,
+                          twisterProgress: _twisterController.value,
+                          isDark: isDark,
+                          accentColor: theme.primary,
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-                Text(
-                  'AQI ${weather.aqi} • ${weather.aqiStatus}',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.white.withValues(alpha: 0.95),
-                    shadows: [
-                      Shadow(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        offset: const Offset(0, 1.5),
-                        blurRadius: 4,
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
-              ],
-            ),
-          ),
 
-          // Bottom Bar in Landscape: Mountain Foot High/Low & Moon Info
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.topCenter,
-                  colors: [
-                    Colors.black.withValues(alpha: 0.75),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // High / Low
-                  Row(
-                    children: [
-                      const Icon(Icons.arrow_upward_rounded, size: 14, color: Color(0xFFF87171)),
-                      Text(
-                        '${_toDisplayTemp(raw.dailyList.isNotEmpty ? raw.dailyList[7].maxTempC : 31).round()}°',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      const Icon(Icons.arrow_downward_rounded, size: 14, color: Color(0xFF60A5FA)),
-                      Text(
-                        '${_toDisplayTemp(raw.dailyList.isNotEmpty ? raw.dailyList[7].minTempC : 19).round()}°',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  // Moon Phase Indicator Pill
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                // Top Left: Condition Badge
+                Positioned(
+                  top: 12,
+                  left: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(8),
+                      color: (isDark ? const Color(0xFF1E1E22) : Colors.white).withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: theme.border.withValues(alpha: 0.6), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 4,
+                        ),
+                      ],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.brightness_2_rounded, size: 13, color: Color(0xFFFEF08A)),
+                        Icon(
+                          _telemetry.getWeatherIcon(
+                            weather.isRain
+                                ? 61
+                                : (weather.isThunder
+                                    ? 95
+                                    : (weather.isCloudy ? 2 : (weather.isDay ? 1 : 0))),
+                            weather.isDay,
+                          ),
+                          size: 13,
+                          color: theme.primary,
+                        ),
                         const SizedBox(width: 5),
                         Text(
-                          '${raw.moonPhase.phaseName} (${raw.moonPhase.illuminationPercent.round()}%)',
+                          weather.condition,
                           style: GoogleFonts.plusJakartaSans(
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
-                            color: Colors.white,
+                            color: theme.text,
                           ),
                         ),
                       ],
                     ),
                   ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                ),
 
-  // ---------------------------------------------------------------------------
-  // 2. AQI CONTAINER WITH REACTIVE TOOLER CHARACTER
-  // ---------------------------------------------------------------------------
-  Widget _buildAqiCharacterCard(
-    StationeryTheme theme,
-    bool isDark,
-    _EffectiveWeather weather,
-    WeatherTelemetryData raw,
-  ) {
-    final aqi = weather.aqi;
-
-    // Character state determination based on AQI:
-    // <= 50: Happy, fresh air, deep breath, smiling
-    // 51-100: Moderate, concerned, mild cough
-    // 101-200: Poor, coughing, protective N95 mask
-    // > 200: Hazardous, sad, medical oxygen mask + oxygen cylinder
-        // Progressive 6-Stage Character AQI Logic:
-    // 1. CleanAirBreathe:         <= 50   (Khul ke saans, fresh air breeze, green leaves)
-    // 2. MildCoughAutumn:         51-100  (Coughing spasm, hand to mouth, autumn red/amber leaves)
-    // 3. UnhealthyMask:           101-150 (Protective N95 mask, wilting brown leaves)
-    // 4. VeryUnhealthySadMask:    151-200 (Visibly sad slumped mask pose, eye-bags, soot motes)
-    // 5. HazardousOxygenCylinder: 201-300 (Medical oxygen mask + oxygen tank & coiled tube, toxic yellow smog)
-    // 6. SevereToxicWrinkled:     > 300   (Deep facial wrinkles, emaciated gaunt, tremor, cylinder in red zone)
-    final _AqiCharacterMood mood;
-    final String advice;
-    final String healthImpact;
-
-    if (aqi <= 50) {
-      mood = _AqiCharacterMood.cleanAirBreathe;
-      advice = 'Ideal air quality! Perfect time for outdoor walks, jogs, and deep breathing.';
-      healthImpact = 'Clean Air • No health precautions required.';
-    } else if (aqi <= 100) {
-      mood = _AqiCharacterMood.mildCoughAutumn;
-      advice = 'Acceptable air quality. Sensitive individuals may feel throat tickles or mild coughs.';
-      healthImpact = 'Moderate • Minor respiratory sensitivity & cough.';
-    } else if (aqi <= 150) {
-      mood = _AqiCharacterMood.unhealthyMask;
-      advice = 'Unhealthy for sensitive groups! Wear a protective N95 mask when outdoors.';
-      healthImpact = 'Unhealthy (Mild) • N95 mask recommended outdoors.';
-    } else if (aqi <= 200) {
-      mood = _AqiCharacterMood.veryUnhealthySadMask;
-      advice = 'Unhealthy air quality! High particulate fatigue. Keep mask strapped and windows shut.';
-      healthImpact = 'Unhealthy • High dust fatigue, wear mask & rest.';
-    } else if (aqi <= 300) {
-      mood = _AqiCharacterMood.hazardousOxygenCylinder;
-      advice = 'Very Unhealthy & Hazardous! Dangerous pollution levels. Stay indoors with oxygen purifier support.';
-      healthImpact = 'Hazardous • Heavy smog, oxygen tank support required.';
-    } else {
-      mood = _AqiCharacterMood.severeToxicWrinkled;
-      advice = 'Severe Toxic Emergency! Critical air toxicity causing intense physical strain. Keep cylinder running & seal premises.';
-      healthImpact = 'Severe Toxic • Critical hazard, extreme fatigue & exhaustion.';
-    }
-
-return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E22) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: weather.aqiColor.withValues(alpha: 0.6), width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: weather.aqiColor.withValues(alpha: isDark ? 0.2 : 0.08),
-            blurRadius: 14,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 10,
-                    height: 10,
+                // Top Right: Live Location Badge
+                Positioned(
+                  top: 12,
+                  right: 14,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: weather.aqiColor,
-                      shape: BoxShape.circle,
+                      color: (isDark ? const Color(0xFF1E1E22) : Colors.white).withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: theme.border.withValues(alpha: 0.6), width: 1),
                       boxShadow: [
                         BoxShadow(
-                          color: weather.aqiColor.withValues(alpha: 0.6),
-                          blurRadius: 6,
-                          spreadRadius: 1,
+                          color: Colors.black.withValues(alpha: 0.08),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF38BDF8)),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${weather.city}, ${weather.country}',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: theme.text,
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
+                ),
+              ],
+            ),
+          ),
+
+          // Lower Section: Reactive Vector Character + Temperature, AQI, PM Rating, Location
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                // Middle Main Character (Reactive AQI Mascot with Upgraded SVGs)
+                AnimatedBuilder(
+                  animation: _coughController,
+                  builder: (context, _) {
+                    return _AqiToolerCharacter(
+                      mood: mood,
+                      theme: theme,
+                      isDark: isDark,
+                      animValue: _coughController.value,
+                      width: 126,
+                      height: 112,
+                    );
+                  },
+                ),
+                const SizedBox(width: 16),
+
+                // Side Data: Degree, AQI, PM Rating, Location
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Weather Degree
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '$displayTemp',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 48,
+                              fontWeight: FontWeight.w900,
+                              color: theme.text,
+                              letterSpacing: -1,
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6, left: 3),
+                            child: Text(
+                              displayUnit,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800,
+                                color: theme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+
+                      // AQI in Tooler theme color font
+                      Text(
+                        'AQI ${weather.aqi} • ${weather.aqiStatus}',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: weather.aqiColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+
+                      // PM Rating
+                      Text(
+                        'PM2.5: ${raw.pm25} µg/m³  •  PM10: ${raw.pm10} µg/m³',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+
+                      // Live Location
+                      Row(
+                        children: [
+                          const Icon(Icons.near_me_rounded, size: 12, color: Color(0xFF38BDF8)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              '${weather.city}, ${weather.country}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: theme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 2. SLEEK MOON PHASE BAR (Aaj ka Moon Phase, tap to open circular hover sheet)
+  // ---------------------------------------------------------------------------
+  Widget _buildMoonPhaseBar(StationeryTheme theme, bool isDark, MoonPhaseInfo moon) {
+    return InkWell(
+      onTap: () {
+        SoundService().playTap();
+        HapticFeedback.selectionClick();
+        _showCircularMoonPhasesModal(context, theme, isDark, moon);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF1E1E22) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.border, width: 1.2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Mini Vector Moon
+            SizedBox(
+              width: 28,
+              height: 28,
+              child: CustomPaint(
+                painter: _VectorMoonPhasePainter(phase: moon.phase, isDark: isDark),
+              ),
+            ),
+            const SizedBox(width: 12),
+
+            // Moon Phase Name & Illumination
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
                   Text(
-                    'Air Quality Index (AQI)',
+                    moon.phaseName,
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
+                      fontSize: 13.5,
                       fontWeight: FontWeight.w800,
                       color: theme.text,
                     ),
                   ),
+                  Text(
+                    '${moon.illuminationPercent.round()}% Illumination • Today\'s Phase',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textSecondary,
+                    ),
+                  ),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: weather.aqiColor.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: weather.aqiColor, width: 1.2),
-                ),
-                child: Text(
-                  weather.aqiStatus.toUpperCase(),
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    color: weather.aqiColor,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Center Section: Vector Character + AQI Stats
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // Dedicated Authentic Tooler Vector Character (No board, Scenario Reactive)
-              AnimatedBuilder(
-                animation: _coughController,
-                builder: (context, _) {
-                  return _AqiToolerCharacter(
-                    mood: mood,
-                    theme: theme,
-                    isDark: isDark,
-                    animValue: _coughController.value,
-                    width: 134,
-                    height: 118,
-                  );
-                },
-              ),
-              const SizedBox(width: 14),
-
-              // AQI Gauge & Particulate Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          '$aqi',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 38,
-                            fontWeight: FontWeight.w900,
-                            color: weather.aqiColor,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'US AQI',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            color: theme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-
-                    // PM 2.5 and PM 10 Pills
-                    Row(
-                      children: [
-                        _buildParticulatePill(theme, isDark, 'PM2.5', '${raw.pm25} µg/m³'),
-                        const SizedBox(width: 6),
-                        _buildParticulatePill(theme, isDark, 'PM10', '${raw.pm10} µg/m³'),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Health Impact Text
-                    Text(
-                      healthImpact,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: theme.text,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          // Protective Advice Box
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF27272A) : theme.lavenderBubble.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: theme.border.withValues(alpha: 0.5), width: 1),
             ),
-            child: Row(
-              children: [
-                Icon(
-                  mood == _AqiCharacterMood.cleanAirBreathe
-                      ? Icons.check_circle_rounded
-                      : (mood == _AqiCharacterMood.mildCoughAutumn
-                          ? Icons.sentiment_neutral_rounded
-                          : (mood == _AqiCharacterMood.unhealthyMask || mood == _AqiCharacterMood.veryUnhealthySadMask
-                              ? Icons.masks_rounded
-                              : Icons.medical_services_rounded)),
-                  size: 16,
-                  color: weather.aqiColor,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    advice,
+
+            // 7 Phases Button Pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: theme.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: theme.primary.withValues(alpha: 0.3), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    '7 Phases',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: theme.textSecondary,
-                      height: 1.3,
+                      fontWeight: FontWeight.w700,
+                      color: theme.primary,
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-                  ],
-      ),
-    );
-  }
-
-  Widget _buildParticulatePill(StationeryTheme theme, bool isDark, String label, String val) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: theme.border.withValues(alpha: 0.4), width: 1),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            '$label: ',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              color: theme.textSecondary,
-            ),
-          ),
-          Text(
-            val,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              color: theme.text,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ---------------------------------------------------------------------------
-  // 3. ASTRONOMICAL MOON PHASE DETAIL CARD
-  // ---------------------------------------------------------------------------
-  Widget _buildMoonPhaseCard(StationeryTheme theme, bool isDark, MoonPhaseInfo moon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF1E1E22) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: theme.border, width: 1.5),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.25 : 0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.nightlight_round, size: 18, color: theme.primary),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Lunar Trajectory & Moon Phase',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: theme.text,
-                    ),
-                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 10, color: theme.primary),
                 ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: theme.lavenderBubble,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  '${moon.illuminationPercent.round()}% ILLUM',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    color: theme.primary,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // Moon Phase Vector Display
-          Row(
-            children: [
-              // Large Custom Vector Moon
-              SizedBox(
-                width: 76,
-                height: 76,
-                child: CustomPaint(
-                  painter: _VectorMoonPhasePainter(phase: moon.phase, isDark: isDark),
-                ),
-              ),
-              const SizedBox(width: 16),
-
-              // Details
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      moon.phaseName,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: theme.text,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      moon.hindiName,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: theme.primary,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Moon Age: ${moon.ageDays.toStringAsFixed(1)} days in synodic cycle • Next New/Full in ${(29.5 - moon.ageDays).toStringAsFixed(1)}d',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10.5,
-                        color: theme.textSecondary,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          // 8 Moon Phases Visual Strip
-          Text(
-            '8-Phase Lunar Cycle Preview:',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: theme.textSecondary,
             ),
-          ),
-          const SizedBox(height: 8),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: [
-                _buildMoonPhaseStripItem('New', 0.0, moon.phase, theme, isDark),
-                _buildMoonPhaseStripItem('Wax Crescent', 0.12, moon.phase, theme, isDark),
-                _buildMoonPhaseStripItem('1st Quarter', 0.25, moon.phase, theme, isDark),
-                _buildMoonPhaseStripItem('Wax Gibbous', 0.38, moon.phase, theme, isDark),
-                _buildMoonPhaseStripItem('Full Moon', 0.50, moon.phase, theme, isDark),
-                _buildMoonPhaseStripItem('Wan Gibbous', 0.62, moon.phase, theme, isDark),
-                _buildMoonPhaseStripItem('3rd Quarter', 0.75, moon.phase, theme, isDark),
-                _buildMoonPhaseStripItem('Wan Crescent', 0.88, moon.phase, theme, isDark),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMoonPhaseStripItem(
-    String label,
-    double phaseVal,
-    double currentPhase,
-    StationeryTheme theme,
-    bool isDark,
-  ) {
-    final isCurrent = (currentPhase - phaseVal).abs() < 0.08 ||
-        (phaseVal == 0.0 && (currentPhase >= 0.94 || currentPhase <= 0.06));
-
-    return Container(
-      margin: const EdgeInsets.only(right: 10),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      decoration: BoxDecoration(
-        color: isCurrent
-            ? theme.primary.withValues(alpha: 0.15)
-            : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5)),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: isCurrent ? theme.primary : theme.border.withValues(alpha: 0.4),
-          width: isCurrent ? 1.5 : 1,
+          ],
         ),
       ),
-      child: Column(
-        children: [
-          SizedBox(
-            width: 28,
-            height: 28,
-            child: CustomPaint(
-              painter: _VectorMoonPhasePainter(phase: phaseVal, isDark: isDark),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 9,
-              fontWeight: isCurrent ? FontWeight.w900 : FontWeight.w600,
-              color: isCurrent ? theme.primary : theme.textSecondary,
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   // ---------------------------------------------------------------------------
-  // 4. 14-DAY HISTORY & FORECAST VISUALIZER
+  // HOVER PAGE: 7/8 MOON PHASES IN CIRCULAR ORBIT AROUND CENTRAL MOON
   // ---------------------------------------------------------------------------
-  Widget _buildForecastHistoryCard(StationeryTheme theme, bool isDark, WeatherTelemetryData raw) {
-    final dailyList = raw.dailyList;
+  void _showCircularMoonPhasesModal(
+    BuildContext context,
+    StationeryTheme theme,
+    bool isDark,
+    MoonPhaseInfo currentMoon,
+  ) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF1E1E22) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return _CircularMoonPhasesSheet(
+          theme: theme,
+          isDark: isDark,
+          currentMoon: currentMoon,
+        );
+      },
+    );
+  }
 
-    // Filter list according to tab
-    List<DailyForecastItem> itemsToDisplay;
-    if (_forecastTab == 1) {
-      // Past 7 Days
-      itemsToDisplay = dailyList.where((d) => d.isPast).toList();
-    } else if (_forecastTab == 2) {
-      // Next 7 Days
-      itemsToDisplay = dailyList.where((d) => !d.isPast).toList();
-    } else {
-      // All 14 Days
-      itemsToDisplay = dailyList;
-    }
-
+  // ---------------------------------------------------------------------------
+  // 3. CLEAN FORECAST GRAPH CARD (Hourly 24h & 14-Day Past/Future trends)
+  // ---------------------------------------------------------------------------
+  Widget _buildForecastGraphCard(StationeryTheme theme, bool isDark, WeatherTelemetryData raw) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1387,19 +1023,18 @@ return Container(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header & Tabs
+          // Header Row with Title and 4-way Segmented Toggle: Hourly | 14 Days | Past 7D | Next 7D
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '14-Day Weather Trend',
+                'Weather Trend',
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   color: theme.text,
                 ),
               ),
-              // Segmented tab control
               Container(
                 padding: const EdgeInsets.all(2),
                 decoration: BoxDecoration(
@@ -1408,9 +1043,10 @@ return Container(
                 ),
                 child: Row(
                   children: [
-                    _buildForecastTabButton('14d', 0, theme, isDark),
-                    _buildForecastTabButton('Past 7d', 1, theme, isDark),
-                    _buildForecastTabButton('Next 7d', 2, theme, isDark),
+                    _buildForecastTabBtn('Hourly', 0, theme, isDark),
+                    _buildForecastTabBtn('14d', 1, theme, isDark),
+                    _buildForecastTabBtn('Past 7d', 2, theme, isDark),
+                    _buildForecastTabBtn('Next 7d', 3, theme, isDark),
                   ],
                 ),
               ),
@@ -1418,157 +1054,289 @@ return Container(
           ),
           const SizedBox(height: 14),
 
-          // Horizontal Bar Chart
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: itemsToDisplay.map((item) {
-                final maxT = _toDisplayTemp(item.maxTempC).round();
-                final minT = _toDisplayTemp(item.minTempC).round();
-                final dayLabel = _formatDayLabel(item.date, item.isToday);
-                final dateLabel = '${item.date.day}/${item.date.month}';
-
-                return Container(
-                  width: 58,
-                  margin: const EdgeInsets.only(right: 8),
-                  padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-                  decoration: BoxDecoration(
-                    color: item.isToday
-                        ? theme.primary.withValues(alpha: 0.12)
-                        : (item.isPast
-                            ? (isDark ? const Color(0xFF222226) : const Color(0xFFF9FAFB))
-                            : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5))),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(
-                      color: item.isToday
-                          ? theme.primary
-                          : (item.isPast ? theme.border.withValues(alpha: 0.3) : theme.border),
-                      width: item.isToday ? 1.5 : 1,
-                    ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Past / Today / Future Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1.5),
-                        decoration: BoxDecoration(
-                          color: item.isToday
-                              ? theme.primary
-                              : (item.isPast
-                                  ? Colors.grey.withValues(alpha: 0.2)
-                                  : theme.lavenderBubble),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          item.isToday ? 'TODAY' : (item.isPast ? 'PAST' : 'FCST'),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 7.5,
-                            fontWeight: FontWeight.w900,
-                            color: item.isToday ? Colors.white : theme.textSecondary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 5),
-
-                      // Day Name
-                      Text(
-                        dayLabel,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11,
-                          fontWeight: item.isToday ? FontWeight.w900 : FontWeight.w700,
-                          color: item.isToday ? theme.primary : theme.text,
-                        ),
-                      ),
-                      Text(
-                        dateLabel,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
-                          color: theme.textSecondary,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Weather Icon
-                      Icon(
-                        _telemetry.getWeatherIcon(item.weatherCode, true),
-                        size: 20,
-                        color: [0, 1].contains(item.weatherCode)
-                            ? const Color(0xFFF59E0B)
-                            : ([95, 96, 99].contains(item.weatherCode)
-                                ? const Color(0xFF8B5CF6)
-                                : const Color(0xFF0284C7)),
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Temperature High
-                      Text(
-                        '$maxT°',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: const Color(0xFFEF4444),
-                        ),
-                      ),
-
-                      // Visual Temperature Bar
-                      Container(
-                        margin: const EdgeInsets.symmetric(vertical: 4),
-                        width: 8,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(4),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Color(0xFFEF4444),
-                              Color(0xFF38BDF8),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      // Temperature Low
-                      Text(
-                        '$minT°',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF38BDF8),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-
-                      // Rain Probability
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.water_drop_rounded, size: 9, color: Color(0xFF0284C7)),
-                          Text(
-                            '${item.precipProb}%',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w700,
-                              color: const Color(0xFF0284C7),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
+          // Graph Body (Hourly vs Daily)
+          if (_forecastTab == 0)
+            _buildHourlyGraphView(theme, isDark, raw.hourlyList)
+          else
+            _buildDailyGraphView(theme, isDark, raw.dailyList),
         ],
       ),
     );
   }
 
-  Widget _buildForecastTabButton(String label, int tabIndex, StationeryTheme theme, bool isDark) {
+  Widget _buildHourlyGraphView(
+    StationeryTheme theme,
+    bool isDark,
+    List<HourlyForecastItem> hours,
+  ) {
+    if (hours.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Text(
+            'No hourly data available',
+            style: GoogleFonts.plusJakartaSans(color: theme.textSecondary),
+          ),
+        ),
+      );
+    }
+
+    double minT = 999;
+    double maxT = -999;
+    for (final h in hours) {
+      if (h.tempC < minT) minT = h.tempC;
+      if (h.tempC > maxT) maxT = h.tempC;
+    }
+    if ((maxT - minT).abs() < 1) maxT = minT + 5;
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: hours.map((item) {
+          final tempVal = _toDisplayTemp(item.tempC).round();
+          final norm = ((item.tempC - minT) / (maxT - minT)).clamp(0.0, 1.0);
+          final barHeight = 26.0 + (norm * 44.0);
+          final hourStr = item.isNow ? 'Now' : _formatHour(item.hour);
+
+          return Container(
+            width: 52,
+            margin: const EdgeInsets.only(right: 6),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
+            decoration: BoxDecoration(
+              color: item.isNow
+                  ? theme.primary.withValues(alpha: 0.12)
+                  : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5)),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: item.isNow ? theme.primary : theme.border.withValues(alpha: 0.4),
+                width: item.isNow ? 1.5 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Hour label
+                Text(
+                  hourStr,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9.5,
+                    fontWeight: item.isNow ? FontWeight.w900 : FontWeight.w700,
+                    color: item.isNow ? theme.primary : theme.text,
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Weather Icon
+                Icon(
+                  _telemetry.getWeatherIcon(item.weatherCode, item.isDay),
+                  size: 17,
+                  color: [0, 1].contains(item.weatherCode)
+                      ? (item.isDay ? const Color(0xFFF59E0B) : const Color(0xFF818CF8))
+                      : ([95, 96, 99].contains(item.weatherCode)
+                          ? const Color(0xFF8B5CF6)
+                          : const Color(0xFF0284C7)),
+                ),
+                const SizedBox(height: 8),
+
+                // Temperature text
+                Text(
+                  '$tempVal°',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                    color: theme.text,
+                  ),
+                ),
+                const SizedBox(height: 5),
+
+                // Visual Temperature Bar
+                Container(
+                  width: 7,
+                  height: barHeight,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        item.isNow ? theme.primary : const Color(0xFFF97316),
+                        const Color(0xFF38BDF8),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Rain Probability or dot
+                if (item.precipProb > 0)
+                  Text(
+                    '${item.precipProb}%',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0284C7),
+                    ),
+                  )
+                else
+                  Text(
+                    '•',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8.5,
+                      color: theme.textSecondary.withValues(alpha: 0.5),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildDailyGraphView(
+    StationeryTheme theme,
+    bool isDark,
+    List<DailyForecastItem> dailyList,
+  ) {
+    List<DailyForecastItem> items;
+    if (_forecastTab == 2) {
+      items = dailyList.where((d) => d.isPast).toList();
+    } else if (_forecastTab == 3) {
+      items = dailyList.where((d) => !d.isPast).toList();
+    } else {
+      items = dailyList;
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: items.map((item) {
+          final maxT = _toDisplayTemp(item.maxTempC).round();
+          final minT = _toDisplayTemp(item.minTempC).round();
+          final dayLabel = _formatDayLabel(item.date, item.isToday);
+          final dateLabel = '${item.date.day}/${item.date.month}';
+
+          return Container(
+            width: 56,
+            margin: const EdgeInsets.only(right: 6),
+            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+            decoration: BoxDecoration(
+              color: item.isToday
+                  ? theme.primary.withValues(alpha: 0.12)
+                  : (item.isPast
+                      ? (isDark ? const Color(0xFF222226) : const Color(0xFFF9FAFB))
+                      : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5))),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: item.isToday
+                    ? theme.primary
+                    : (item.isPast ? theme.border.withValues(alpha: 0.3) : theme.border),
+                width: item.isToday ? 1.5 : 1,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Day Name & Date
+                Text(
+                  dayLabel,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 10.5,
+                    fontWeight: item.isToday ? FontWeight.w900 : FontWeight.w700,
+                    color: item.isToday ? theme.primary : theme.text,
+                  ),
+                ),
+                Text(
+                  dateLabel,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 8.5,
+                    color: theme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+
+                // Weather Icon
+                Icon(
+                  _telemetry.getWeatherIcon(item.weatherCode, true),
+                  size: 18,
+                  color: [0, 1].contains(item.weatherCode)
+                      ? const Color(0xFFF59E0B)
+                      : ([95, 96, 99].contains(item.weatherCode)
+                          ? const Color(0xFF8B5CF6)
+                          : const Color(0xFF0284C7)),
+                ),
+                const SizedBox(height: 6),
+
+                // Max Temp
+                Text(
+                  '$maxT°',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w900,
+                    color: const Color(0xFFEF4444),
+                  ),
+                ),
+
+                // Range Bar
+                Container(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  width: 7,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(4),
+                    gradient: const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Color(0xFFEF4444),
+                        Color(0xFF38BDF8),
+                      ],
+                    ),
+                  ),
+                ),
+
+                // Min Temp
+                Text(
+                  '$minT°',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: const Color(0xFF38BDF8),
+                  ),
+                ),
+                const SizedBox(height: 5),
+
+                // Rain Prob
+                if (item.precipProb > 0)
+                  Text(
+                    '${item.precipProb}%',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0284C7),
+                    ),
+                  )
+                else
+                  Text(
+                    '•',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 8.5,
+                      color: theme.textSecondary.withValues(alpha: 0.5),
+                    ),
+                  ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildForecastTabBtn(String label, int tabIndex, StationeryTheme theme, bool isDark) {
     final isSelected = _forecastTab == tabIndex;
     return InkWell(
       onTap: () {
@@ -1577,7 +1345,7 @@ return Container(
       },
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
         decoration: BoxDecoration(
           color: isSelected
               ? (isDark ? const Color(0xFF3F3F46) : Colors.white)
@@ -1595,13 +1363,19 @@ return Container(
         child: Text(
           label,
           style: GoogleFonts.plusJakartaSans(
-            fontSize: 10.5,
+            fontSize: 10,
             fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
             color: isSelected ? theme.primary : theme.textSecondary,
           ),
         ),
       ),
     );
+  }
+
+  static String _formatHour(int h) {
+    final ampm = h >= 12 ? 'PM' : 'AM';
+    final hr = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+    return '$hr $ampm';
   }
 
   static String _formatDayLabel(DateTime d, bool isToday) {
@@ -1924,9 +1698,9 @@ class _EffectiveWeather {
 }
 
 // ---------------------------------------------------------------------------
-// ATMOSPHERIC LANDSCAPE PAINTER (Mountains, Sun, Moon, Overlays, AQI, Disasters)
+// CELESTIAL SKY SVG PAINTER (Lunar / Solar Trajectory Arc + SVG Sun/Moon/Clouds/Rain/Thunder/Disasters)
 // ---------------------------------------------------------------------------
-class _AtmosphericLandscapePainter extends CustomPainter {
+class _CelestialSkySvgPainter extends CustomPainter {
   final _EffectiveWeather weather;
   final MoonPhaseInfo moonPhase;
   final double animProgress;
@@ -1934,8 +1708,9 @@ class _AtmosphericLandscapePainter extends CustomPainter {
   final double floodProgress;
   final double twisterProgress;
   final bool isDark;
+  final Color accentColor;
 
-  _AtmosphericLandscapePainter({
+  _CelestialSkySvgPainter({
     required this.weather,
     required this.moonPhase,
     required this.animProgress,
@@ -1943,6 +1718,7 @@ class _AtmosphericLandscapePainter extends CustomPainter {
     required this.floodProgress,
     required this.twisterProgress,
     required this.isDark,
+    required this.accentColor,
   });
 
   @override
@@ -1950,582 +1726,184 @@ class _AtmosphericLandscapePainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
-    // 1. SKY GRADIENT
-    _paintSky(canvas, w, h);
-
-    // 2. STARS AT NIGHT
-    if (!weather.isDay) {
-      _paintStars(canvas, w, h);
-    }
-
-    // 3. SUN OR MOON
-    if (weather.isDay) {
-      _paintSun(canvas, w, h);
-    } else {
-      _paintMoon(canvas, w, h);
-    }
-
-    // 4. DISTANT MOUNTAIN RIDGE
-    _paintDistantMountains(canvas, w, h);
-
-    // 5. MIDGROUND MOUNTAINS & CANYON
-    _paintMidgroundMountains(canvas, w, h);
-
-    // 6. MOUNTAIN FLOOD SURGE DISASTER (rushing through mountain valley)
-    if (weather.isFlood) {
-      _paintFloodSurge(canvas, w, h);
-    }
-
-    // 7. FOREGROUND HILLS & HORIZON
-    _paintForegroundHills(canvas, w, h);
-
-    // 8. TREES & BIRDS ECOLOGY (Driven by AQI)
-    _paintEcology(canvas, w, h);
-
-    // 9. DRIFTING CLOUDS
-    _paintClouds(canvas, w, h);
-
-    // 10. RAIN DELUGE
-    if (weather.isRain) {
-      _paintRain(canvas, w, h);
-    }
-
-    // 11. THUNDER LIGHTNING
-    if (weather.isThunder) {
-      _paintLightning(canvas, w, h);
-    }
-
-    // 12. TORNADO TWISTER VORTEX DISASTER
-    if (weather.isTwister) {
-      _paintTornado(canvas, w, h);
-    }
-
-    // 13. SMOG / POLLUTION HAZE (If AQI >= 100)
-    if (weather.aqi >= 100) {
-      _paintSmogHaze(canvas, w, h);
-    }
-  }
-
-  void _paintSky(Canvas canvas, double w, double h) {
+    // 1. Sky Gradient tailored to weather conditions
     final Rect rect = Rect.fromLTWH(0, 0, w, h);
     final Gradient grad;
-
     if (weather.isTwister) {
-      // Ominous stormy green-black twister sky
       grad = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF132E27)],
+        colors: [Color(0xFF0F172A), Color(0xFF132E27)],
       );
     } else if (weather.isThunder || weather.isFlood) {
-      // Dark brooding storm sky
       grad = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF334155)],
+        colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
       );
     } else if (weather.isRain) {
-      // Cool misty rain sky
-      grad = const LinearGradient(
+      grad = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFF1E293B), Color(0xFF3B82F6), Color(0xFF64748B)],
+        colors: isDark
+            ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+            : [const Color(0xFFE0F2FE), const Color(0xFFBAE6FD)],
       );
     } else if (weather.isDay) {
-      // Radiant daylight sky
-      grad = const LinearGradient(
+      grad = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFF0284C7), Color(0xFF38BDF8), Color(0xFFBAE6FD), Color(0xFFFEF08A)],
+        colors: isDark
+            ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+            : [const Color(0xFFE0F2FE), const Color(0xFFF0FDF4)],
       );
     } else {
-      // Deep starry night indigo
       grad = const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [Color(0xFF050814), Color(0xFF0F172A), Color(0xFF1E1B4B)],
+        colors: [Color(0xFF090D1A), Color(0xFF0F172A)],
       );
     }
+    canvas.drawRect(rect, Paint()..shader = grad.createShader(rect));
 
-    final paint = Paint()..shader = grad.createShader(rect);
-    canvas.drawRect(rect, paint);
-  }
-
-  void _paintStars(Canvas canvas, double w, double h) {
-    final starPaint = Paint()..color = Colors.white;
-    // Pre-calculated star offsets
-    final stars = [
-      Offset(w * 0.12, h * 0.12),
-      Offset(w * 0.28, h * 0.08),
-      Offset(w * 0.44, h * 0.16),
-      Offset(w * 0.62, h * 0.09),
-      Offset(w * 0.78, h * 0.14),
-      Offset(w * 0.88, h * 0.06),
-      Offset(w * 0.20, h * 0.22),
-      Offset(w * 0.72, h * 0.24),
-    ];
-
-    for (int i = 0; i < stars.length; i++) {
-      final twinkle = (math.sin((animProgress * math.pi * 2) + i) + 1.0) / 2.0;
-      starPaint.color = Colors.white.withValues(alpha: 0.3 + (twinkle * 0.65));
-      final r = 1.0 + (twinkle * 1.2);
-      canvas.drawCircle(stars[i], r, starPaint);
+    // 2. Stars at night
+    if (!weather.isDay) {
+      final starPaint = Paint()..color = Colors.white;
+      final stars = [
+        Offset(w * 0.12, h * 0.28),
+        Offset(w * 0.24, h * 0.18),
+        Offset(w * 0.38, h * 0.34),
+        Offset(w * 0.62, h * 0.20),
+        Offset(w * 0.76, h * 0.32),
+        Offset(w * 0.88, h * 0.16),
+      ];
+      for (int i = 0; i < stars.length; i++) {
+        final twinkle = (math.sin((animProgress * math.pi * 2) + i * 1.5) + 1.0) / 2.0;
+        starPaint.color = Colors.white.withValues(alpha: 0.25 + (twinkle * 0.65));
+        canvas.drawCircle(stars[i], 1.0 + (twinkle * 0.8), starPaint);
+      }
     }
-  }
 
-  void _paintSun(Canvas canvas, double w, double h) {
+    // 3. SVG Celestial Lunar / Solar Trajectory Arc across the top
+    final p0 = Offset(w * 0.08, h * 0.82);
+    final p1 = Offset(w * 0.50, h * 0.18);
+    final p2 = Offset(w * 0.92, h * 0.82);
+
+    final dashPaint = Paint()
+      ..color = (isDark ? Colors.white : accentColor).withValues(alpha: 0.20)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.3;
+
+    const dashCount = 28;
+    for (int i = 0; i <= dashCount; i++) {
+      final t = i / dashCount;
+      if (i % 2 == 0) {
+        final x = (1 - t) * (1 - t) * p0.dx + 2 * (1 - t) * t * p1.dx + t * t * p2.dx;
+        final y = (1 - t) * (1 - t) * p0.dy + 2 * (1 - t) * t * p1.dy + t * t * p2.dy;
+        canvas.drawCircle(Offset(x, y), 1.2, dashPaint);
+      }
+    }
+
+    // Dynamic celestial position along the trajectory arc
     final now = DateTime.now();
     final hour = now.hour + (now.minute / 60.0);
-
-    // Dynamic morning growth & trajectory from behind mountain:
-    final double sunX;
-    final double sunY;
-    final double scale;
-
-    if (hour >= 5.0 && hour <= 10.5) {
-      // Morning: Sun emerges low from mountain slope and grows in size & brightness
-      final t = ((hour - 5.0) / 5.5).clamp(0.0, 1.0);
-      sunX = w * (0.24 + (t * 0.46));
-      sunY = h * (0.50 - (t * 0.28)); // emerges from mountain crest
-      scale = 0.72 + (t * 0.38); // grows from 0.72x to 1.1x!
-    } else if (hour > 10.5 && hour <= 16.0) {
-      // High bright midday sun
-      sunX = w * 0.70;
-      sunY = h * 0.22;
-      scale = 1.10;
+    final double arcT;
+    if (weather.isDay) {
+      arcT = ((hour - 6.0) / 12.0).clamp(0.12, 0.88);
     } else {
-      // Evening: Sun descends towards the mountain crest
-      final t = ((hour - 16.0) / 2.5).clamp(0.0, 1.0);
-      sunX = w * (0.70 + (t * 0.18));
-      sunY = h * (0.22 + (t * 0.26));
-      scale = 1.10 - (t * 0.25);
+      final nightHour = hour < 6.0 ? hour + 18.0 : hour - 6.0;
+      arcT = (nightHour / 12.0).clamp(0.12, 0.88);
     }
 
-    final sunCenter = Offset(sunX, sunY);
-    final sunRadius = w * 0.085 * scale;
+    final celestialX = (1 - arcT) * (1 - arcT) * p0.dx + 2 * (1 - arcT) * arcT * p1.dx + arcT * arcT * p2.dx;
+    final celestialY = (1 - arcT) * (1 - arcT) * p0.dy + 2 * (1 - arcT) * arcT * p1.dy + arcT * arcT * p2.dy;
 
-    // Radiant outer glowing aura
-    final glowPaint = Paint()
+    // Glowing coordinate tick on the trajectory arc
+    final nodeGlow = Paint()
+      ..color = (weather.isDay ? const Color(0xFFFBBF24) : const Color(0xFFE0E7FF)).withValues(alpha: 0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
+    canvas.drawCircle(Offset(celestialX, celestialY), 7.0, nodeGlow);
+
+    // 4. Paint Sun or Moon at the celestial coordinate
+    if (weather.isDay) {
+      _paintSvgSun(canvas, Offset(celestialX, celestialY));
+    } else {
+      _paintSvgMoon(canvas, Offset(celestialX, celestialY));
+    }
+
+    // 5. Paint SVG Weather Overlays: Clouds, Rain, Thunder Lightning, Disasters
+    if (weather.isTwister) {
+      _paintSvgTwister(canvas, w, h);
+    } else if (weather.isFlood) {
+      _paintSvgFlood(canvas, w, h);
+    } else if (weather.isThunder) {
+      _paintSvgThunder(canvas, w, h);
+    } else if (weather.isRain) {
+      _paintSvgRain(canvas, w, h);
+    } else if (weather.isCloudy) {
+      _paintSvgClouds(canvas, w, h);
+    }
+  }
+
+  void _paintSvgSun(Canvas canvas, Offset center) {
+    const r = 13.0;
+    // Corona
+    final corona = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFFBBF24).withValues(alpha: 0.6),
-          const Color(0xFFFBBF24).withValues(alpha: 0.15),
+          const Color(0xFFFBBF24).withValues(alpha: 0.65),
+          const Color(0xFFF59E0B).withValues(alpha: 0.15),
           Colors.transparent,
         ],
-      ).createShader(Rect.fromCircle(center: sunCenter, radius: sunRadius * 3.2));
-    canvas.drawCircle(sunCenter, sunRadius * 3.2, glowPaint);
+      ).createShader(Rect.fromCircle(center: center, radius: r * 2.2));
+    canvas.drawCircle(center, r * 2.2, corona);
 
     // Rotating solar rays
     final rayPaint = Paint()
-      ..color = const Color(0xFFFDE68A).withValues(alpha: 0.38)
-      ..strokeWidth = 2.0 * scale
+      ..color = const Color(0xFFFEF08A)
+      ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round;
 
-    final rayRot = animProgress * math.pi * 2;
+    final rot = animProgress * math.pi * 2;
     for (int i = 0; i < 8; i++) {
-      final angle = rayRot + (i * (math.pi / 4));
-      final p1 = Offset(sunCenter.dx + math.cos(angle) * (sunRadius * 1.25), sunCenter.dy + math.sin(angle) * (sunRadius * 1.25));
-      final p2 = Offset(sunCenter.dx + math.cos(angle) * (sunRadius * 1.85), sunCenter.dy + math.sin(angle) * (sunRadius * 1.85));
+      final angle = rot + (i * (math.pi / 4));
+      final p1 = Offset(center.dx + math.cos(angle) * (r * 1.25), center.dy + math.sin(angle) * (r * 1.25));
+      final p2 = Offset(center.dx + math.cos(angle) * (r * 1.8), center.dy + math.sin(angle) * (r * 1.8));
       canvas.drawLine(p1, p2, rayPaint);
     }
 
-    // Golden Sun Disc
-    final sunPaint = Paint()
+    // Golden Core
+    final sunCore = Paint()
       ..shader = const RadialGradient(
         colors: [Color(0xFFFFFBEB), Color(0xFFF59E0B)],
-      ).createShader(Rect.fromCircle(center: sunCenter, radius: sunRadius));
-    canvas.drawCircle(sunCenter, sunRadius, sunPaint);
+      ).createShader(Rect.fromCircle(center: center, radius: r));
+    canvas.drawCircle(center, r, sunCore);
   }
 
-  void _paintMoon(Canvas canvas, double w, double h) {
-    final now = DateTime.now();
-    final hour = now.hour + (now.minute / 60.0);
-
-    // Night trajectory: Moon emerges from behind mountain into starry sky
-    final double moonX;
-    final double moonY;
-    final double scale;
-
-    if (hour >= 18.0 && hour <= 23.5) {
-      final t = ((hour - 18.0) / 5.5).clamp(0.0, 1.0);
-      moonX = w * (0.28 + (t * 0.46));
-      moonY = h * (0.48 - (t * 0.22)); // emerges from behind mountain
-      scale = 0.75 + (t * 0.30);
-    } else {
-      moonX = w * 0.74;
-      moonY = h * 0.26;
-      scale = 1.05;
-    }
-
-    final moonCenter = Offset(moonX, moonY);
-    final r = w * 0.085 * scale;
-
-    // Celestial moonlight glow
-    final glowPaint = Paint()
+  void _paintSvgMoon(Canvas canvas, Offset center) {
+    const r = 12.0;
+    // Glow
+    final glow = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFE0E7FF).withValues(alpha: 0.4),
-          const Color(0xFFE0E7FF).withValues(alpha: 0.08),
+          const Color(0xFFE0E7FF).withValues(alpha: 0.45),
           Colors.transparent,
         ],
-      ).createShader(Rect.fromCircle(center: moonCenter, radius: r * 2.5));
-    canvas.drawCircle(moonCenter, r * 2.5, glowPaint);
+      ).createShader(Rect.fromCircle(center: center, radius: r * 2.0));
+    canvas.drawCircle(center, r * 2.0, glow);
 
-    // Accurate Vector Moon Phase rendering
-    _drawMoonPhaseDirect(canvas, moonCenter, r, moonPhase.phase);
-  }
+    // Moon disc with exact phase
+    final darkBase = Paint()..color = const Color(0xFF1E293B);
+    canvas.drawCircle(center, r, darkBase);
 
-  void _paintDistantMountains(Canvas canvas, double w, double h) {
-    final path = Path();
-    path.moveTo(0, h * 0.62);
-    path.lineTo(w * 0.18, h * 0.48);
-    path.lineTo(w * 0.38, h * 0.58);
-    path.lineTo(w * 0.60, h * 0.44);
-    path.lineTo(w * 0.82, h * 0.54);
-    path.lineTo(w, h * 0.46);
-    path.lineTo(w, h);
-    path.lineTo(0, h);
-    path.close();
-
-    final paint = Paint()
-      ..color = weather.isDay
-          ? const Color(0xFF7DD3FC).withValues(alpha: 0.45)
-          : const Color(0xFF312E81).withValues(alpha: 0.5);
-    canvas.drawPath(path, paint);
-  }
-
-  void _paintMidgroundMountains(Canvas canvas, double w, double h) {
-    final path = Path();
-    path.moveTo(0, h * 0.72);
-    path.lineTo(w * 0.25, h * 0.54);
-    path.lineTo(w * 0.46, h * 0.66);
-    // Valley canyon center
-    path.lineTo(w * 0.52, h * 0.78);
-    path.lineTo(w * 0.70, h * 0.52);
-    path.lineTo(w * 0.88, h * 0.64);
-    path.lineTo(w, h * 0.58);
-    path.lineTo(w, h);
-    path.lineTo(0, h);
-    path.close();
-
-    final paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: weather.isDay
-            ? [const Color(0xFF0369A1), const Color(0xFF0C4A6E)]
-            : [const Color(0xFF1E1B4B), const Color(0xFF0F172A)],
-      ).createShader(Rect.fromLTWH(0, h * 0.52, w, h * 0.48));
-    canvas.drawPath(path, paint);
-  }
-
-  void _paintForegroundHills(Canvas canvas, double w, double h) {
-    final path = Path();
-    path.moveTo(0, h * 0.82);
-    path.quadraticBezierTo(w * 0.22, h * 0.74, w * 0.48, h * 0.84);
-    path.quadraticBezierTo(w * 0.76, h * 0.92, w, h * 0.80);
-    path.lineTo(w, h);
-    path.lineTo(0, h);
-    path.close();
-
-    final paint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: weather.isDay
-            ? (weather.aqi < 100
-                ? [const Color(0xFF15803D), const Color(0xFF14532D)]
-                : [const Color(0xFF78716C), const Color(0xFF44403C)])
-            : [const Color(0xFF064E3B), const Color(0xFF022C22)],
-      ).createShader(Rect.fromLTWH(0, h * 0.74, w, h * 0.26));
-    canvas.drawPath(path, paint);
-  }
-
-  void _paintFloodSurge(Canvas canvas, double w, double h) {
-    // A rapid foaming mountain river rushing down the canyon valley
-    final waveShift = (floodProgress * w * 0.8) % w;
-
-    final floodPath = Path();
-    floodPath.moveTo(w * 0.40, h * 0.72);
-    floodPath.quadraticBezierTo(
-      w * 0.50 + math.sin(floodProgress * math.pi * 2) * 12,
-      h * 0.82,
-      w * 0.56,
-      h,
-    );
-    floodPath.lineTo(w * 0.35, h);
-    floodPath.close();
-
-    final floodPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFF38BDF8), Color(0xFF0284C7), Color(0xFF0369A1)],
-      ).createShader(Rect.fromLTWH(w * 0.35, h * 0.72, w * 0.25, h * 0.28));
-    canvas.drawPath(floodPath, floodPaint);
-
-    // Foaming white wave crests
-    final foamPaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.85)
-      ..strokeWidth = 2.2
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-
-    for (int i = 0; i < 4; i++) {
-      final y = h * 0.76 + (i * 12);
-      final x = w * 0.38 + ((waveShift + (i * 20)) % 60);
-      canvas.drawLine(Offset(x, y), Offset(x + 18, y + 2), foamPaint);
-    }
-  }
-
-  void _paintEcology(Canvas canvas, double w, double h) {
-    final aqi = weather.aqi;
-    final isGoodAqi = aqi < 100;
-
-    // 1. BIRDS IN SKY (Only when AQI < 100)
-    if (isGoodAqi) {
-      final birdPaint = Paint()
-        ..color = (weather.isDay ? const Color(0xFF1E293B) : const Color(0xFFCBD5E1))
-            .withValues(alpha: 0.85)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.8
-        ..strokeCap = StrokeCap.round;
-
-      // Flying flock gliding across mountains
-      final birdBaseX = ((animProgress * w * 1.3) % (w + 100)) - 60;
-      final wingFlap = math.sin(animProgress * math.pi * 14) * 4.0;
-
-      _drawBird(canvas, birdBaseX, h * 0.38, wingFlap, birdPaint);
-      _drawBird(canvas, birdBaseX + 24, h * 0.35, wingFlap + 0.8, birdPaint);
-      _drawBird(canvas, birdBaseX + 46, h * 0.40, wingFlap - 0.6, birdPaint);
-      _drawBird(canvas, birdBaseX + 70, h * 0.37, wingFlap + 1.2, birdPaint);
-    }
-
-    // 2. MINI TREES ON MOUNTAIN FOOTHILLS
-    // Sway offset in fresh air breeze
-    final sway = isGoodAqi ? (math.sin(animProgress * math.pi * 4) * 3.0) : 0.0;
-
-    final treePositions = [
-      Offset(w * 0.08, h * 0.78),
-      Offset(w * 0.16, h * 0.76),
-      Offset(w * 0.24, h * 0.80),
-      Offset(w * 0.34, h * 0.83),
-      Offset(w * 0.64, h * 0.84),
-      Offset(w * 0.78, h * 0.86),
-      Offset(w * 0.88, h * 0.82),
-      Offset(w * 0.94, h * 0.79),
-    ];
-
-    for (final pos in treePositions) {
-      if (isGoodAqi) {
-        // Lush green pine tree swaying gently
-        _drawLushTree(canvas, pos.dx, pos.dy, sway);
-      } else {
-        // Bare dry branch tree (Sukhe ped)
-        _drawBareDryTree(canvas, pos.dx, pos.dy);
-      }
-    }
-  }
-
-  void _drawBird(Canvas canvas, double x, double y, double wingFlap, Paint paint) {
-    final path = Path();
-    path.moveTo(x - 9, y - wingFlap);
-    path.quadraticBezierTo(x - 4, y - 2, x, y);
-    path.quadraticBezierTo(x + 4, y - 2, x + 9, y - wingFlap);
-    canvas.drawPath(path, paint);
-  }
-
-  void _drawLushTree(Canvas canvas, double x, double y, double sway) {
-    // Tree Trunk
-    final trunk = Paint()
-      ..color = const Color(0xFF451A03)
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(x, y), Offset(x + (sway * 0.25), y - 12), trunk);
-
-    // Green Foliage Tiers with Flutter/Wing Tips in Fresh Air
-    final foliageDark = Paint()
-      ..color = const Color(0xFF15803D)
-      ..style = PaintingStyle.fill;
-    final foliageLight = Paint()
-      ..color = const Color(0xFF22C55E)
-      ..style = PaintingStyle.fill;
-
-    // Bottom tier (broad)
-    final t1 = Path()
-      ..moveTo(x + (sway * 0.8), y - 24)
-      ..lineTo(x - 9 - (sway * 0.5), y - 10)
-      ..quadraticBezierTo(x, y - 8, x + 9 + (sway * 0.5), y - 10)
-      ..close();
-    canvas.drawPath(t1, foliageDark);
-
-    // Middle tier
-    final t2 = Path()
-      ..moveTo(x + sway, y - 30)
-      ..lineTo(x - 7 - (sway * 0.4), y - 18)
-      ..quadraticBezierTo(x, y - 16, x + 7 + (sway * 0.4), y - 18)
-      ..close();
-    canvas.drawPath(t2, foliageLight);
-
-    // Top tier crown fluttering in wind
-    final t3 = Path()
-      ..moveTo(x + (sway * 1.3), y - 36)
-      ..lineTo(x - 5, y - 26)
-      ..lineTo(x + 5, y - 26)
-      ..close();
-    canvas.drawPath(t3, foliageLight);
-  }
-
-  void _drawBareDryTree(Canvas canvas, double x, double y) {
-    // Dry bare branches (Sukhe ped without leaves)
-    final dryPaint = Paint()
-      ..color = const Color(0xFF57534E)
-      ..strokeWidth = 1.5
-      ..strokeCap = StrokeCap.round;
-
-    // Bare trunk
-    canvas.drawLine(Offset(x, y), Offset(x, y - 18), dryPaint);
-    // Spindly dry branches
-    canvas.drawLine(Offset(x, y - 10), Offset(x - 6, y - 16), dryPaint);
-    canvas.drawLine(Offset(x, y - 14), Offset(x + 7, y - 22), dryPaint);
-    canvas.drawLine(Offset(x - 6, y - 16), Offset(x - 9, y - 23), dryPaint);
-  }
-
-  void _paintClouds(Canvas canvas, double w, double h) {
-    final cloudPaint = Paint()
-      ..color = Colors.white.withValues(alpha: weather.isThunder ? 0.35 : 0.65)
-      ..style = PaintingStyle.fill;
-
-    // Multi-layer drifting clouds
-    final x1 = ((animProgress * w * 0.7) % (w + 140)) - 70;
-    final x2 = (((animProgress * w * 0.4) + (w * 0.5)) % (w + 140)) - 70;
-
-    _drawCloudShape(canvas, x1, h * 0.22, 54, cloudPaint);
-    _drawCloudShape(canvas, x2, h * 0.16, 68, cloudPaint);
-  }
-
-  void _drawCloudShape(Canvas canvas, double cx, double cy, double r, Paint paint) {
-    canvas.drawCircle(Offset(cx, cy), r * 0.45, paint);
-    canvas.drawCircle(Offset(cx + (r * 0.35), cy - (r * 0.15)), r * 0.55, paint);
-    canvas.drawCircle(Offset(cx + (r * 0.75), cy), r * 0.42, paint);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(cx - (r * 0.2), cy - (r * 0.05), r * 1.15, r * 0.45),
-        Radius.circular(r * 0.2),
-      ),
-      paint,
-    );
-  }
-
-  void _paintRain(Canvas canvas, double w, double h) {
-    final rainPaint = Paint()
-      ..color = const Color(0xFF93C5FD).withValues(alpha: 0.6)
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round;
-
-    const drops = 24;
-    for (int i = 0; i < drops; i++) {
-      final seed = i * 37.0;
-      final x = (seed * 13.0) % w;
-      final startY = (seed * 19.0 + (animProgress * h * 5.0)) % h;
-      canvas.drawLine(Offset(x, startY), Offset(x - 4, startY + 12), rainPaint);
-    }
-  }
-
-  void _paintLightning(Canvas canvas, double w, double h) {
-    // Intermittent flash burst (at specific lightningProgress intervals)
-    if (lightningProgress > 0.88 && lightningProgress < 0.96) {
-      // Screen ambient lightning flash
-      canvas.drawRect(
-        Rect.fromLTWH(0, 0, w, h),
-        Paint()..color = Colors.white.withValues(alpha: 0.4),
-      );
-
-      // Jagged bolt path striking mountain crest
-      final boltPaint = Paint()
-        ..color = const Color(0xFFFEF08A)
-        ..strokeWidth = 2.6
-        ..strokeCap = StrokeCap.round
-        ..style = PaintingStyle.stroke;
-
-      final path = Path();
-      path.moveTo(w * 0.48, h * 0.18);
-      path.lineTo(w * 0.44, h * 0.32);
-      path.lineTo(w * 0.50, h * 0.38);
-      path.lineTo(w * 0.42, h * 0.52);
-      path.lineTo(w * 0.47, h * 0.58);
-      path.lineTo(w * 0.38, h * 0.72); // strikes mountain ridge
-      canvas.drawPath(path, boltPaint);
-
-      // Secondary smaller branch
-      final branch = Path();
-      branch.moveTo(w * 0.44, h * 0.32);
-      branch.lineTo(w * 0.36, h * 0.42);
-      canvas.drawPath(branch, boltPaint..strokeWidth = 1.5);
-    }
-  }
-
-  void _paintTornado(Canvas canvas, double w, double h) {
-    // A spiraling twister funnel vortex
-    final funnelBaseX = w * 0.55 + (math.sin(twisterProgress * math.pi * 2) * 20);
-    final topY = h * 0.18;
-    final groundY = h * 0.82;
-
-    final tornadoPaint = Paint()
-      ..color = const Color(0xFF64748B).withValues(alpha: 0.6)
-      ..style = PaintingStyle.fill;
-
-    // Funnel cloud polygon
-    final funnel = Path();
-    funnel.moveTo(funnelBaseX - 45, topY);
-    funnel.lineTo(funnelBaseX + 45, topY);
-    funnel.quadraticBezierTo(funnelBaseX + 16, (topY + groundY) / 2, funnelBaseX + 6, groundY);
-    funnel.lineTo(funnelBaseX - 6, groundY);
-    funnel.quadraticBezierTo(funnelBaseX - 16, (topY + groundY) / 2, funnelBaseX - 45, topY);
-    funnel.close();
-    canvas.drawPath(funnel, tornadoPaint);
-
-    // Spiraling wind debris particles
-    final debrisPaint = Paint()..color = const Color(0xFF334155);
-    for (int i = 0; i < 16; i++) {
-      final t = (twisterProgress + (i / 16.0)) % 1.0;
-      final y = topY + (t * (groundY - topY));
-      final widthAtY = 45.0 * (1.0 - (t * 0.85));
-      final angle = (twisterProgress * math.pi * 6) + (i * 1.2);
-      final x = funnelBaseX + (math.cos(angle) * widthAtY);
-      canvas.drawCircle(Offset(x, y), 1.6, debrisPaint);
-    }
-  }
-
-  void _paintSmogHaze(Canvas canvas, double w, double h) {
-    // Murky sepia/gray haze across mountains
-    final smogIntensity = ((weather.aqi - 100) / 200.0).clamp(0.15, 0.65);
-    final smogPaint = Paint()
-      ..shader = LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          const Color(0xFF78716C).withValues(alpha: 0.1),
-          const Color(0xFFB45309).withValues(alpha: smogIntensity * 0.6),
-          const Color(0xFF713F12).withValues(alpha: smogIntensity),
-        ],
-      ).createShader(Rect.fromLTWH(0, h * 0.4, w, h * 0.6));
-    canvas.drawRect(Rect.fromLTWH(0, h * 0.4, w, h * 0.6), smogPaint);
-  }
-
-  void _drawMoonPhaseDirect(Canvas canvas, Offset center, double r, double phase) {
-    // Dark side base
-    final darkPaint = Paint()..color = const Color(0xFF1E293B);
-    canvas.drawCircle(center, r, darkPaint);
-
-    // Illuminated portion with vector curve
-    final lightPaint = Paint()..color = const Color(0xFFFEF08A);
+    final litPaint = Paint()..color = const Color(0xFFFEF08A);
+    final phase = moonPhase.phase;
 
     final path = Path();
     if (phase >= 0.0 && phase <= 0.5) {
-      // Waxing: right side illuminates
       path.addArc(Rect.fromCircle(center: center, radius: r), -math.pi / 2, math.pi);
-      final k = (0.25 - phase) / 0.25; // 1.0 at new, 0.0 at quarter, -1.0 at full
+      final k = (0.25 - phase) / 0.25;
       final rInner = (r * k).abs();
       final sweep = k >= 0 ? -math.pi : math.pi;
       path.arcTo(
@@ -2535,7 +1913,6 @@ class _AtmosphericLandscapePainter extends CustomPainter {
         false,
       );
     } else {
-      // Waning: left side illuminates
       path.addArc(Rect.fromCircle(center: center, radius: r), math.pi / 2, math.pi);
       final k = (0.75 - phase) / 0.25;
       final rInner = (r * k).abs();
@@ -2548,18 +1925,147 @@ class _AtmosphericLandscapePainter extends CustomPainter {
       );
     }
     path.close();
-    canvas.drawPath(path, lightPaint);
+    canvas.drawPath(path, litPaint);
 
-    // Subtle outline
-    final strokePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.4)
+    final stroke = Paint()
+      ..color = Colors.white.withValues(alpha: 0.35)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.0;
-    canvas.drawCircle(center, r, strokePaint);
+    canvas.drawCircle(center, r, stroke);
+  }
+
+  void _paintSvgClouds(Canvas canvas, double w, double h) {
+    final cloudPaint = Paint()
+      ..color = (isDark ? const Color(0xFF475569) : Colors.white).withValues(alpha: 0.85);
+
+    final floatOffset = math.sin(animProgress * math.pi * 2) * 8.0;
+
+    // Cloud 1
+    final c1x = w * 0.30 + floatOffset;
+    final c1y = h * 0.62;
+    _drawCloudShape(canvas, Offset(c1x, c1y), 1.0, cloudPaint);
+
+    // Cloud 2
+    final c2x = w * 0.72 - floatOffset;
+    final c2y = h * 0.52;
+    _drawCloudShape(canvas, Offset(c2x, c2y), 0.82, cloudPaint);
+  }
+
+  void _drawCloudShape(Canvas canvas, Offset center, double scale, Paint paint) {
+    canvas.drawCircle(Offset(center.dx - 10 * scale, center.dy + 2 * scale), 12 * scale, paint);
+    canvas.drawCircle(Offset(center.dx + 4 * scale, center.dy - 4 * scale), 16 * scale, paint);
+    canvas.drawCircle(Offset(center.dx + 16 * scale, center.dy + 3 * scale), 11 * scale, paint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(center.dx - 18 * scale, center.dy + 2 * scale, 38 * scale, 14 * scale),
+        Radius.circular(7 * scale),
+      ),
+      paint,
+    );
+  }
+
+  void _paintSvgRain(Canvas canvas, double w, double h) {
+    // Rain cloud
+    final darkCloud = Paint()
+      ..color = (isDark ? const Color(0xFF334155) : const Color(0xFF94A3B8)).withValues(alpha: 0.9);
+    _drawCloudShape(canvas, Offset(w * 0.50, h * 0.45), 1.1, darkCloud);
+
+    // Falling rain streaks
+    final rainPaint = Paint()
+      ..color = const Color(0xFF38BDF8)
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
+
+    for (int i = 0; i < 5; i++) {
+      final x = w * 0.38 + (i * 12);
+      final dropProg = (animProgress * 4.0 + (i * 0.22)) % 1.0;
+      final yStart = h * 0.58 + (dropProg * 36.0);
+      canvas.drawLine(Offset(x, yStart), Offset(x - 2, yStart + 8), rainPaint);
+    }
+  }
+
+  void _paintSvgThunder(Canvas canvas, double w, double h) {
+    // Storm cloud
+    final darkCloud = Paint()
+      ..color = (isDark ? const Color(0xFF1E293B) : const Color(0xFF475569)).withValues(alpha: 0.95);
+    _drawCloudShape(canvas, Offset(w * 0.50, h * 0.42), 1.15, darkCloud);
+
+    // Live flashing lightning bolt
+    final isFlashing = lightningProgress > 0.85;
+    final bolt = Path();
+    bolt.moveTo(w * 0.52, h * 0.46);
+    bolt.lineTo(w * 0.46, h * 0.64);
+    bolt.lineTo(w * 0.52, h * 0.64);
+    bolt.lineTo(w * 0.47, h * 0.84);
+    bolt.lineTo(w * 0.58, h * 0.60);
+    bolt.lineTo(w * 0.53, h * 0.60);
+    bolt.close();
+
+    final boltPaint = Paint()
+      ..color = isFlashing ? const Color(0xFFFEF08A) : const Color(0xFFFBBF24);
+    canvas.drawPath(bolt, boltPaint);
+
+    if (isFlashing) {
+      final halo = Paint()
+        ..color = const Color(0xFFFEF08A).withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.5;
+      canvas.drawPath(bolt, halo);
+    }
+  }
+
+  void _paintSvgFlood(Canvas canvas, double w, double h) {
+    // Flood wave surge
+    final wave = Path();
+    wave.moveTo(0, h * 0.82);
+    final waveShift = math.sin(floodProgress * math.pi * 2) * 5.0;
+    wave.quadraticBezierTo(w * 0.25, h * 0.74 + waveShift, w * 0.50, h * 0.82);
+    wave.quadraticBezierTo(w * 0.75, h * 0.90 - waveShift, w, h * 0.80);
+    wave.lineTo(w, h);
+    wave.lineTo(0, h);
+    wave.close();
+
+    final wavePaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
+      ).createShader(Rect.fromLTWH(0, h * 0.70, w, h * 0.30));
+    canvas.drawPath(wave, wavePaint);
+  }
+
+  void _paintSvgTwister(Canvas canvas, double w, double h) {
+    final cx = w * 0.50;
+    final rot = twisterProgress * math.pi * 2;
+    const topW = 24.0;
+    const botW = 6.0;
+
+    final funnel = Path();
+    funnel.moveTo(cx - (topW / 2), h * 0.30);
+    funnel.lineTo(cx + (topW / 2), h * 0.30);
+    funnel.quadraticBezierTo(cx + (botW / 2) + 3, h * 0.58, cx + (botW / 2), h * 0.86);
+    funnel.lineTo(cx - (botW / 2), h * 0.86);
+    funnel.quadraticBezierTo(cx - (botW / 2) - 3, h * 0.58, cx - (topW / 2), h * 0.30);
+    funnel.close();
+
+    final twisterPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF94A3B8), Color(0xFF475569)],
+      ).createShader(Rect.fromLTWH(cx - 20, h * 0.30, 40, h * 0.60));
+    canvas.drawPath(funnel, twisterPaint);
+
+    final debris = Paint()..color = const Color(0xFF1E293B);
+    for (int i = 0; i < 4; i++) {
+      final a = rot + (i * (math.pi / 2));
+      final orbitY = h * 0.40 + (i * 9);
+      final orbitW = topW - (i * 5);
+      final x = cx + (math.cos(a) * (orbitW / 2));
+      canvas.drawCircle(Offset(x, orbitY), 1.8, debris);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _AtmosphericLandscapePainter oldDelegate) => true;
+  bool shouldRepaint(covariant _CelestialSkySvgPainter old) => true;
 }
 
 // ---------------------------------------------------------------------------
@@ -2854,326 +2360,439 @@ class _AqiToolerCharacterState extends State<_AqiToolerCharacter> {
   }
 }
 
-// PROMINENT LARGE ANIMATED WEATHER SVG ICON (SUN, MOON, CLOUD, RAIN, THUNDER, FLOOD, TWISTER)
 // ---------------------------------------------------------------------------
-class _BigAnimatedWeatherIcon extends StatelessWidget {
-  final _EffectiveWeather weather;
-  final MoonPhaseInfo moonPhase;
-  final double animProgress;
-  final double lightningProgress;
-  final double floodProgress;
-  final double twisterProgress;
+// CIRCULAR 8-PHASE LUNAR ORBIT MODAL SHEET
+// Central Moon + 8 Surrounding Orbiting Moon Phase Nodes
+// ---------------------------------------------------------------------------
+class _PhaseDefinition {
+  final String name;
+  final String shortName;
+  final double phaseValue;
+  final int illuminationPercent;
+  final String description;
 
-  const _BigAnimatedWeatherIcon({
-    required this.weather,
-    required this.moonPhase,
-    required this.animProgress,
-    required this.lightningProgress,
-    required this.floodProgress,
-    required this.twisterProgress,
+  const _PhaseDefinition({
+    required this.name,
+    required this.shortName,
+    required this.phaseValue,
+    required this.illuminationPercent,
+    required this.description,
+  });
+}
+
+class _CircularMoonPhasesSheet extends StatefulWidget {
+  final StationeryTheme theme;
+  final bool isDark;
+  final MoonPhaseInfo currentMoon;
+
+  const _CircularMoonPhasesSheet({
+    required this.theme,
+    required this.isDark,
+    required this.currentMoon,
   });
 
   @override
+  State<_CircularMoonPhasesSheet> createState() => _CircularMoonPhasesSheetState();
+}
+
+class _CircularMoonPhasesSheetState extends State<_CircularMoonPhasesSheet> {
+  static const List<_PhaseDefinition> _phases = [
+    _PhaseDefinition(
+      name: 'New Moon',
+      shortName: 'New',
+      phaseValue: 0.0,
+      illuminationPercent: 0,
+      description: 'The moon is situated directly between Earth and Sun, invisible in daylight sky.',
+    ),
+    _PhaseDefinition(
+      name: 'Waxing Crescent',
+      shortName: 'Wax Cres',
+      phaseValue: 0.125,
+      illuminationPercent: 25,
+      description: 'A slender growing crescent on the western horizon after sunset.',
+    ),
+    _PhaseDefinition(
+      name: 'First Quarter',
+      shortName: '1st Qtr',
+      phaseValue: 0.25,
+      illuminationPercent: 50,
+      description: 'One half of the lunar surface is illuminated; 90° east of the Sun.',
+    ),
+    _PhaseDefinition(
+      name: 'Waxing Gibbous',
+      shortName: 'Wax Gibb',
+      phaseValue: 0.375,
+      illuminationPercent: 75,
+      description: 'More than half illuminated, swelling nightly toward full brilliance.',
+    ),
+    _PhaseDefinition(
+      name: 'Full Moon',
+      shortName: 'Full',
+      phaseValue: 0.5,
+      illuminationPercent: 100,
+      description: 'Fully illuminated hemisphere faces Earth, rising opposite the sunset with 100% brilliance.',
+    ),
+    _PhaseDefinition(
+      name: 'Waning Gibbous',
+      shortName: 'Wan Gibb',
+      phaseValue: 0.625,
+      illuminationPercent: 75,
+      description: 'Waning past full, visible late night into morning twilight.',
+    ),
+    _PhaseDefinition(
+      name: 'Third Quarter',
+      shortName: '3rd Qtr',
+      phaseValue: 0.75,
+      illuminationPercent: 50,
+      description: 'The decreasing half moon rises around midnight and sets at noon.',
+    ),
+    _PhaseDefinition(
+      name: 'Waning Crescent',
+      shortName: 'Wan Cres',
+      phaseValue: 0.875,
+      illuminationPercent: 25,
+      description: 'Final silver sliver before dawn, concluding the 29.53-day synodic month.',
+    ),
+  ];
+
+  late int _selectedIndex;
+  late int _todayPhaseIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _todayPhaseIndex = _findClosestIndex(widget.currentMoon.phase);
+    _selectedIndex = _todayPhaseIndex;
+  }
+
+  int _findClosestIndex(double phase) {
+    int closest = 0;
+    double minDiff = 999.0;
+    for (int i = 0; i < _phases.length; i++) {
+      double diff = (phase - _phases[i].phaseValue).abs();
+      if (diff > 0.5) diff = 1.0 - diff;
+      if (diff < minDiff) {
+        minDiff = diff;
+        closest = i;
+      }
+    }
+    return closest;
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 72,
-      height: 72,
-      child: CustomPaint(
-        painter: _BigWeatherIconPainter(
-          weather: weather,
-          moonPhase: moonPhase,
-          animProgress: animProgress,
-          lightningProgress: lightningProgress,
-          floodProgress: floodProgress,
-          twisterProgress: twisterProgress,
+    final sel = _phases[_selectedIndex];
+    final isToday = _selectedIndex == _todayPhaseIndex;
+    final cardBg = widget.isDark ? const Color(0xFF25252A) : const Color(0xFFF1F5F9);
+    final borderColor = widget.isDark ? const Color(0xFF33333A) : const Color(0xFFE2E8F0);
+    final textPrimary = widget.isDark ? Colors.white : const Color(0xFF1E293B);
+    final textSecondary = widget.isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B);
+
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Top Drag Handle
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: widget.isDark ? Colors.white24 : Colors.black12,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Header Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Icon(Icons.brightness_2_rounded, size: 20, color: widget.theme.primary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'Lunar Cycle Orbit',
+                      style: TextStyle(
+                        fontFamily: 'Montserrat',
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: widget.theme.primary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: widget.theme.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: Text(
+                    '29.5d Synodic',
+                    style: TextStyle(
+                      fontFamily: 'FiraCode',
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: widget.theme.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+
+            // Circular Orbit Diagram (Center Moon + 8 Surrounding Orbiting Phases)
+            SizedBox(
+              width: 290,
+              height: 290,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // Subtle Orbit Pathway Track
+                  Container(
+                    width: 216,
+                    height: 216,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: widget.isDark
+                            ? Colors.white.withValues(alpha: 0.1)
+                            : Colors.black.withValues(alpha: 0.08),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+
+                  // Center Big Celestial Moon Display
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: widget.isDark ? const Color(0xFF1E222A) : Colors.white,
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFEF08A).withValues(alpha: widget.isDark ? 0.25 : 0.35),
+                          blurRadius: 24,
+                          spreadRadius: 4,
+                        ),
+                      ],
+                      border: Border.all(
+                        color: widget.theme.primary.withValues(alpha: 0.6),
+                        width: 2.0,
+                      ),
+                    ),
+                    padding: const EdgeInsets.all(12),
+                    child: CustomPaint(
+                      painter: _VectorMoonPhasePainter(
+                        phase: sel.phaseValue,
+                        isDark: widget.isDark,
+                      ),
+                    ),
+                  ),
+
+                  // 8 Orbit Phase Nodes
+                  for (int i = 0; i < _phases.length; i++) ...[
+                    _buildOrbitNode(
+                      index: i,
+                      phase: _phases[i],
+                      centerRadius: 108.0,
+                      totalPhases: _phases.length,
+                      isSelected: i == _selectedIndex,
+                      isToday: i == _todayPhaseIndex,
+                      theme: widget.theme,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Selected Phase Detail Card
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: borderColor),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            sel.name,
+                            style: TextStyle(
+                              fontFamily: 'Montserrat',
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: textPrimary,
+                            ),
+                          ),
+                          if (isToday) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: widget.theme.primary,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: const Text(
+                                'TODAY',
+                                style: TextStyle(
+                                  fontFamily: 'Montserrat',
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF08A).withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: const Color(0xFFFEF08A).withValues(alpha: 0.4)),
+                        ),
+                        child: Text(
+                          '${sel.illuminationPercent}% Illum',
+                          style: TextStyle(
+                            fontFamily: 'FiraCode',
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: widget.isDark ? const Color(0xFFFEF08A) : const Color(0xFFB45309),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    sel.description,
+                    style: TextStyle(
+                      fontFamily: 'Montserrat',
+                      fontSize: 12,
+                      height: 1.35,
+                      color: textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Close / Done button
+            SizedBox(
+              width: double.infinity,
+              height: 44,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.theme.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text(
+                  'Done',
+                  style: TextStyle(
+                    fontFamily: 'Montserrat',
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
-}
 
-class _BigWeatherIconPainter extends CustomPainter {
-  final _EffectiveWeather weather;
-  final MoonPhaseInfo moonPhase;
-  final double animProgress;
-  final double lightningProgress;
-  final double floodProgress;
-  final double twisterProgress;
+  Widget _buildOrbitNode({
+    required int index,
+    required _PhaseDefinition phase,
+    required double centerRadius,
+    required int totalPhases,
+    required bool isSelected,
+    required bool isToday,
+    required StationeryTheme theme,
+  }) {
+    // 0 is top (-pi/2), moving clockwise
+    final angle = (-math.pi / 2) + (index * (2 * math.pi / totalPhases));
+    final dx = centerRadius * math.cos(angle);
+    final dy = centerRadius * math.sin(angle);
 
-  _BigWeatherIconPainter({
-    required this.weather,
-    required this.moonPhase,
-    required this.animProgress,
-    required this.lightningProgress,
-    required this.floodProgress,
-    required this.twisterProgress,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-    final center = Offset(w / 2, h / 2);
-
-    if (weather.isTwister) {
-      // Swirling Tornado Twister Funnel
-      _drawBigTornado(canvas, w, h, center);
-    } else if (weather.isFlood) {
-      // Rushing Mountain Flood Wave
-      _drawBigFlood(canvas, w, h, center);
-    } else if (weather.isThunder) {
-      // Thunderhead cloud with live lightning bolt
-      _drawBigThunder(canvas, w, h, center);
-    } else if (weather.isRain) {
-      // Rain cloud with animated falling drops
-      _drawBigRain(canvas, w, h, center);
-    } else if (weather.isCloudy) {
-      // Billowing soft clouds
-      _drawBigCloud(canvas, w, h, center);
-    } else if (weather.isDay) {
-      // Blazing Sun with rotating flares
-      _drawBigSun(canvas, w, h, center);
-    } else {
-      // Glowing Moon with exact phase face
-      _drawBigMoon(canvas, w, h, center);
-    }
-  }
-
-  void _drawBigSun(Canvas canvas, double w, double h, Offset center) {
-    // Outer solar corona
-    final corona = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFFBBF24).withValues(alpha: 0.7),
-          const Color(0xFFF59E0B).withValues(alpha: 0.2),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: w * 0.48));
-    canvas.drawCircle(center, w * 0.48, corona);
-
-    // Rotating solar rays
-    final rayPaint = Paint()
-      ..color = const Color(0xFFFEF08A)
-      ..strokeWidth = 2.4
-      ..strokeCap = StrokeCap.round;
-
-    final rot = animProgress * math.pi * 2;
-    for (int i = 0; i < 8; i++) {
-      final angle = rot + (i * (math.pi / 4));
-      final p1 = Offset(center.dx + math.cos(angle) * (w * 0.26), center.dy + math.sin(angle) * (w * 0.26));
-      final p2 = Offset(center.dx + math.cos(angle) * (w * 0.38), center.dy + math.sin(angle) * (w * 0.38));
-      canvas.drawLine(p1, p2, rayPaint);
-    }
-
-    // Golden Core
-    final sunCore = Paint()
-      ..shader = const RadialGradient(
-        colors: [Color(0xFFFFFBEB), Color(0xFFF59E0B)],
-      ).createShader(Rect.fromCircle(center: center, radius: w * 0.22));
-    canvas.drawCircle(center, w * 0.22, sunCore);
-  }
-
-  void _drawBigMoon(Canvas canvas, double w, double h, Offset center) {
-    final r = w * 0.24;
-
-    // Moonlight halo
-    final glow = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFE0E7FF).withValues(alpha: 0.5),
-          const Color(0xFFC7D2FE).withValues(alpha: 0.15),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: r * 1.8));
-    canvas.drawCircle(center, r * 1.8, glow);
-
-    // Moon disc with exact phase
-    final darkBase = Paint()..color = const Color(0xFF1E293B);
-    canvas.drawCircle(center, r, darkBase);
-
-    final litPaint = Paint()..color = const Color(0xFFFEF08A);
-    final phase = moonPhase.phase;
-
-    final path = Path();
-    if (phase >= 0.0 && phase <= 0.5) {
-      path.addArc(Rect.fromCircle(center: center, radius: r), -math.pi / 2, math.pi);
-      final k = (0.25 - phase) / 0.25;
-      final rInner = (r * k).abs();
-      final sweep = k >= 0 ? -math.pi : math.pi;
-      path.arcTo(
-        Rect.fromCenter(center: center, width: rInner * 2, height: r * 2),
-        math.pi / 2,
-        sweep,
-        false,
-      );
-    } else {
-      path.addArc(Rect.fromCircle(center: center, radius: r), math.pi / 2, math.pi);
-      final k = (0.75 - phase) / 0.25;
-      final rInner = (r * k).abs();
-      final sweep = k >= 0 ? math.pi : -math.pi;
-      path.arcTo(
-        Rect.fromCenter(center: center, width: rInner * 2, height: r * 2),
-        -math.pi / 2,
-        sweep,
-        false,
-      );
-    }
-    path.close();
-    canvas.drawPath(path, litPaint);
-
-    final stroke = Paint()
-      ..color = Colors.white.withValues(alpha: 0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    canvas.drawCircle(center, r, stroke);
-  }
-
-  void _drawBigCloud(Canvas canvas, double w, double h, Offset center) {
-    final cloudPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Colors.white, Color(0xFFE2E8F0)],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
-
-    final cy = center.dy - 2;
-    canvas.drawCircle(Offset(center.dx - 12, cy + 2), 16, cloudPaint);
-    canvas.drawCircle(Offset(center.dx + 4, cy - 6), 20, cloudPaint);
-    canvas.drawCircle(Offset(center.dx + 20, cy + 4), 14, cloudPaint);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(center.dx - 22, cy + 2, 48, 18),
-        const Radius.circular(9),
+    return Transform.translate(
+      offset: Offset(dx, dy),
+      child: GestureDetector(
+        onTap: () {
+          setState(() {
+            _selectedIndex = index;
+          });
+        },
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: widget.isDark ? const Color(0xFF1E222A) : Colors.white,
+                border: Border.all(
+                  color: isSelected
+                      ? theme.primary
+                      : (isToday ? const Color(0xFFFEF08A) : Colors.white24),
+                  width: isSelected ? 2.5 : (isToday ? 2.0 : 1.0),
+                ),
+                boxShadow: isSelected
+                    ? [
+                        BoxShadow(
+                          color: theme.primary.withValues(alpha: 0.4),
+                          blurRadius: 8,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : null,
+              ),
+              padding: const EdgeInsets.all(5),
+              child: CustomPaint(
+                painter: _VectorMoonPhasePainter(
+                  phase: phase.phaseValue,
+                  isDark: widget.isDark,
+                ),
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              phase.shortName,
+              style: TextStyle(
+                fontFamily: 'Montserrat',
+                fontSize: 9,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                color: isSelected
+                    ? theme.primary
+                    : (widget.isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)),
+              ),
+            ),
+          ],
+        ),
       ),
-      cloudPaint,
     );
   }
-
-  void _drawBigRain(Canvas canvas, double w, double h, Offset center) {
-    _drawBigCloud(canvas, w, h, Offset(center.dx, center.dy - 8));
-
-    // Animated raindrop streaks
-    final rainPaint = Paint()
-      ..color = const Color(0xFF38BDF8)
-      ..strokeWidth = 2.2
-      ..strokeCap = StrokeCap.round;
-
-    for (int i = 0; i < 4; i++) {
-      final x = center.dx - 16 + (i * 10);
-      final dropProgress = (animProgress * 3.0 + (i * 0.25)) % 1.0;
-      final yStart = center.dy + 8 + (dropProgress * 14.0);
-      canvas.drawLine(Offset(x, yStart), Offset(x - 2, yStart + 8), rainPaint);
-    }
-  }
-
-  void _drawBigThunder(Canvas canvas, double w, double h, Offset center) {
-    // Dark moody storm cloud
-    final darkCloud = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFF64748B), Color(0xFF334155)],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
-
-    final cy = center.dy - 10;
-    canvas.drawCircle(Offset(center.dx - 12, cy + 2), 16, darkCloud);
-    canvas.drawCircle(Offset(center.dx + 4, cy - 6), 20, darkCloud);
-    canvas.drawCircle(Offset(center.dx + 20, cy + 4), 14, darkCloud);
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(center.dx - 22, cy + 2, 48, 18),
-        const Radius.circular(9),
-      ),
-      darkCloud,
-    );
-
-    // Glowing zigzag lightning bolt
-    final isFlashing = lightningProgress > 0.85;
-    final boltColor = isFlashing ? const Color(0xFFFEF08A) : const Color(0xFFFBBF24);
-
-    final bolt = Path();
-    bolt.moveTo(center.dx + 2, center.dy - 4);
-    bolt.lineTo(center.dx - 8, center.dy + 12);
-    bolt.lineTo(center.dx, center.dy + 12);
-    bolt.lineTo(center.dx - 6, center.dy + 28);
-    bolt.lineTo(center.dx + 8, center.dy + 8);
-    bolt.lineTo(center.dx + 1, center.dy + 8);
-    bolt.close();
-
-    final boltPaint = Paint()
-      ..color = boltColor
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(bolt, boltPaint);
-
-    // Halo glow
-    if (isFlashing) {
-      final halo = Paint()
-        ..color = const Color(0xFFFEF08A).withValues(alpha: 0.6)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3.0;
-      canvas.drawPath(bolt, halo);
-    }
-  }
-
-  void _drawBigFlood(Canvas canvas, double w, double h, Offset center) {
-    // Surging mountain flood waves
-    final wave1 = Path();
-    wave1.moveTo(center.dx - 28, center.dy + 12);
-    wave1.quadraticBezierTo(center.dx - 14, center.dy - 8 + (math.sin(floodProgress * math.pi * 2) * 4), center.dx, center.dy + 8);
-    wave1.quadraticBezierTo(center.dx + 14, center.dy + 22 - (math.sin(floodProgress * math.pi * 2) * 4), center.dx + 28, center.dy + 6);
-    wave1.lineTo(center.dx + 28, center.dy + 24);
-    wave1.lineTo(center.dx - 28, center.dy + 24);
-    wave1.close();
-
-    final floodPaint = Paint()
-      ..shader = const LinearGradient(
-        colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
-    canvas.drawPath(wave1, floodPaint);
-
-    // White foam crests
-    final foam = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2.4
-      ..style = PaintingStyle.stroke
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(center.dx - 22, center.dy + 4), Offset(center.dx - 8, center.dy + 6), foam);
-    canvas.drawLine(Offset(center.dx + 6, center.dy + 12), Offset(center.dx + 22, center.dy + 8), foam);
-  }
-
-  void _drawBigTornado(Canvas canvas, double w, double h, Offset center) {
-    // Swirling Twister Funnel
-    final rot = twisterProgress * math.pi * 2;
-    const topW = 28.0;
-    const botW = 6.0;
-
-    final funnel = Path();
-    funnel.moveTo(center.dx - (topW / 2), center.dy - 20);
-    funnel.lineTo(center.dx + (topW / 2), center.dy - 20);
-    funnel.quadraticBezierTo(center.dx + (botW / 2) + 4, center.dy, center.dx + (botW / 2), center.dy + 22);
-    funnel.lineTo(center.dx - (botW / 2), center.dy + 22);
-    funnel.quadraticBezierTo(center.dx - (botW / 2) - 4, center.dy, center.dx - (topW / 2), center.dy - 20);
-    funnel.close();
-
-    final tornadoPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xFF94A3B8), Color(0xFF475569)],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
-    canvas.drawPath(funnel, tornadoPaint);
-
-    // Spiraling wind debris orbits
-    final debris = Paint()..color = const Color(0xFF1E293B);
-    for (int i = 0; i < 4; i++) {
-      final a = rot + (i * (math.pi / 2));
-      final orbitY = center.dy - 12 + (i * 9);
-      final orbitW = (topW - (i * 6));
-      final x = center.dx + (math.cos(a) * (orbitW / 2));
-      canvas.drawCircle(Offset(x, orbitY), 2.0, debris);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _BigWeatherIconPainter old) => true;
 }

@@ -155,6 +155,48 @@ class DailyForecastItem {
   }
 }
 
+class HourlyForecastItem {
+  final DateTime time;
+  final int hour; // 0..23
+  final double tempC;
+  final int weatherCode;
+  final int precipProb;
+  final bool isDay;
+  final bool isNow;
+
+  const HourlyForecastItem({
+    required this.time,
+    required this.hour,
+    required this.tempC,
+    required this.weatherCode,
+    required this.precipProb,
+    required this.isDay,
+    this.isNow = false,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'time': time.toIso8601String(),
+        'hour': hour,
+        'tempC': tempC,
+        'weatherCode': weatherCode,
+        'precipProb': precipProb,
+        'isDay': isDay,
+        'isNow': isNow,
+      };
+
+  factory HourlyForecastItem.fromJson(Map<String, dynamic> json) {
+    return HourlyForecastItem(
+      time: DateTime.tryParse(json['time'] as String? ?? '') ?? DateTime.now(),
+      hour: (json['hour'] as num?)?.toInt() ?? 12,
+      tempC: (json['tempC'] as num?)?.toDouble() ?? 25.0,
+      weatherCode: (json['weatherCode'] as num?)?.toInt() ?? 1,
+      precipProb: (json['precipProb'] as num?)?.toInt() ?? 0,
+      isDay: json['isDay'] as bool? ?? true,
+      isNow: json['isNow'] as bool? ?? false,
+    );
+  }
+}
+
 class WeatherTelemetryData {
   final String city;
   final String country;
@@ -175,6 +217,7 @@ class WeatherTelemetryData {
   final String sunriseToday;
   final String sunsetToday;
   final List<DailyForecastItem> dailyList;
+  final List<HourlyForecastItem> hourlyList;
   final MoonPhaseInfo moonPhase;
   final DateTime lastSync;
 
@@ -198,6 +241,7 @@ class WeatherTelemetryData {
     required this.sunriseToday,
     required this.sunsetToday,
     required this.dailyList,
+    required this.hourlyList,
     required this.moonPhase,
     required this.lastSync,
   });
@@ -227,6 +271,21 @@ class WeatherTelemetryData {
       );
     });
 
+    final List<HourlyForecastItem> defaultHourly = List.generate(24, (index) {
+      final h = (now.hour + index) % 24;
+      final isDayTime = h >= 6 && h < 19;
+      final tempOffset = math.sin((h - 5) / 24.0 * math.pi * 2) * 5.5;
+      return HourlyForecastItem(
+        time: now.add(Duration(hours: index)),
+        hour: h,
+        tempC: (27.0 + tempOffset).clamp(18.0, 38.0),
+        weatherCode: isDayTime ? 1 : 0,
+        precipProb: index == 4 ? 20 : 0,
+        isDay: isDayTime,
+        isNow: index == 0,
+      );
+    });
+
     return WeatherTelemetryData(
       city: 'Live Location',
       country: 'IN',
@@ -247,6 +306,7 @@ class WeatherTelemetryData {
       sunriseToday: '06:15 AM',
       sunsetToday: '05:45 PM',
       dailyList: defaultDaily,
+      hourlyList: defaultHourly,
       moonPhase: moon,
       lastSync: now,
     );
@@ -272,6 +332,7 @@ class WeatherTelemetryData {
         'sunriseToday': sunriseToday,
         'sunsetToday': sunsetToday,
         'dailyList': dailyList.map((e) => e.toJson()).toList(),
+        'hourlyList': hourlyList.map((e) => e.toJson()).toList(),
         'moonPhase': moonPhase.toJson(),
         'lastSync': lastSync.toIso8601String(),
       };
@@ -287,6 +348,18 @@ class WeatherTelemetryData {
     }
     if (daily.isEmpty) {
       daily = WeatherTelemetryData.defaultData().dailyList;
+    }
+
+    final hourlyRaw = json['hourlyList'] as List<dynamic>?;
+    List<HourlyForecastItem> hourly = [];
+    if (hourlyRaw != null) {
+      hourly = hourlyRaw
+          .whereType<Map<String, dynamic>>()
+          .map((m) => HourlyForecastItem.fromJson(m))
+          .toList();
+    }
+    if (hourly.isEmpty) {
+      hourly = WeatherTelemetryData.defaultData().hourlyList;
     }
 
     final moonJson = json['moonPhase'] as Map<String, dynamic>?;
@@ -312,6 +385,7 @@ class WeatherTelemetryData {
       sunriseToday: json['sunriseToday'] as String? ?? '06:15 AM',
       sunsetToday: json['sunsetToday'] as String? ?? '05:45 PM',
       dailyList: daily,
+      hourlyList: hourly,
       moonPhase: moon,
       lastSync: DateTime.tryParse(json['lastSync'] as String? ?? '') ?? DateTime.now(),
     );
@@ -395,10 +469,11 @@ class WeatherTelemetryService extends ChangeNotifier {
         }
       }
 
-      // Step 2: Open-Meteo Comprehensive Weather (Current, Past 7 days, Forecast 7 days)
+      // Step 2: Open-Meteo Comprehensive Weather (Current, Hourly 24h, Past 7 days, Forecast 7 days)
       final weatherUrl =
           'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon'
           '&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m,surface_pressure'
+          '&hourly=temperature_2m,weather_code,precipitation_probability,is_day'
           '&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max,wind_speed_10m_max'
           '&past_days=7&forecast_days=7';
       final weatherJson = await _httpGetJson(weatherUrl);
@@ -414,6 +489,7 @@ class WeatherTelemetryService extends ChangeNotifier {
       String sunriseToday = _data.sunriseToday;
       String sunsetToday = _data.sunsetToday;
       List<DailyForecastItem> dailyList = _data.dailyList;
+      List<HourlyForecastItem> hourlyList = _data.hourlyList;
 
       if (weatherJson != null) {
         if (weatherJson.containsKey('current')) {
@@ -426,6 +502,45 @@ class WeatherTelemetryService extends ChangeNotifier {
           humidity = (current['relative_humidity_2m'] as num?)?.toDouble() ?? humidity;
           windSpeed = (current['wind_speed_10m'] as num?)?.toDouble() ?? windSpeed;
           pressure = (current['surface_pressure'] as num?)?.toDouble() ?? pressure;
+        }
+
+        if (weatherJson.containsKey('hourly')) {
+          final hourlyMap = weatherJson['hourly'] as Map<String, dynamic>;
+          final hTimes = (hourlyMap['time'] as List<dynamic>?) ?? [];
+          final hTemps = (hourlyMap['temperature_2m'] as List<dynamic>?) ?? [];
+          final hCodes = (hourlyMap['weather_code'] as List<dynamic>?) ?? [];
+          final hPrecips = (hourlyMap['precipitation_probability'] as List<dynamic>?) ?? [];
+          final hIsDays = (hourlyMap['is_day'] as List<dynamic>?) ?? [];
+
+          final now = DateTime.now();
+          int startIdx = 0;
+          for (int i = 0; i < hTimes.length; i++) {
+            final dt = DateTime.tryParse(hTimes[i].toString());
+            if (dt != null && dt.isAfter(now.subtract(const Duration(minutes: 45)))) {
+              startIdx = i;
+              break;
+            }
+          }
+
+          final parsedHourly = <HourlyForecastItem>[];
+          final endIdx = math.min(startIdx + 24, hTimes.length);
+          for (int i = startIdx; i < endIdx; i++) {
+            final dt = DateTime.tryParse(hTimes[i].toString()) ?? now;
+            final isDayVal = (i < hIsDays.length) ? (hIsDays[i] as num).toInt() : 1;
+            parsedHourly.add(HourlyForecastItem(
+              time: dt,
+              hour: dt.hour,
+              tempC: (i < hTemps.length) ? (hTemps[i] as num).toDouble() : 25.0,
+              weatherCode: (i < hCodes.length) ? (hCodes[i] as num).toInt() : 1,
+              precipProb: (i < hPrecips.length) ? (hPrecips[i] as num).toInt() : 0,
+              isDay: isDayVal == 1,
+              isNow: i == startIdx,
+            ));
+          }
+
+          if (parsedHourly.isNotEmpty) {
+            hourlyList = parsedHourly;
+          }
         }
 
         if (weatherJson.containsKey('daily')) {
@@ -523,6 +638,7 @@ class WeatherTelemetryService extends ChangeNotifier {
         sunriseToday: sunriseToday,
         sunsetToday: sunsetToday,
         dailyList: dailyList,
+        hourlyList: hourlyList,
         moonPhase: moon,
         lastSync: DateTime.now(),
       );
