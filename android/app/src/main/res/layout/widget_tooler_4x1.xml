@@ -47,7 +47,7 @@
             android:contentDescription="Calendar" />
 
         <ImageView
-            android:id="@+id/widget_btn_games"
+            android:id="@+id/widget_btn_weather"
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
@@ -56,7 +56,7 @@
             android:background="@drawable/widget_tile_ripple"
             android:clickable="true"
             android:focusable="true"
-            android:contentDescription="Games" />
+            android:contentDescription="Weather" />
 
         <ImageView
             android:id="@+id/widget_btn_all"

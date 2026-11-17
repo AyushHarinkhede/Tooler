@@ -67,7 +67,7 @@ class ToolerQuickBarWidgetProvider : AppWidgetProvider() {
             )
             views.setImageViewBitmap(R.id.widget_4x1_bg, bgBmp)
 
-            // Ultra-sharp 260x260 supersampled icon tiles: Calculator, Calendar, Games, All Tools
+            // Ultra-sharp 260x260 supersampled icon tiles: Calculator, Calendar, Weather, All Tools
             val iconSize = 260
             views.setImageViewBitmap(
                 R.id.widget_btn_calc,
@@ -78,8 +78,8 @@ class ToolerQuickBarWidgetProvider : AppWidgetProvider() {
                 ToolerWidgetRenderer.renderToolButtonBitmap("calendar", iconSize, palette, false)
             )
             views.setImageViewBitmap(
-                R.id.widget_btn_games,
-                ToolerWidgetRenderer.renderToolButtonBitmap("games", iconSize, palette, false)
+                R.id.widget_btn_weather,
+                ToolerWidgetRenderer.renderToolButtonBitmap("weather", iconSize, palette, false)
             )
             views.setImageViewBitmap(
                 R.id.widget_btn_all,
@@ -96,8 +96,8 @@ class ToolerQuickBarWidgetProvider : AppWidgetProvider() {
                 ToolerWidgetRenderer.buildLaunchPendingIntent(context, "calendar", 102)
             )
             views.setOnClickPendingIntent(
-                R.id.widget_btn_games,
-                ToolerWidgetRenderer.buildLaunchPendingIntent(context, "games", 103)
+                R.id.widget_btn_weather,
+                ToolerWidgetRenderer.buildLaunchPendingIntent(context, "weather", 103)
             )
             views.setOnClickPendingIntent(
                 R.id.widget_btn_all,

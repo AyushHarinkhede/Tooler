@@ -29,6 +29,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
   static const List<Map<String, String>> _allSections = [
     {'id': 'calc', 'title': 'Calculator', 'iconType': 'calc'},
     {'id': 'calendar', 'title': 'Calendar', 'iconType': 'calendar'},
+    {'id': 'weather', 'title': 'Weather', 'iconType': 'weather'},
     {'id': 'games', 'title': 'Games', 'iconType': 'games'},
     {'id': 'recorder', 'title': 'Noise & Rec', 'iconType': 'recorder'},
     {'id': 'radio', 'title': 'FM Radio', 'iconType': 'radio'},
@@ -254,7 +255,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                             isDark: previewIsDark,
                           ),
                           _buildPreview4x1Slot(
-                            iconType: 'games',
+                            iconType: 'weather',
                             bubble: previewBubble,
                             accent: previewPrimary,
                             isDark: previewIsDark,
@@ -307,7 +308,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                   const SizedBox(height: 16),
                   Text(
                     _selectedRatio == '4x1'
-                        ? 'Calculator · Calendar · Games · All Tools'
+                        ? 'Calculator · Calendar · Weather · All Tools'
                         : 'Icon-only shortcut · Opens ${selectedSection['title']} hover page',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.plusJakartaSans(

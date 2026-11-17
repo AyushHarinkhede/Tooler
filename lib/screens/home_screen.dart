@@ -928,7 +928,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 16),
 
-                    // B. Main 2x2 Section: Calculator, Calendar, Games, All Tools (SVG icons, no extra text)
+                    // B. Main 2x2 Section: Calculator, Calendar, Weather, Games (SVG icons, no extra text)
                     if (_searchQuery.isEmpty) ...[
                       RepaintBoundary(
                         child: _buildQuick2x2Grid(isDark),
@@ -1587,11 +1587,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// -------------------------------------------------------------------------
-  /// 4. Main 2x2 Section: Calculator, Calendar, Games, All Tools (SVG Icons only, no extra text)
+  /// 4. Main 2x2 Section: Calculator, Calendar, Weather, Games (SVG Icons only, no extra text)
   /// -------------------------------------------------------------------------
   Widget _buildQuick2x2Grid(bool isDark) {
     final calcTool = _tools.firstWhere((t) => t['id'] == 'calc');
     final calendarTool = _tools.firstWhere((t) => t['id'] == 'calendar');
+    final weatherTool = _tools.firstWhere((t) => t['id'] == 'weather');
     final gamesTool = _tools.firstWhere((t) => t['id'] == 'games');
 
     return LayoutBuilder(
@@ -1609,9 +1610,9 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             Row(
               children: [
-                _buildQuickCard(gamesTool, cardW, overrideTitle: 'Games'),
+                _buildQuickCard(weatherTool, cardW, overrideTitle: 'Weather'),
                 const SizedBox(width: 12),
-                _buildAllToolsQuickCard(cardW),
+                _buildQuickCard(gamesTool, cardW, overrideTitle: 'Games'),
               ],
             ),
           ],
@@ -1664,70 +1665,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: theme.text,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAllToolsQuickCard(double width) {
-    final theme = widget.theme;
-    final isDark = theme.isDark;
-
-    return BouncyTap(
-      onTap: () {
-        SoundService().playClick();
-        if (_scrollController.hasClients) {
-          _scrollController.animateTo(
-            290,
-            duration: const Duration(milliseconds: 320),
-            curve: Curves.easeOutCubic,
-          );
-        }
-      },
-      scaleFraction: 0.94,
-      child: Container(
-        width: width,
-        height: 78,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: theme.lavenderBubble,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: theme.primary.withValues(alpha: 0.4),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: theme.primary.withValues(alpha: 0.06),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Minimal2DIcon(
-              type: 'all_tools',
-              size: 42,
-              bubbleColor: theme.cardBg,
-              accentColor: theme.primary,
-              isDark: isDark,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'All Tools',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: theme.primaryDark,
                 ),
               ),
             ),

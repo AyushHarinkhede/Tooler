@@ -331,6 +331,24 @@ object ToolerWidgetRenderer {
                 canvas.drawCircle(s * 0.37f, s * 0.65f, r, inkFill)
                 canvas.drawCircle(s * 0.50f, s * 0.65f, r, inkFill)
             }
+            "weather" -> {
+                // Minimal sun behind cloud
+                canvas.drawLine(s * 0.64f, s * 0.15f, s * 0.64f, s * 0.21f, accentStroke)
+                canvas.drawLine(s * 0.77f, s * 0.20f, s * 0.73f, s * 0.25f, accentStroke)
+                canvas.drawLine(s * 0.82f, s * 0.35f, s * 0.76f, s * 0.35f, accentStroke)
+                canvas.drawCircle(s * 0.62f, s * 0.35f, s * 0.14f, accentFill)
+                canvas.drawCircle(s * 0.62f, s * 0.35f, s * 0.14f, stroke)
+                val cloud = Path().apply {
+                    moveTo(s * 0.26f, s * 0.68f)
+                    lineTo(s * 0.74f, s * 0.68f)
+                    arcTo(RectF(s * 0.62f, s * 0.44f, s * 0.82f, s * 0.68f), 0f, -90f, false)
+                    arcTo(RectF(s * 0.38f, s * 0.32f, s * 0.66f, s * 0.60f), 0f, -140f, false)
+                    arcTo(RectF(s * 0.18f, s * 0.46f, s * 0.38f, s * 0.68f), -180f, -90f, false)
+                    close()
+                }
+                canvas.drawPath(cloud, stroke)
+                canvas.drawLine(s * 0.34f, s * 0.78f, s * 0.56f, s * 0.78f, accentStroke)
+            }
             "games" -> {
                 // Modern rounded gamepad
                 canvas.drawRoundRect(RectF(s * 0.20f, s * 0.32f, s * 0.80f, s * 0.68f), s * 0.16f, s * 0.16f, stroke)
