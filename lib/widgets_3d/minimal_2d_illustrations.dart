@@ -1135,49 +1135,102 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawSteps(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // Dynamic running sneaker / footsteps outline with progress arc
-    final shoePath = Path();
-    shoePath.moveTo(w * 0.22, h * 0.64);
-    shoePath.lineTo(w * 0.22, h * 0.52);
-    shoePath.quadraticBezierTo(w * 0.28, h * 0.44, w * 0.42, h * 0.44);
-    shoePath.lineTo(w * 0.52, h * 0.52);
-    shoePath.quadraticBezierTo(w * 0.68, h * 0.56, w * 0.82, h * 0.62);
-    shoePath.quadraticBezierTo(w * 0.84, h * 0.68, w * 0.78, h * 0.72);
-    shoePath.lineTo(w * 0.26, h * 0.72);
-    shoePath.quadraticBezierTo(w * 0.22, h * 0.70, w * 0.22, h * 0.64);
-    shoePath.close();
+    // -------------------------------------------------------------------------
+    // REALISTIC HIGH-TECH RUNNING SNEAKER & KINETIC STEP ENERGY ENGINE
+    // -------------------------------------------------------------------------
+    
+    // 1. Kinetic speed trailing motion waves behind heel
+    final speedWavePaint = Paint()
+      ..color = p.color.withValues(alpha: 0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = p.strokeWidth * 0.8
+      ..strokeCap = StrokeCap.round;
 
-    canvas.drawPath(shoePath, p);
+    canvas.drawLine(Offset(w * 0.08, h * 0.54), Offset(w * 0.16, h * 0.54), speedWavePaint);
+    canvas.drawLine(Offset(w * 0.05, h * 0.62), Offset(w * 0.17, h * 0.62), speedWavePaint);
+    canvas.drawLine(Offset(w * 0.10, h * 0.70), Offset(w * 0.18, h * 0.70), speedWavePaint);
 
-    // Sole line with accent fill
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.20, h * 0.68, w * 0.60, h * 0.08),
-        Radius.circular(w * 0.03),
-      ),
-      fill,
-    );
-    canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Rect.fromLTWH(w * 0.20, h * 0.68, w * 0.60, h * 0.08),
-        Radius.circular(w * 0.03),
-      ),
-      p,
-    );
+    // 2. Sculpted Outsole & Air-Cushion Midsole (Aerodynamic rocker curve)
+    final solePath = Path();
+    solePath.moveTo(w * 0.18, h * 0.74);
+    solePath.quadraticBezierTo(w * 0.20, h * 0.66, w * 0.26, h * 0.66);
+    solePath.lineTo(w * 0.52, h * 0.66);
+    solePath.quadraticBezierTo(w * 0.68, h * 0.67, w * 0.82, h * 0.62);
+    solePath.quadraticBezierTo(w * 0.88, h * 0.64, w * 0.84, h * 0.72);
+    solePath.quadraticBezierTo(w * 0.72, h * 0.75, w * 0.50, h * 0.75);
+    solePath.quadraticBezierTo(w * 0.30, h * 0.76, w * 0.20, h * 0.76);
+    solePath.quadraticBezierTo(w * 0.17, h * 0.76, w * 0.18, h * 0.74);
+    solePath.close();
 
-    // Laces / Speed dashes
-    canvas.drawLine(Offset(w * 0.42, h * 0.48), Offset(w * 0.46, h * 0.54), p);
-    canvas.drawLine(Offset(w * 0.48, h * 0.50), Offset(w * 0.52, h * 0.56), p);
+    // Fill sole with energetic accent
+    canvas.drawPath(solePath, fill);
+    canvas.drawPath(solePath, p);
 
-    // Pulsing step target arc above shoe
+    // Midsole Air-Pod Windows / Tread Grooves
+    final podPaint = Paint()
+      ..color = p.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = p.strokeWidth * 0.7
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(Offset(w * 0.28, h * 0.71), Offset(w * 0.38, h * 0.71), podPaint);
+    canvas.drawLine(Offset(w * 0.44, h * 0.71), Offset(w * 0.56, h * 0.71), podPaint);
+    canvas.drawLine(Offset(w * 0.62, h * 0.70), Offset(w * 0.72, h * 0.69), podPaint);
+
+    // 3. Ergonomic Sneaker Upper (Breathable Mesh Silhouette)
+    final upperPath = Path();
+    upperPath.moveTo(w * 0.26, h * 0.66);
+    upperPath.lineTo(w * 0.24, h * 0.50);
+    // Padded heel collar
+    upperPath.quadraticBezierTo(w * 0.25, h * 0.42, w * 0.34, h * 0.44);
+    // Ankle scoop
+    upperPath.quadraticBezierTo(w * 0.38, h * 0.47, w * 0.44, h * 0.45);
+    // Extended running tongue
+    upperPath.lineTo(w * 0.48, h * 0.38);
+    upperPath.quadraticBezierTo(w * 0.52, h * 0.39, w * 0.54, h * 0.45);
+    // Forefoot instep to sleek toe box
+    upperPath.quadraticBezierTo(w * 0.68, h * 0.52, w * 0.82, h * 0.62);
+    upperPath.lineTo(w * 0.52, h * 0.66);
+    upperPath.close();
+
+    canvas.drawPath(upperPath, p);
+
+    // 4. Heel Stabilizer Counter (Sleek aerodynamic cage)
+    final heelCage = Path();
+    heelCage.moveTo(w * 0.24, h * 0.56);
+    heelCage.quadraticBezierTo(w * 0.34, h * 0.54, w * 0.36, h * 0.66);
+    canvas.drawPath(heelCage, p);
+
+    // 5. Dynamic Cross-Laces & Eyelets
+    canvas.drawLine(Offset(w * 0.44, h * 0.47), Offset(w * 0.48, h * 0.51), p);
+    canvas.drawLine(Offset(w * 0.49, h * 0.49), Offset(w * 0.54, h * 0.53), p);
+    canvas.drawLine(Offset(w * 0.55, h * 0.51), Offset(w * 0.60, h * 0.55), p);
+
+    // 6. Kinetic Energy Arcs (Step cadence waves radiating ahead)
+    final energyPaint = Paint()
+      ..color = fill.color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = p.strokeWidth * 0.95
+      ..strokeCap = StrokeCap.round;
+
     canvas.drawArc(
-      Rect.fromCircle(center: Offset(w * 0.50, h * 0.30), radius: w * 0.16),
-      -math.pi * 0.8,
-      math.pi * 1.6,
+      Rect.fromCircle(center: Offset(w * 0.72, h * 0.34), radius: w * 0.18),
+      -math.pi * 0.65,
+      math.pi * 0.9,
       false,
       p,
     );
-    canvas.drawCircle(Offset(w * 0.50, h * 0.30), w * 0.045, fill);
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(w * 0.72, h * 0.34), radius: w * 0.12),
+      -math.pi * 0.65,
+      math.pi * 0.9,
+      false,
+      energyPaint,
+    );
+
+    // Center cadence pulse pip
+    canvas.drawCircle(Offset(w * 0.72, h * 0.34), w * 0.045, fill);
+    canvas.drawCircle(Offset(w * 0.72, h * 0.34), w * 0.045, p);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {

@@ -573,7 +573,7 @@ class _StepCounterScreenState extends State<StepCounterScreen>
               r.date.day == targetDate.day).firstOrNull;
           dataPoints.add(_GraphBarData(
             label: DateFormat('E').format(targetDate),
-            steps: rec?.steps ?? 7500,
+            steps: rec?.steps ?? 0,
             date: targetDate,
           ));
         }
@@ -588,7 +588,7 @@ class _StepCounterScreenState extends State<StepCounterScreen>
             r.date.day == targetDate.day).firstOrNull;
         dataPoints.add(_GraphBarData(
           label: '${targetDate.day}',
-          steps: i == 0 ? _pedometer.todaySteps : (rec?.steps ?? 8100),
+          steps: i == 0 ? _pedometer.todaySteps : (rec?.steps ?? 0),
           date: targetDate,
           isToday: i == 0,
         ));
@@ -602,7 +602,7 @@ class _StepCounterScreenState extends State<StepCounterScreen>
             r.date.isBefore(weekStart.add(const Duration(days: 1)))).toList();
         final avgSteps = recs.isNotEmpty
             ? (recs.map((e) => e.steps).reduce((a, b) => a + b) / recs.length).round()
-            : 8200;
+            : 0;
         dataPoints.add(_GraphBarData(
           label: 'W${12 - w}',
           steps: avgSteps,
@@ -617,7 +617,7 @@ class _StepCounterScreenState extends State<StepCounterScreen>
             r.date.year == mDate.year && r.date.month == mDate.month).toList();
         final avgSteps = recs.isNotEmpty
             ? (recs.map((e) => e.steps).reduce((a, b) => a + b) / recs.length).round()
-            : 8400;
+            : 0;
         dataPoints.add(_GraphBarData(
           label: DateFormat('MMM').format(mDate),
           steps: avgSteps,
@@ -632,7 +632,7 @@ class _StepCounterScreenState extends State<StepCounterScreen>
             r.date.year == mDate.year && r.date.month == mDate.month).toList();
         final avgSteps = recs.isNotEmpty
             ? (recs.map((e) => e.steps).reduce((a, b) => a + b) / recs.length).round()
-            : 8100;
+            : 0;
         dataPoints.add(_GraphBarData(
           label: DateFormat('MMM').format(mDate).substring(0, 1),
           steps: avgSteps,
@@ -642,10 +642,14 @@ class _StepCounterScreenState extends State<StepCounterScreen>
     }
 
     final maxSteps = math.max(
-        12000, dataPoints.map((d) => d.steps).reduce(math.max));
-    final avgSteps = (dataPoints.map((d) => d.steps).reduce((a, b) => a + b) /
-            dataPoints.length)
-        .round();
+        _pedometer.dailyGoal,
+        dataPoints.map((d) => d.steps).fold<int>(0, math.max));
+    final nonZeroData = dataPoints.where((d) => d.steps > 0).toList();
+    final avgSteps = nonZeroData.isNotEmpty
+        ? (nonZeroData.map((d) => d.steps).reduce((a, b) => a + b) /
+                nonZeroData.length)
+            .round()
+        : _pedometer.todaySteps;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
@@ -672,8 +676,12 @@ class _StepCounterScreenState extends State<StepCounterScreen>
               const Spacer(),
               Text(
                 _selectedBarIndex != null && _selectedBarIndex! < dataPoints.length
-                    ? '${NumberFormat('#,###').format(dataPoints[_selectedBarIndex!].steps)} steps'
-                    : 'Avg: ${NumberFormat('#,###').format(avgSteps)} / day',
+                    ? (dataPoints[_selectedBarIndex!].steps == 0
+                        ? '${dataPoints[_selectedBarIndex!].label}: 0 steps'
+                        : '${dataPoints[_selectedBarIndex!].label}: ${NumberFormat('#,###').format(dataPoints[_selectedBarIndex!].steps)} steps')
+                    : (avgSteps > 0
+                        ? 'Avg: ${NumberFormat('#,###').format(avgSteps)} / day'
+                        : 'Tracking Live'),
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w900,
@@ -692,7 +700,8 @@ class _StepCounterScreenState extends State<StepCounterScreen>
               crossAxisAlignment: CrossAxisAlignment.end,
               children: List.generate(dataPoints.length, (idx) {
                 final pt = dataPoints[idx];
-                final frac = (pt.steps / maxSteps).clamp(0.08, 1.0);
+                final frac = pt.steps > 0 ? (pt.steps / maxSteps).clamp(0.08, 1.0) : 0.0;
+                final barHeight = pt.steps > 0 ? (74 * frac) : 3.0;
                 final isSelected = _selectedBarIndex == idx;
 
                 return Expanded(
@@ -709,7 +718,7 @@ class _StepCounterScreenState extends State<StepCounterScreen>
                           // Bar
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 220),
-                            height: 74 * frac,
+                            height: barHeight,
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? const Color(0xFFF43F5E)
@@ -717,8 +726,9 @@ class _StepCounterScreenState extends State<StepCounterScreen>
                                       ? theme.primary
                                       : (pt.steps >= 10000
                                           ? const Color(0xFF10B981)
-                                          : theme.primary
-                                              .withValues(alpha: 0.35))),
+                                          : (pt.steps > 0
+                                              ? theme.primary.withValues(alpha: 0.35)
+                                              : theme.border.withValues(alpha: 0.7)))),
                               borderRadius: BorderRadius.circular(4),
                             ),
                           ),

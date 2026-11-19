@@ -803,22 +803,135 @@ open class MainActivity : FlutterActivity() {
         }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.tooler.tooler/step_counter").setMethodCallHandler { call, result ->
+            val sm = getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
             when (call.method) {
                 "getHardwareStepStatus" -> {
-                    val sm = getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
                     val hasCounter = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_STEP_COUNTER) != null
                     val hasDetector = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_STEP_DETECTOR) != null
+                    val hasPerm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
+                    } else true
                     result.success(
                         mapOf(
                             "hasStepSensor" to (hasCounter || hasDetector),
                             "hasStepCounter" to hasCounter,
-                            "hasStepDetector" to hasDetector
+                            "hasStepDetector" to hasDetector,
+                            "hasPermission" to hasPerm,
+                            "isServiceRunning" to ToolerStepService.isServiceRunning,
+                            "hasNavicFix" to ToolerStepService.hasNavicFix,
+                            "satellites" to ToolerStepService.gnssSatellitesCount
                         )
                     )
+                }
+                "requestStepPermissions" -> {
+                    val permsToRequest = mutableListOf<String>()
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        if (checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) != PackageManager.PERMISSION_GRANTED) {
+                            permsToRequest.add(android.Manifest.permission.ACTIVITY_RECOGNITION)
+                        }
+                    }
+                    if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        permsToRequest.add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    }
+                    if (checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                        permsToRequest.add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            permsToRequest.add(android.Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    }
+                    if (permsToRequest.isNotEmpty()) {
+                        requestPermissions(permsToRequest.toTypedArray(), 9030)
+                        result.success(false)
+                    } else {
+                        result.success(true)
+                    }
+                }
+                "startTracking" -> {
+                    try {
+                        val intent = Intent(this, ToolerStepService::class.java).apply {
+                            action = ToolerStepService.ACTION_START_TRACKING
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            startForegroundService(intent)
+                        } else {
+                            startService(intent)
+                        }
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SERVICE_ERROR", e.message, null)
+                    }
+                }
+                "stopTracking" -> {
+                    try {
+                        val intent = Intent(this, ToolerStepService::class.java).apply {
+                            action = ToolerStepService.ACTION_STOP_TRACKING
+                        }
+                        startService(intent)
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("SERVICE_ERROR", e.message, null)
+                    }
+                }
+                "getLiveStepData" -> {
+                    val prefs = getSharedPreferences(ToolerStepService.PREFS_NAME, Context.MODE_PRIVATE)
+                    val steps = prefs.getInt(ToolerStepService.KEY_TODAY_STEPS, ToolerStepService.liveTodaySteps)
+                    val secs = prefs.getInt(ToolerStepService.KEY_ACTIVE_SECONDS, ToolerStepService.liveActiveSeconds)
+                    val distKm = String.format(java.util.Locale.US, "%.2f", (steps * 0.762) / 1000.0).toDoubleOrNull() ?: 0.0
+
+                    result.success(
+                        mapOf(
+                            "todaySteps" to steps,
+                            "activeSeconds" to secs,
+                            "distanceKm" to distKm,
+                            "avgSpeedKmh" to ToolerStepService.liveSpeedKmh,
+                            "isHardwareSynced" to ToolerStepService.isHardwareSynced,
+                            "isWalking" to ToolerStepService.isWalkingNow,
+                            "isVehicle" to ToolerStepService.isVehicleMode,
+                            "activity" to ToolerStepService.currentActivity,
+                            "hasNavicFix" to ToolerStepService.hasNavicFix,
+                            "satellites" to ToolerStepService.gnssSatellitesCount,
+                            "latitude" to ToolerStepService.lastLatitude,
+                            "longitude" to ToolerStepService.lastLongitude
+                        )
+                    )
+                }
+                "clearAllFakeData" -> {
+                    try {
+                        val intent = Intent(this, ToolerStepService::class.java).apply {
+                            action = ToolerStepService.ACTION_RESET_DATA
+                        }
+                        startService(intent)
+                        val prefs = getSharedPreferences(ToolerStepService.PREFS_NAME, Context.MODE_PRIVATE)
+                        prefs.edit()
+                            .putInt(ToolerStepService.KEY_TODAY_STEPS, 0)
+                            .putInt(ToolerStepService.KEY_ACTIVE_SECONDS, 0)
+                            .putString(ToolerStepService.KEY_TRAIL_POINTS, "[]")
+                            .putString(ToolerStepService.KEY_HISTORY, "[]")
+                            .apply()
+                        result.success(true)
+                    } catch (e: Exception) {
+                        result.error("RESET_ERROR", e.message, null)
+                    }
                 }
                 else -> result.notImplemented()
             }
         }
+
+        // Live Step & GNSS Telemetry EventChannel
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, "com.tooler.tooler/step_counter_events").setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    ToolerStepService.eventSink = events
+                    ToolerStepService.pushLiveTelemetry()
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    ToolerStepService.eventSink = null
+                }
+            }
+        )
     }
 
     private data class HardwareSpec(

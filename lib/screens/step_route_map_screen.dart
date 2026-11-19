@@ -9,12 +9,14 @@ import '../services/pedometer_sensor_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 
 /// ---------------------------------------------------------------------------
-/// TOOLER STEP TRAIL & REAL GPS TRAJECTORY MAP (HOVER PAGE)
-/// - Real High-Resolution OpenStreetMap / Leaflet Vector Tile Engine
-/// - Color-coded Speed Polyline showing exact path walked today
-/// - Interactive Waypoints with speed, time & distance popups
-/// - Start & Current Location pulsing radar beacons
-/// - Live Route Replay animation with runner marker & telemetry HUD
+/// TOOLER STEP TRAIL & REAL MULTI-API GPS + NAVIC TRAJECTORY MAP
+/// - Google Maps (Road & Hybrid Satellite) + NavIC/ISRO Bhuvan & Dark Tile Engines
+/// - Accurate Color-coded Polyline:
+///     * 🟢 Emerald Green: Walking (With Steps)
+///     * 🔵 Cyan Blue: Running / Jogging (With Steps)
+///     * 🔴 Red/Orange Dashed: Vehicle / Transit (WITHOUT Steps)
+/// - Interactive Waypoint Dots along the route with instant speed & step diagnostics
+/// - Real-Time Replay Engine & Satellite Constellation Status
 /// ---------------------------------------------------------------------------
 
 class StepRouteMapScreen extends StatefulWidget {
@@ -30,13 +32,21 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
   final PedometerSensorService _pedometer = PedometerSensorService();
 
   bool _isMapReady = false;
-  String _mapStyle = 'carto_dark'; // 'carto_dark' or 'osm_light'
+  // Available map styles: 'google_road', 'google_sat', 'navic_voyager', 'carto_dark'
+  String _mapStyle = 'google_road';
   String _selectedPointInfo = '';
+
+  final List<Map<String, String>> _styleOptions = [
+    {'id': 'google_road', 'name': 'Google Road', 'icon': '🗺️'},
+    {'id': 'google_sat', 'name': 'Google Sat', 'icon': '🛰️'},
+    {'id': 'navic_voyager', 'name': 'NavIC Street', 'icon': '🇮🇳'},
+    {'id': 'carto_dark', 'name': 'OLED Dark', 'icon': '🌙'},
+  ];
 
   @override
   void initState() {
     super.initState();
-    _mapStyle = widget.theme.isDark ? 'carto_dark' : 'osm_light';
+    _mapStyle = widget.theme.isDark ? 'carto_dark' : 'google_road';
     _initMapController();
   }
 
@@ -54,9 +64,11 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
             if (data['event'] == 'pointClick') {
               HapticFeedback.selectionClick();
               SoundService().playTap();
+              final isVeh = data['isVehicle'] == true;
               setState(() {
-                _selectedPointInfo =
-                    'Point #${data['index'] + 1} · ${data['speed']} km/h · ${data['dist']} km';
+                _selectedPointInfo = isVeh
+                    ? 'Point #${data['index'] + 1} · 🚗 ${data['speed']} km/h · Vehicle (No Steps)'
+                    : 'Point #${data['index'] + 1} · 🚶 ${data['speed']} km/h · ${data['dist']} km';
               });
             } else if (data['event'] == 'mapLoaded') {
               setState(() => _isMapReady = true);
@@ -67,24 +79,46 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
       ..loadHtmlString(_buildLeafletHtml());
   }
 
+  String _getTileUrl() {
+    switch (_mapStyle) {
+      case 'google_road':
+        return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
+      case 'google_sat':
+        return 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
+      case 'navic_voyager':
+        return 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+      case 'carto_dark':
+      default:
+        return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    }
+  }
+
   String _buildLeafletHtml() {
     final trail = _pedometer.todayTrail;
     final isDark = widget.theme.isDark;
-    final tileUrl = _mapStyle == 'carto_dark'
-        ? 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
-        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+    final tileUrl = _getTileUrl();
+    final isSubdomainReq =
+        _mapStyle == 'navic_voyager' || _mapStyle == 'carto_dark';
 
     final pointsJson = jsonEncode(trail.map((p) => {
           'lat': p.lat,
           'lon': p.lon,
           'speed': p.speedKmh,
           'dist': p.distanceKm,
-          'time': '${p.timestamp.hour.toString().padLeft(2, '0')}:${p.timestamp.minute.toString().padLeft(2, '0')}',
+          'steps': p.steps,
+          'isVehicle': p.isVehicle || p.speedKmh > 16.0,
+          'activity': p.activity,
+          'time':
+              '${p.timestamp.hour.toString().padLeft(2, '0')}:${p.timestamp.minute.toString().padLeft(2, '0')}',
         }).toList());
 
     final initialCenter = trail.isNotEmpty
         ? [trail.first.lat, trail.first.lon]
-        : [19.0760, 72.8777];
+        : (_pedometer.lastLat != 0.0 && _pedometer.lastLon != 0.0
+            ? [_pedometer.lastLat, _pedometer.lastLon]
+            : [20.5937, 78.9629]); // India center fallback
+
+    final initialZoom = trail.isNotEmpty ? 16 : 5;
 
     return '''
 <!DOCTYPE html>
@@ -110,38 +144,57 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     .pulse-current-marker {
       width: 22px;
       height: 22px;
-      background: #F43F5E;
+      background: #3B82F6;
       border: 3.5px solid #FFFFFF;
       border-radius: 50%;
-      box-shadow: 0 0 16px rgba(244, 63, 94, 0.9);
+      box-shadow: 0 0 16px rgba(59, 130, 246, 0.9);
       animation: beaconPulse 1.6s infinite ease-out;
     }
 
     @keyframes beaconPulse {
-      0% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7); }
-      70% { box-shadow: 0 0 0 18px rgba(244, 63, 94, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); }
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+      70% { box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
     }
 
     .runner-replay-marker {
-      width: 20px;
-      height: 20px;
-      background: #3B82F6;
+      width: 22px;
+      height: 22px;
+      background: #F59E0B;
       border: 3px solid #FFFFFF;
       border-radius: 50%;
-      box-shadow: 0 0 14px rgba(59, 130, 246, 0.9);
-      transition: all 0.35s ease;
+      box-shadow: 0 0 14px rgba(245, 158, 11, 0.9);
+      transition: all 0.3s ease;
     }
 
     .leaflet-popup-content-wrapper {
-      background: ${isDark ? "rgba(22, 25, 34, 0.92)" : "rgba(255, 255, 255, 0.95)"};
+      background: ${isDark ? "rgba(15, 23, 42, 0.94)" : "rgba(255, 255, 255, 0.96)"};
       color: ${isDark ? "#FFFFFF" : "#0F172A"};
-      border-radius: 12px;
-      border: 1px solid ${isDark ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"};
-      backdrop-filter: blur(10px);
-      font-size: 11.5px;
-      font-weight: 700;
+      border-radius: 14px;
+      border: 1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"};
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
       padding: 4px;
+    }
+
+    .popup-badge-walk {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(16, 185, 129, 0.18);
+      color: #10B981;
+      font-weight: 800;
+      font-size: 11px;
+    }
+
+    .popup-badge-veh {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(239, 68, 68, 0.18);
+      color: #EF4444;
+      font-weight: 800;
+      font-size: 11px;
     }
   </style>
 </head>
@@ -152,11 +205,11 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     const map = L.map('map', {
       zoomControl: false,
       attributionControl: false
-    }).setView([${initialCenter[0]}, ${initialCenter[1]}], 16);
+    }).setView([${initialCenter[0]}, ${initialCenter[1]}], $initialZoom);
 
     L.tileLayer('$tileUrl', {
-      maxZoom: 19,
-      subdomains: 'abcd',
+      maxZoom: 20,
+      subdomains: '${isSubdomainReq ? "abcd" : ""}',
     }).addTo(map);
 
     let replayIndex = 0;
@@ -166,63 +219,83 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     if (points && points.length > 0) {
       const latlngs = points.map(p => [p.lat, p.lon]);
 
-      // 1. Draw Multi-Segment Colored Trajectory Line based on Speed
+      // 1. Draw Multi-Segment Colored Trajectory
       for (let i = 0; i < points.length - 1; i++) {
         const p1 = points[i];
         const p2 = points[i + 1];
+        const isVeh = p1.isVehicle || p2.isVehicle;
         const speed = p1.speed;
 
-        // Speed Color Palette: Green (normal walk) -> Amber (brisk) -> Red (jogging)
-        let strokeColor = '#10B981'; // Moderate walk (<= 4.2 km/h)
-        if (speed > 4.2 && speed <= 5.8) {
-          strokeColor = '#F59E0B'; // Brisk walk
-        } else if (speed > 5.8) {
-          strokeColor = '#F43F5E'; // Jogging / Running
+        let strokeColor = '#10B981'; // Moderate Walking (With Steps)
+        let isDashed = false;
+
+        if (isVeh) {
+          strokeColor = '#EF4444'; // Vehicle / Transit (Without Steps)
+          isDashed = true;
+        } else if (speed > 5.5) {
+          strokeColor = '#06B6D4'; // Running / Jogging (With Steps)
         }
 
-        // Draw shadow glow segment
+        // Ambient glow line
         L.polyline([[p1.lat, p1.lon], [p2.lat, p2.lon]], {
           color: strokeColor,
-          weight: 7,
-          opacity: 0.28,
+          weight: isDashed ? 5 : 7,
+          opacity: 0.25,
+          dashArray: isDashed ? '8, 8' : null,
           lineCap: 'round'
         }).addTo(map);
 
-        // Core polyline segment
+        // Core precision line
         L.polyline([[p1.lat, p1.lon], [p2.lat, p2.lon]], {
           color: strokeColor,
           weight: 4.2,
           opacity: 0.95,
+          dashArray: isDashed ? '6, 8' : null,
           lineCap: 'round',
           lineJoin: 'round'
         }).addTo(map);
       }
 
-      // 2. Interactive Waypoints along the line
+      // 2. Interactive Waypoint Dots along the route
       points.forEach((p, idx) => {
-        if (idx > 0 && idx < points.length - 1 && (idx % 2 === 0 || points.length < 15)) {
-          const circle = L.circleMarker([p.lat, p.lon], {
-            radius: 4,
-            fillColor: '#FFFFFF',
-            color: p.speed > 5.8 ? '#F43F5E' : (p.speed > 4.2 ? '#F59E0B' : '#10B981'),
-            weight: 2.2,
-            opacity: 1,
-            fillOpacity: 1
-          }).addTo(map);
+        const isVeh = p.isVehicle;
+        const dotColor = isVeh ? '#EF4444' : (p.speed > 5.5 ? '#06B6D4' : '#10B981');
 
-          circle.bindPopup('<strong>Point #' + (idx + 1) + '</strong><br>Time: ' + p.time + '<br>Speed: ' + p.speed + ' km/h<br>Dist: ' + p.dist + ' km');
-          circle.on('click', () => {
-            if (window.ToolerMapChannel) {
-              window.ToolerMapChannel.postMessage(JSON.stringify({
-                event: 'pointClick',
-                index: idx,
-                speed: p.speed,
-                dist: p.dist,
-                time: p.time
-              }));
-            }
-          });
-        }
+        const circle = L.circleMarker([p.lat, p.lon], {
+          radius: (idx === 0 || idx === points.length - 1) ? 6 : 4,
+          fillColor: '#FFFFFF',
+          color: dotColor,
+          weight: 2.5,
+          opacity: 1,
+          fillOpacity: 1
+        }).addTo(map);
+
+        const badgeHtml = isVeh 
+          ? '<div class="popup-badge-veh">🚗 VEHICLE (NO STEPS)</div>'
+          : '<div class="popup-badge-walk">👣 WALKING (WITH STEPS)</div>';
+
+        const popupContent = 
+          '<div style="min-width: 150px; font-family:-apple-system, sans-serif;">' +
+            badgeHtml +
+            '<div style="margin-top:6px; font-size:11px; color:#94A3B8;">Waypoint #' + (idx + 1) + ' · ' + p.time + '</div>' +
+            '<div style="margin-top:4px; font-size:12px; font-weight:800;">Speed: ' + p.speed + ' km/h</div>' +
+            '<div style="font-size:11.5px; font-weight:600; color:#64748B;">Cum. Dist: ' + p.dist + ' km</div>' +
+            (isVeh ? '<div style="margin-top:4px; font-size:10px; color:#EF4444; font-weight:700;">Steps suppressed to protect accuracy</div>' : '<div style="margin-top:4px; font-size:10px; color:#10B981; font-weight:700;">Steps tracked to pedometer</div>') +
+          '</div>';
+
+        circle.bindPopup(popupContent);
+        circle.on('click', () => {
+          if (window.ToolerMapChannel) {
+            window.ToolerMapChannel.postMessage(JSON.stringify({
+              event: 'pointClick',
+              index: idx,
+              speed: p.speed,
+              dist: p.dist,
+              isVehicle: isVeh,
+              time: p.time
+            }));
+          }
+        });
       });
 
       // 3. Start Marker (Green Pin)
@@ -237,7 +310,7 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
         .addTo(map)
         .bindPopup('<strong>Start Location</strong><br>Time: ' + startPt.time + '<br>0.0 km');
 
-      // 4. Current / End Marker (Red Radar Pulse Pin)
+      // 4. Current / End Marker (Radar Pulse Pin)
       const endPt = points[points.length - 1];
       const endIcon = L.divIcon({
         className: '',
@@ -247,13 +320,13 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
       });
       L.marker([endPt.lat, endPt.lon], { icon: endIcon })
         .addTo(map)
-        .bindPopup('<strong>Current Location</strong><br>Speed: ' + endPt.speed + ' km/h<br>' + endPt.dist + ' km Walked');
+        .bindPopup('<strong>Current Location</strong><br>Speed: ' + endPt.speed + ' km/h<br>' + endPt.dist + ' km Logged');
 
-      // Fit bounds with nice padding
+      // Fit bounds
       map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40] });
     }
 
-    // Interactive Replay Function
+    // Replay Function
     window.startRouteReplay = function() {
       if (!points || points.length === 0) return;
       if (replayTimer) clearInterval(replayTimer);
@@ -263,8 +336,8 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
         const replayIcon = L.divIcon({
           className: '',
           html: '<div class="runner-replay-marker"></div>',
-          iconSize: [20, 20],
-          iconAnchor: [10, 10]
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
         });
         replayMarker = L.marker([points[0].lat, points[0].lon], { icon: replayIcon }).addTo(map);
       }
@@ -282,11 +355,12 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
             index: replayIndex,
             speed: pt.speed,
             dist: pt.dist,
+            isVehicle: pt.isVehicle,
             time: pt.time
           }));
         }
         replayIndex++;
-      }, 350);
+      }, 320);
     };
 
     window.fitRouteBounds = function() {
@@ -317,11 +391,14 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     _mapController.runJavaScript('window.fitRouteBounds();');
   }
 
-  void _toggleMapStyle() {
+  void _cycleMapStyle() {
     SoundService().playClick();
     HapticFeedback.lightImpact();
+    final currentIdx = _styleOptions.indexWhere((s) => s['id'] == _mapStyle);
+    final nextIdx = (currentIdx + 1) % _styleOptions.length;
     setState(() {
-      _mapStyle = _mapStyle == 'carto_dark' ? 'osm_light' : 'carto_dark';
+      _mapStyle = _styleOptions[nextIdx]['id']!;
+      _isMapReady = false;
     });
     _mapController.loadHtmlString(_buildLeafletHtml());
   }
@@ -333,14 +410,16 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     final distKm = _pedometer.distanceKm;
     final speed = _pedometer.avgSpeedKmh;
     final mins = (_pedometer.activeSeconds / 60).round();
-    final cals = _pedometer.caloriesKcal;
+    final steps = _pedometer.todaySteps;
+    final currentStyleMeta =
+        _styleOptions.firstWhere((s) => s['id'] == _mapStyle);
 
     return Scaffold(
       backgroundColor: theme.bg,
       body: SafeArea(
         child: Column(
           children: [
-            // 1. Top Header Bar
+            // 1. Top Navigation Bar
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 8, 14, 8),
               child: Row(
@@ -367,19 +446,45 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          "TODAY'S WALK TRAJECTORY",
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.6,
-                            color: theme.text,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              "WALK TRAJECTORY MAP",
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.6,
+                                color: theme.text,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            if (_pedometer.hasNavicFix)
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 5, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF10B981)
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(
+                                      color: const Color(0xFF10B981),
+                                      width: 0.8),
+                                ),
+                                child: Text(
+                                  '🇮🇳 NavIC',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w800,
+                                    color: const Color(0xFF10B981),
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                         Text(
                           _selectedPointInfo.isNotEmpty
                               ? _selectedPointInfo
-                              : '${_pedometer.todayTrail.length} waypoints recorded · Live GPS trail',
+                              : '${_pedometer.todayTrail.length} waypoints · Real GNSS & Hardware filter',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
@@ -391,11 +496,12 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                       ],
                     ),
                   ),
-                  // Map Style Toggle (Day / Night)
+                  // Map Style Layer Switcher
                   BouncyTap(
-                    onTap: _toggleMapStyle,
+                    onTap: _cycleMapStyle,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: theme.cardBg,
                         borderRadius: BorderRadius.circular(10),
@@ -404,18 +510,13 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            _mapStyle == 'carto_dark'
-                                ? Icons.dark_mode_rounded
-                                : Icons.light_mode_rounded,
-                            size: 13,
-                            color: theme.primary,
-                          ),
-                          const SizedBox(width: 4),
+                          Text(currentStyleMeta['icon']!,
+                              style: const TextStyle(fontSize: 12)),
+                          const SizedBox(width: 5),
                           Text(
-                            _mapStyle == 'carto_dark' ? 'Dark' : 'Light',
+                            currentStyleMeta['name']!,
                             style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9.5,
+                              fontSize: 10,
                               fontWeight: FontWeight.w800,
                               color: theme.text,
                             ),
@@ -428,11 +529,10 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
               ),
             ),
 
-            // 2. Real Interactive Map Container with Floating HUD & Controls
+            // 2. Real Interactive Map Container
             Expanded(
               child: Stack(
                 children: [
-                  // Full Real Leaflet/OpenStreetMap WebView
                   ClipRRect(
                     borderRadius: BorderRadius.circular(22),
                     child: Container(
@@ -459,7 +559,7 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                                       ),
                                       const SizedBox(height: 10),
                                       Text(
-                                        'Loading real street map tiles...',
+                                        'Syncing real map tiles...',
                                         style: GoogleFonts.jetBrainsMono(
                                           fontSize: 11,
                                           color: theme.textSecondary,
@@ -475,20 +575,23 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                     ),
                   ),
 
-                  // Floating Top HUD Card (Distance · Time · Speed · Calories)
+                  // Floating Top HUD Card
                   Positioned(
                     top: 14,
                     left: 22,
                     right: 22,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: theme.cardBg.withValues(alpha: isDark ? 0.92 : 0.96),
+                        color: theme.cardBg
+                            .withValues(alpha: isDark ? 0.92 : 0.96),
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: theme.border, width: 1.1),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withValues(alpha: isDark ? 0.4 : 0.08),
+                            color: Colors.black
+                                .withValues(alpha: isDark ? 0.4 : 0.08),
                             blurRadius: 14,
                             offset: const Offset(0, 4),
                           ),
@@ -497,26 +600,27 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceAround,
                         children: [
-                          _hudMetric('DISTANCE', '$distKm km', theme.primary, theme),
+                          _hudMetric('STEPS', '$steps', theme.primary, theme),
                           _hudDivider(theme),
-                          _hudMetric('DURATION', '$mins min', const Color(0xFF10B981), theme),
+                          _hudMetric(
+                              'DISTANCE', '$distKm km', const Color(0xFF10B981), theme),
                           _hudDivider(theme),
-                          _hudMetric('AVG SPEED', '$speed km/h', const Color(0xFFF59E0B), theme),
+                          _hudMetric(
+                              'AVG SPEED', '$speed km/h', const Color(0xFF06B6D4), theme),
                           _hudDivider(theme),
-                          _hudMetric('BURNED', '$cals kcal', const Color(0xFFF43F5E), theme),
+                          _hudMetric('ACTIVE', '$mins m', const Color(0xFFF59E0B), theme),
                         ],
                       ),
                     ),
                   ),
 
-                  // Floating Map Action Buttons (Replay Walk & Recenter)
+                  // Floating Map Action Buttons (Replay & Recenter)
                   Positioned(
                     bottom: 18,
                     right: 24,
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Animated Route Replay Button
                         BouncyTap(
                           onTap: _triggerReplay,
                           child: Container(
@@ -533,12 +637,11 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
+                            child: const Icon(Icons.play_arrow_rounded,
+                                color: Colors.white, size: 24),
                           ),
                         ),
                         const SizedBox(height: 10),
-
-                        // Recenter Route Button
                         BouncyTap(
                           onTap: _recenterRoute,
                           child: Container(
@@ -550,38 +653,51 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                               border: Border.all(color: theme.border, width: 1.2),
                               boxShadow: [
                                 BoxShadow(
-                                  color: Colors.black.withValues(alpha: isDark ? 0.3 : 0.06),
+                                  color: Colors.black
+                                      .withValues(alpha: isDark ? 0.3 : 0.06),
                                   blurRadius: 8,
                                   offset: const Offset(0, 2),
                                 ),
                               ],
                             ),
-                            child: Icon(Icons.my_location_rounded, color: theme.text, size: 20),
+                            child: Icon(Icons.my_location_rounded,
+                                color: theme.text, size: 20),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  // Floating Legend (Speed Color Guide)
+                  // Floating Legend with Walk (Steps) vs Vehicle (No Steps)
                   Positioned(
                     bottom: 18,
                     left: 24,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 7),
                       decoration: BoxDecoration(
-                        color: theme.cardBg.withValues(alpha: isDark ? 0.90 : 0.94),
-                        borderRadius: BorderRadius.circular(10),
+                        color:
+                            theme.cardBg.withValues(alpha: isDark ? 0.90 : 0.95),
+                        borderRadius: BorderRadius.circular(11),
                         border: Border.all(color: theme.border),
                       ),
-                      child: Row(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          _legendItem(const Color(0xFF10B981), 'Walk', theme),
-                          const SizedBox(width: 8),
-                          _legendItem(const Color(0xFFF59E0B), 'Brisk', theme),
-                          const SizedBox(width: 8),
-                          _legendItem(const Color(0xFFF43F5E), 'Jog', theme),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              _legendItem(const Color(0xFF10B981), 'Walk (Steps)',
+                                  theme, false),
+                              const SizedBox(width: 8),
+                              _legendItem(
+                                  const Color(0xFF06B6D4), 'Run', theme, false),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          _legendItem(const Color(0xFFEF4444),
+                              'Vehicle (No Steps)', theme, true),
                         ],
                       ),
                     ),
@@ -596,7 +712,8 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     );
   }
 
-  Widget _hudMetric(String label, String value, Color accent, StationeryTheme theme) {
+  Widget _hudMetric(
+      String label, String value, Color accent, StationeryTheme theme) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -630,20 +747,24 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     );
   }
 
-  Widget _legendItem(Color color, String label, StationeryTheme theme) {
+  Widget _legendItem(
+      Color color, String label, StationeryTheme theme, bool isDashed) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          width: 12,
+          height: 3,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
         ),
         const SizedBox(width: 4),
         Text(
           label,
           style: GoogleFonts.jetBrainsMono(
-            fontSize: 9.5,
+            fontSize: 9,
             fontWeight: FontWeight.w700,
             color: theme.text,
           ),
