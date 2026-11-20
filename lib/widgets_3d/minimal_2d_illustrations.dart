@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 /// ---------------------------------------------------------------------------
@@ -582,6 +583,11 @@ class _IllustrationPainter extends CustomPainter {
       case 'fm':
         _drawRadio(canvas, w, h, p, fillAccent);
         break;
+      case 'steps':
+      case 'step_counter':
+      case 'pedometer':
+        _drawSteps(canvas, w, h, p, fillAccent);
+        break;
       case 'all_tools':
       case 'tools':
         _drawAllTools(canvas, w, h, p, fillAccent);
@@ -1126,6 +1132,52 @@ class _IllustrationPainter extends CustomPainter {
 
     // Minimal speaker circle on left
     canvas.drawCircle(Offset(w * 0.33, h * 0.58), w * 0.09, p);
+  }
+
+  void _drawSteps(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    // Dynamic running sneaker / footsteps outline with progress arc
+    final shoePath = Path();
+    shoePath.moveTo(w * 0.22, h * 0.64);
+    shoePath.lineTo(w * 0.22, h * 0.52);
+    shoePath.quadraticBezierTo(w * 0.28, h * 0.44, w * 0.42, h * 0.44);
+    shoePath.lineTo(w * 0.52, h * 0.52);
+    shoePath.quadraticBezierTo(w * 0.68, h * 0.56, w * 0.82, h * 0.62);
+    shoePath.quadraticBezierTo(w * 0.84, h * 0.68, w * 0.78, h * 0.72);
+    shoePath.lineTo(w * 0.26, h * 0.72);
+    shoePath.quadraticBezierTo(w * 0.22, h * 0.70, w * 0.22, h * 0.64);
+    shoePath.close();
+
+    canvas.drawPath(shoePath, p);
+
+    // Sole line with accent fill
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.20, h * 0.68, w * 0.60, h * 0.08),
+        Radius.circular(w * 0.03),
+      ),
+      fill,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(w * 0.20, h * 0.68, w * 0.60, h * 0.08),
+        Radius.circular(w * 0.03),
+      ),
+      p,
+    );
+
+    // Laces / Speed dashes
+    canvas.drawLine(Offset(w * 0.42, h * 0.48), Offset(w * 0.46, h * 0.54), p);
+    canvas.drawLine(Offset(w * 0.48, h * 0.50), Offset(w * 0.52, h * 0.56), p);
+
+    // Pulsing step target arc above shoe
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(w * 0.50, h * 0.30), radius: w * 0.16),
+      -math.pi * 0.8,
+      math.pi * 1.6,
+      false,
+      p,
+    );
+    canvas.drawCircle(Offset(w * 0.50, h * 0.30), w * 0.045, fill);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {

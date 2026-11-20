@@ -801,6 +801,24 @@ open class MainActivity : FlutterActivity() {
                 else -> result.notImplemented()
             }
         }
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.tooler.tooler/step_counter").setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getHardwareStepStatus" -> {
+                    val sm = getSystemService(Context.SENSOR_SERVICE) as? android.hardware.SensorManager
+                    val hasCounter = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_STEP_COUNTER) != null
+                    val hasDetector = sm?.getDefaultSensor(android.hardware.Sensor.TYPE_STEP_DETECTOR) != null
+                    result.success(
+                        mapOf(
+                            "hasStepSensor" to (hasCounter || hasDetector),
+                            "hasStepCounter" to hasCounter,
+                            "hasStepDetector" to hasDetector
+                        )
+                    )
+                }
+                else -> result.notImplemented()
+            }
+        }
     }
 
     private data class HardwareSpec(

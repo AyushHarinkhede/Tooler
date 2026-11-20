@@ -32,6 +32,7 @@ import 'character_illustrations_screen.dart';
 import 'power_screen.dart';
 import 'security_screen.dart';
 import 'fm_radio_screen.dart';
+import 'step_counter_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -654,6 +655,27 @@ class _HomeScreenState extends State<HomeScreen> {
           'mascot', 'doodle', 'chitra',
         ],
         'builder': (context) => CharacterIllustrationsScreen(theme: widget.theme),
+      },
+      {
+        'id': 'steps',
+        'title': 'Step Counter',
+        'subtitle': 'Hardware-synced pedometer, distance, speed & GPS walk map',
+        'category': 'Time & Tasks',
+        'tag': 'Pedometer',
+        'iconType': 'steps',
+        'isFeatured': true,
+        'features': [
+          {'name': 'Hardware Step Tracking', 'desc': 'Real-time step counter synced with device accelerometer & pedometer sensors'},
+          {'name': 'Distance & Avg Speed', 'desc': 'Precision walking distance, active calories burned & average walking speed'},
+          {'name': 'Historical Activity Graph', 'desc': 'Clean single-bar toggle for 7D, 1M, 3M, 6M & 1Y activity trends'},
+          {'name': 'Real Trajectory Route Map', 'desc': 'OpenStreetMap GPS trail line with speed-colored segments & waypoints'},
+        ],
+        'keywords': [
+          'step counter', 'steps', 'pedometer', 'walk', 'walking', 'distance', 'speed',
+          'calories', 'fitness', 'health', 'tracker', 'route map', 'trajectory', 'gps',
+          'kadam', 'chalna', 'speed meter',
+        ],
+        'builder': (context) => StepCounterScreen(theme: widget.theme),
       },
     ];
   }
