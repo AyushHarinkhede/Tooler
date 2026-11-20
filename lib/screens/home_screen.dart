@@ -34,6 +34,7 @@ import 'power_screen.dart';
 import 'security_screen.dart';
 import 'fm_radio_screen.dart';
 import 'step_counter_screen.dart';
+import 'weather_screen.dart';
 import 'settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -686,6 +687,28 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
         'builder': (context) => StepCounterScreen(theme: widget.theme),
       },
+      {
+        'id': 'weather',
+        'title': 'Weather & Atmosphere',
+        'subtitle': 'Live weather, 14-day trend, AQI mascot & lunar trajectory',
+        'category': 'Time & Tasks',
+        'tag': 'Atmosphere & AQI',
+        'iconType': 'weather',
+        'isFeatured': true,
+        'features': [
+          {'name': 'Atmospheric Dynamic Landscape', 'desc': 'SVG Sun trajectory, 8-phase lunar cycle, moving clouds, rain streaks, lightning bolts, mountain flood & tornado disasters'},
+          {'name': 'AQI Reactive Tooler Character', 'desc': 'Custom vector character reacting to AQI (Smiling -> Coughing -> N95 Mask -> Oxygen Cylinder & Mask)'},
+          {'name': '14-Day Past & Forecast Visualizer', 'desc': 'Interactive 7-day past history + 7-day future weather trends with °C and °F unit toggle'},
+          {'name': 'Astronomical Moon Phase Engine', 'desc': 'Accurate moon phase rendering (New Moon, Crescents, Quarters, Gibbous, Full Moon) with illumination %'},
+          {'name': 'Dynamic Ecology & AQI Trees', 'desc': 'Lush swaying trees & flying birds during clean air vs. bare dry branches & heavy smog during high AQI'},
+        ],
+        'keywords': [
+          'weather', 'mausam', 'climate', 'temperature', 'aqi', 'air quality', 'forecast',
+          'sun', 'moon', 'moon phase', 'rain', 'clouds', 'thunder', 'lightning', 'flood',
+          'tornado', 'twister', 'disaster', 'atmosphere', 'hawa', 'badal', 'garaj',
+        ],
+        'builder': (context) => WeatherScreen(theme: widget.theme),
+      },
     ];
   }
 
@@ -1131,6 +1154,11 @@ class _HomeScreenState extends State<HomeScreen> {
                             onTap: () {
                               SoundService().playTap();
                               WeatherTelemetryService().fetchTelemetry();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => WeatherScreen(theme: widget.theme),
+                                ),
+                              );
                             },
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),

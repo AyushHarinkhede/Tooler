@@ -588,6 +588,10 @@ class _IllustrationPainter extends CustomPainter {
       case 'pedometer':
         _drawSteps(canvas, w, h, p, fillAccent);
         break;
+      case 'weather':
+      case 'mausam':
+        _drawWeather(canvas, w, h, p, fillAccent);
+        break;
       case 'all_tools':
       case 'tools':
         _drawAllTools(canvas, w, h, p, fillAccent);
@@ -1231,6 +1235,43 @@ class _IllustrationPainter extends CustomPainter {
     // Center cadence pulse pip
     canvas.drawCircle(Offset(w * 0.72, h * 0.34), w * 0.045, fill);
     canvas.drawCircle(Offset(w * 0.72, h * 0.34), w * 0.045, p);
+  }
+
+  void _drawWeather(Canvas canvas, double w, double h, Paint p, Paint fill) {
+    // Sun peaking behind cloud with warm accent
+    final sunCenter = Offset(w * 0.64, h * 0.34);
+    canvas.drawCircle(sunCenter, w * 0.14, fill);
+    canvas.drawCircle(sunCenter, w * 0.14, p);
+
+    // Sun rays
+    for (int i = 0; i < 4; i++) {
+      final angle = -math.pi * 0.25 + (i * math.pi * 0.3);
+      final p1 = Offset(sunCenter.dx + math.cos(angle) * (w * 0.18), sunCenter.dy + math.sin(angle) * (w * 0.18));
+      final p2 = Offset(sunCenter.dx + math.cos(angle) * (w * 0.25), sunCenter.dy + math.sin(angle) * (w * 0.25));
+      canvas.drawLine(p1, p2, p);
+    }
+
+    // Modern flat cloud
+    final cloud = Path();
+    cloud.moveTo(w * 0.28, h * 0.68);
+    cloud.lineTo(w * 0.68, h * 0.68);
+    cloud.arcToPoint(Offset(w * 0.76, h * 0.58), radius: Radius.circular(w * 0.1));
+    cloud.arcToPoint(Offset(w * 0.62, h * 0.44), radius: Radius.circular(w * 0.15));
+    cloud.arcToPoint(Offset(w * 0.38, h * 0.46), radius: Radius.circular(w * 0.16));
+    cloud.arcToPoint(Offset(w * 0.24, h * 0.58), radius: Radius.circular(w * 0.12));
+    cloud.arcToPoint(Offset(w * 0.28, h * 0.68), radius: Radius.circular(w * 0.1));
+    cloud.close();
+
+    final bgFill = Paint()
+      ..color = isDark ? const Color(0xFF27272A) : Colors.white
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(cloud, bgFill);
+    canvas.drawPath(cloud, p);
+
+    // Rain drop lines
+    canvas.drawLine(Offset(w * 0.38, h * 0.74), Offset(w * 0.34, h * 0.84), p);
+    canvas.drawLine(Offset(w * 0.52, h * 0.74), Offset(w * 0.48, h * 0.84), p);
+    canvas.drawLine(Offset(w * 0.66, h * 0.74), Offset(w * 0.62, h * 0.84), p);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {

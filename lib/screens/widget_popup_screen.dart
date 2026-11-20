@@ -24,6 +24,7 @@ import 'character_illustrations_screen.dart';
 import 'power_screen.dart';
 import 'security_screen.dart';
 import 'fm_radio_screen.dart';
+import 'weather_screen.dart';
 
 /// Direct Transparent Home Screen Floating Hover Page launched by Android Widgets.
 /// Floats directly on top of the user's phone Home Screen / Wallpaper without
@@ -238,6 +239,14 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
           subtitle: '2D Vector Studio Gallery',
           tag: 'Art',
           child: CharacterIllustrationsScreen(theme: t),
+        );
+      case 'weather':
+      case 'mausam':
+        return _PopupToolMeta(
+          title: 'Weather & Atmosphere',
+          subtitle: 'Live Weather, 14-Day Trend & AQI Mascot',
+          tag: 'Atmosphere',
+          child: WeatherScreen(theme: t),
         );
       default:
         return _PopupToolMeta(
