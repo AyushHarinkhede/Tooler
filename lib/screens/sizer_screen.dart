@@ -1,9 +1,23 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/tooler_hover_sheet.dart';
+
+const String kRulerPinSvg = '''
+<svg viewBox="0 0 24 24" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M7 17L2 22" stroke="#94A3B8" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M5.5 15.5L8.5 18.5L10 17L7 14L5.5 15.5Z" fill="#991B1B"/>
+  <path d="M7 14L14 21L17.5 17.5L10.5 10.5L7 14Z" fill="#DC2626"/>
+  <path d="M8.5 12.5L15 19" stroke="#FCA5A5" stroke-width="1.2" stroke-linecap="round"/>
+  <path d="M12.5 8.5L19.5 15.5L21.5 13.5L14.5 6.5L12.5 8.5Z" fill="#EF4444"/>
+  <circle cx="17" cy="9" r="3.2" fill="#F87171"/>
+  <circle cx="16" cy="8" r="1.2" fill="#FFFFFF"/>
+</svg>
+''';
 
 enum SizerToolType { ring, bangle, strap, ruler }
 
@@ -50,6 +64,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
   @override
   void dispose() {
+    ToolerHoverSheet.setImmersive(context, false);
     _ringCircumferenceCtrl.dispose();
     _bangleKnuckleCtrl.dispose();
     _rulerScrollCtrl.dispose();
@@ -160,11 +175,13 @@ class _SizerScreenState extends State<SizerScreen> {
   void _enterFullScreenRuler() {
     SoundService().playClick();
     setState(() => _isFullScreenRuler = true);
+    ToolerHoverSheet.setImmersive(context, true);
   }
 
   void _exitFullScreenRuler() {
     SoundService().playClick();
     setState(() => _isFullScreenRuler = false);
+    ToolerHoverSheet.setImmersive(context, false);
   }
 
   // Calibration Dialog
@@ -251,7 +268,15 @@ class _SizerScreenState extends State<SizerScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isFullScreenRuler) {
-      return _buildFullScreenRulerView();
+      return PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop) {
+            _exitFullScreenRuler();
+          }
+        },
+        child: _buildFullScreenRulerView(),
+      );
     }
 
     return Scaffold(
@@ -368,6 +393,9 @@ class _SizerScreenState extends State<SizerScreen> {
       child: BouncyTap(
         onTap: () {
           SoundService().playClick();
+          if (_isFullScreenRuler) {
+            _exitFullScreenRuler();
+          }
           setState(() => _activeType = type);
         },
         scaleFraction: 0.92,
@@ -1957,6 +1985,80 @@ class _SizerScreenState extends State<SizerScreen> {
   }
 
   // =========================================================================
+  // 4. RULER PIN MARKER WIDGET (Crisp SVG Push-Pin & Precise Measurement)
+  // =========================================================================
+  Widget _buildPinMarkerWidget(double pinMm, int index) {
+    final pinY = pinMm * _pixelsPerMm;
+    final cm = pinMm / 10.0;
+    final inches = pinMm / 25.4;
+
+    return Positioned(
+      top: pinY - 14,
+      left: 0,
+      right: 0,
+      child: SizedBox(
+        height: 28,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Red horizontal measurement line across ruler width
+            Positioned(
+              top: 13,
+              left: 0,
+              right: 0,
+              child: Container(
+                height: 2,
+                color: const Color(0xFFE74C3C),
+              ),
+            ),
+            // Center Floating Pill with SVG Pin Icon & Measurement
+            GestureDetector(
+              onTap: () {
+                SoundService().playClick();
+                _showPinsBottomSheet();
+              },
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE74C3C),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.25),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SvgPicture.string(
+                      kRulerPinSvg,
+                      width: 15,
+                      height: 15,
+                    ),
+                    const SizedBox(width: 5),
+                    Text(
+                      "${cm.toStringAsFixed(1)} cm  (${inches.toStringAsFixed(2)}\")",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // =========================================================================
   // 4. RULER SIZER (Vertical Default View reaching bottom edge & Full Screen Hover trigger)
   // =========================================================================
   Widget _buildRulerSizer() {
@@ -1985,14 +2087,17 @@ class _SizerScreenState extends State<SizerScreen> {
             ),
             child: Stack(
               children: [
-                // Ruler Canvas that triggers full-screen on slight scroll / drag
+                // Ruler Canvas with tap-to-pin
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.opaque,
-                    onVerticalDragUpdate: (details) {
-                      if (details.primaryDelta != null && details.primaryDelta!.abs() > 1.5) {
-                        _enterFullScreenRuler();
-                      }
+                    onTapUp: (details) {
+                      SoundService().playClick();
+                      final localY = details.localPosition.dy;
+                      final tappedMm = localY / _pixelsPerMm;
+                      setState(() {
+                        _pinnedPointsMm.add(tappedMm);
+                      });
                     },
                     child: CustomPaint(
                       size: Size(constraints.maxWidth, rulerHeight),
@@ -2006,7 +2111,11 @@ class _SizerScreenState extends State<SizerScreen> {
                   ),
                 ),
 
-                // Upper Middle Hover Full Screen Button (in place of back & pin)
+                // Pinned points widgets on normal view
+                for (int p = 0; p < _pinnedPointsMm.length; p++)
+                  _buildPinMarkerWidget(_pinnedPointsMm[p], p),
+
+                // Upper Middle Hover Full Screen Button
                 Positioned(
                   top: 14,
                   left: 0,
@@ -2067,7 +2176,7 @@ class _SizerScreenState extends State<SizerScreen> {
       backgroundColor: const Color(0xFFF9F1DC),
       body: Stack(
         children: [
-          // 1. Edge-to-Edge Smooth Scrollable Ruler Canvas (from absolute top to bottom)
+          // 1. Edge-to-Edge Smooth Scrollable Ruler Canvas (from absolute top y=0 to bottom)
           Positioned.fill(
             child: GestureDetector(
               onTapUp: (details) {
@@ -2082,18 +2191,25 @@ class _SizerScreenState extends State<SizerScreen> {
               },
               child: SingleChildScrollView(
                 controller: _rulerScrollCtrl,
-                physics: const BouncingScrollPhysics(),
+                physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                 child: SizedBox(
                   width: double.infinity,
                   height: totalHeightPx,
-                  child: CustomPaint(
-                    size: Size(double.infinity, totalHeightPx),
-                    painter: _InfiniteTapeRulerPainter(
-                      pixelsPerMm: _pixelsPerMm,
-                      totalCm: totalLengthCm,
-                      pinnedPointsMm: _pinnedPointsMm,
-                      primaryColor: widget.theme.primary,
-                    ),
+                  child: Stack(
+                    children: [
+                      CustomPaint(
+                        size: Size(double.infinity, totalHeightPx),
+                        painter: _InfiniteTapeRulerPainter(
+                          pixelsPerMm: _pixelsPerMm,
+                          totalCm: totalLengthCm,
+                          pinnedPointsMm: _pinnedPointsMm,
+                          primaryColor: widget.theme.primary,
+                        ),
+                      ),
+                      // Pinned markers rendered as crisp vector SVG pushpin widgets
+                      for (int p = 0; p < _pinnedPointsMm.length; p++)
+                        _buildPinMarkerWidget(_pinnedPointsMm[p], p),
+                    ],
                   ),
                 ),
               ),
@@ -2123,7 +2239,7 @@ class _SizerScreenState extends State<SizerScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // Back Hover Button (Restores normal screen size)
+                    // Back Hover Button (Restores normal screen size & unhides hover page header)
                     BouncyTap(
                       onTap: _exitFullScreenRuler,
                       child: Container(
@@ -2150,7 +2266,7 @@ class _SizerScreenState extends State<SizerScreen> {
                       ),
                     ),
                     const SizedBox(width: 6),
-                    // Pin Hover Button with count badge
+                    // Pin Hover Button with count badge & SVG Pushpin Icon
                     BouncyTap(
                       onTap: () {
                         SoundService().playClick();
@@ -2165,7 +2281,11 @@ class _SizerScreenState extends State<SizerScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.push_pin_rounded, color: Color(0xFFFF7675), size: 17),
+                            SvgPicture.string(
+                              kRulerPinSvg,
+                              width: 17,
+                              height: 17,
+                            ),
                             const SizedBox(width: 5),
                             Text(
                               _pinnedPointsMm.isEmpty ? "Pin" : "Pin (${_pinnedPointsMm.length})",
@@ -2284,7 +2404,11 @@ class _SizerScreenState extends State<SizerScreen> {
                               ),
                               child: Row(
                                 children: [
-                                  const Icon(Icons.push_pin_rounded, size: 16, color: Color(0xFFE74C3C)),
+                                  SvgPicture.string(
+                                    kRulerPinSvg,
+                                    width: 18,
+                                    height: 18,
+                                  ),
                                   const SizedBox(width: 8),
                                   Expanded(
                                     child: Text(
@@ -2844,7 +2968,7 @@ class _RealisticWatchStrapCaliperPainter extends CustomPainter {
       old.primaryColor != primaryColor;
 }
 
-/// Smooth Vertical Scrollable Tape Ruler (Dual Unit Edge Scales & Vector SVG Pins)
+/// Smooth Vertical Scrollable Tape Ruler (Dual Unit Edge Scales & High Performance Culling)
 class _InfiniteTapeRulerPainter extends CustomPainter {
   final double pixelsPerMm;
   final double totalCm;
@@ -2867,6 +2991,13 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
     final bgPaint = Paint()..color = const Color(0xFFF9F1DC);
     canvas.drawRect(Rect.fromLTWH(0, 0, w, size.height), bgPaint);
 
+    final clip = canvas.getLocalClipBounds();
+    final double minY = clip.isInfinite ? 0.0 : math.max(0.0, clip.top - 80.0);
+    final double maxY = clip.isInfinite ? size.height : math.min(size.height, clip.bottom + 80.0);
+
+    final int startMm = (minY / pixelsPerMm).floor().clamp(0, totalMm);
+    final int endMm = (maxY / pixelsPerMm).ceil().clamp(0, totalMm);
+
     final tickPaint = Paint()
       ..color = const Color(0xFF2D3436)
       ..strokeWidth = 1.0;
@@ -2878,20 +3009,21 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
     final tp = TextPainter(textDirection: TextDirection.ltr);
 
     // 1. Draw Metric Scale on Left Edge (mm, cm, m)
-    // Top metric unit indicator
-    tp.text = const TextSpan(
-      text: '◀ CM / MM',
-      style: TextStyle(
-        color: Color(0xFF27AE60),
-        fontSize: 9.0,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.5,
-      ),
-    );
-    tp.layout();
-    tp.paint(canvas, const Offset(6, 6));
+    if (minY <= 40) {
+      tp.text = const TextSpan(
+        text: '◀ CM / MM',
+        style: TextStyle(
+          color: Color(0xFF27AE60),
+          fontSize: 9.0,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+        ),
+      );
+      tp.layout();
+      tp.paint(canvas, const Offset(6, 6));
+    }
 
-    for (int mm = 0; mm <= totalMm; mm++) {
+    for (int mm = startMm; mm <= endMm; mm++) {
       final double y = mm * pixelsPerMm;
       final bool isMeter = (mm % 1000 == 0 && mm > 0);
       final bool isCm = (mm % 10 == 0);
@@ -2954,23 +3086,29 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
     }
 
     // 2. Draw Imperial Scale on Right Edge (Inches, 1/16, 1/8, 1/4, 1/2)
-    // Top imperial unit indicator
-    tp.text = const TextSpan(
-      text: 'INCHES ▶',
-      style: TextStyle(
-        color: Color(0xFF0984E3),
-        fontSize: 9.0,
-        fontWeight: FontWeight.w900,
-        letterSpacing: 0.5,
-      ),
-    );
-    tp.layout();
-    tp.paint(canvas, Offset(w - 6 - tp.width, 6));
-
     final double totalInches = (totalMm / 25.4);
     final int totalSixteenths = (totalInches * 16).toInt();
 
-    for (int s = 0; s <= totalSixteenths; s++) {
+    final double minInch = (minY / pixelsPerMm) / 25.4;
+    final double maxInch = (maxY / pixelsPerMm) / 25.4;
+    final int startSixteenth = (minInch * 16).floor().clamp(0, totalSixteenths);
+    final int endSixteenth = (maxInch * 16).ceil().clamp(0, totalSixteenths);
+
+    if (minY <= 40) {
+      tp.text = const TextSpan(
+        text: 'INCHES ▶',
+        style: TextStyle(
+          color: Color(0xFF0984E3),
+          fontSize: 9.0,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+        ),
+      );
+      tp.layout();
+      tp.paint(canvas, Offset(w - 6 - tp.width, 6));
+    }
+
+    for (int s = startSixteenth; s <= endSixteenth; s++) {
       final double inchVal = s / 16.0;
       final double mmVal = inchVal * 25.4;
       final double y = mmVal * pixelsPerMm;
@@ -3021,65 +3159,6 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
       } else {
         canvas.drawLine(Offset(w - 11, y), Offset(w, y), tickPaint);
       }
-    }
-
-    // NOTE: Center dividing line is completely removed per user instructions!
-
-    // 3. Draw Pinned Points with Clean Vector Push-Pin Icons (No emojis)
-    for (int p = 0; p < pinnedPointsMm.length; p++) {
-      final pinMm = pinnedPointsMm[p];
-      final pinY = pinMm * pixelsPerMm;
-
-      // Pin marker line across ruler
-      final pinLine = Paint()
-        ..color = const Color(0xFFE74C3C)
-        ..strokeWidth = 2.0;
-      canvas.drawLine(Offset(0, pinY), Offset(w, pinY), pinLine);
-
-      // Pin badge dimensions
-      const double badgeW = 90.0;
-      const double badgeH = 22.0;
-      final double badgeX = w * 0.5 - badgeW / 2;
-      final double badgeY = pinY - badgeH / 2;
-
-      // Badge shadow and pill background
-      final badgeRect = RRect.fromRectAndRadius(
-        Rect.fromLTWH(badgeX, badgeY, badgeW, badgeH),
-        const Radius.circular(11),
-      );
-      canvas.drawRRect(badgeRect, Paint()..color = const Color(0xFFE74C3C));
-
-      // Vector Push-Pin Icon (drawn with Canvas & Path)
-      final pinCenterX = badgeX + 13.0;
-      final pinCenterY = pinY;
-
-      // Metal needle tip
-      final needlePaint = Paint()
-        ..color = const Color(0xFFECF0F1)
-        ..strokeWidth = 1.8
-        ..strokeCap = StrokeCap.round;
-      canvas.drawLine(Offset(pinCenterX, pinCenterY), Offset(pinCenterX, pinCenterY + 6), needlePaint);
-
-      // Pin red top knob with white accent highlight
-      final knobPaint = Paint()..color = const Color(0xFFC0392B);
-      canvas.drawCircle(Offset(pinCenterX, pinCenterY - 2), 4.5, knobPaint);
-
-      final rimPaint = Paint()
-        ..color = Colors.white
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2;
-      canvas.drawCircle(Offset(pinCenterX, pinCenterY - 2), 4.5, rimPaint);
-
-      final highlightPaint = Paint()..color = Colors.white;
-      canvas.drawCircle(Offset(pinCenterX - 1.2, pinCenterY - 3.2), 1.2, highlightPaint);
-
-      // Pin Text Measurement
-      tp.text = TextSpan(
-        text: '${(pinMm / 10).toStringAsFixed(1)} cm',
-        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-      );
-      tp.layout();
-      tp.paint(canvas, Offset(badgeX + 26, pinY - tp.height / 2));
     }
   }
 

@@ -92,6 +92,14 @@ class ToolerHoverSheet extends StatefulWidget {
     return ToolerHoverSheetScope.of(context)?.isFullScreen ?? false;
   }
 
+  static void setImmersive(BuildContext context, bool immersive) {
+    ToolerHoverSheetScope.of(context)?.setImmersive(immersive);
+  }
+
+  static bool isImmersive(BuildContext context) {
+    return ToolerHoverSheetScope.of(context)?.isImmersive ?? false;
+  }
+
   @override
   State<ToolerHoverSheet> createState() => _ToolerHoverSheetState();
 }
@@ -99,11 +107,15 @@ class ToolerHoverSheet extends StatefulWidget {
 class ToolerHoverSheetScope extends InheritedWidget {
   final bool isFullScreen;
   final VoidCallback toggleFullScreen;
+  final bool isImmersive;
+  final ValueChanged<bool> setImmersive;
 
   const ToolerHoverSheetScope({
     super.key,
     required this.isFullScreen,
     required this.toggleFullScreen,
+    required this.isImmersive,
+    required this.setImmersive,
     required super.child,
   });
 
@@ -113,16 +125,27 @@ class ToolerHoverSheetScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(ToolerHoverSheetScope oldWidget) {
-    return isFullScreen != oldWidget.isFullScreen;
+    return isFullScreen != oldWidget.isFullScreen || isImmersive != oldWidget.isImmersive;
   }
 }
 
 class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
   bool _isFavorite = false;
   bool _isFullScreen = false;
+  bool _isImmersive = false;
   bool _isDockActive = false;
   double _dragOffsetY = 0.0;
   bool _isDragging = false;
+
+  void _setImmersive(bool immersive) {
+    if (_isImmersive == immersive) return;
+    setState(() {
+      _isImmersive = immersive;
+      if (immersive) {
+        _isFullScreen = true;
+      }
+    });
+  }
 
   @override
   void initState() {
@@ -320,13 +343,13 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
         children: [
           // Top Empty Space in Hover Mode (~topInset + 54px):
           // Allows user to see live home screen and taps/swipes dismiss smoothly.
-          // Collapses to 0 in full-screen mode.
+          // Collapses to 0 in full-screen or immersive mode.
           AnimatedContainer(
             duration: const Duration(milliseconds: 260),
             curve: Curves.easeOutCubic,
-            height: _isFullScreen ? 0 : (topInset > 0 ? topInset + 50 : 64),
+            height: (_isFullScreen || _isImmersive) ? 0 : (topInset > 0 ? topInset + 50 : 64),
             width: double.infinity,
-            child: _isFullScreen
+            child: (_isFullScreen || _isImmersive)
                 ? const SizedBox.shrink()
                 : GestureDetector(
                     behavior: HitTestBehavior.opaque,
@@ -354,42 +377,46 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                 curve: Curves.easeOutCubic,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: theme.bg,
+                  color: _isImmersive ? const Color(0xFFF9F1DC) : theme.bg,
                   borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(_isFullScreen ? 0 : 32),
+                    top: Radius.circular((_isFullScreen || _isImmersive) ? 0 : 32),
                   ),
                   border: Border.all(
-                    color: _isFullScreen ? Colors.transparent : theme.border,
-                    width: _isFullScreen ? 0 : 1.2,
+                    color: (_isFullScreen || _isImmersive) ? Colors.transparent : theme.border,
+                    width: (_isFullScreen || _isImmersive) ? 0 : 1.2,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
-                      blurRadius: 28,
-                      offset: const Offset(0, -6),
-                    ),
-                  ],
+                  boxShadow: _isImmersive
+                      ? null
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: isDark ? 0.45 : 0.12),
+                            blurRadius: 28,
+                            offset: const Offset(0, -6),
+                          ),
+                        ],
                 ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(_isFullScreen ? 0 : 32),
+                    top: Radius.circular((_isFullScreen || _isImmersive) ? 0 : 32),
                   ),
                   child: Column(
                     children: [
                       // 2.1 System Notch / Status Bar / Control Centre Clearance
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 260),
-                        curve: Curves.easeOutCubic,
-                        height: _isFullScreen ? (topInset > 0 ? topInset + 6 : 28) : 4,
-                      ),
+                      if (!_isImmersive)
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 260),
+                          curve: Curves.easeOutCubic,
+                          height: _isFullScreen ? (topInset > 0 ? topInset + 6 : 28) : 4,
+                        ),
 
                       // 2.2 Interactive Drag Handle Dock Bar
-                      _buildDockBar(theme, isDark),
+                      if (!_isImmersive) _buildDockBar(theme, isDark),
 
                       // 2.3 Unified Header Row: [Back Button] [Title] [Fullscreen & Favorite]
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        child: Row(
+                      if (!_isImmersive)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                          child: Row(
                           children: [
                             // Left: Back Button (<)
                             BouncyTap(
@@ -547,9 +574,10 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
                         ),
                       ),
 
-                      const SizedBox(height: 6),
-
-                      Divider(color: theme.border.withValues(alpha: 0.8), height: 1),
+                      if (!_isImmersive) ...[
+                        const SizedBox(height: 6),
+                        Divider(color: theme.border.withValues(alpha: 0.8), height: 1),
+                      ],
 
                       // 2.4 Tool's interactive content
                       Expanded(
@@ -568,6 +596,8 @@ class _ToolerHoverSheetState extends State<ToolerHoverSheet> {
     return ToolerHoverSheetScope(
       isFullScreen: _isFullScreen,
       toggleFullScreen: _toggleFullScreen,
+      isImmersive: _isImmersive,
+      setImmersive: _setImmersive,
       child: Scaffold(
         backgroundColor: Colors.transparent,
         body: anim == null
