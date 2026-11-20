@@ -657,6 +657,17 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                // Prominent Large Animated Weather SVG Icon
+                _BigAnimatedWeatherIcon(
+                  weather: weather,
+                  moonPhase: raw.moonPhase,
+                  animProgress: _animController.value,
+                  lightningProgress: _lightningController.value,
+                  floodProgress: _floodController.value,
+                  twisterProgress: _twisterController.value,
+                ),
+                const SizedBox(height: 6),
+
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1013,7 +1024,117 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
               ],
             ),
           ),
+          const SizedBox(height: 12),
+
+          // Quick Interactive AQI & Mascot Mood Test Strip
+          Row(
+            children: [
+              Text(
+                'Test Mood:',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w800,
+                  color: theme.textSecondary,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  child: Row(
+                    children: [
+                      _buildAqiQuickButton('😊 Fresh (35)', 35, const Color(0xFF10B981), theme, isDark),
+                      _buildAqiQuickButton('😷 Cough (85)', 85, const Color(0xFFF59E0B), theme, isDark),
+                      _buildAqiQuickButton('🛡️ Mask (160)', 160, const Color(0xFFEF4444), theme, isDark),
+                      _buildAqiQuickButton('🫁 Oxygen (320)', 320, const Color(0xFF881337), theme, isDark),
+                      if (_simAqiOverride != null)
+                        _buildAqiResetButton(theme, isDark),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAqiQuickButton(
+    String label,
+    int aqiVal,
+    Color color,
+    StationeryTheme theme,
+    bool isDark,
+  ) {
+    final isSelected = (_simAqiOverride ?? _telemetry.data.aqi) == aqiVal;
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: InkWell(
+        onTap: () {
+          SoundService().playTap();
+          HapticFeedback.selectionClick();
+          setState(() => _simAqiOverride = aqiVal);
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? color.withValues(alpha: 0.18)
+                : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F5)),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isSelected ? color : theme.border.withValues(alpha: 0.4),
+              width: isSelected ? 1.4 : 1,
+            ),
+          ),
+          child: Text(
+            label,
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 9.5,
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+              color: isSelected ? color : theme.text,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAqiResetButton(StationeryTheme theme, bool isDark) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 6),
+      child: InkWell(
+        onTap: () {
+          SoundService().playTap();
+          setState(() => _simAqiOverride = null);
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+          decoration: BoxDecoration(
+            color: theme.primary.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: theme.primary, width: 1),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.refresh_rounded, size: 10, color: theme.primary),
+              const SizedBox(width: 3),
+              Text(
+                'Live GPS',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w800,
+                  color: theme.primary,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1959,8 +2080,35 @@ class _AtmosphericLandscapePainter extends CustomPainter {
   }
 
   void _paintSun(Canvas canvas, double w, double h) {
-    // Sun position on the right/center rising above the mountains
-    final sunCenter = Offset(w * 0.72, h * 0.32);
+    final now = DateTime.now();
+    final hour = now.hour + (now.minute / 60.0);
+
+    // Dynamic morning growth & trajectory from behind mountain:
+    final double sunX;
+    final double sunY;
+    final double scale;
+
+    if (hour >= 5.0 && hour <= 10.5) {
+      // Morning: Sun emerges low from mountain slope and grows in size & brightness
+      final t = ((hour - 5.0) / 5.5).clamp(0.0, 1.0);
+      sunX = w * (0.24 + (t * 0.46));
+      sunY = h * (0.50 - (t * 0.28)); // emerges from mountain crest
+      scale = 0.72 + (t * 0.38); // grows from 0.72x to 1.1x!
+    } else if (hour > 10.5 && hour <= 16.0) {
+      // High bright midday sun
+      sunX = w * 0.70;
+      sunY = h * 0.22;
+      scale = 1.10;
+    } else {
+      // Evening: Sun descends towards the mountain crest
+      final t = ((hour - 16.0) / 2.5).clamp(0.0, 1.0);
+      sunX = w * (0.70 + (t * 0.18));
+      sunY = h * (0.22 + (t * 0.26));
+      scale = 1.10 - (t * 0.25);
+    }
+
+    final sunCenter = Offset(sunX, sunY);
+    final sunRadius = w * 0.085 * scale;
 
     // Radiant outer glowing aura
     final glowPaint = Paint()
@@ -1970,20 +2118,20 @@ class _AtmosphericLandscapePainter extends CustomPainter {
           const Color(0xFFFBBF24).withValues(alpha: 0.15),
           Colors.transparent,
         ],
-      ).createShader(Rect.fromCircle(center: sunCenter, radius: w * 0.28));
-    canvas.drawCircle(sunCenter, w * 0.28, glowPaint);
+      ).createShader(Rect.fromCircle(center: sunCenter, radius: sunRadius * 3.2));
+    canvas.drawCircle(sunCenter, sunRadius * 3.2, glowPaint);
 
     // Rotating solar rays
     final rayPaint = Paint()
-      ..color = const Color(0xFFFDE68A).withValues(alpha: 0.35)
-      ..strokeWidth = 2.0
+      ..color = const Color(0xFFFDE68A).withValues(alpha: 0.38)
+      ..strokeWidth = 2.0 * scale
       ..strokeCap = StrokeCap.round;
 
     final rayRot = animProgress * math.pi * 2;
     for (int i = 0; i < 8; i++) {
       final angle = rayRot + (i * (math.pi / 4));
-      final p1 = Offset(sunCenter.dx + math.cos(angle) * (w * 0.11), sunCenter.dy + math.sin(angle) * (w * 0.11));
-      final p2 = Offset(sunCenter.dx + math.cos(angle) * (w * 0.16), sunCenter.dy + math.sin(angle) * (w * 0.16));
+      final p1 = Offset(sunCenter.dx + math.cos(angle) * (sunRadius * 1.25), sunCenter.dy + math.sin(angle) * (sunRadius * 1.25));
+      final p2 = Offset(sunCenter.dx + math.cos(angle) * (sunRadius * 1.85), sunCenter.dy + math.sin(angle) * (sunRadius * 1.85));
       canvas.drawLine(p1, p2, rayPaint);
     }
 
@@ -1991,13 +2139,32 @@ class _AtmosphericLandscapePainter extends CustomPainter {
     final sunPaint = Paint()
       ..shader = const RadialGradient(
         colors: [Color(0xFFFFFBEB), Color(0xFFF59E0B)],
-      ).createShader(Rect.fromCircle(center: sunCenter, radius: w * 0.09));
-    canvas.drawCircle(sunCenter, w * 0.09, sunPaint);
+      ).createShader(Rect.fromCircle(center: sunCenter, radius: sunRadius));
+    canvas.drawCircle(sunCenter, sunRadius, sunPaint);
   }
 
   void _paintMoon(Canvas canvas, double w, double h) {
-    final moonCenter = Offset(w * 0.74, h * 0.30);
-    final r = w * 0.085;
+    final now = DateTime.now();
+    final hour = now.hour + (now.minute / 60.0);
+
+    // Night trajectory: Moon emerges from behind mountain into starry sky
+    final double moonX;
+    final double moonY;
+    final double scale;
+
+    if (hour >= 18.0 && hour <= 23.5) {
+      final t = ((hour - 18.0) / 5.5).clamp(0.0, 1.0);
+      moonX = w * (0.28 + (t * 0.46));
+      moonY = h * (0.48 - (t * 0.22)); // emerges from behind mountain
+      scale = 0.75 + (t * 0.30);
+    } else {
+      moonX = w * 0.74;
+      moonY = h * 0.26;
+      scale = 1.05;
+    }
+
+    final moonCenter = Offset(moonX, moonY);
+    final r = w * 0.085 * scale;
 
     // Celestial moonlight glow
     final glowPaint = Paint()
@@ -2175,30 +2342,44 @@ class _AtmosphericLandscapePainter extends CustomPainter {
   }
 
   void _drawLushTree(Canvas canvas, double x, double y, double sway) {
-    // Trunk
+    // Tree Trunk
     final trunk = Paint()
       ..color = const Color(0xFF451A03)
-      ..strokeWidth = 2.0;
-    canvas.drawLine(Offset(x, y), Offset(x + (sway * 0.3), y - 10), trunk);
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(x, y), Offset(x + (sway * 0.25), y - 12), trunk);
 
-    // Green Foliage (Pine Triangles)
-    final foliage = Paint()
-      ..color = const Color(0xFF16A34A)
+    // Green Foliage Tiers with Flutter/Wing Tips in Fresh Air
+    final foliageDark = Paint()
+      ..color = const Color(0xFF15803D)
+      ..style = PaintingStyle.fill;
+    final foliageLight = Paint()
+      ..color = const Color(0xFF22C55E)
       ..style = PaintingStyle.fill;
 
+    // Bottom tier (broad)
     final t1 = Path()
-      ..moveTo(x + sway, y - 22)
-      ..lineTo(x - 8, y - 10)
-      ..lineTo(x + 8, y - 10)
+      ..moveTo(x + (sway * 0.8), y - 24)
+      ..lineTo(x - 9 - (sway * 0.5), y - 10)
+      ..quadraticBezierTo(x, y - 8, x + 9 + (sway * 0.5), y - 10)
       ..close();
-    canvas.drawPath(t1, foliage);
+    canvas.drawPath(t1, foliageDark);
 
+    // Middle tier
     final t2 = Path()
-      ..moveTo(x + sway * 1.2, y - 28)
-      ..lineTo(x - 6, y - 18)
-      ..lineTo(x + 6, y - 18)
+      ..moveTo(x + sway, y - 30)
+      ..lineTo(x - 7 - (sway * 0.4), y - 18)
+      ..quadraticBezierTo(x, y - 16, x + 7 + (sway * 0.4), y - 18)
       ..close();
-    canvas.drawPath(t2, foliage);
+    canvas.drawPath(t2, foliageLight);
+
+    // Top tier crown fluttering in wind
+    final t3 = Path()
+      ..moveTo(x + (sway * 1.3), y - 36)
+      ..lineTo(x - 5, y - 26)
+      ..lineTo(x + 5, y - 26)
+      ..close();
+    canvas.drawPath(t3, foliageLight);
   }
 
   void _drawBareDryTree(Canvas canvas, double x, double y) {
@@ -2788,4 +2969,329 @@ class _AqiReactiveCharacterPainter extends CustomPainter {
       old.animValue != animValue ||
       old.isDark != isDark ||
       old.theme != theme;
+}
+
+// ---------------------------------------------------------------------------
+// PROMINENT LARGE ANIMATED WEATHER SVG ICON (SUN, MOON, CLOUD, RAIN, THUNDER, FLOOD, TWISTER)
+// ---------------------------------------------------------------------------
+class _BigAnimatedWeatherIcon extends StatelessWidget {
+  final _EffectiveWeather weather;
+  final MoonPhaseInfo moonPhase;
+  final double animProgress;
+  final double lightningProgress;
+  final double floodProgress;
+  final double twisterProgress;
+
+  const _BigAnimatedWeatherIcon({
+    required this.weather,
+    required this.moonPhase,
+    required this.animProgress,
+    required this.lightningProgress,
+    required this.floodProgress,
+    required this.twisterProgress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 72,
+      height: 72,
+      child: CustomPaint(
+        painter: _BigWeatherIconPainter(
+          weather: weather,
+          moonPhase: moonPhase,
+          animProgress: animProgress,
+          lightningProgress: lightningProgress,
+          floodProgress: floodProgress,
+          twisterProgress: twisterProgress,
+        ),
+      ),
+    );
+  }
+}
+
+class _BigWeatherIconPainter extends CustomPainter {
+  final _EffectiveWeather weather;
+  final MoonPhaseInfo moonPhase;
+  final double animProgress;
+  final double lightningProgress;
+  final double floodProgress;
+  final double twisterProgress;
+
+  _BigWeatherIconPainter({
+    required this.weather,
+    required this.moonPhase,
+    required this.animProgress,
+    required this.lightningProgress,
+    required this.floodProgress,
+    required this.twisterProgress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final center = Offset(w / 2, h / 2);
+
+    if (weather.isTwister) {
+      // Swirling Tornado Twister Funnel
+      _drawBigTornado(canvas, w, h, center);
+    } else if (weather.isFlood) {
+      // Rushing Mountain Flood Wave
+      _drawBigFlood(canvas, w, h, center);
+    } else if (weather.isThunder) {
+      // Thunderhead cloud with live lightning bolt
+      _drawBigThunder(canvas, w, h, center);
+    } else if (weather.isRain) {
+      // Rain cloud with animated falling drops
+      _drawBigRain(canvas, w, h, center);
+    } else if (weather.isCloudy) {
+      // Billowing soft clouds
+      _drawBigCloud(canvas, w, h, center);
+    } else if (weather.isDay) {
+      // Blazing Sun with rotating flares
+      _drawBigSun(canvas, w, h, center);
+    } else {
+      // Glowing Moon with exact phase face
+      _drawBigMoon(canvas, w, h, center);
+    }
+  }
+
+  void _drawBigSun(Canvas canvas, double w, double h, Offset center) {
+    // Outer solar corona
+    final corona = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFFBBF24).withValues(alpha: 0.7),
+          const Color(0xFFF59E0B).withValues(alpha: 0.2),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: w * 0.48));
+    canvas.drawCircle(center, w * 0.48, corona);
+
+    // Rotating solar rays
+    final rayPaint = Paint()
+      ..color = const Color(0xFFFEF08A)
+      ..strokeWidth = 2.4
+      ..strokeCap = StrokeCap.round;
+
+    final rot = animProgress * math.pi * 2;
+    for (int i = 0; i < 8; i++) {
+      final angle = rot + (i * (math.pi / 4));
+      final p1 = Offset(center.dx + math.cos(angle) * (w * 0.26), center.dy + math.sin(angle) * (w * 0.26));
+      final p2 = Offset(center.dx + math.cos(angle) * (w * 0.38), center.dy + math.sin(angle) * (w * 0.38));
+      canvas.drawLine(p1, p2, rayPaint);
+    }
+
+    // Golden Core
+    final sunCore = Paint()
+      ..shader = const RadialGradient(
+        colors: [Color(0xFFFFFBEB), Color(0xFFF59E0B)],
+      ).createShader(Rect.fromCircle(center: center, radius: w * 0.22));
+    canvas.drawCircle(center, w * 0.22, sunCore);
+  }
+
+  void _drawBigMoon(Canvas canvas, double w, double h, Offset center) {
+    final r = w * 0.24;
+
+    // Moonlight halo
+    final glow = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFFE0E7FF).withValues(alpha: 0.5),
+          const Color(0xFFC7D2FE).withValues(alpha: 0.15),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: r * 1.8));
+    canvas.drawCircle(center, r * 1.8, glow);
+
+    // Moon disc with exact phase
+    final darkBase = Paint()..color = const Color(0xFF1E293B);
+    canvas.drawCircle(center, r, darkBase);
+
+    final litPaint = Paint()..color = const Color(0xFFFEF08A);
+    final phase = moonPhase.phase;
+
+    final path = Path();
+    if (phase >= 0.0 && phase <= 0.5) {
+      path.addArc(Rect.fromCircle(center: center, radius: r), -math.pi / 2, math.pi);
+      final k = (0.25 - phase) / 0.25;
+      final rInner = (r * k).abs();
+      final sweep = k >= 0 ? -math.pi : math.pi;
+      path.arcTo(
+        Rect.fromCenter(center: center, width: rInner * 2, height: r * 2),
+        math.pi / 2,
+        sweep,
+        false,
+      );
+    } else {
+      path.addArc(Rect.fromCircle(center: center, radius: r), math.pi / 2, math.pi);
+      final k = (0.75 - phase) / 0.25;
+      final rInner = (r * k).abs();
+      final sweep = k >= 0 ? math.pi : -math.pi;
+      path.arcTo(
+        Rect.fromCenter(center: center, width: rInner * 2, height: r * 2),
+        -math.pi / 2,
+        sweep,
+        false,
+      );
+    }
+    path.close();
+    canvas.drawPath(path, litPaint);
+
+    final stroke = Paint()
+      ..color = Colors.white.withValues(alpha: 0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+    canvas.drawCircle(center, r, stroke);
+  }
+
+  void _drawBigCloud(Canvas canvas, double w, double h, Offset center) {
+    final cloudPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Colors.white, Color(0xFFE2E8F0)],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    final cy = center.dy - 2;
+    canvas.drawCircle(Offset(center.dx - 12, cy + 2), 16, cloudPaint);
+    canvas.drawCircle(Offset(center.dx + 4, cy - 6), 20, cloudPaint);
+    canvas.drawCircle(Offset(center.dx + 20, cy + 4), 14, cloudPaint);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(center.dx - 22, cy + 2, 48, 18),
+        const Radius.circular(9),
+      ),
+      cloudPaint,
+    );
+  }
+
+  void _drawBigRain(Canvas canvas, double w, double h, Offset center) {
+    _drawBigCloud(canvas, w, h, Offset(center.dx, center.dy - 8));
+
+    // Animated raindrop streaks
+    final rainPaint = Paint()
+      ..color = const Color(0xFF38BDF8)
+      ..strokeWidth = 2.2
+      ..strokeCap = StrokeCap.round;
+
+    for (int i = 0; i < 4; i++) {
+      final x = center.dx - 16 + (i * 10);
+      final dropProgress = (animProgress * 3.0 + (i * 0.25)) % 1.0;
+      final yStart = center.dy + 8 + (dropProgress * 14.0);
+      canvas.drawLine(Offset(x, yStart), Offset(x - 2, yStart + 8), rainPaint);
+    }
+  }
+
+  void _drawBigThunder(Canvas canvas, double w, double h, Offset center) {
+    // Dark moody storm cloud
+    final darkCloud = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF64748B), Color(0xFF334155)],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+
+    final cy = center.dy - 10;
+    canvas.drawCircle(Offset(center.dx - 12, cy + 2), 16, darkCloud);
+    canvas.drawCircle(Offset(center.dx + 4, cy - 6), 20, darkCloud);
+    canvas.drawCircle(Offset(center.dx + 20, cy + 4), 14, darkCloud);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(center.dx - 22, cy + 2, 48, 18),
+        const Radius.circular(9),
+      ),
+      darkCloud,
+    );
+
+    // Glowing zigzag lightning bolt
+    final isFlashing = lightningProgress > 0.85;
+    final boltColor = isFlashing ? const Color(0xFFFEF08A) : const Color(0xFFFBBF24);
+
+    final bolt = Path();
+    bolt.moveTo(center.dx + 2, center.dy - 4);
+    bolt.lineTo(center.dx - 8, center.dy + 12);
+    bolt.lineTo(center.dx, center.dy + 12);
+    bolt.lineTo(center.dx - 6, center.dy + 28);
+    bolt.lineTo(center.dx + 8, center.dy + 8);
+    bolt.lineTo(center.dx + 1, center.dy + 8);
+    bolt.close();
+
+    final boltPaint = Paint()
+      ..color = boltColor
+      ..style = PaintingStyle.fill;
+    canvas.drawPath(bolt, boltPaint);
+
+    // Halo glow
+    if (isFlashing) {
+      final halo = Paint()
+        ..color = const Color(0xFFFEF08A).withValues(alpha: 0.6)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0;
+      canvas.drawPath(bolt, halo);
+    }
+  }
+
+  void _drawBigFlood(Canvas canvas, double w, double h, Offset center) {
+    // Surging mountain flood waves
+    final wave1 = Path();
+    wave1.moveTo(center.dx - 28, center.dy + 12);
+    wave1.quadraticBezierTo(center.dx - 14, center.dy - 8 + (math.sin(floodProgress * math.pi * 2) * 4), center.dx, center.dy + 8);
+    wave1.quadraticBezierTo(center.dx + 14, center.dy + 22 - (math.sin(floodProgress * math.pi * 2) * 4), center.dx + 28, center.dy + 6);
+    wave1.lineTo(center.dx + 28, center.dy + 24);
+    wave1.lineTo(center.dx - 28, center.dy + 24);
+    wave1.close();
+
+    final floodPaint = Paint()
+      ..shader = const LinearGradient(
+        colors: [Color(0xFF38BDF8), Color(0xFF0284C7)],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawPath(wave1, floodPaint);
+
+    // White foam crests
+    final foam = Paint()
+      ..color = Colors.white
+      ..strokeWidth = 2.4
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(center.dx - 22, center.dy + 4), Offset(center.dx - 8, center.dy + 6), foam);
+    canvas.drawLine(Offset(center.dx + 6, center.dy + 12), Offset(center.dx + 22, center.dy + 8), foam);
+  }
+
+  void _drawBigTornado(Canvas canvas, double w, double h, Offset center) {
+    // Swirling Twister Funnel
+    final rot = twisterProgress * math.pi * 2;
+    const topW = 28.0;
+    const botW = 6.0;
+
+    final funnel = Path();
+    funnel.moveTo(center.dx - (topW / 2), center.dy - 20);
+    funnel.lineTo(center.dx + (topW / 2), center.dy - 20);
+    funnel.quadraticBezierTo(center.dx + (botW / 2) + 4, center.dy, center.dx + (botW / 2), center.dy + 22);
+    funnel.lineTo(center.dx - (botW / 2), center.dy + 22);
+    funnel.quadraticBezierTo(center.dx - (botW / 2) - 4, center.dy, center.dx - (topW / 2), center.dy - 20);
+    funnel.close();
+
+    final tornadoPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [Color(0xFF94A3B8), Color(0xFF475569)],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    canvas.drawPath(funnel, tornadoPaint);
+
+    // Spiraling wind debris orbits
+    final debris = Paint()..color = const Color(0xFF1E293B);
+    for (int i = 0; i < 4; i++) {
+      final a = rot + (i * (math.pi / 2));
+      final orbitY = center.dy - 12 + (i * 9);
+      final orbitW = (topW - (i * 6));
+      final x = center.dx + (math.cos(a) * (orbitW / 2));
+      canvas.drawCircle(Offset(x, orbitY), 2.0, debris);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _BigWeatherIconPainter old) => true;
 }
