@@ -250,11 +250,11 @@ class ToolerAudioService : Service() {
         val inputs = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
         return if (captureSource == "earphone") {
             inputs.firstOrNull {
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
-                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && it.type == AudioDeviceInfo.TYPE_BLE_HEADSET) ||
                 it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
-                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
-            }
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && it.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
+            } ?: inputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC }
         } else {
             inputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_MIC }
         }
@@ -267,13 +267,13 @@ class ToolerAudioService : Service() {
             outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
         } else {
             outputs.firstOrNull {
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
-                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
-                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && it.type == AudioDeviceInfo.TYPE_BLE_HEADSET) ||
                 it.type == AudioDeviceInfo.TYPE_WIRED_HEADSET ||
                 it.type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES ||
-                it.type == AudioDeviceInfo.TYPE_USB_HEADSET
-            }
+                it.type == AudioDeviceInfo.TYPE_USB_HEADSET ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP ||
+                it.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+                (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && it.type == AudioDeviceInfo.TYPE_BLE_HEADSET)
+            } ?: outputs.firstOrNull { it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER }
         }
     }
 
@@ -322,15 +322,24 @@ class ToolerAudioService : Service() {
                 } catch (_: Exception) {}
             }
 
-            // BT SCO mic operates cleanly at 16kHz; phone mic & wired headset run crisp at 44.1kHz
-            val sampleRate = if (isBtScoInput) 16000 else 44100
+            // Route speaker output explicitly when user selects phone speaker
+            if (listenOutput == "phone") {
+                audioManager.isSpeakerphoneOn = true
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val speakerDev = audioManager.availableCommunicationDevices.firstOrNull {
+                        it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                    }
+                    if (speakerDev != null) {
+                        audioManager.setCommunicationDevice(speakerDev)
+                    }
+                }
+            } else {
+                audioManager.isSpeakerphoneOn = false
+            }
+
             val channelConfigIn = AudioFormat.CHANNEL_IN_MONO
             val channelConfigOut = AudioFormat.CHANNEL_OUT_MONO
             val audioFormat = AudioFormat.ENCODING_PCM_16BIT
-
-            val minBufIn = AudioRecord.getMinBufferSize(sampleRate, channelConfigIn, audioFormat)
-            val minBufOut = AudioTrack.getMinBufferSize(sampleRate, channelConfigOut, audioFormat)
-            val bufferSize = Math.max(minBufIn, minBufOut).coerceAtLeast(2048) * 2
 
             val audioSource = if (isBtScoInput || (captureSource == "phone" && listenOutput == "phone")) {
                 MediaRecorder.AudioSource.VOICE_COMMUNICATION
@@ -338,9 +347,32 @@ class ToolerAudioService : Service() {
                 MediaRecorder.AudioSource.MIC
             }
 
-            val rec = AudioRecord(audioSource, sampleRate, channelConfigIn, audioFormat, bufferSize)
-            if (rec.state != AudioRecord.STATE_INITIALIZED) {
-                rec.release()
+            // Safe multi-sample rate fallback
+            val sampleRatesToTry = if (isBtScoInput) intArrayOf(16000, 8000) else intArrayOf(44100, 48000, 16000)
+            var selectedSampleRate = sampleRatesToTry[0]
+            var rec: AudioRecord? = null
+            var bufferSize = 4096
+
+            for (sr in sampleRatesToTry) {
+                val minBufIn = AudioRecord.getMinBufferSize(sr, channelConfigIn, audioFormat)
+                val minBufOut = AudioTrack.getMinBufferSize(sr, channelConfigOut, audioFormat)
+                if (minBufIn > 0 && minBufOut > 0) {
+                    bufferSize = Math.max(minBufIn, minBufOut).coerceAtLeast(2048) * 2
+                    val candidate = try {
+                        AudioRecord(audioSource, sr, channelConfigIn, audioFormat, bufferSize)
+                    } catch (_: Exception) { null }
+                    if (candidate != null && candidate.state == AudioRecord.STATE_INITIALIZED) {
+                        rec = candidate
+                        selectedSampleRate = sr
+                        break
+                    } else {
+                        candidate?.release()
+                    }
+                }
+            }
+
+            if (rec == null || rec.state != AudioRecord.STATE_INITIALIZED) {
+                rec?.release()
                 return
             }
 
@@ -356,7 +388,7 @@ class ToolerAudioService : Service() {
                     .setAudioFormat(
                         AudioFormat.Builder()
                             .setEncoding(audioFormat)
-                            .setSampleRate(sampleRate)
+                            .setSampleRate(selectedSampleRate)
                             .setChannelMask(channelConfigOut)
                             .build()
                     )
@@ -365,7 +397,7 @@ class ToolerAudioService : Service() {
                     .build()
             } else {
                 @Suppress("DEPRECATION")
-                AudioTrack(AudioManager.STREAM_MUSIC, sampleRate, channelConfigOut, audioFormat, bufferSize, AudioTrack.MODE_STREAM)
+                AudioTrack(AudioManager.STREAM_MUSIC, selectedSampleRate, channelConfigOut, audioFormat, bufferSize, AudioTrack.MODE_STREAM)
             }
 
             // Explicit Hardware Device Routing (API 23+)
@@ -400,7 +432,11 @@ class ToolerAudioService : Service() {
             isLoopbackRunning = true
 
             loopbackThread = thread(start = true, priority = Thread.MAX_PRIORITY, name = "ToolerAudioLoopback") {
-                val audioBuffer = ShortArray(bufferSize / 2)
+                // Snappy 512-sample chunk (~11.6ms @ 44.1kHz) for ultra-low latency live listen
+                val chunkShorts = 512
+                val audioBuffer = ShortArray(chunkShorts)
+                var consecutiveErrors = 0
+
                 while (isLoopbackRunning && audioRecord != null && audioTrack != null) {
                     val readCount = try {
                         audioRecord?.read(audioBuffer, 0, audioBuffer.size) ?: 0
@@ -408,6 +444,7 @@ class ToolerAudioService : Service() {
                         -1
                     }
                     if (readCount > 0) {
+                        consecutiveErrors = 0
                         var sumSq = 0.0
                         var peak = 0
                         val gain = monitorGain
@@ -426,13 +463,19 @@ class ToolerAudioService : Service() {
                         val dbFs = 20.0 * Math.log10(if (rms > 1.0) rms / 32767.0 else 0.00003)
                         val spl = (98.0 + dbFs).coerceIn(28.0, 115.0)
                         liveDb = (liveDb * 0.45) + (spl * 0.55)
-                        liveAmp = (peak / 16000.0).coerceIn(0.08, 1.0)
+                        // Perceptual power curve for responsive waveform
+                        val normFrac = (peak.toDouble() / 32768.0).coerceIn(0.0, 1.0)
+                        liveAmp = Math.pow(normFrac, 0.35).coerceIn(0.08, 1.0)
 
                         try {
                             audioTrack?.write(audioBuffer, 0, readCount)
                         } catch (_: Exception) {}
                     } else if (readCount < 0) {
-                        break
+                        consecutiveErrors++
+                        if (consecutiveErrors > 15) {
+                            break
+                        }
+                        try { Thread.sleep(20) } catch (_: Exception) {}
                     } else {
                         try { Thread.sleep(5) } catch (_: Exception) {}
                     }
@@ -472,6 +515,7 @@ class ToolerAudioService : Service() {
 
         try {
             val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            audioManager.isSpeakerphoneOn = false
             audioManager.mode = AudioManager.MODE_NORMAL
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 audioManager.clearCommunicationDevice()

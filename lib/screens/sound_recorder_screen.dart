@@ -520,8 +520,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             sliceCount++;
 
             if (sliceCount >= sliceSize) {
-              // Direct live amplitude for waveform visualizer [0.08 to 1.0]
-              sliceAmps.add((slicePeak / 16000.0).clamp(0.08, 1.0));
+              // Direct live amplitude for waveform visualizer [0.08 to 1.0] with responsive perceptual curve
+              final double normAmp = math.pow((slicePeak / 32768.0).clamp(0.0, 1.0), 0.35).toDouble().clamp(0.08, 1.0);
+              sliceAmps.add(normAmp);
               slicePeak = 0;
               sliceCount = 0;
             }
@@ -588,8 +589,8 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
           _liveAmplitudes.add(amp);
         }
       } else {
-        // Fallback normalized amplitude for waveform bars [0.08 to 1.0]
-        final double normalized = ((db - 30.0) / 70.0).clamp(0.08, 1.0);
+        // Fallback normalized amplitude for waveform bars [0.08 to 1.0] with responsive perceptual curve
+        final double normalized = math.pow(((db - 28.0) / 72.0).clamp(0.0, 1.0), 0.55).toDouble().clamp(0.08, 1.0);
         _liveAmplitudes.removeAt(0);
         final double variation = (_random.nextDouble() * 0.08) - 0.04;
         _liveAmplitudes.add((normalized + variation).clamp(0.08, 1.0));
@@ -621,15 +622,15 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
 
   String _getSafetyStatus(double db) {
     if (db < 50.0) {
-      return "QUIET · Library Ambient";
+      return "QUIET";
     } else if (db < 68.0) {
-      return "SAFE · Normal Conversation";
+      return "SAFE";
     } else if (db < 80.0) {
-      return "MODERATE · Busy Office / Street";
+      return "MODERATE";
     } else if (db < 88.0) {
-      return "LOUD · High Noise Level";
+      return "HIGH";
     } else {
-      return "DANGER · Hearing Risk (>85dB)";
+      return "DANGER";
     }
   }
 
@@ -801,7 +802,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         _lastMicPacketTime = DateTime.now();
         final double rawSpl = (98.0 + amp.current).clamp(28.0, 115.0);
         final double smoothed = (_currentDb * 0.30) + (rawSpl * 0.70);
-        final double normalized = ((smoothed - 30.0) / 70.0).clamp(0.08, 1.0);
+        final double normalized = math.pow(((smoothed - 28.0) / 72.0).clamp(0.0, 1.0), 0.55).toDouble().clamp(0.08, 1.0);
         if (smoothed > _ActiveRecordingSession.peakDb) {
           _ActiveRecordingSession.peakDb = smoothed;
         }
@@ -823,7 +824,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
           _lastMicPacketTime = DateTime.now();
           final double rawSpl = (98.0 + amp.current).clamp(28.0, 115.0);
           final double smoothed = (_currentDb * 0.35) + (rawSpl * 0.65);
-          final double normalized = ((smoothed - 30.0) / 70.0).clamp(0.08, 1.0);
+          final double normalized = math.pow(((smoothed - 28.0) / 72.0).clamp(0.0, 1.0), 0.55).toDouble().clamp(0.08, 1.0);
           _updateLiveDecibel(smoothed, sliceAmps: [normalized]);
         }
       } catch (_) {}
@@ -1309,10 +1310,10 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   }
 
   String _getEarphoneUnavailableMessage() {
-    if (!_isBluetoothEnabled) {
-      return "Bluetooth is OFF. Turn ON Bluetooth & connect earphones, or plug in wired earphones.";
+    if (!_isBluetoothEnabled && !_isWiredConnected) {
+      return "No earphone detected. Connect Bluetooth earphones or plug in a wired headset.";
     }
-    return "Bluetooth is ON, but no earphone device is connected.";
+    return "No earphone device connected. Please connect Bluetooth or wired earphones.";
   }
 
   Future<void> _togglePassThrough(bool enable) async {
@@ -1325,9 +1326,10 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     }
 
     await _checkBluetoothStatus();
+    final bool hasEarphone = _isBluetoothConnected || _isWiredConnected;
     final bool needsEarphone =
         _monitorCaptureSource == 'earphone' || _monitorListenOutput == 'earphone';
-    if (needsEarphone && !_isBluetoothConnected) {
+    if (needsEarphone && !hasEarphone) {
       if (mounted) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1396,8 +1398,9 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     SoundService().playKey();
     HapticFeedback.selectionClick();
 
+    final bool hasEarphone = _isBluetoothConnected || _isWiredConnected;
     final wantsEarphone = captureSource == 'earphone' || listenOutput == 'earphone';
-    if (wantsEarphone && !_isBluetoothConnected) {
+    if (wantsEarphone && !hasEarphone) {
       if (mounted) {
         ScaffoldMessenger.of(context).removeCurrentSnackBar();
         ScaffoldMessenger.of(context).showSnackBar(
@@ -1587,11 +1590,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                         ),
                       ),
                       child: Text(
-                        _displayDb < 68.0
-                            ? "SAFE"
-                            : _displayDb < 82.0
-                                ? "MODERATE"
-                                : "DANGER",
+                        safetyStatus,
                         style: widget.theme.fontMono(
                           fontSize: 10.5,
                           fontWeight: FontWeight.bold,
@@ -1600,42 +1599,6 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                       ),
                     ),
                   ],
-                ),
-              ],
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Acoustic Sound Safety Description Label
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: safetyColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: safetyColor.withValues(alpha: 0.4),
-                width: 1.2,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  _currentDb < 82.0
-                      ? Icons.hearing_rounded
-                      : Icons.warning_amber_rounded,
-                  size: 16,
-                  color: safetyColor,
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  safetyStatus,
-                  style: widget.theme.fontDisplay(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.bold,
-                    color: safetyColor,
-                  ),
                 ),
               ],
             ),
@@ -2554,14 +2517,19 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   // --- 5. EARPHONE & PHONE AUDIO MONITOR ---
   Widget _buildEarphonePassThroughSection() {
     // Live Bluetooth & Headset inline status shown right below title
+    final bool hasEarphone = _isBluetoothConnected || _isWiredConnected;
     final Color btStatusColor;
     final IconData btStatusIcon;
     final String btStatusLabel;
-    if (_isBluetoothConnected) {
+    if (_isWiredConnected) {
       btStatusColor = const Color(0xFF10B981);
-      btStatusIcon = _isWiredConnected && _connectedDeviceName == 'Wired Earphone'
-          ? Icons.headset_rounded
-          : Icons.bluetooth_connected_rounded;
+      btStatusIcon = Icons.headset_rounded;
+      btStatusLabel = _connectedDeviceName.isNotEmpty
+          ? _connectedDeviceName
+          : 'Wired Headset Connected';
+    } else if (_isBluetoothConnected) {
+      btStatusColor = const Color(0xFF10B981);
+      btStatusIcon = Icons.bluetooth_connected_rounded;
       btStatusLabel = _connectedDeviceName.isNotEmpty
           ? 'Connected · $_connectedDeviceName'
           : 'Bluetooth Connected';
@@ -2575,7 +2543,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
       btStatusLabel = 'Bluetooth is OFF';
     }
 
-    final bool earphoneOff = !_isBluetoothConnected;
+    final bool earphoneOff = !hasEarphone;
 
     return Container(
       width: double.infinity,
