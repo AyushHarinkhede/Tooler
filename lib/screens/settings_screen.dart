@@ -19,7 +19,7 @@ import 'widget_settings_screen.dart';
 /// - Tactile Sound & Haptic Vibration toggles
 /// - Notifications & Background persistence toggle
 /// - Terms and Conditions & Privacy Policy dialogs
-/// - About Developer (Ayush Harinkhede) with direct Send Feedback email launch
+/// - About Developer (Ayush Harinkhede) and dedicated Send Feedback email launch
 /// ---------------------------------------------------------------------------
 
 class SettingsScreen extends StatefulWidget {
@@ -414,7 +414,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'v1.0.0 • Tooler Master Edition',
+                      'v1.0.43 • Tooler Master Edition',
                       style: GoogleFonts.robotoMono(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -424,44 +424,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 18),
-              // Direct Send Feedback Button in About
-              BouncyTap(
-                onTap: () {
-                  Navigator.pop(context);
-                  _launchSendFeedback();
-                },
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    color: theme.primary,
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: [
-                      BoxShadow(
-                        color: theme.primary.withValues(alpha: 0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.mail_outline_rounded, color: Colors.white, size: 18),
-                      const SizedBox(width: 8),
-                      Text(
-                        'Send Feedback',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              const SizedBox(height: 8),
             ],
           ),
           actions: [
