@@ -1837,7 +1837,7 @@ class _FmRadioScreenState extends State<FmRadioScreen>
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 8, 10, 2),
             child: SizedBox(
-              height: 172,
+              height: 214,
               width: double.infinity,
               child: AnimatedBuilder(
                 animation: _eqController,
@@ -1872,14 +1872,16 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                 Expanded(
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
-                      trackHeight: 3.5,
-                      activeTrackColor: theme.primary,
-                      inactiveTrackColor: theme.border,
-                      thumbColor: const Color(0xFFF43F5E),
+                      trackHeight: 3.8,
+                      activeTrackColor: const Color(0xFFF59E0B),
+                      inactiveTrackColor: theme.isDark
+                          ? const Color(0xFF1E2538)
+                          : const Color(0xFFE2E8F0),
+                      thumbColor: const Color(0xFFF59E0B),
                       thumbShape:
-                          const RoundSliderThumbShape(enabledThumbRadius: 6.5),
+                          const RoundSliderThumbShape(enabledThumbRadius: 7.0),
                       overlayShape:
-                          const RoundSliderOverlayShape(overlayRadius: 12),
+                          const RoundSliderOverlayShape(overlayRadius: 13),
                     ),
                     child: Slider(
                       value: _tunedFreqMhz.clamp(87.5, 108.0),
@@ -1924,33 +1926,69 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                         scaleFraction: 0.94,
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 160),
-                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          padding: const EdgeInsets.symmetric(vertical: 5.5),
                           decoration: BoxDecoration(
-                            color: selected ? theme.primary : theme.bg,
-                            borderRadius: BorderRadius.circular(8),
+                            color: selected
+                                ? (theme.isDark
+                                    ? const Color(0xFF222B3F)
+                                    : const Color(0xFFFEF3C7))
+                                : theme.cardBg,
+                            borderRadius: BorderRadius.circular(9),
                             border: Border.all(
-                              color: selected ? theme.primary : theme.border,
-                              width: 1,
+                              color: selected
+                                  ? const Color(0xFFF59E0B)
+                                  : theme.border,
+                              width: selected ? 1.3 : 1,
                             ),
+                            boxShadow: selected
+                                ? [
+                                    BoxShadow(
+                                      color: const Color(0xFFF59E0B)
+                                          .withValues(alpha: 0.22),
+                                      blurRadius: 6,
+                                      offset: const Offset(0, 2),
+                                    )
+                                  ]
+                                : null,
                           ),
                           child: Column(
                             children: [
-                              Text(
-                                'CH${idx + 1}',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 7.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: selected
-                                      ? Colors.white70
-                                      : theme.textSecondary,
-                                ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (selected)
+                                    Container(
+                                      width: 4.5,
+                                      height: 4.5,
+                                      margin: const EdgeInsets.only(right: 3),
+                                      decoration: const BoxDecoration(
+                                        color: Color(0xFFF59E0B),
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
+                                  Text(
+                                    'CH${idx + 1}',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 7.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: selected
+                                          ? const Color(0xFFF59E0B)
+                                          : theme.textSecondary,
+                                    ),
+                                  ),
+                                ],
                               ),
                               Text(
                                 st.frequencyMhz.toStringAsFixed(1),
                                 style: GoogleFonts.jetBrainsMono(
                                   fontSize: 10,
                                   fontWeight: FontWeight.w900,
-                                  color: selected ? Colors.white : theme.text,
+                                  color: selected
+                                      ? (theme.isDark
+                                          ? Colors.white
+                                          : const Color(0xFF92400E))
+                                      : theme.text,
                                 ),
                               ),
                             ],
@@ -1976,13 +2014,13 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
                   iconColor: isFav
-                      ? const Color(0xFFF43F5E)
+                      ? const Color(0xFFE11D48)
                       : theme.textSecondary,
                   bg: isFav
-                      ? const Color(0xFFF43F5E).withValues(alpha: 0.12)
+                      ? const Color(0xFFE11D48).withValues(alpha: 0.12)
                       : theme.bg,
                   border: isFav
-                      ? const Color(0xFFF43F5E).withValues(alpha: 0.4)
+                      ? const Color(0xFFE11D48).withValues(alpha: 0.4)
                       : theme.border,
                   onTap: station != null ? () => _toggleFavorite(station) : null,
                 ),
@@ -1998,17 +2036,21 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                   onTap: _togglePlayStop,
                   scaleFraction: 0.90,
                   child: Container(
-                    width: 64,
+                    width: 66,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: _isPlaying
-                          ? const Color(0xFFF43F5E)
-                          : theme.primary,
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: _isPlaying
+                            ? [const Color(0xFFE11D48), const Color(0xFFBE123C)]
+                            : [theme.primary, theme.primaryDark],
+                      ),
                       borderRadius: BorderRadius.circular(15),
                       boxShadow: [
                         BoxShadow(
                           color: (_isPlaying
-                                  ? const Color(0xFFF43F5E)
+                                  ? const Color(0xFFE11D48)
                                   : theme.primary)
                               .withValues(alpha: 0.35),
                           blurRadius: 10,
@@ -2049,12 +2091,12 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                       : Icons.fiber_manual_record_rounded,
                   iconColor: _isRecordingRadio
                       ? Colors.white
-                      : const Color(0xFFF43F5E),
+                      : const Color(0xFFDC2626),
                   bg: _isRecordingRadio
-                      ? const Color(0xFFF43F5E)
+                      ? const Color(0xFFDC2626)
                       : theme.bg,
                   border: _isRecordingRadio
-                      ? const Color(0xFFF43F5E)
+                      ? const Color(0xFFDC2626)
                       : theme.border,
                   onTap: _toggleRadioRecording,
                 ),
@@ -2068,24 +2110,24 @@ class _FmRadioScreenState extends State<FmRadioScreen>
               margin: const EdgeInsets.fromLTRB(14, 0, 14, 10),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFFF43F5E).withValues(alpha: 0.12),
+                color: const Color(0xFFDC2626).withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(9),
                 border: Border.all(
-                  color: const Color(0xFFF43F5E).withValues(alpha: 0.35),
+                  color: const Color(0xFFDC2626).withValues(alpha: 0.35),
                 ),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   const Icon(Icons.fiber_manual_record_rounded,
-                      color: Color(0xFFF43F5E), size: 10),
+                      color: Color(0xFFDC2626), size: 10),
                   const SizedBox(width: 6),
                   Text(
                     'LIVE RECORDING · ${_formatSec(_recSeconds)} · ${_formatBytes(_recBytes)}',
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 9.5,
                       fontWeight: FontWeight.w800,
-                      color: const Color(0xFFF43F5E),
+                      color: const Color(0xFFDC2626),
                     ),
                   ),
                 ],
@@ -2106,12 +2148,12 @@ class _FmRadioScreenState extends State<FmRadioScreen>
     return BouncyTap(
       onTap: onTap,
       child: Container(
-        width: 42,
-        height: 42,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: bg,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: border),
+          border: Border.all(color: border, width: 1.1),
         ),
         child: Icon(icon, color: iconColor, size: 20),
       ),
@@ -2122,11 +2164,11 @@ class _FmRadioScreenState extends State<FmRadioScreen>
     return BouncyTap(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
         decoration: BoxDecoration(
           color: theme.bg,
-          borderRadius: BorderRadius.circular(7),
-          border: Border.all(color: theme.border),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: theme.border, width: 1.1),
         ),
         child: Text(
           label,
@@ -2798,257 +2840,459 @@ class _RetroRadio2DPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
     final isDark = theme.isDark;
-    final accent = theme.primary;
     final ink = theme.text;
 
-    // 1. Telescopic Chrome Antenna with Brass Collars
-    final antBase = Offset(w * 0.12, h * 0.18);
-    final antTip = Offset(w * 0.44, h * 0.03);
+    // -------------------------------------------------------------------------
+    // 1. TELESCOPIC STAINLESS-STEEL ANTENNA (Realistic Graduated Sections & Collars)
+    // -------------------------------------------------------------------------
+    final antBase = Offset(w * 0.08, h * 0.16);
+    final antTip = Offset(w * 0.42, h * 0.02);
 
-    // Antenna Body with highlight
+    // Antenna Ball Pivot Mount
+    canvas.drawCircle(
+      antBase,
+      4.0,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Color(0xFFE2E8F0), Color(0xFF475569), Color(0xFF0F172A)],
+        ).createShader(Rect.fromCircle(center: antBase, radius: 4.0)),
+    );
+
+    // Antenna Segmented Shaft (Graduated telescopic rods)
     final antPaint = Paint()
-      ..color = ink.withValues(alpha: isDark ? 0.70 : 0.80)
-      ..strokeWidth = 2.2
+      ..shader = LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: isDark
+            ? [const Color(0xFFE2E8F0), const Color(0xFF94A3B8), const Color(0xFF334155)]
+            : [const Color(0xFFF8FAFC), const Color(0xFFCBD5E1), const Color(0xFF64748B)],
+      ).createShader(Rect.fromPoints(antBase, antTip))
+      ..strokeWidth = 2.4
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(antBase, antTip, antPaint);
 
-    // Telescopic Sections & Pivot Bracket
-    final antMid1 = Offset.lerp(antBase, antTip, 0.40)!;
-    final antMid2 = Offset.lerp(antBase, antTip, 0.72)!;
-    canvas.drawCircle(
-        antMid1, 2.2, Paint()..color = const Color(0xFFD97706)); // Brass collar
-    canvas.drawCircle(
-        antMid2, 2.0, Paint()..color = const Color(0xFFD97706));
+    // Knurled Brass Compression Rings at telescopic joints
+    final joint1 = Offset.lerp(antBase, antTip, 0.38)!;
+    final joint2 = Offset.lerp(antBase, antTip, 0.70)!;
+    for (final j in [joint1, joint2]) {
+      canvas.drawCircle(
+        j,
+        2.5,
+        Paint()
+          ..shader = const RadialGradient(
+            colors: [Color(0xFFFDE68A), Color(0xFFD97706), Color(0xFF78350F)],
+          ).createShader(Rect.fromCircle(center: j, radius: 2.5)),
+      );
+    }
 
-    // Antenna Tip Jewel Indicator
-    final tipColor = isRecording
-        ? const Color(0xFFF43F5E)
-        : (isPlaying ? const Color(0xFF10B981) : accent);
-    canvas.drawCircle(antTip, 4.0, Paint()..color = tipColor);
+    // Polished Chrome Finial & Indicator Jewel
+    final antJewelColor = isRecording
+        ? const Color(0xFFDC2626)
+        : (isPlaying ? const Color(0xFF10B981) : const Color(0xFFF59E0B));
+
+    canvas.drawCircle(
+      antTip,
+      4.5,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [Colors.white, antJewelColor, const Color(0xFF0F172A)],
+        ).createShader(Rect.fromCircle(center: antTip, radius: 4.5)),
+    );
     canvas.drawCircle(antTip, 1.8, Paint()..color = Colors.white);
 
-    // Radiating RF Waves from Antenna Tip
+    // Soft Radiating RF Waves when active
     if (isPlaying || isBuffering) {
       for (int i = 0; i < 3; i++) {
         final p = (animT + i / 3.0) % 1.0;
         canvas.drawArc(
-          Rect.fromCircle(center: antTip, radius: 5.0 + p * 18.0),
-          -0.95,
-          1.50,
+          Rect.fromCircle(center: antTip, radius: 6.0 + p * 20.0),
+          -1.0,
+          1.6,
           false,
           Paint()
-            ..color = tipColor.withValues(alpha: (1.0 - p) * 0.65)
+            ..color = antJewelColor.withValues(alpha: (1.0 - p) * 0.6)
             ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.3,
+            ..strokeWidth = 1.2,
         );
       }
     }
 
-    // 2. Realistic Radio Chassis Body with Beveled 3D Gradient & Corner Screws
-    final bodyRect = Rect.fromLTWH(1, h * 0.16, w - 2, h * 0.83);
-    final bodyRRect = RRect.fromRectAndRadius(bodyRect, const Radius.circular(18));
+    // -------------------------------------------------------------------------
+    // 2. BRUSHED METAL HI-FI CHASSIS (Aerospace Grade Enclosure with 3D Bevel)
+    // -------------------------------------------------------------------------
+    final bodyRect = Rect.fromLTWH(2, h * 0.14, w - 4, h * 0.85);
+    final bodyRRect = RRect.fromRectAndRadius(bodyRect, const Radius.circular(16));
 
-    // Outer Drop Shadow
+    // Outer Drop Shadow with Ambient Depth
     canvas.drawRRect(
-      bodyRRect.shift(const Offset(0, 3)),
-      Paint()..color = Colors.black.withValues(alpha: isDark ? 0.40 : 0.08),
+      bodyRRect.shift(const Offset(0, 5)),
+      Paint()
+        ..color = Colors.black.withValues(alpha: isDark ? 0.55 : 0.12)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
     );
 
-    // Chassis Gradient (Brushed metallic finish)
+    // Chassis Multi-Stop Brushed Metal Gradient
     final chassisShader = LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: isDark
           ? [
-              const Color(0xFF242838),
-              const Color(0xFF161922),
-              const Color(0xFF0F1117),
+              const Color(0xFF282D3D), // Top highlight
+              const Color(0xFF1C202C), // Upper face
+              const Color(0xFF131620), // Mid cabinet
+              const Color(0xFF0C0E14), // Lower chassis
             ]
           : [
-              Color.lerp(theme.bg, Colors.white, 0.8)!,
-              Color.lerp(theme.bg, accent, 0.05)!,
-              Color.lerp(theme.bg, Colors.black, 0.06)!,
+              const Color(0xFFFFFFFF),
+              const Color(0xFFF1F5F9),
+              const Color(0xFFE2E8F0),
+              const Color(0xFFCBD5E1),
             ],
-      stops: const [0.0, 0.45, 1.0],
+      stops: const [0.0, 0.15, 0.65, 1.0],
     ).createShader(bodyRect);
-
     canvas.drawRRect(bodyRRect, Paint()..shader = chassisShader);
 
-    // Chassis Rim Border
+    // Fine Brushed Horizontal Hairline Texture
+    final hairlinePaint = Paint()
+      ..color = (isDark ? Colors.white : Colors.black).withValues(alpha: 0.025)
+      ..strokeWidth = 0.8;
+    for (double y = bodyRect.top + 8; y < bodyRect.bottom - 8; y += 4.5) {
+      canvas.drawLine(Offset(bodyRect.left + 8, y), Offset(bodyRect.right - 8, y), hairlinePaint);
+    }
+
+    // Top Polished Chamfer Light Bevel
+    final topHighlightPath = Path()
+      ..moveTo(bodyRect.left + 16, bodyRect.top + 1.2)
+      ..lineTo(bodyRect.right - 16, bodyRect.top + 1.2);
+    canvas.drawPath(
+      topHighlightPath,
+      Paint()
+        ..color = (isDark ? Colors.white : Colors.white).withValues(alpha: isDark ? 0.35 : 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.3,
+    );
+
+    // Chassis Perimeter Inset Rim
     canvas.drawRRect(
       bodyRRect,
       Paint()
-        ..color = ink.withValues(alpha: isDark ? 0.28 : 0.16)
+        ..color = ink.withValues(alpha: isDark ? 0.28 : 0.15)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.3,
     );
 
-    // 4 Realistic Metallic Corner Screws
-    final screwOffsets = [
-      Offset(12, h * 0.16 + 11),
-      Offset(w - 12, h * 0.16 + 11),
-      Offset(12, h * 0.99 - 11),
-      Offset(w - 12, h * 0.99 - 11),
+    // 4 Machined Hex-Socket Corner Screws
+    final screwPoints = [
+      Offset(bodyRect.left + 12, bodyRect.top + 11),
+      Offset(bodyRect.right - 12, bodyRect.top + 11),
+      Offset(bodyRect.left + 12, bodyRect.bottom - 11),
+      Offset(bodyRect.right - 12, bodyRect.bottom - 11),
     ];
-    for (final so in screwOffsets) {
+    for (final sp in screwPoints) {
+      // Outer beveled ring
       canvas.drawCircle(
-        so,
-        2.5,
-        Paint()..color = ink.withValues(alpha: isDark ? 0.45 : 0.30),
-      );
-      canvas.drawLine(
-        Offset(so.dx - 1.5, so.dy - 1.5),
-        Offset(so.dx + 1.5, so.dy + 1.5),
+        sp,
+        3.0,
         Paint()
-          ..color = (isDark ? Colors.black : Colors.white).withValues(alpha: 0.6)
-          ..strokeWidth = 0.8,
+          ..shader = const RadialGradient(
+            colors: [Color(0xFF94A3B8), Color(0xFF334155), Color(0xFF0F172A)],
+          ).createShader(Rect.fromCircle(center: sp, radius: 3.0)),
       );
+      // Hex socket depression
+      canvas.drawCircle(sp, 1.2, Paint()..color = const Color(0xFF0F172A));
+      // Specular highlight dot
+      canvas.drawCircle(Offset(sp.dx - 0.7, sp.dy - 0.7), 0.6, Paint()..color = Colors.white70);
     }
 
-    // 3. Left Acoustic Speaker Grille + Live Bass Cone Diaphragm Pulsing
-    final spkCenter = Offset(w * 0.155, h * 0.58);
-    final spkR = math.min(w * 0.11, h * 0.26);
-
-    // Bass diaphragm pulsation
-    final bassPulse = isPlaying
-        ? ((math.sin(animT * math.pi * 2 * 2.0) + 1) * 0.5)
-        : 0.0;
-
-    // Acoustic Bass Cone (concentric expanding acoustic rings)
-    if (isPlaying) {
-      canvas.drawCircle(
-        spkCenter,
-        spkR + 2.0 + bassPulse * 3.5,
-        Paint()
-          ..color = accent.withValues(alpha: 0.20 * (1 - bassPulse * 0.4))
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.6,
-      );
-    }
-
-    // Speaker Outer Rim Bezel
-    canvas.drawCircle(
-      spkCenter,
-      spkR + 2.5,
-      Paint()
-        ..shader = RadialGradient(
-          colors: isDark
-              ? [const Color(0xFF1F2432), const Color(0xFF0C0E14)]
-              : [
-                  Color.lerp(Colors.white, accent, 0.12)!,
-                  Color.lerp(theme.bg, accent, 0.24)!
-                ],
-        ).createShader(Rect.fromCircle(center: spkCenter, radius: spkR + 2.5)),
-    );
-    canvas.drawCircle(
-      spkCenter,
-      spkR + 2.5,
-      Paint()
-        ..color = ink.withValues(alpha: isDark ? 0.35 : 0.22)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.3,
-    );
-
-    // Honeycomb/Grid Micro-Perforations
-    final dotPaint =
-        Paint()..color = ink.withValues(alpha: isDark ? 0.55 : 0.40);
-    for (int gy = -3; gy <= 3; gy++) {
-      for (int gx = -3; gx <= 3; gx++) {
-        final dx = gx * (spkR * 0.28);
-        final dy = gy * (spkR * 0.28);
-        if (dx * dx + dy * dy <= (spkR - 2) * (spkR - 2)) {
-          canvas.drawCircle(
-              Offset(spkCenter.dx + dx, spkCenter.dy + dy), 1.35, dotPaint);
-        }
-      }
-    }
-
-    // Center Dust Cap with Metallic Sheen
-    canvas.drawCircle(
-      spkCenter,
-      spkR * 0.30 + (bassPulse * 0.8),
-      Paint()
-        ..color = accent.withValues(alpha: isDark ? 0.75 : 0.55)
-        ..style = PaintingStyle.fill,
-    );
-
-    // 4. Recessed Illuminated Frosted-Glass Tuning Window (Right Side)
-    final dialLeft = w * 0.30;
-    final dialWidth = w * 0.67;
-    final dialTop = h * 0.22;
-    final dialH = h * 0.72;
-    final dialRect = Rect.fromLTWH(dialLeft, dialTop, dialWidth, dialH);
-    final dialRRect =
-        RRect.fromRectAndRadius(dialRect, const Radius.circular(13));
-
-    // Glass Background (deep dark OLED/phosphor finish)
-    canvas.drawRRect(
-      dialRRect,
-      Paint()..color = isDark ? const Color(0xFF0A0C12) : const Color(0xFF131722),
-    );
-
-    // Specular diagonal glare across the glass
-    final glarePath = Path()
-      ..moveTo(dialLeft, dialTop + dialH * 0.5)
-      ..lineTo(dialLeft + dialWidth * 0.6, dialTop)
-      ..lineTo(dialLeft + dialWidth * 0.8, dialTop)
-      ..lineTo(dialLeft, dialTop + dialH * 0.9)
-      ..close();
-    canvas.drawPath(
-      glarePath,
-      Paint()..color = Colors.white.withValues(alpha: 0.035),
-    );
-
-    // Glass Rim Border
-    canvas.drawRRect(
-      dialRRect,
-      Paint()
-        ..color = accent.withValues(alpha: isPlaying ? 0.50 : 0.22)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
-    );
-
-    // Top Row Inside Dial: [● STATUS] .... [5-Bar RSSI] .... [STEREO HD]
-    final statusColor = isRecording
-        ? const Color(0xFFF43F5E)
-        : (isPlaying
-            ? const Color(0xFF10B981)
-            : (isBuffering ? const Color(0xFFF59E0B) : const Color(0xFF94A3B8)));
-
-    // Status LED dot + text
-    canvas.drawCircle(
-      Offset(dialLeft + 13, dialTop + 13),
-      3.0,
-      Paint()..color = statusColor,
-    );
-    final stPainter = TextPainter(
+    // Top Brand Plaque ("TOOLER HI-FI FM RECEIVER")
+    final plaqueX = bodyRect.left + (bodyRect.width * 0.48);
+    final plaqueY = bodyRect.top + 8;
+    final brandPainter = TextPainter(
       text: TextSpan(
-        text: statusLabel,
+        text: 'TOOLER · HI-FI SOLID STATE FM RECEIVER',
         style: GoogleFonts.jetBrainsMono(
-          fontSize: 8.5,
+          fontSize: 7.2,
           fontWeight: FontWeight.w800,
-          letterSpacing: 0.6,
-          color: statusColor,
+          letterSpacing: 1.2,
+          color: isDark ? const Color(0xFF94A3B8) : const Color(0xFF475569),
         ),
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    stPainter.paint(canvas, Offset(dialLeft + 20, dialTop + 7.5));
+    brandPainter.paint(canvas, Offset(plaqueX - brandPainter.width / 2, plaqueY));
 
-    // 5-Bar Signal Strength Meter (RSSI)
-    final rssiX = dialLeft + dialWidth * 0.50;
+    // -------------------------------------------------------------------------
+    // 3. LEFT STUDIO ACOUSTIC SPEAKER DRIVER (Woven Wire Mesh & Bass Reflex)
+    // -------------------------------------------------------------------------
+    final spkCenter = Offset(w * 0.165, h * 0.54);
+    final spkR = math.min(w * 0.125, h * 0.28);
+
+    // Audio-reactive bass deflection
+    final bassPulse = isPlaying
+        ? ((math.sin(animT * math.pi * 2 * 2.2) + 1) * 0.5)
+        : 0.0;
+
+    // Outer Cast-Aluminum Trim Ring with Radial Bevel
+    canvas.drawCircle(
+      spkCenter,
+      spkR + 3.5,
+      Paint()
+        ..shader = RadialGradient(
+          colors: isDark
+              ? [const Color(0xFF64748B), const Color(0xFF334155), const Color(0xFF0F172A)]
+              : [const Color(0xFFFFFFFF), const Color(0xFFCBD5E1), const Color(0xFF94A3B8)],
+        ).createShader(Rect.fromCircle(center: spkCenter, radius: spkR + 3.5)),
+    );
+    canvas.drawCircle(
+      spkCenter,
+      spkR + 3.5,
+      Paint()
+        ..color = ink.withValues(alpha: isDark ? 0.35 : 0.22)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+
+    // Flexible Rubber Roll Surround (Concave bass flex)
+    canvas.drawCircle(
+      spkCenter,
+      spkR,
+      Paint()
+        ..shader = RadialGradient(
+          colors: isDark
+              ? [const Color(0xFF1E2433), const Color(0xFF0B0D14), const Color(0xFF181D2A)]
+              : [const Color(0xFF475569), const Color(0xFF1E293B), const Color(0xFF334155)],
+        ).createShader(Rect.fromCircle(center: spkCenter, radius: spkR)),
+    );
+
+    // Woven Diamond Acoustic Wire-Mesh Grille (Realistic interlaced micro-weave)
+    canvas.save();
+    final spkClipPath = Path()
+      ..addOval(Rect.fromCircle(center: spkCenter, radius: spkR - 1.5));
+    canvas.clipPath(spkClipPath);
+
+    final meshPaint = Paint()
+      ..color = (isDark ? const Color(0xFF94A3B8) : const Color(0xFF1E293B))
+          .withValues(alpha: isDark ? 0.28 : 0.40)
+      ..strokeWidth = 0.75;
+
+    const meshStep = 3.6;
+    for (double ox = -spkR * 2; ox <= spkR * 2; ox += meshStep) {
+      // 45 degree strand
+      canvas.drawLine(
+        Offset(spkCenter.dx + ox - spkR, spkCenter.dy - spkR),
+        Offset(spkCenter.dx + ox + spkR, spkCenter.dy + spkR),
+        meshPaint,
+      );
+      // -45 degree strand
+      canvas.drawLine(
+        Offset(spkCenter.dx + ox - spkR, spkCenter.dy + spkR),
+        Offset(spkCenter.dx + ox + spkR, spkCenter.dy - spkR),
+        meshPaint,
+      );
+    }
+
+    // Dynamic Acoustic Shockwave Aura when music plays
+    if (isPlaying) {
+      canvas.drawCircle(
+        spkCenter,
+        spkR * 0.70 + bassPulse * 3.5,
+        Paint()
+          ..color = const Color(0xFFF59E0B).withValues(alpha: 0.18 * (1 - bassPulse * 0.3))
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.4,
+      );
+    }
+
+    // Spun-Aluminum Center Dust Dome with Radial Light Reflection
+    final capR = spkR * 0.34 + (bassPulse * 0.8);
+    canvas.drawCircle(
+      spkCenter,
+      capR,
+      Paint()
+        ..shader = RadialGradient(
+          colors: isDark
+              ? [const Color(0xFFE2E8F0), const Color(0xFF475569), const Color(0xFF1E293B)]
+              : [const Color(0xFFFFFFFF), const Color(0xFF94A3B8), const Color(0xFF475569)],
+        ).createShader(Rect.fromCircle(center: spkCenter, radius: capR)),
+    );
+    canvas.drawCircle(
+      spkCenter,
+      capR,
+      Paint()
+        ..color = const Color(0xFFF59E0B).withValues(alpha: 0.85)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0,
+    );
+    canvas.restore();
+
+    // Tactile Volume Rotary Knob below the Speaker
+    final volKnobCenter = Offset(spkCenter.dx, h * 0.88);
+    const volKnobR = 12.0;
+
+    // Knob Drop Shadow
+    canvas.drawCircle(
+      volKnobCenter.translate(0, 1.5),
+      volKnobR,
+      Paint()..color = Colors.black.withValues(alpha: isDark ? 0.40 : 0.15),
+    );
+    // Knurled Aluminum Grip Ring
+    canvas.drawCircle(
+      volKnobCenter,
+      volKnobR,
+      Paint()
+        ..shader = const RadialGradient(
+          colors: [Color(0xFFCBD5E1), Color(0xFF475569), Color(0xFF1E293B)],
+        ).createShader(Rect.fromCircle(center: volKnobCenter, radius: volKnobR)),
+    );
+    // Center Beveled Face
+    canvas.drawCircle(
+      volKnobCenter,
+      volKnobR * 0.75,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: isDark
+              ? [const Color(0xFF334155), const Color(0xFF0F172A)]
+              : [const Color(0xFFF1F5F9), const Color(0xFF94A3B8)],
+        ).createShader(Rect.fromCircle(center: volKnobCenter, radius: volKnobR * 0.75)),
+    );
+    // Indicator Position Notch (Clockwise tuned)
+    canvas.drawLine(
+      volKnobCenter,
+      Offset(volKnobCenter.dx + math.cos(-0.6) * volKnobR * 0.8,
+             volKnobCenter.dy + math.sin(-0.6) * volKnobR * 0.8),
+      Paint()
+        ..color = const Color(0xFFF59E0B)
+        ..strokeWidth = 1.4
+        ..strokeCap = StrokeCap.round,
+    );
+    final volLbl = TextPainter(
+      text: TextSpan(
+        text: 'VOLUME',
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 6.2,
+          fontWeight: FontWeight.w800,
+          color: isDark ? const Color(0xFF64748B) : const Color(0xFF475569),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    volLbl.paint(canvas, Offset(volKnobCenter.dx - volLbl.width / 2, volKnobCenter.dy + volKnobR + 2));
+
+    // -------------------------------------------------------------------------
+    // 4. RECESSED ILLUMINATED ANALOG TUNING GLASS & VFD TELEMETRY CONSOLE (Right)
+    // -------------------------------------------------------------------------
+    final dialLeft = w * 0.32;
+    final dialWidth = w * 0.65;
+    final dialTop = h * 0.20;
+    final dialH = h * 0.75;
+    final dialRect = Rect.fromLTWH(dialLeft, dialTop, dialWidth, dialH);
+    final dialRRect = RRect.fromRectAndRadius(dialRect, const Radius.circular(12));
+
+    // Smoked Tempered OLED Glass Window Background
+    canvas.drawRRect(
+      dialRRect,
+      Paint()..color = const Color(0xFF07090F),
+    );
+
+    // Warm Vintage Tungsten / Amber Phosphor Backlight Glow
+    final glowShader = RadialGradient(
+      center: Alignment.center,
+      radius: 0.9,
+      colors: [
+        const Color(0xFFF59E0B).withValues(alpha: isPlaying ? 0.16 : 0.05),
+        const Color(0xFF07090F),
+      ],
+    ).createShader(dialRect);
+    canvas.drawRRect(dialRRect, Paint()..shader = glowShader);
+
+    // Diagonal Specular Glass Reflection Glare
+    final glassGlare = Path()
+      ..moveTo(dialLeft, dialTop + dialH * 0.45)
+      ..lineTo(dialLeft + dialWidth * 0.55, dialTop)
+      ..lineTo(dialLeft + dialWidth * 0.72, dialTop)
+      ..lineTo(dialLeft, dialTop + dialH * 0.85)
+      ..close();
+    canvas.drawPath(
+      glassGlare,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.white.withValues(alpha: 0.06),
+            Colors.white.withValues(alpha: 0.01),
+          ],
+        ).createShader(dialRect),
+    );
+
+    // 3D Beveled Metallic Window Bezel Rim
+    canvas.drawRRect(
+      dialRRect,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            const Color(0xFFF59E0B).withValues(alpha: isPlaying ? 0.55 : 0.30),
+            const Color(0xFF334155),
+            const Color(0xFF0F172A),
+          ],
+        ).createShader(dialRect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.3,
+    );
+
+    // --- Glass Header Bar: [● STEREO] [5-Bar RSSI] [CODEC] ---
+    final isStereoActive = isPlaying;
+    final stereoLedColor = isStereoActive ? const Color(0xFF10B981) : const Color(0xFF475569);
+
+    // Faceted Jewel Stereo Indicator LED
+    final ledCenter = Offset(dialLeft + 12, dialTop + 12);
+    canvas.drawCircle(
+      ledCenter,
+      3.5,
+      Paint()
+        ..shader = RadialGradient(
+          colors: [Colors.white, stereoLedColor, const Color(0xFF064E3B)],
+        ).createShader(Rect.fromCircle(center: ledCenter, radius: 3.5)),
+    );
+    if (isStereoActive) {
+      canvas.drawCircle(
+        ledCenter,
+        6.0,
+        Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.35),
+      );
+    }
+    final stLedPainter = TextPainter(
+      text: TextSpan(
+        text: 'STEREO FM',
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 8.0,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.5,
+          color: stereoLedColor,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    stLedPainter.paint(canvas, Offset(dialLeft + 20, dialTop + 7.5));
+
+    // 5-Segment Signal Strength Ladder (RSSI)
+    final rssiBaseX = dialLeft + dialWidth * 0.44;
     for (int bar = 0; bar < 5; bar++) {
-      final barH = 3.5 + bar * 2.0;
-      final activeBar = isPlaying ? bar < 4 : (isBuffering ? bar < 2 : false);
+      final bh = 3.5 + bar * 2.2;
+      final isLit = isPlaying ? (bar < 4) : (isBuffering ? bar < 2 : false);
       canvas.drawRRect(
         RRect.fromRectAndRadius(
-          Rect.fromLTWH(rssiX + bar * 4.2, dialTop + 14 - barH, 2.5, barH),
-          const Radius.circular(1),
+          Rect.fromLTWH(rssiBaseX + bar * 4.4, dialTop + 14 - bh, 2.6, bh),
+          const Radius.circular(1.2),
         ),
         Paint()
-          ..color = activeBar
+          ..color = isLit
               ? const Color(0xFF10B981)
-              : Colors.white.withValues(alpha: 0.15),
+              : Colors.white.withValues(alpha: 0.12),
       );
     }
 
@@ -3057,9 +3301,9 @@ class _RetroRadio2DPainter extends CustomPainter {
       text: TextSpan(
         text: codecBadge,
         style: GoogleFonts.jetBrainsMono(
-          fontSize: 8.2,
+          fontSize: 8.0,
           fontWeight: FontWeight.w700,
-          color: Colors.white70,
+          color: const Color(0xFF94A3B8),
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -3069,165 +3313,209 @@ class _RetroRadio2DPainter extends CustomPainter {
       Offset(dialLeft + dialWidth - codecPainter.width - 10, dialTop + 7.5),
     );
 
-    // Big Crisp Frequency Readout ("98.3 MHz") with Digital Glow
-    final freqSpan = TextPainter(
+    // --- Big Digital VFD / OLED Frequency Readout ("98.3 MHz") ---
+    final freqPainter = TextPainter(
       text: TextSpan(
         children: [
           TextSpan(
             text: frequencyMhz.toStringAsFixed(1),
             style: GoogleFonts.jetBrainsMono(
-              fontSize: 24,
+              fontSize: 26,
               fontWeight: FontWeight.w900,
               color: Colors.white,
-              letterSpacing: -0.6,
+              letterSpacing: -0.8,
             ),
           ),
           TextSpan(
             text: ' MHz',
             style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
+              fontSize: 10.5,
               fontWeight: FontWeight.w800,
-              color: accent,
+              color: const Color(0xFFF59E0B),
             ),
           ),
         ],
       ),
       textDirection: TextDirection.ltr,
     )..layout();
-    freqSpan.paint(canvas, Offset(dialLeft + 10, dialTop + 22));
+    freqPainter.paint(canvas, Offset(dialLeft + 10, dialTop + 24));
 
-    // Live 8-Band Audio Spectrum Visualizer (Equalizer Bars + Peak Holds)
-    const eqBars = 8;
-    for (int b = 0; b < eqBars; b++) {
-      final level = isPlaying
-          ? (0.22 +
-              0.78 *
-                  ((math.sin(animT * math.pi * 2 + b * 1.15) +
-                          math.cos(animT * math.pi * 1.5 + b * 0.7)) /
-                      2.0 +
-                      0.5))
-          : 0.15;
-      final bh = (20.0 * level).clamp(3.0, 21.0);
-      final bx = dialLeft + dialWidth - 44 + b * 4.4;
-      final by = dialTop + 47 - bh;
+    // Dual-Channel Moving Analog VU Meters (Left & Right Levels)
+    final vuStartX = dialLeft + dialWidth - 56;
+    final vuTopY = dialTop + 26;
+    for (int ch = 0; ch < 2; ch++) {
+      final chY = vuTopY + ch * 9.0;
+      final chLabel = ch == 0 ? 'L' : 'R';
 
-      // Equalizer Bar Gradient
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-            Rect.fromLTWH(bx, by, 2.8, bh), const Radius.circular(1.5)),
-        Paint()
-          ..shader = LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: isPlaying
-                ? [accent, const Color(0xFF10B981), const Color(0xFFF43F5E)]
-                : [Colors.white24, Colors.white12],
-          ).createShader(Rect.fromLTWH(bx, by, 2.8, bh)),
-      );
+      final lblP = TextPainter(
+        text: TextSpan(
+          text: chLabel,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 7.0,
+            fontWeight: FontWeight.w900,
+            color: const Color(0xFF64748B),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      lblP.paint(canvas, Offset(vuStartX - 8, chY));
 
-      // Peak Hold Dot
-      if (isPlaying) {
-        canvas.drawCircle(
-          Offset(bx + 1.4, by - 2),
-          1.2,
-          Paint()..color = const Color(0xFFF43F5E),
+      // 6 Segment VU Bar
+      for (int s = 0; s < 6; s++) {
+        final segX = vuStartX + s * 7.5;
+        final vuLevel = isPlaying
+            ? ((math.sin(animT * 8.0 + ch * 2.0 + s * 0.6) + 1) * 0.5)
+            : 0.1;
+        final isSegLit = (s / 6.0) <= vuLevel;
+
+        Color segColor = const Color(0xFF10B981); // Green (Safe)
+        if (s >= 4) segColor = const Color(0xFFF59E0B); // Amber
+        if (s == 5) segColor = const Color(0xFFDC2626); // Red (Peak)
+
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(segX, chY + 1.0, 5.5, 5.0),
+            const Radius.circular(1.0),
+          ),
+          Paint()
+            ..color = isSegLit ? segColor : segColor.withValues(alpha: 0.15),
         );
       }
     }
 
-    // Station Name Readout (Clean & High Contrast)
+    // Station Name & Genre Subtitle
     final namePainter = TextPainter(
       text: TextSpan(
         text: stationName,
         style: GoogleFonts.plusJakartaSans(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Colors.white.withValues(alpha: 0.88),
+          fontSize: 11.5,
+          fontWeight: FontWeight.w800,
+          color: Colors.white.withValues(alpha: 0.92),
         ),
       ),
       maxLines: 1,
       ellipsis: '…',
       textDirection: TextDirection.ltr,
-    )..layout(maxWidth: dialWidth - 18);
-    namePainter.paint(canvas, Offset(dialLeft + 10, dialTop + 52));
+    )..layout(maxWidth: dialWidth - 20);
+    namePainter.paint(canvas, Offset(dialLeft + 10, dialTop + 55));
 
-    // 5. Analog Precision Tuning Scale (88 .. 108 MHz) + Glowing Neon Needle
-    final scaleY = dialTop + dialH - 24;
-    final scaleStart = dialLeft + 10;
-    final scaleEnd = dialLeft + dialWidth - 10;
+    // -------------------------------------------------------------------------
+    // 5. AUTHENTIC DUAL-BAND ANALOG TUNING DIAL SCALE (88..108 FM & 530..1700 AM)
+    // -------------------------------------------------------------------------
+    final scaleY = dialTop + dialH - 28;
+    final scaleStart = dialLeft + 12;
+    final scaleEnd = dialLeft + dialWidth - 12;
     final scaleSpan = scaleEnd - scaleStart;
 
-    // Scale Track
+    // Dual-Track Guideline
     canvas.drawLine(
-      Offset(scaleStart, scaleY),
-      Offset(scaleEnd, scaleY),
+      Offset(scaleStart, scaleY - 10),
+      Offset(scaleEnd, scaleY - 10),
       Paint()
-        ..color = Colors.white.withValues(alpha: 0.22)
-        ..strokeWidth = 1.4,
+        ..color = const Color(0xFFF59E0B).withValues(alpha: 0.35)
+        ..strokeWidth = 1.0,
+    );
+    canvas.drawLine(
+      Offset(scaleStart, scaleY + 2),
+      Offset(scaleEnd, scaleY + 2),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.20)
+        ..strokeWidth = 1.0,
     );
 
-    // Ticks & Numbers (88, 92, 96, 100, 104, 108)
-    const ticks = 20;
-    for (int i = 0; i <= ticks; i++) {
-      final tx = scaleStart + (i / ticks) * scaleSpan;
+    // FM Frequency Calibrations (88 to 108 MHz)
+    const totalTicks = 20;
+    for (int i = 0; i <= totalTicks; i++) {
+      final tx = scaleStart + (i / totalTicks) * scaleSpan;
       final isMajor = i % 4 == 0;
+      final isMid = i % 2 == 0;
+
+      final tickH = isMajor ? 7.0 : (isMid ? 4.5 : 2.5);
       canvas.drawLine(
-        Offset(tx, scaleY - (isMajor ? 5.5 : 2.5)),
-        Offset(tx, scaleY + (isMajor ? 5.5 : 2.5)),
+        Offset(tx, scaleY - 10 - tickH),
+        Offset(tx, scaleY - 10),
         Paint()
-          ..color =
-              Colors.white.withValues(alpha: isMajor ? 0.65 : 0.25)
-          ..strokeWidth = isMajor ? 1.2 : 0.8,
+          ..color = isMajor
+              ? const Color(0xFFF59E0B)
+              : Colors.white.withValues(alpha: isMid ? 0.65 : 0.25)
+          ..strokeWidth = isMajor ? 1.3 : 0.8,
       );
+
       if (isMajor) {
-        final labelMhz = 88 + i;
+        final mhz = 88 + i;
         final lp = TextPainter(
           text: TextSpan(
-            text: '$labelMhz',
+            text: '$mhz',
             style: GoogleFonts.jetBrainsMono(
               fontSize: 7.2,
-              fontWeight: FontWeight.w700,
-              color: Colors.white.withValues(alpha: 0.65),
+              fontWeight: FontWeight.w800,
+              color: const Color(0xFFF59E0B),
             ),
           ),
           textDirection: TextDirection.ltr,
         )..layout();
-        lp.paint(canvas, Offset(tx - lp.width / 2, scaleY + 7));
+        lp.paint(canvas, Offset(tx - lp.width / 2, scaleY - 21));
       }
     }
 
-    // Station Lock Markers
+    // Lower AM Scale Markings (kHz)
+    final amMarkings = ['54', '80', '100', '130', '160'];
+    for (int i = 0; i < amMarkings.length; i++) {
+      final tx = scaleStart + (i / (amMarkings.length - 1)) * scaleSpan;
+      final amp = TextPainter(
+        text: TextSpan(
+          text: amMarkings[i],
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 6.5,
+            fontWeight: FontWeight.w600,
+            color: const Color(0xFF64748B),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      amp.paint(canvas, Offset(tx - amp.width / 2, scaleY + 5));
+    }
+
+    // Station Memory Lock Indicator Dots
     for (final sf in stationFrequencies.take(16)) {
       final sfFrac = ((sf - 87.5) / 20.5).clamp(0.0, 1.0);
       final sx = scaleStart + sfFrac * scaleSpan;
       canvas.drawCircle(
-        Offset(sx, scaleY),
-        1.8,
-        Paint()..color = accent.withValues(alpha: 0.80),
+        Offset(sx, scaleY - 10),
+        2.0,
+        Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.9),
       );
     }
 
-    // Glowing Neon Tuning Needle (Red with Soft Diffuse Glow)
-    final frac = ((frequencyMhz - 87.5) / 20.5).clamp(0.0, 1.0);
-    final needleX = scaleStart + frac * scaleSpan;
+    // Fluorescent Orange/Amber Analog Pointer Needle with Neon Halo
+    final freqFrac = ((frequencyMhz - 87.5) / 20.5).clamp(0.0, 1.0);
+    final needleX = scaleStart + freqFrac * scaleSpan;
 
-    // Needle Diffuse Glow
+    // Diffuse Neon Halo Glow
     canvas.drawLine(
-      Offset(needleX, scaleY - 9),
-      Offset(needleX, scaleY + 9),
+      Offset(needleX, scaleY - 22),
+      Offset(needleX, scaleY + 12),
       Paint()
-        ..color = const Color(0xFFF43F5E).withValues(alpha: 0.40)
-        ..strokeWidth = 5.5
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5),
+        ..color = const Color(0xFFFF6D00).withValues(alpha: 0.45)
+        ..strokeWidth = 6.0
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
     );
-    // Core Needle
+
+    // Core Solid Pointer Needle
     canvas.drawLine(
-      Offset(needleX, scaleY - 9),
-      Offset(needleX, scaleY + 9),
+      Offset(needleX, scaleY - 22),
+      Offset(needleX, scaleY + 12),
       Paint()
-        ..color = const Color(0xFFF43F5E)
+        ..color = const Color(0xFFFF6D00)
         ..strokeWidth = 2.0
         ..strokeCap = StrokeCap.round,
+    );
+
+    // Brass Slide Pivot at Needle Base
+    canvas.drawCircle(
+      Offset(needleX, scaleY + 12),
+      2.5,
+      Paint()..color = const Color(0xFFD97706),
     );
   }
 
