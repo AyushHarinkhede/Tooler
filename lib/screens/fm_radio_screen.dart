@@ -176,9 +176,53 @@ class _FmRadioScreenState extends State<FmRadioScreen>
       bitrate: 128,
     ),
     RadioStationItem(
+      id: 'seed_vividh_air',
+      name: 'AIR Vividh Bharati National Live',
+      frequencyMhz: 102.8,
+      streamUrl: 'https://stream.zeno.fm/k2k5p681y0quv',
+      country: 'India',
+      countryCode: 'IN',
+      genre: 'Akashvani · Retro',
+      codec: 'MP3',
+      bitrate: 128,
+    ),
+    RadioStationItem(
+      id: 'seed_radiocity_911',
+      name: 'Radio City 91.1 Hindi Hits',
+      frequencyMhz: 91.1,
+      streamUrl: 'https://stream.zeno.fm/v2ps85wqefhvv',
+      country: 'India',
+      countryCode: 'IN',
+      genre: 'Bollywood · Pop',
+      codec: 'MP3',
+      bitrate: 128,
+    ),
+    RadioStationItem(
+      id: 'seed_bigfm_927',
+      name: 'Big FM 92.7 Dhun Badal Ke Dekho',
+      frequencyMhz: 92.7,
+      streamUrl: 'https://stream.zeno.fm/c3w2n7f1k6quv',
+      country: 'India',
+      countryCode: 'IN',
+      genre: 'Bollywood · Retro',
+      codec: 'MP3',
+      bitrate: 128,
+    ),
+    RadioStationItem(
+      id: 'seed_fever_104',
+      name: 'Fever 104 Delhi Baap of Bollywood',
+      frequencyMhz: 104.0,
+      streamUrl: 'https://stream.zeno.fm/4v709d2k84zuv',
+      country: 'India',
+      countryCode: 'IN',
+      genre: 'Bollywood · Youth Hits',
+      codec: 'MP3',
+      bitrate: 128,
+    ),
+    RadioStationItem(
       id: 'seed_soma_groove',
       name: 'SomaFM Groove Salad (Chill)',
-      frequencyMhz: 91.1,
+      frequencyMhz: 89.9,
       streamUrl: 'https://ice2.somafm.com/groovesalad-128-mp3',
       country: 'Global',
       countryCode: 'US',
@@ -218,6 +262,17 @@ class _FmRadioScreenState extends State<FmRadioScreen>
       genre: 'News · Talk',
       codec: 'AAC',
       bitrate: 96,
+    ),
+    RadioStationItem(
+      id: 'seed_capital_uk',
+      name: 'Capital FM London Hits',
+      frequencyMhz: 95.8,
+      streamUrl: 'https://media-ice.musicradio.com/CapitalMP3',
+      country: 'United Kingdom',
+      countryCode: 'GB',
+      genre: 'Top 40 · Pop',
+      codec: 'MP3',
+      bitrate: 128,
     ),
     RadioStationItem(
       id: 'seed_soma_beats',
@@ -308,6 +363,7 @@ class _FmRadioScreenState extends State<FmRadioScreen>
   late final AnimationController _eqController;
   late final AnimationController _scanSweepController;
   late final AnimationController _livePulseController;
+  late final AnimationController _syncController;
 
   @override
   void initState() {
@@ -324,6 +380,11 @@ class _FmRadioScreenState extends State<FmRadioScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1400),
     )..repeat(reverse: true);
+
+    _syncController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat();
 
     _scanSweepController = AnimationController(
       vsync: this,
@@ -363,12 +424,14 @@ class _FmRadioScreenState extends State<FmRadioScreen>
     _eqController.dispose();
     _scanSweepController.dispose();
     _livePulseController.dispose();
+    _syncController.dispose();
     _searchCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _initPlayers() async {
     try {
+      await _radioPlayer.setPlayerMode(PlayerMode.mediaPlayer);
       await _radioPlayer.setAudioContext(
         AudioContext(
           android: const AudioContextAndroid(
@@ -414,15 +477,37 @@ class _FmRadioScreenState extends State<FmRadioScreen>
   }
 
   Future<void> _bootstrapAreaRadio() async {
-    await _detectUserArea();
+    _detectUserAreaSync(); // Instant 0ms local sync!
+    await _detectUserArea(); // Network precision refinement
     await _scanAreaStations(silent: true);
+  }
+
+  void _detectUserAreaSync() {
+    try {
+      final loc = Platform.localeName;
+      final parts = loc.split('_');
+      String cc = 'IN';
+      if (parts.length >= 2 && parts[1].length == 2) {
+        cc = parts[1].toUpperCase();
+      }
+      final tzOffset = DateTime.now().timeZoneOffset.inMinutes;
+      if (tzOffset == 330) {
+        cc = 'IN';
+      }
+
+      final label = cc == 'IN' ? 'India' : (cc == 'US' ? 'United States' : (cc == 'GB' ? 'United Kingdom' : cc));
+      _detectedAreaCountryCode = cc;
+      _selectedCountryCode = cc;
+      _selectedCountryName = label;
+      _detectedAreaLabel = 'Live Airwaves · $label';
+    } catch (_) {}
   }
 
   Future<void> _detectUserArea() async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 3);
     try {
       final req = await client
-          .getUrl(Uri.parse('https://ipwho.is/?fields=country,country_code,city'));
+          .getUrl(Uri.parse('https://ipwho.is/?fields=country,country_code,city,region'));
       final resp = await req.close().timeout(const Duration(seconds: 4));
       if (resp.statusCode == 200) {
         final body = await resp.transform(utf8.decoder).join();
@@ -431,14 +516,16 @@ class _FmRadioScreenState extends State<FmRadioScreen>
           final cc = (data['country_code'] as String? ?? '').trim().toUpperCase();
           final country = (data['country'] as String? ?? '').trim();
           final city = (data['city'] as String? ?? '').trim();
+          final region = (data['region'] as String? ?? '').trim();
           if (cc.length == 2 && mounted) {
             setState(() {
               _detectedAreaCountryCode = cc;
               _selectedCountryCode = cc;
               _selectedCountryName = country.isNotEmpty ? country : cc;
-              _detectedAreaLabel = city.isNotEmpty && country.isNotEmpty
-                  ? '$city · $country'
-                  : (country.isNotEmpty ? country : 'India');
+              final locName = city.isNotEmpty
+                  ? (country.isNotEmpty ? '$city, $country' : city)
+                  : (region.isNotEmpty ? '$region, $country' : country);
+              _detectedAreaLabel = locName.isNotEmpty ? locName : 'India';
             });
           }
         }
@@ -804,7 +891,7 @@ class _FmRadioScreenState extends State<FmRadioScreen>
       _tunedFreqMhz = station.frequencyMhz;
       _isBuffering = true;
       _isPlaying = false;
-      _statusBannerText = 'TUNING...';
+      _statusBannerText = 'SYNCING LIVE FEED...';
     });
 
     // 6-second responsive watchdog
@@ -825,11 +912,24 @@ class _FmRadioScreenState extends State<FmRadioScreen>
     });
 
     try {
-      final directUrl = await _resolveDirectStreamUrl(station.streamUrl);
+      final isPlaylist = station.streamUrl.toLowerCase().endsWith('.m3u') ||
+          station.streamUrl.toLowerCase().endsWith('.pls');
+      final String directUrl;
+      if (_resolvedStreamCache.containsKey(station.streamUrl)) {
+        directUrl = _resolvedStreamCache[station.streamUrl]!;
+      } else if (!isPlaylist) {
+        directUrl = station.streamUrl;
+        _resolvedStreamCache[station.streamUrl] = directUrl;
+      } else {
+        directUrl = await _resolveDirectStreamUrl(station.streamUrl);
+      }
+
       if (!mounted || seq != _playRequestSeq) return;
 
-      await _radioPlayer.stop();
-      await _radioPlayer.play(UrlSource(directUrl));
+      if (_isPlaying) {
+        await _radioPlayer.stop();
+      }
+      await _radioPlayer.play(UrlSource(directUrl), mode: PlayerMode.mediaPlayer);
       _syncStationClick(station.id);
     } catch (_) {
       _bufferWatchdog?.cancel();
@@ -2031,52 +2131,15 @@ class _FmRadioScreenState extends State<FmRadioScreen>
                   border: theme.border,
                   onTap: () => _stepStation(-1),
                 ),
-                // Center Big Play/Pause Knob
-                BouncyTap(
+                // Center Big Play/Pause Knob with Real-Time Frequency Sync Radar Loading Animation
+                _RadioSyncPlayButton(
+                  isPlaying: _isPlaying,
+                  isBuffering: _isBuffering,
                   onTap: _togglePlayStop,
-                  scaleFraction: 0.90,
-                  child: Container(
-                    width: 66,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: _isPlaying
-                            ? [const Color(0xFFE11D48), const Color(0xFFBE123C)]
-                            : [theme.primary, theme.primaryDark],
-                      ),
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: (_isPlaying
-                                  ? const Color(0xFFE11D48)
-                                  : theme.primary)
-                              .withValues(alpha: 0.35),
-                          blurRadius: 10,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Center(
-                      child: _isBuffering
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.4,
-                                color: Colors.white,
-                              ),
-                            )
-                          : Icon(
-                              _isPlaying
-                                  ? Icons.stop_rounded
-                                  : Icons.play_arrow_rounded,
-                              color: Colors.white,
-                              size: 26,
-                            ),
-                    ),
-                  ),
+                  syncRotation: _syncController,
+                  pulse: _livePulseController,
+                  eq: _eqController,
+                  theme: theme,
                 ),
                 _deckActionBtn(
                   icon: Icons.skip_next_rounded,
@@ -3522,3 +3585,226 @@ class _RetroRadio2DPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RetroRadio2DPainter old) => true;
 }
+
+// =============================================================================
+// HIGH-TECH RADIO SYNC PLAY BUTTON WITH ROTATING RADAR FREQUENCY LOCK ANIMATION
+// =============================================================================
+class _RadioSyncPlayButton extends StatelessWidget {
+  final bool isPlaying;
+  final bool isBuffering;
+  final VoidCallback onTap;
+  final Animation<double> syncRotation;
+  final Animation<double> pulse;
+  final Animation<double> eq;
+  final StationeryTheme theme;
+
+  const _RadioSyncPlayButton({
+    required this.isPlaying,
+    required this.isBuffering,
+    required this.onTap,
+    required this.syncRotation,
+    required this.pulse,
+    required this.eq,
+    required this.theme,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return BouncyTap(
+      onTap: onTap,
+      scaleFraction: 0.88,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 74,
+        height: 50,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: isPlaying
+                ? [const Color(0xFFE11D48), const Color(0xFFBE123C)]
+                : (isBuffering
+                    ? [const Color(0xFF0F172A), const Color(0xFF1E293B)]
+                    : [const Color(0xFF1E293B), const Color(0xFF0F172A)]),
+          ),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isPlaying
+                ? const Color(0xFFFDA4AF).withValues(alpha: 0.40)
+                : (isBuffering
+                    ? const Color(0xFFF59E0B).withValues(alpha: 0.75)
+                    : theme.border),
+            width: isBuffering ? 1.6 : 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: (isPlaying
+                      ? const Color(0xFFE11D48)
+                      : (isBuffering
+                          ? const Color(0xFFF59E0B)
+                          : theme.primary))
+                  .withValues(alpha: isPlaying ? 0.45 : (isBuffering ? 0.35 : 0.20)),
+              blurRadius: isBuffering ? 14 : 10,
+              spreadRadius: isBuffering ? 1 : 0,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            if (isBuffering)
+              Positioned.fill(
+                child: AnimatedBuilder(
+                  animation: Listenable.merge([syncRotation, pulse]),
+                  builder: (_, __) {
+                    return CustomPaint(
+                      painter: _PlaySyncRadarPainter(
+                        rotation: syncRotation.value,
+                        pulse: pulse.value,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            Center(
+              child: isBuffering
+                  ? AnimatedBuilder(
+                      animation: syncRotation,
+                      builder: (_, __) {
+                        return Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Transform.rotate(
+                              angle: syncRotation.value * math.pi * 2,
+                              child: const Icon(
+                                Icons.sync_rounded,
+                                color: Color(0xFFF59E0B),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'SYNC',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.8,
+                                color: const Color(0xFFF59E0B),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    )
+                  : (isPlaying
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.stop_rounded,
+                              color: Colors.white,
+                              size: 22,
+                            ),
+                            const SizedBox(width: 4),
+                            _MiniEqualizer(eq: eq),
+                          ],
+                        )
+                      : const Icon(
+                          Icons.play_arrow_rounded,
+                          color: Color(0xFFF59E0B),
+                          size: 30,
+                        )),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaySyncRadarPainter extends CustomPainter {
+  final double rotation;
+  final double pulse;
+
+  const _PlaySyncRadarPainter({required this.rotation, required this.pulse});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final r = math.min(size.width, size.height) * 0.46;
+
+    // Expanding concentric pulse wave
+    final pR = r * (0.4 + 0.6 * pulse);
+    final pAlpha = (1.0 - pulse).clamp(0.0, 1.0) * 0.35;
+    canvas.drawCircle(
+      center,
+      pR,
+      Paint()
+        ..color = const Color(0xFFF59E0B).withValues(alpha: pAlpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4,
+    );
+
+    // 8 Rotating LED sync notches around perimeter
+    final angleBase = rotation * math.pi * 2;
+    for (int i = 0; i < 8; i++) {
+      final a = angleBase + (i / 8) * math.pi * 2;
+      final notchR = r - 1.5;
+      final pt = Offset(center.dx + math.cos(a) * notchR, center.dy + math.sin(a) * notchR);
+      final alpha = (1.0 - (i / 8.0)).clamp(0.15, 0.95);
+      canvas.drawCircle(
+        pt,
+        1.5,
+        Paint()..color = const Color(0xFFF59E0B).withValues(alpha: alpha),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _PlaySyncRadarPainter old) =>
+      old.rotation != rotation || old.pulse != pulse;
+}
+
+class _MiniEqualizer extends StatelessWidget {
+  final Animation<double> eq;
+  const _MiniEqualizer({required this.eq});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: eq,
+      builder: (_, __) {
+        final v = eq.value;
+        final h1 = 5.0 + math.sin(v * math.pi * 2) * 5.0;
+        final h2 = 5.0 + math.sin((v + 0.33) * math.pi * 2) * 6.0;
+        final h3 = 5.0 + math.sin((v + 0.66) * math.pi * 2) * 4.5;
+        return Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            _eqBar(h1),
+            const SizedBox(width: 2),
+            _eqBar(h2),
+            const SizedBox(width: 2),
+            _eqBar(h3),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _eqBar(double h) {
+    return Container(
+      width: 2.4,
+      height: h.clamp(3.0, 14.0),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(1.2),
+      ),
+    );
+  }
+}
+
