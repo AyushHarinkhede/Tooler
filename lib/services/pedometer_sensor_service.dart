@@ -203,6 +203,65 @@ class PedometerSensorService {
     }
   }
 
+  /// Request runtime location permission for map route display
+  Future<bool> requestLocationPermission() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final res = await _stepChannel.invokeMethod<bool>('requestLocationPermission');
+        return res == true;
+      } catch (_) {}
+    }
+    return false;
+  }
+
+  /// Fetch accurate live GPS coordinates for centering map on user
+  Future<Map<String, dynamic>?> getCurrentLocation() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final res = await _stepChannel.invokeMethod<Map>('getCurrentLocation');
+        if (res != null) {
+          final lat = (res['latitude'] as num?)?.toDouble() ?? 0.0;
+          final lon = (res['longitude'] as num?)?.toDouble() ?? 0.0;
+          if (lat != 0.0 && lon != 0.0) {
+            _lastLat = lat;
+            _lastLon = lon;
+          }
+          return Map<String, dynamic>.from(res);
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Starts live high-precision GPS tracking while map is opened
+  Future<void> startLiveTrailTracking() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        await _stepChannel.invokeMethod('startLiveTrailTracking');
+      } catch (_) {}
+    }
+  }
+
+  /// Stops GPS location listener when map is closed to save 100% battery
+  Future<void> stopLiveTrailTracking() async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        await _stepChannel.invokeMethod('stopLiveTrailTracking');
+      } catch (_) {}
+    }
+  }
+
+  /// Appends real verified waypoint to today's walk trail
+  void addTrailPoint(StepTrailPoint pt) {
+    _todayTrail.add(pt);
+    _lastLat = pt.lat;
+    _lastLon = pt.lon;
+    if (_todayTrail.length > 500) {
+      _todayTrail.removeAt(0);
+    }
+    _persistState();
+  }
+
   void setDailyGoal(int goal) {
     _dailyGoal = goal.clamp(1000, 50000);
     _persistState();

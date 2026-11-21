@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -9,14 +11,15 @@ import '../services/pedometer_sensor_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 
 /// ---------------------------------------------------------------------------
-/// TOOLER STEP TRAIL & REAL MULTI-API GPS + NAVIC TRAJECTORY MAP
-/// - Google Maps (Road & Hybrid Satellite) + NavIC/ISRO Bhuvan & Dark Tile Engines
+/// TOOLER STEP TRAIL & REAL MULTI-API GPS & TRAJECTORY MAP
+/// - Google Maps (OLED Dark Mode, Road Light & Hybrid Satellite) + Carto Night
+/// - Live GPS location centering with pulsing real-time beacon
 /// - Accurate Color-coded Polyline:
 ///     * 🟢 Emerald Green: Walking (With Steps)
 ///     * 🔵 Cyan Blue: Running / Jogging (With Steps)
 ///     * 🔴 Red/Orange Dashed: Vehicle / Transit (WITHOUT Steps)
 /// - Interactive Waypoint Dots along the route with instant speed & step diagnostics
-/// - Real-Time Replay Engine & Satellite Constellation Status
+/// - Real-Time Replay Engine & "Recenter to My Location" FAB
 /// ---------------------------------------------------------------------------
 
 class StepRouteMapScreen extends StatefulWidget {
@@ -32,22 +35,136 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
   final PedometerSensorService _pedometer = PedometerSensorService();
 
   bool _isMapReady = false;
-  // Available map styles: 'google_road', 'google_sat', 'navic_voyager', 'carto_dark'
-  String _mapStyle = 'google_road';
+  // Available map styles: 'google_dark', 'google_road', 'google_sat', 'carto_dark'
+  String _mapStyle = 'google_dark';
   String _selectedPointInfo = '';
 
+  double _liveLat = 0.0;
+  double _liveLon = 0.0;
+  double _liveAccuracy = 0.0;
+  Timer? _liveLocationTimer;
+  StreamSubscription<int>? _stepSub;
+
   final List<Map<String, String>> _styleOptions = [
+    {'id': 'google_dark', 'name': 'OLED Dark', 'icon': '🌙'},
     {'id': 'google_road', 'name': 'Google Road', 'icon': '🗺️'},
     {'id': 'google_sat', 'name': 'Google Sat', 'icon': '🛰️'},
-    {'id': 'navic_voyager', 'name': 'NavIC Street', 'icon': '🇮🇳'},
-    {'id': 'carto_dark', 'name': 'OLED Dark', 'icon': '🌙'},
+    {'id': 'carto_dark', 'name': 'Carto Night', 'icon': '🌃'},
   ];
 
   @override
   void initState() {
     super.initState();
-    _mapStyle = widget.theme.isDark ? 'carto_dark' : 'google_road';
+    _mapStyle = widget.theme.isDark ? 'google_dark' : 'google_road';
     _initMapController();
+    _initLiveLocationAndTrail();
+
+    _stepSub = _pedometer.stepStream.listen((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _liveLocationTimer?.cancel();
+    _stepSub?.cancel();
+    _pedometer.stopLiveTrailTracking();
+    super.dispose();
+  }
+
+  Future<void> _initLiveLocationAndTrail() async {
+    // 1. Request location permissions
+    await _pedometer.requestLocationPermission();
+
+    // 2. Start native live trail tracking while map is opened
+    await _pedometer.startLiveTrailTracking();
+
+    // 3. Immediately fetch live location
+    final loc = await _pedometer.getCurrentLocation();
+    if (loc != null && mounted) {
+      final lat = (loc['latitude'] as num?)?.toDouble() ?? 0.0;
+      final lon = (loc['longitude'] as num?)?.toDouble() ?? 0.0;
+      final acc = (loc['accuracy'] as num?)?.toDouble() ?? 0.0;
+      if (lat != 0.0 && lon != 0.0) {
+        setState(() {
+          _liveLat = lat;
+          _liveLon = lon;
+          _liveAccuracy = acc;
+        });
+        _updateMapLiveLocation(lat, lon, acc, panTo: true);
+      }
+    }
+
+    // 4. Periodically query location every 3.5 seconds while screen is open
+    _liveLocationTimer?.cancel();
+    _liveLocationTimer = Timer.periodic(const Duration(milliseconds: 3500), (_) async {
+      if (!mounted) return;
+      final fresh = await _pedometer.getCurrentLocation();
+      if (fresh != null && mounted) {
+        final lat = (fresh['latitude'] as num?)?.toDouble() ?? 0.0;
+        final lon = (fresh['longitude'] as num?)?.toDouble() ?? 0.0;
+        final acc = (fresh['accuracy'] as num?)?.toDouble() ?? 0.0;
+        if (lat != 0.0 && lon != 0.0) {
+          final distFromPrev = _liveLat != 0.0
+              ? _calculateDistanceMeters(_liveLat, _liveLon, lat, lon)
+              : 999.0;
+
+          final hadInitialFix = _liveLat != 0.0;
+          _liveLat = lat;
+          _liveLon = lon;
+          _liveAccuracy = acc;
+
+          _updateMapLiveLocation(lat, lon, acc, panTo: !hadInitialFix);
+
+          // If moved > 5 meters, append waypoint
+          if (distFromPrev > 5.0 && distFromPrev < 5000.0) {
+            final now = DateTime.now();
+            final speed = (fresh['speed'] as num?)?.toDouble() ?? _pedometer.currentSpeedKmh;
+            final isVeh = speed > 16.0;
+            final timeStr =
+                '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+            final pt = StepTrailPoint(
+              lat: lat,
+              lon: lon,
+              speedKmh: speed,
+              distanceKm: _pedometer.distanceKm,
+              steps: _pedometer.todaySteps,
+              isVehicle: isVeh,
+              activity: isVeh ? 'Vehicle' : (speed > 5.5 ? 'Running' : 'Walking'),
+              timestamp: now,
+            );
+            _pedometer.addTrailPoint(pt);
+            _appendLiveWaypointToMap(lat, lon, speed, _pedometer.distanceKm, isVeh, timeStr);
+            if (mounted) setState(() {});
+          }
+        }
+      }
+    });
+  }
+
+  double _calculateDistanceMeters(double lat1, double lon1, double lat2, double lon2) {
+    const r = 6371000.0;
+    final dLat = (lat2 - lat1) * math.pi / 180.0;
+    final dLon = (lon2 - lon1) * math.pi / 180.0;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180.0) *
+            math.cos(lat2 * math.pi / 180.0) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
+  }
+
+  void _updateMapLiveLocation(double lat, double lon, double acc, {bool panTo = false}) {
+    if (!_isMapReady) return;
+    _mapController.runJavaScript('window.setLiveLocation($lat, $lon, $acc, $panTo);');
+  }
+
+  void _appendLiveWaypointToMap(
+      double lat, double lon, double speed, double dist, bool isVeh, String time) {
+    if (!_isMapReady) return;
+    _mapController.runJavaScript(
+        'window.appendLiveWaypoint($lat, $lon, $speed, $dist, $isVeh, "$time");');
   }
 
   void _initMapController() {
@@ -72,6 +189,9 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
               });
             } else if (data['event'] == 'mapLoaded') {
               setState(() => _isMapReady = true);
+              if (_liveLat != 0.0 && _liveLon != 0.0) {
+                _updateMapLiveLocation(_liveLat, _liveLon, _liveAccuracy, panTo: true);
+              }
             }
           } catch (_) {}
         },
@@ -81,15 +201,15 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
 
   String _getTileUrl() {
     switch (_mapStyle) {
+      case 'google_dark':
+        return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
       case 'google_road':
         return 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}';
       case 'google_sat':
         return 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}';
-      case 'navic_voyager':
-        return 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
       case 'carto_dark':
       default:
-        return 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+        return 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png';
     }
   }
 
@@ -97,8 +217,7 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     final trail = _pedometer.todayTrail;
     final isDark = widget.theme.isDark;
     final tileUrl = _getTileUrl();
-    final isSubdomainReq =
-        _mapStyle == 'navic_voyager' || _mapStyle == 'carto_dark';
+    final isCarto = _mapStyle == 'carto_dark';
 
     final pointsJson = jsonEncode(trail.map((p) => {
           'lat': p.lat,
@@ -112,13 +231,15 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
               '${p.timestamp.hour.toString().padLeft(2, '0')}:${p.timestamp.minute.toString().padLeft(2, '0')}',
         }).toList());
 
-    final initialCenter = trail.isNotEmpty
-        ? [trail.first.lat, trail.first.lon]
-        : (_pedometer.lastLat != 0.0 && _pedometer.lastLon != 0.0
-            ? [_pedometer.lastLat, _pedometer.lastLon]
-            : [20.5937, 78.9629]); // India center fallback
+    final initialCenter = _liveLat != 0.0 && _liveLon != 0.0
+        ? [_liveLat, _liveLon]
+        : (trail.isNotEmpty
+            ? [trail.last.lat, trail.last.lon]
+            : (_pedometer.lastLat != 0.0 && _pedometer.lastLon != 0.0
+                ? [_pedometer.lastLat, _pedometer.lastLon]
+                : [20.5937, 78.9629]));
 
-    final initialZoom = trail.isNotEmpty ? 16 : 5;
+    final initialZoom = (_liveLat != 0.0 || trail.isNotEmpty) ? 16 : 5;
 
     return '''
 <!DOCTYPE html>
@@ -130,29 +251,36 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body, #map { width: 100%; height: 100%; background: ${isDark ? "#0A0C10" : "#F8FAFC"}; font-family: -apple-system, sans-serif; overflow: hidden; }
+    html, body, #map { width: 100%; height: 100%; background: ${isDark ? "#0A0C10" : "#F8FAFC"}; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; overflow: hidden; }
     
+    ${_mapStyle == 'google_dark' ? '''
+    .leaflet-tile-pane {
+      filter: invert(100%) hue-rotate(180deg) brightness(92%) contrast(92%);
+    }
+    ''' : ''}
+
     .pulse-start-marker {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       background: #10B981;
       border: 3px solid #FFFFFF;
       border-radius: 50%;
-      box-shadow: 0 0 12px rgba(16, 185, 129, 0.8);
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.8);
     }
 
-    .pulse-current-marker {
+    .pulse-live-marker {
+      position: relative;
       width: 22px;
       height: 22px;
       background: #3B82F6;
       border: 3.5px solid #FFFFFF;
       border-radius: 50%;
       box-shadow: 0 0 16px rgba(59, 130, 246, 0.9);
-      animation: beaconPulse 1.6s infinite ease-out;
+      animation: livePulse 1.8s infinite ease-out;
     }
 
-    @keyframes beaconPulse {
-      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+    @keyframes livePulse {
+      0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.8); }
       70% { box-shadow: 0 0 0 18px rgba(59, 130, 246, 0); }
       100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
     }
@@ -168,10 +296,10 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     }
 
     .leaflet-popup-content-wrapper {
-      background: ${isDark ? "rgba(15, 23, 42, 0.94)" : "rgba(255, 255, 255, 0.96)"};
+      background: ${isDark ? "rgba(15, 23, 42, 0.96)" : "rgba(255, 255, 255, 0.96)"};
       color: ${isDark ? "#FFFFFF" : "#0F172A"};
       border-radius: 14px;
-      border: 1px solid ${isDark ? "rgba(255,255,255,0.15)" : "rgba(0,0,0,0.12)"};
+      border: 1px solid ${isDark ? "rgba(255,255,255,0.18)" : "rgba(0,0,0,0.12)"};
       backdrop-filter: blur(12px);
       box-shadow: 0 10px 25px rgba(0,0,0,0.3);
       padding: 4px;
@@ -202,19 +330,97 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
   <div id="map"></div>
   <script>
     const points = $pointsJson;
+    let initialLat = ${initialCenter[0]};
+    let initialLon = ${initialCenter[1]};
+
     const map = L.map('map', {
       zoomControl: false,
       attributionControl: false
-    }).setView([${initialCenter[0]}, ${initialCenter[1]}], $initialZoom);
+    }).setView([initialLat, initialLon], $initialZoom);
 
     L.tileLayer('$tileUrl', {
       maxZoom: 20,
-      subdomains: '${isSubdomainReq ? "abcd" : ""}',
+      subdomains: '${isCarto ? "abcd" : ""}',
     }).addTo(map);
 
+    let liveMarker = null;
+    let liveCircle = null;
     let replayIndex = 0;
     let replayTimer = null;
     let replayMarker = null;
+
+    window.setLiveLocation = function(lat, lon, accuracy, panTo) {
+      const pos = [lat, lon];
+      if (!liveMarker) {
+        const liveIcon = L.divIcon({
+          className: '',
+          html: '<div class="pulse-live-marker"></div>',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11]
+        });
+        liveMarker = L.marker(pos, { icon: liveIcon, zIndexOffset: 1000 }).addTo(map);
+        liveMarker.bindPopup('<strong>📍 You Are Here (Live)</strong><br>Accurate GPS Fix');
+      } else {
+        liveMarker.setLatLng(pos);
+      }
+
+      if (accuracy && accuracy > 0) {
+        if (!liveCircle) {
+          liveCircle = L.circle(pos, {
+            radius: Math.min(accuracy, 80),
+            color: '#3B82F6',
+            fillColor: '#3B82F6',
+            fillOpacity: 0.15,
+            weight: 1.2
+          }).addTo(map);
+        } else {
+          liveCircle.setLatLng(pos);
+          liveCircle.setRadius(Math.min(accuracy, 80));
+        }
+      }
+
+      if (panTo) {
+        map.setView(pos, Math.max(map.getZoom(), 16), { animate: true });
+      }
+    };
+
+    window.appendLiveWaypoint = function(lat, lon, speed, dist, isVeh, time) {
+      const newPt = [lat, lon];
+      if (points.length > 0) {
+        const prev = points[points.length - 1];
+        const strokeColor = isVeh ? '#EF4444' : (speed > 5.5 ? '#06B6D4' : '#10B981');
+        const isDashed = isVeh;
+
+        L.polyline([[prev.lat, prev.lon], newPt], {
+          color: strokeColor,
+          weight: isDashed ? 5 : 7,
+          opacity: 0.25,
+          dashArray: isDashed ? '8, 8' : null,
+          lineCap: 'round'
+        }).addTo(map);
+
+        L.polyline([[prev.lat, prev.lon], newPt], {
+          color: strokeColor,
+          weight: 4.2,
+          opacity: 0.95,
+          dashArray: isDashed ? '6, 8' : null,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(map);
+      }
+
+      points.push({ lat: lat, lon: lon, speed: speed, dist: dist, isVehicle: isVeh, time: time });
+
+      const dotColor = isVeh ? '#EF4444' : (speed > 5.5 ? '#06B6D4' : '#10B981');
+      L.circleMarker(newPt, {
+        radius: 4,
+        fillColor: '#FFFFFF',
+        color: dotColor,
+        weight: 2.5,
+        opacity: 1,
+        fillOpacity: 1
+      }).addTo(map);
+    };
 
     if (points && points.length > 0) {
       const latlngs = points.map(p => [p.lat, p.lon]);
@@ -303,26 +509,14 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
       const startIcon = L.divIcon({
         className: '',
         html: '<div class="pulse-start-marker"></div>',
-        iconSize: [18, 18],
-        iconAnchor: [9, 9]
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
       });
       L.marker([startPt.lat, startPt.lon], { icon: startIcon })
         .addTo(map)
         .bindPopup('<strong>Start Location</strong><br>Time: ' + startPt.time + '<br>0.0 km');
 
-      // 4. Current / End Marker (Radar Pulse Pin)
-      const endPt = points[points.length - 1];
-      const endIcon = L.divIcon({
-        className: '',
-        html: '<div class="pulse-current-marker"></div>',
-        iconSize: [22, 22],
-        iconAnchor: [11, 11]
-      });
-      L.marker([endPt.lat, endPt.lon], { icon: endIcon })
-        .addTo(map)
-        .bindPopup('<strong>Current Location</strong><br>Speed: ' + endPt.speed + ' km/h<br>' + endPt.dist + ' km Logged');
-
-      // Fit bounds
+      // Fit bounds if no live location yet
       map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40] });
     }
 
@@ -364,9 +558,12 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     };
 
     window.fitRouteBounds = function() {
-      if (points && points.length > 0) {
-        const latlngs = points.map(p => [p.lat, p.lon]);
-        map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40] });
+      const allCoords = points.map(p => [p.lat, p.lon]);
+      if (liveMarker) {
+        allCoords.push(liveMarker.getLatLng());
+      }
+      if (allCoords.length > 0) {
+        map.fitBounds(L.latLngBounds(allCoords), { padding: [40, 40], maxZoom: 17 });
       }
     };
 
@@ -385,10 +582,32 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
     _mapController.runJavaScript('window.startRouteReplay();');
   }
 
-  void _recenterRoute() {
+  void _recenterRoute() async {
     SoundService().playTap();
     HapticFeedback.selectionClick();
-    _mapController.runJavaScript('window.fitRouteBounds();');
+
+    if (_liveLat != 0.0 && _liveLon != 0.0) {
+      _mapController.runJavaScript(
+          'window.setLiveLocation($_liveLat, $_liveLon, $_liveAccuracy, true);');
+    } else {
+      final loc = await _pedometer.getCurrentLocation();
+      if (loc != null && mounted) {
+        final lat = (loc['latitude'] as num?)?.toDouble() ?? 0.0;
+        final lon = (loc['longitude'] as num?)?.toDouble() ?? 0.0;
+        final acc = (loc['accuracy'] as num?)?.toDouble() ?? 0.0;
+        if (lat != 0.0 && lon != 0.0) {
+          setState(() {
+            _liveLat = lat;
+            _liveLon = lon;
+            _liveAccuracy = acc;
+          });
+          _mapController.runJavaScript(
+              'window.setLiveLocation($lat, $lon, $acc, true);');
+          return;
+        }
+      }
+      _mapController.runJavaScript('window.fitRouteBounds();');
+    }
   }
 
   void _cycleMapStyle() {
@@ -458,33 +677,55 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                               ),
                             ),
                             const SizedBox(width: 6),
-                            if (_pedometer.hasNavicFix)
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 5, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFF10B981)
-                                      .withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(5),
-                                  border: Border.all(
-                                      color: const Color(0xFF10B981),
-                                      width: 0.8),
-                                ),
-                                child: Text(
-                                  '🇮🇳 NavIC',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF10B981),
-                                  ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: (_liveLat != 0.0
+                                        ? const Color(0xFF10B981)
+                                        : theme.primary)
+                                    .withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                  color: _liveLat != 0.0
+                                      ? const Color(0xFF10B981)
+                                      : theme.primary,
+                                  width: 0.8,
                                 ),
                               ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: _liveLat != 0.0
+                                          ? const Color(0xFF10B981)
+                                          : theme.primary,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _liveLat != 0.0 ? 'LIVE GPS' : 'SEARCHING',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w900,
+                                      color: _liveLat != 0.0
+                                          ? const Color(0xFF10B981)
+                                          : theme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ],
                         ),
                         Text(
                           _selectedPointInfo.isNotEmpty
                               ? _selectedPointInfo
-                              : '${_pedometer.todayTrail.length} waypoints · Real GNSS & Hardware filter',
+                              : '${_pedometer.todayTrail.length} waypoints · Real GPS walk trail',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.plusJakartaSans(
@@ -614,7 +855,7 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                     ),
                   ),
 
-                  // Floating Map Action Buttons (Replay & Recenter)
+                  // Floating Map Action Buttons (Replay & Recenter to Live Location)
                   Positioned(
                     bottom: 18,
                     right: 24,
@@ -661,7 +902,10 @@ class _StepRouteMapScreenState extends State<StepRouteMapScreen> {
                               ],
                             ),
                             child: Icon(Icons.my_location_rounded,
-                                color: theme.text, size: 20),
+                                color: _liveLat != 0.0
+                                    ? const Color(0xFF3B82F6)
+                                    : theme.text,
+                                size: 20),
                           ),
                         ),
                       ],

@@ -73,6 +73,55 @@ open class MainActivity : FlutterActivity() {
     private var isSoundEnabled = true
     private var activeAlarmStreamId: Int = 0
 
+    // Live GPS Trail Tracking for Route Map
+    private var liveTrailLocationListener: android.location.LocationListener? = null
+    private var lastTrailRecordLat: Double = 0.0
+    private var lastTrailRecordLon: Double = 0.0
+    private var lastTrailRecordTime: Long = 0L
+
+    private fun calculateTrailDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        if (lat1 == 0.0 || lon1 == 0.0) return 999.0
+        val results = FloatArray(1)
+        android.location.Location.distanceBetween(lat1, lon1, lat2, lon2, results)
+        return results[0].toDouble()
+    }
+
+    private fun appendTrailWaypoint(lat: Double, lon: Double, speedKmh: Double, isVehicle: Boolean) {
+        try {
+            val prefs = getSharedPreferences(ToolerStepService.PREFS_NAME, Context.MODE_PRIVATE)
+            val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+
+            val rawTrail = prefs.getString(ToolerStepService.KEY_TRAIL_POINTS, "[]") ?: "[]"
+            val array = org.json.JSONArray(rawTrail)
+
+            val pt = org.json.JSONObject().apply {
+                put("lat", lat)
+                put("lon", lon)
+                put("speedKmh", speedKmh)
+                put("distanceKm", ToolerStepService.liveDistanceKm)
+                put("steps", ToolerStepService.liveTodaySteps)
+                put("isVehicle", isVehicle)
+                put("activity", ToolerStepService.currentActivity)
+                put("timestamp", isoTime)
+            }
+            array.put(pt)
+
+            val finalArray = if (array.length() > 500) {
+                val trimmed = org.json.JSONArray()
+                for (i in (array.length() - 500) until array.length()) {
+                    trimmed.put(array.getJSONObject(i))
+                }
+                trimmed
+            } else {
+                array
+            }
+
+            prefs.edit().putString(ToolerStepService.KEY_TRAIL_POINTS, finalArray.toString()).apply()
+        } catch (_: Throwable) {}
+    }
+
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         enableTrueFullScreenEdgeToEdge()
@@ -110,7 +159,21 @@ open class MainActivity : FlutterActivity() {
                         action = ToolerStepService.ACTION_START_TRACKING
                     }
                     startService(intent)
-                } catch (_: Exception) {}
+                } catch (_: Throwable) {}
+            }
+        } else if (requestCode == 9035) {
+            val hasGranted = grantResults.any { it == PackageManager.PERMISSION_GRANTED }
+            if (hasGranted) {
+                try {
+                    val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+                    val loc = lm?.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER)
+                        ?: lm?.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                    if (loc != null) {
+                        ToolerStepService.lastLatitude = loc.latitude
+                        ToolerStepService.lastLongitude = loc.longitude
+                        ToolerStepService.pushLiveTelemetry(force = true)
+                    }
+                } catch (_: Throwable) {}
             }
         }
     }
@@ -966,6 +1029,161 @@ open class MainActivity : FlutterActivity() {
                         result.success(true)
                     } catch (t: Throwable) {
                         result.error("RESET_ERROR", t.message, null)
+                    }
+                }
+                "getCurrentLocation" -> {
+                    try {
+                        val hasFine = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        val hasCoarse = checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        if (!hasFine && !hasCoarse) {
+                            result.success(null)
+                        } else {
+                            val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+                            var bestLoc: android.location.Location? = null
+                            val providers = listOf(
+                                android.location.LocationManager.GPS_PROVIDER,
+                                android.location.LocationManager.NETWORK_PROVIDER,
+                                android.location.LocationManager.PASSIVE_PROVIDER
+                            )
+                            for (provider in providers) {
+                                try {
+                                    if (lm?.isProviderEnabled(provider) == true) {
+                                        val loc = lm.getLastKnownLocation(provider)
+                                        if (loc != null) {
+                                            if (bestLoc == null || loc.time > bestLoc.time || loc.accuracy < bestLoc.accuracy) {
+                                                bestLoc = loc
+                                            }
+                                        }
+                                    }
+                                } catch (_: Throwable) {}
+                            }
+
+                            // Trigger single fresh fix in background
+                            try {
+                                val singleListener = object : android.location.LocationListener {
+                                    override fun onLocationChanged(loc: android.location.Location) {
+                                        try {
+                                            ToolerStepService.lastLatitude = loc.latitude
+                                            ToolerStepService.lastLongitude = loc.longitude
+                                            ToolerStepService.pushLiveTelemetry(force = true)
+                                            lm?.removeUpdates(this)
+                                        } catch (_: Throwable) {}
+                                    }
+                                    override fun onProviderEnabled(provider: String) {}
+                                    override fun onProviderDisabled(provider: String) {}
+                                    @Deprecated("Deprecated in Java")
+                                    override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                                }
+                                if (lm?.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) == true) {
+                                    lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 0L, 0f, singleListener, android.os.Looper.getMainLooper())
+                                } else if (lm?.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER) == true) {
+                                    lm.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 0L, 0f, singleListener, android.os.Looper.getMainLooper())
+                                }
+                            } catch (_: Throwable) {}
+
+                            if (bestLoc != null) {
+                                ToolerStepService.lastLatitude = bestLoc.latitude
+                                ToolerStepService.lastLongitude = bestLoc.longitude
+                                result.success(
+                                    mapOf(
+                                        "latitude" to bestLoc.latitude,
+                                        "longitude" to bestLoc.longitude,
+                                        "accuracy" to bestLoc.accuracy.toDouble(),
+                                        "speed" to (bestLoc.speed * 3.6).toDouble(),
+                                        "time" to bestLoc.time
+                                    )
+                                )
+                            } else {
+                                result.success(null)
+                            }
+                        }
+                    } catch (_: Throwable) {
+                        result.success(null)
+                    }
+                }
+                "requestLocationPermission" -> {
+                    try {
+                        val perms = mutableListOf<String>()
+                        if (checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            perms.add(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                        }
+                        if (checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                            perms.add(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                        }
+                        if (perms.isNotEmpty()) {
+                            requestPermissions(perms.toTypedArray(), 9035)
+                            result.success(false)
+                        } else {
+                            result.success(true)
+                        }
+                    } catch (_: Throwable) {
+                        result.success(false)
+                    }
+                }
+                "startLiveTrailTracking" -> {
+                    try {
+                        val hasFine = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        val hasCoarse = checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        if (!hasFine && !hasCoarse) {
+                            result.success(false)
+                        } else {
+                            val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+                            if (lm == null) {
+                                result.success(false)
+                            } else {
+                                liveTrailLocationListener?.let { lm.removeUpdates(it) }
+                                liveTrailLocationListener = object : android.location.LocationListener {
+                                    override fun onLocationChanged(loc: android.location.Location) {
+                                        try {
+                                            if (loc.accuracy > 40.0f) return
+                                            val lat = loc.latitude
+                                            val lon = loc.longitude
+                                            val now = System.currentTimeMillis()
+
+                                            ToolerStepService.lastLatitude = lat
+                                            ToolerStepService.lastLongitude = lon
+                                            val speedKmh = if (loc.hasSpeed() && loc.speed >= 0f) (loc.speed * 3.6).toDouble() else 0.0
+                                            val clampedSpeed = String.format(java.util.Locale.US, "%.1f", speedKmh.coerceIn(0.0, 150.0)).toDoubleOrNull() ?: 0.0
+                                            ToolerStepService.liveSpeedKmh = clampedSpeed
+                                            ToolerStepService.isVehicleMode = clampedSpeed > 16.0
+                                            ToolerStepService.pushLiveTelemetry(force = true)
+
+                                            val distMeters = calculateTrailDistance(lastTrailRecordLat, lastTrailRecordLon, lat, lon)
+                                            if (lastTrailRecordTime == 0L || distMeters > 5.0 || (now - lastTrailRecordTime > 12000L)) {
+                                                lastTrailRecordLat = lat
+                                                lastTrailRecordLon = lon
+                                                lastTrailRecordTime = now
+                                                appendTrailWaypoint(lat, lon, clampedSpeed, ToolerStepService.isVehicleMode)
+                                            }
+                                        } catch (_: Throwable) {}
+                                    }
+                                    override fun onProviderEnabled(provider: String) {}
+                                    override fun onProviderDisabled(provider: String) {}
+                                    @Deprecated("Deprecated in Java")
+                                    override fun onStatusChanged(provider: String?, status: Int, extras: android.os.Bundle?) {}
+                                }
+
+                                if (lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER)) {
+                                    lm.requestLocationUpdates(android.location.LocationManager.GPS_PROVIDER, 3000L, 3.0f, liveTrailLocationListener!!, android.os.Looper.getMainLooper())
+                                }
+                                if (lm.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER)) {
+                                    lm.requestLocationUpdates(android.location.LocationManager.NETWORK_PROVIDER, 5000L, 5.0f, liveTrailLocationListener!!, android.os.Looper.getMainLooper())
+                                }
+                                result.success(true)
+                            }
+                        }
+                    } catch (_: Throwable) {
+                        result.success(false)
+                    }
+                }
+                "stopLiveTrailTracking" -> {
+                    try {
+                        val lm = getSystemService(Context.LOCATION_SERVICE) as? android.location.LocationManager
+                        liveTrailLocationListener?.let { lm?.removeUpdates(it) }
+                        liveTrailLocationListener = null
+                        result.success(true)
+                    } catch (_: Throwable) {
+                        result.success(false)
                     }
                 }
                 else -> result.notImplemented()
