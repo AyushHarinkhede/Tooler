@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
@@ -452,6 +453,8 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   void _setSnakeDir(math.Point<int> newDir) {
     if (_snakeDirection.x + newDir.x == 0 && _snakeDirection.y + newDir.y == 0) return;
     _snakeNextDirection = newDir;
+    SoundService().playTap();
+    HapticFeedback.lightImpact();
   }
 
   void _snakeStep() {
@@ -1495,10 +1498,19 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     }
   }
 
+  int get _ghostPieceY {
+    int gy = _pieceY;
+    while (!_isPieceColliding(_currentPieceMatrix, _pieceX, gy + 1)) {
+      gy++;
+    }
+    return gy;
+  }
+
   void _moveTetris(int dx) {
     if (!_isTetrisRunning) return;
     if (!_isPieceColliding(_currentPieceMatrix, _pieceX + dx, _pieceY)) {
       SoundService().playClick();
+      HapticFeedback.selectionClick();
       setState(() {
         _pieceX += dx;
       });
@@ -1513,17 +1525,20 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
 
     if (!_isPieceColliding(rotated, _pieceX, _pieceY)) {
       SoundService().playKey();
+      HapticFeedback.lightImpact();
       setState(() {
         _currentPieceMatrix = rotated;
       });
     } else if (!_isPieceColliding(rotated, _pieceX - 1, _pieceY)) {
       SoundService().playKey();
+      HapticFeedback.lightImpact();
       setState(() {
         _pieceX -= 1;
         _currentPieceMatrix = rotated;
       });
     } else if (!_isPieceColliding(rotated, _pieceX + 1, _pieceY)) {
       SoundService().playKey();
+      HapticFeedback.lightImpact();
       setState(() {
         _pieceX += 1;
         _currentPieceMatrix = rotated;
@@ -1534,6 +1549,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
   void _hardDropTetris() {
     if (!_isTetrisRunning) return;
     SoundService().playKey();
+    HapticFeedback.mediumImpact();
     while (!_isPieceColliding(_currentPieceMatrix, _pieceX, _pieceY + 1)) {
       _pieceY++;
       _tetrisScore += 2;
@@ -1790,64 +1806,87 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
     ];
 
     return Container(
-      height: 48,
-      margin: const EdgeInsets.only(top: 4, bottom: 6),
+      height: 52,
+      margin: const EdgeInsets.only(top: 6, bottom: 6),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.symmetric(horizontal: 14),
         itemCount: games.length,
         separatorBuilder: (_, __) => const SizedBox(width: 8),
         itemBuilder: (context, idx) {
           final g = games[idx];
           final isSelected = _activeGame == g['type'];
-          return GestureDetector(
-            onTap: () {
-              SoundService().playClick();
-              setState(() {
-                _activeGame = g['type'] as GameType;
-                _isOptionsExpanded = false;
-                if (_activeGame == GameType.uno && _unoDeck.isEmpty) _initUno();
-                if (_activeGame == GameType.tetris && _tetrisGrid.isEmpty) _resetTetris();
-              });
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: isSelected ? widget.theme.primary : widget.theme.cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isSelected ? widget.theme.primary : widget.theme.border,
-                  width: 2,
-                ),
-                boxShadow: isSelected
-                    ? [
-                        BoxShadow(
-                          color: widget.theme.primary.withValues(alpha: 0.35),
-                          offset: const Offset(1, 3),
-                          blurRadius: 4,
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(22),
+              onTap: () {
+                SoundService().playClick();
+                HapticFeedback.selectionClick();
+                setState(() {
+                  _activeGame = g['type'] as GameType;
+                  _isOptionsExpanded = false;
+                  if (_activeGame == GameType.uno && _unoDeck.isEmpty) _initUno();
+                  if (_activeGame == GameType.tetris && _tetrisGrid.isEmpty) _resetTetris();
+                });
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: isSelected
+                      ? LinearGradient(
+                          colors: [
+                            widget.theme.primary,
+                            widget.theme.primary.withValues(alpha: 0.88),
+                          ],
                         )
-                      ]
-                    : null,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    g['icon'] as IconData,
-                    size: 16,
-                    color: isSelected ? Colors.white : widget.theme.primary,
+                      : null,
+                  color: isSelected ? null : widget.theme.cardBg,
+                  borderRadius: BorderRadius.circular(22),
+                  border: Border.all(
+                    color: isSelected
+                        ? widget.theme.primary
+                        : widget.theme.border,
+                    width: isSelected ? 2 : 1.5,
                   ),
-                  const SizedBox(width: 6),
-                  Text(
-                    g['label'] as String,
-                    style: TextStyle(
-                      color: isSelected ? Colors.white : widget.theme.text,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: widget.theme.primary.withValues(alpha: 0.40),
+                            offset: const Offset(0, 4),
+                            blurRadius: 8,
+                          ),
+                        ]
+                      : [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: widget.theme.isDark ? 0.20 : 0.04),
+                            offset: const Offset(0, 2),
+                            blurRadius: 4,
+                          ),
+                        ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      g['icon'] as IconData,
+                      size: 18,
+                      color: isSelected ? Colors.white : widget.theme.primary,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 7),
+                    Text(
+                      g['label'] as String,
+                      style: widget.theme.fontDisplay(
+                        color: isSelected ? Colors.white : widget.theme.text,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
@@ -2725,31 +2764,52 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
           ),
         ),
         const SizedBox(height: 10),
-        Column(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_drop_up, size: 36),
-              onPressed: () => _setSnakeDir(const math.Point(0, -1)),
-            ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.arrow_left, size: 36),
-                  onPressed: () => _setSnakeDir(const math.Point(-1, 0)),
-                ),
-                const SizedBox(width: 32),
-                IconButton(
-                  icon: const Icon(Icons.arrow_right, size: 36),
-                  onPressed: () => _setSnakeDir(const math.Point(1, 0)),
-                ),
-              ],
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_drop_down, size: 36),
-              onPressed: () => _setSnakeDir(const math.Point(0, 1)),
-            ),
-          ],
+        // Tactile Console Arcade Cross D-Pad
+        Container(
+          margin: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            children: [
+              _buildSnakeDpadKey(
+                icon: Icons.keyboard_arrow_up_rounded,
+                onTap: () => _setSnakeDir(const math.Point(0, -1)),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildSnakeDpadKey(
+                    icon: Icons.keyboard_arrow_left_rounded,
+                    onTap: () => _setSnakeDir(const math.Point(-1, 0)),
+                  ),
+                  Container(
+                    width: 52,
+                    height: 52,
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: widget.theme.primary.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: widget.theme.primary.withValues(alpha: 0.35),
+                        width: 1.5,
+                      ),
+                    ),
+                    child: Center(
+                      child: Icon(Icons.gamepad_rounded, size: 24, color: widget.theme.primary),
+                    ),
+                  ),
+                  _buildSnakeDpadKey(
+                    icon: Icons.keyboard_arrow_right_rounded,
+                    onTap: () => _setSnakeDir(const math.Point(1, 0)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              _buildSnakeDpadKey(
+                icon: Icons.keyboard_arrow_down_rounded,
+                onTap: () => _setSnakeDir(const math.Point(0, 1)),
+              ),
+            ],
+          ),
         ),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -3286,6 +3346,7 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
                   currentMatrix: _currentPieceMatrix,
                   pieceX: _pieceX,
                   pieceY: _pieceY,
+                  ghostPieceY: _ghostPieceY,
                   pieceColor: _getTetrisColor(_currentPieceType),
                   rows: _tetrisRows,
                   cols: _tetrisCols,
@@ -3337,33 +3398,168 @@ class _GamesScreenState extends State<GamesScreen> with TickerProviderStateMixin
             ),
           ],
         ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.arrow_left, size: 36),
-              onPressed: () => _moveTetris(-1),
-            ),
-            IconButton(
-              icon: const Icon(Icons.rotate_right, size: 36),
-              onPressed: _rotateTetris,
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_drop_down, size: 36),
-              onPressed: _tetrisStep,
-            ),
-            IconButton(
-              icon: const Icon(Icons.arrow_right, size: 36),
-              onPressed: () => _moveTetris(1),
-            ),
-            IconButton(
-              icon: const Icon(Icons.keyboard_double_arrow_down, size: 36, color: Color(0xFFE74C3C)),
-              onPressed: _hardDropTetris,
-            ),
-          ],
+
+        // Dedicated Studio Arcade Gamepad Deck (Left: Move/Drop | Right: Rotate/Slam)
+        Container(
+          margin: const EdgeInsets.only(top: 14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+          decoration: BoxDecoration(
+            color: widget.theme.cardBg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: widget.theme.border, width: 1.8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: widget.theme.isDark ? 0.35 : 0.08),
+                offset: const Offset(0, 4),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Directional Cluster (Left, Soft Drop, Right)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildArcadeKey(
+                    icon: Icons.arrow_back_rounded,
+                    label: 'LEFT',
+                    onTap: () => _moveTetris(-1),
+                  ),
+                  const SizedBox(width: 6),
+                  _buildArcadeKey(
+                    icon: Icons.arrow_downward_rounded,
+                    label: 'DOWN',
+                    onTap: _tetrisStep,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildArcadeKey(
+                    icon: Icons.arrow_forward_rounded,
+                    label: 'RIGHT',
+                    onTap: () => _moveTetris(1),
+                  ),
+                ],
+              ),
+
+              // Action Cluster (Rotate & Hard Slam)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildArcadeKey(
+                    icon: Icons.rotate_right_rounded,
+                    label: 'ROTATE',
+                    onTap: _rotateTetris,
+                    isProminent: true,
+                    customColor: widget.theme.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  _buildArcadeKey(
+                    icon: Icons.keyboard_double_arrow_down_rounded,
+                    label: 'SLAM',
+                    onTap: _hardDropTetris,
+                    isProminent: true,
+                    customColor: const Color(0xFFEF4444),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildArcadeKey({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isProminent = false,
+    Color? customColor,
+  }) {
+    final keyBg = isProminent
+        ? (customColor ?? widget.theme.primary).withValues(alpha: 0.16)
+        : widget.theme.bg;
+    final keyBorder = isProminent
+        ? (customColor ?? widget.theme.primary)
+        : widget.theme.border;
+    final iconColor = isProminent
+        ? (customColor ?? widget.theme.primary)
+        : widget.theme.text;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: Ink(
+          width: 54,
+          height: 52,
+          decoration: BoxDecoration(
+            color: keyBg,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: keyBorder, width: isProminent ? 1.8 : 1.4),
+            boxShadow: [
+              BoxShadow(
+                color: (customColor ?? Colors.black).withValues(alpha: isProminent ? 0.22 : 0.06),
+                offset: const Offset(0, 2),
+                blurRadius: 4,
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 22, color: iconColor),
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w900,
+                  color: iconColor,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSnakeDpadKey({required IconData icon, required VoidCallback onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: Ink(
+          width: 60,
+          height: 50,
+          decoration: BoxDecoration(
+            color: widget.theme.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: widget.theme.border, width: 1.8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: widget.theme.isDark ? 0.32 : 0.08),
+                offset: const Offset(0, 3),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(icon, size: 32, color: widget.theme.primary),
+          ),
+        ),
+      ),
     );
   }
 
@@ -4352,6 +4548,7 @@ class _TetrisBoardPainter extends CustomPainter {
   final List<List<int>> currentMatrix;
   final int pieceX;
   final int pieceY;
+  final int ghostPieceY;
   final Color pieceColor;
   final int rows;
   final int cols;
@@ -4361,6 +4558,7 @@ class _TetrisBoardPainter extends CustomPainter {
     required this.currentMatrix,
     required this.pieceX,
     required this.pieceY,
+    required this.ghostPieceY,
     required this.pieceColor,
     required this.rows,
     required this.cols,
@@ -4376,13 +4574,45 @@ class _TetrisBoardPainter extends CustomPainter {
         final col = grid[r][c];
         final rect = Rect.fromLTWH(c * blockW + 1, r * blockH + 1, blockW - 2, blockH - 2);
         if (col != null) {
-          canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(2)), Paint()..color = col);
+          canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)), Paint()..color = col);
+          // Highlight edge
+          canvas.drawLine(
+            Offset(rect.left + 2, rect.top + 2),
+            Offset(rect.right - 2, rect.top + 2),
+            Paint()..color = Colors.white.withValues(alpha: 0.35)..strokeWidth = 1.0,
+          );
         } else {
           canvas.drawRect(rect, Paint()..color = Colors.white.withValues(alpha: 0.03));
         }
       }
     }
 
+    // Ghost piece projection (where piece lands)
+    if (ghostPieceY > pieceY) {
+      final ghostPaint = Paint()
+        ..color = pieceColor.withValues(alpha: 0.22)
+        ..style = PaintingStyle.fill;
+      final ghostStroke = Paint()
+        ..color = pieceColor.withValues(alpha: 0.6)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.4;
+
+      for (int r = 0; r < currentMatrix.length; r++) {
+        for (int c = 0; c < currentMatrix[r].length; c++) {
+          if (currentMatrix[r][c] == 1) {
+            int gx = pieceX + c;
+            int gy = ghostPieceY + r;
+            if (gy >= 0 && gy < rows && gx >= 0 && gx < cols) {
+              final rect = Rect.fromLTWH(gx * blockW + 1, gy * blockH + 1, blockW - 2, blockH - 2);
+              canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)), ghostPaint);
+              canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)), ghostStroke);
+            }
+          }
+        }
+      }
+    }
+
+    // Active falling piece
     for (int r = 0; r < currentMatrix.length; r++) {
       for (int c = 0; c < currentMatrix[r].length; c++) {
         if (currentMatrix[r][c] == 1) {
@@ -4390,7 +4620,13 @@ class _TetrisBoardPainter extends CustomPainter {
           int gy = pieceY + r;
           if (gy >= 0 && gy < rows && gx >= 0 && gx < cols) {
             final rect = Rect.fromLTWH(gx * blockW + 1, gy * blockH + 1, blockW - 2, blockH - 2);
-            canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(2)), Paint()..color = pieceColor);
+            canvas.drawRRect(RRect.fromRectAndRadius(rect, const Radius.circular(3)), Paint()..color = pieceColor);
+            // Highlight edge
+            canvas.drawLine(
+              Offset(rect.left + 2, rect.top + 2),
+              Offset(rect.right - 2, rect.top + 2),
+              Paint()..color = Colors.white.withValues(alpha: 0.45)..strokeWidth = 1.2,
+            );
           }
         }
       }

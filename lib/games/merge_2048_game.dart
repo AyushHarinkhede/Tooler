@@ -233,17 +233,18 @@ class _Merge2048GameState extends State<Merge2048Game> {
         ),
         const SizedBox(height: 10),
 
-        // Swipeable 4x4 Board
+        // Swipeable 4x4 Board with Opaque Gesture Absorption
         GestureDetector(
+          behavior: HitTestBehavior.opaque,
           onHorizontalDragEnd: (d) {
             final vx = d.primaryVelocity ?? 0;
-            if (vx < -140) _move(0);
-            if (vx > 140) _move(1);
+            if (vx < -80) _move(0);
+            if (vx > 80) _move(1);
           },
           onVerticalDragEnd: (d) {
             final vy = d.primaryVelocity ?? 0;
-            if (vy < -140) _move(2);
-            if (vy > 140) _move(3);
+            if (vy < -80) _move(2);
+            if (vy > 80) _move(3);
           },
           child: Container(
             padding: const EdgeInsets.all(10),
@@ -352,17 +353,33 @@ class _Merge2048GameState extends State<Merge2048Game> {
   }
 
   Widget _dirBtn(IconData icon, VoidCallback onTap, StationeryTheme theme) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 56,
-        height: 44,
-        decoration: BoxDecoration(
-          color: theme.cardBg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: theme.border, width: 1.3),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: Ink(
+          width: 64,
+          height: 52,
+          decoration: BoxDecoration(
+            color: theme.cardBg,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: theme.border, width: 1.8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: theme.isDark ? 0.30 : 0.08),
+                offset: const Offset(0, 3),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+          child: Center(
+            child: Icon(icon, color: theme.primary, size: 26),
+          ),
         ),
-        child: Icon(icon, color: theme.text, size: 22),
       ),
     );
   }

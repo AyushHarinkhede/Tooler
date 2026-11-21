@@ -117,7 +117,17 @@ class _TurboRacingGameState extends State<TurboRacingGame>
     final next = (_targetLane + delta).clamp(0, 2);
     if (next != _targetLane) {
       SoundService().playTap();
-      HapticFeedback.selectionClick();
+      HapticFeedback.lightImpact();
+      _targetLane = next;
+    }
+  }
+
+  void _setDirectLane(int lane) {
+    if (!_running || _gameOver) return;
+    final next = lane.clamp(0, 2);
+    if (next != _targetLane) {
+      SoundService().playTap();
+      HapticFeedback.lightImpact();
       _targetLane = next;
     }
   }
@@ -317,45 +327,50 @@ class _TurboRacingGameState extends State<TurboRacingGame>
         ),
         const SizedBox(height: 10),
 
-        // Interactive Highway Arena
+        // Interactive Highway Arena (3-Zone Tap + Velocity Drag)
         ClipRRect(
           borderRadius: BorderRadius.circular(22),
-          child: GestureDetector(
-            onHorizontalDragEnd: (details) {
-              final vx = details.primaryVelocity ?? 0;
-              if (vx < -120) _steer(-1);
-              if (vx > 120) _steer(1);
-            },
-            onTapDown: (details) {
-              if (!_running) return;
-              final box = context.findRenderObject() as RenderBox?;
-              final w = box?.size.width ?? 320;
-              if (details.localPosition.dx < w / 2) {
-                _steer(-1);
-              } else {
-                _steer(1);
-              }
-            },
-            child: Container(
-              height: 410,
-              decoration: BoxDecoration(
-                border: Border.all(color: theme.border, width: 1.6),
-                borderRadius: BorderRadius.circular(22),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  CustomPaint(
-                    painter: _HighwayRacePainter(
-                      roadScroll: _roadScroll,
-                      carLanePos: _carLanePos,
-                      carTilt: _carTilt,
-                      entities: _entities,
-                      boosting: _nitroActiveSec > 0,
-                      accent: theme.primary,
-                      isDark: theme.isDark,
-                    ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final arenaW = constraints.maxWidth;
+              return GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onHorizontalDragEnd: (details) {
+                  final vx = details.primaryVelocity ?? 0;
+                  if (vx < -100) _steer(-1);
+                  if (vx > 100) _steer(1);
+                },
+                onTapDown: (details) {
+                  if (!_running) return;
+                  final x = details.localPosition.dx;
+                  if (x < arenaW * 0.33) {
+                    _setDirectLane(0);
+                  } else if (x > arenaW * 0.67) {
+                    _setDirectLane(2);
+                  } else {
+                    _setDirectLane(1);
+                  }
+                },
+                child: Container(
+                  height: 410,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: theme.border, width: 1.6),
+                    borderRadius: BorderRadius.circular(22),
                   ),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CustomPaint(
+                        painter: _HighwayRacePainter(
+                          roadScroll: _roadScroll,
+                          carLanePos: _carLanePos,
+                          carTilt: _carTilt,
+                          entities: _entities,
+                          boosting: _nitroActiveSec > 0,
+                          accent: theme.primary,
+                          isDark: theme.isDark,
+                        ),
+                      ),
 
                   // Nitro Gauge Overlay (Top-Center inside road)
                   Positioned(
@@ -454,8 +469,10 @@ class _TurboRacingGameState extends State<TurboRacingGame>
                 ],
               ),
             ),
-          ),
-        ),
+          );
+        },
+      ),
+    ),
 
         const SizedBox(height: 10),
 
@@ -535,29 +552,44 @@ class _TurboRacingGameState extends State<TurboRacingGame>
     required Color borderColor,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTapDown: (_) => onTap(),
-      child: Container(
-        height: 48,
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: borderColor, width: 1.4),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: textColor, size: 22),
-            const SizedBox(width: 3),
-            Text(
-              label,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: textColor,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: Ink(
+          height: 52,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.8),
+            boxShadow: [
+              BoxShadow(
+                color: borderColor.withValues(alpha: 0.25),
+                offset: const Offset(0, 3),
+                blurRadius: 6,
               ),
-            ),
-          ],
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: textColor, size: 24),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: textColor,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

@@ -143,6 +143,25 @@ class _SpaceShooterGameState extends State<SpaceShooterGame>
     if (!_ticker.isActive) _ticker.start();
   }
 
+  void _steerShip(double delta) {
+    if (!_running || _gameOver) return;
+    setState(() {
+      _shipX = (_shipX + delta).clamp(0.08, 0.92);
+    });
+    HapticFeedback.selectionClick();
+  }
+
+  void _fireManualBarrage() {
+    if (!_running || _gameOver) return;
+    SoundService().playTap();
+    HapticFeedback.lightImpact();
+    setState(() {
+      _lasers.add(_Laser(x: _shipX, y: 0.82, vy: -1.35));
+      _lasers.add(_Laser(x: _shipX - 0.04, y: 0.83, vx: -0.25, vy: -1.30));
+      _lasers.add(_Laser(x: _shipX + 0.04, y: 0.83, vx: 0.25, vy: -1.30));
+    });
+  }
+
   void _spawnBurst(double x, double y, Color color, {int count = 12}) {
     for (int i = 0; i < count; i++) {
       final a = _rng.nextDouble() * math.pi * 2;
@@ -528,7 +547,101 @@ class _SpaceShooterGameState extends State<SpaceShooterGame>
             },
           ),
         ),
+
+        const SizedBox(height: 10),
+
+        // Ergonomic Starfighter Tactical Flight Deck
+        Row(
+          children: [
+            Expanded(
+              flex: 3,
+              child: _flightButton(
+                icon: Icons.keyboard_double_arrow_left_rounded,
+                label: 'THRUST L',
+                color: theme.cardBg,
+                textColor: theme.text,
+                borderColor: theme.border,
+                onTap: () => _steerShip(-0.11),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 4,
+              child: _flightButton(
+                icon: Icons.flash_on_rounded,
+                label: 'MEGA BLASTER',
+                color: theme.primary,
+                textColor: Colors.white,
+                borderColor: theme.primary,
+                onTap: _fireManualBarrage,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 3,
+              child: _flightButton(
+                icon: Icons.keyboard_double_arrow_right_rounded,
+                label: 'THRUST R',
+                color: theme.cardBg,
+                textColor: theme.text,
+                borderColor: theme.border,
+                onTap: () => _steerShip(0.11),
+              ),
+            ),
+          ],
+        ),
       ],
+    );
+  }
+
+  Widget _flightButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color textColor,
+    required Color borderColor,
+    required VoidCallback onTap,
+  }) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          HapticFeedback.lightImpact();
+          onTap();
+        },
+        child: Ink(
+          height: 52,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderColor, width: 1.8),
+            boxShadow: [
+              BoxShadow(
+                color: borderColor.withValues(alpha: 0.25),
+                offset: const Offset(0, 3),
+                blurRadius: 6,
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: textColor, size: 22),
+              const SizedBox(width: 4),
+              Text(
+                label,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w900,
+                  color: textColor,
+                  letterSpacing: 0.4,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

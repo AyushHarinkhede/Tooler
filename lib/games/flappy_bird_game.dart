@@ -394,6 +394,66 @@ class _FlappyBirdGameState extends State<FlappyBirdGame>
             ),
           ),
         ),
+
+        const SizedBox(height: 10),
+
+        // Tactile Flap Action Controller Deck
+        Row(
+          children: [
+            Expanded(
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(18),
+                  onTap: _flap,
+                  child: Ink(
+                    height: 54,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          theme.primary,
+                          theme.primary.withValues(alpha: 0.85),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: theme.primary,
+                        width: 2.0,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: theme.primary.withValues(alpha: 0.35),
+                          offset: const Offset(0, 4),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.flutter_dash_rounded,
+                          color: Colors.white,
+                          size: 26,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _gameOver ? 'PLAY AGAIN' : (_started ? 'TAP TO FLAP WINGS' : 'START FLIGHT'),
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: 0.6,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
