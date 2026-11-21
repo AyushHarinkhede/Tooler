@@ -580,7 +580,7 @@ class _StepCounterScreenState extends State<StepCounterScreen>
       }
     } else if (_activeRange == '1M') {
       // 30 Days (Sampled into 15 bars for compact clarity)
-      for (int i = 29; i >= 0; i -= 2) {
+      for (int i = 28; i >= 0; i -= 2) {
         final targetDate = now.subtract(Duration(days: i));
         final rec = history.where((r) =>
             r.date.year == targetDate.year &&

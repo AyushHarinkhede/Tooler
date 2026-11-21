@@ -88,26 +88,30 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
 
         // Active Event Sink for real-time Flutter push
         var eventSink: EventChannel.EventSink? = null
+        private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
 
         fun pushLiveTelemetry() {
-            try {
-                val data = mapOf(
-                    "type" to "step_telemetry",
-                    "todaySteps" to liveTodaySteps,
-                    "activeSeconds" to liveActiveSeconds,
-                    "distanceKm" to liveDistanceKm,
-                    "avgSpeedKmh" to liveSpeedKmh,
-                    "isHardwareSynced" to isHardwareSynced,
-                    "isWalking" to isWalkingNow,
-                    "isVehicle" to isVehicleMode,
-                    "activity" to currentActivity,
-                    "hasNavicFix" to hasNavicFix,
-                    "satellites" to gnssSatellitesCount,
-                    "latitude" to lastLatitude,
-                    "longitude" to lastLongitude
-                )
-                eventSink?.success(data)
-            } catch (_: Exception) {}
+            mainHandler.post {
+                try {
+                    val sink = eventSink ?: return@post
+                    val data = mapOf(
+                        "type" to "step_telemetry",
+                        "todaySteps" to liveTodaySteps,
+                        "activeSeconds" to liveActiveSeconds,
+                        "distanceKm" to liveDistanceKm,
+                        "avgSpeedKmh" to liveSpeedKmh,
+                        "isHardwareSynced" to isHardwareSynced,
+                        "isWalking" to isWalkingNow,
+                        "isVehicle" to isVehicleMode,
+                        "activity" to currentActivity,
+                        "hasNavicFix" to hasNavicFix,
+                        "satellites" to gnssSatellitesCount,
+                        "latitude" to lastLatitude,
+                        "longitude" to lastLongitude
+                    )
+                    sink.success(data)
+                } catch (_: Exception) {}
+            }
         }
     }
 
@@ -144,19 +148,23 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val action = intent?.action ?: ACTION_START_TRACKING
+        try {
+            val action = intent?.action ?: ACTION_START_TRACKING
 
-        when (action) {
-            ACTION_START_TRACKING -> {
-                startForegroundTracking()
+            when (action) {
+                ACTION_START_TRACKING -> {
+                    startForegroundTracking()
+                }
+                ACTION_STOP_TRACKING -> {
+                    stopTracking()
+                    stopSelf()
+                }
+                ACTION_RESET_DATA -> {
+                    resetAllData()
+                }
             }
-            ACTION_STOP_TRACKING -> {
-                stopTracking()
-                stopSelf()
-            }
-            ACTION_RESET_DATA -> {
-                resetAllData()
-            }
+        } catch (_: Exception) {
+            stopSelf()
         }
 
         return START_STICKY
@@ -180,30 +188,62 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
     }
 
     private fun startForegroundTracking() {
-        isServiceRunning = true
+        val hasFine = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasCoarse = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        val hasLocation = hasFine || hasCoarse
+        val hasActivity = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
+        } else true
+
+        // If on Android 14+ and no required permissions are granted, abort foreground service to avoid SecurityException
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !hasLocation && !hasActivity) {
+            isServiceRunning = false
+            stopSelf()
+            return
+        }
+
         val notification = buildOngoingNotification(
             "Tooler Step Counter Active",
             "$liveTodaySteps steps today · ${String.format(Locale.US, "%.2f", liveDistanceKm)} km"
         )
 
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                var fType = ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                var fType = 0
+                if (hasActivity) {
                     fType = fType or ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
                 }
-                startForeground(NOTIFICATION_ID, notification, fType)
+                if (hasLocation) {
+                    fType = fType or ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                }
+                if (fType != 0) {
+                    startForeground(NOTIFICATION_ID, notification, fType)
+                } else {
+                    stopSelf()
+                    return
+                }
+            } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                if (hasLocation) {
+                    startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+                } else {
+                    startForeground(NOTIFICATION_ID, notification)
+                }
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
+            isServiceRunning = true
         } catch (_: Exception) {
-            startForeground(NOTIFICATION_ID, notification)
+            isServiceRunning = false
+            stopSelf()
+            return
         }
 
-        registerSensors()
-        registerLocationUpdates()
-        registerGnssStatus()
-        pushLiveTelemetry()
+        try {
+            registerSensors()
+            registerLocationUpdates()
+            registerGnssStatus()
+            pushLiveTelemetry()
+        } catch (_: Exception) {}
     }
 
     private fun stopTracking() {
@@ -632,10 +672,15 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
             Notification.Builder(this)
         }
 
+        try {
+            builder.setSmallIcon(R.drawable.ic_step_notification)
+        } catch (_: Exception) {
+            builder.setSmallIcon(android.R.drawable.ic_menu_directions)
+        }
+
         return builder
             .setContentTitle(title)
             .setContentText(text)
-            .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setAutoCancel(false)
             .setContentIntent(pendingIntent)

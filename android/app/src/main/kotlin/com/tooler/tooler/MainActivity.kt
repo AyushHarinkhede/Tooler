@@ -96,6 +96,29 @@ open class MainActivity : FlutterActivity() {
         }
     }
 
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 9030) {
+            val hasGranted = grantResults.any { it == PackageManager.PERMISSION_GRANTED }
+            if (hasGranted) {
+                try {
+                    val intent = Intent(this, ToolerStepService::class.java).apply {
+                        action = ToolerStepService.ACTION_START_TRACKING
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        startForegroundService(intent)
+                    } else {
+                        startService(intent)
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         enableTrueFullScreenEdgeToEdge()
@@ -845,22 +868,44 @@ open class MainActivity : FlutterActivity() {
                         requestPermissions(permsToRequest.toTypedArray(), 9030)
                         result.success(false)
                     } else {
+                        // All permissions already granted! Safe to start tracking
+                        try {
+                            val intent = Intent(this, ToolerStepService::class.java).apply {
+                                action = ToolerStepService.ACTION_START_TRACKING
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                startForegroundService(intent)
+                            } else {
+                                startService(intent)
+                            }
+                        } catch (_: Exception) {}
                         result.success(true)
                     }
                 }
                 "startTracking" -> {
                     try {
-                        val intent = Intent(this, ToolerStepService::class.java).apply {
-                            action = ToolerStepService.ACTION_START_TRACKING
-                        }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                            startForegroundService(intent)
+                        val hasLocation = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                                          checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                        val hasActivity = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
+                        } else true
+
+                        // Only start foreground service if at least one permission is granted
+                        if (hasActivity || hasLocation) {
+                            val intent = Intent(this, ToolerStepService::class.java).apply {
+                                action = ToolerStepService.ACTION_START_TRACKING
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                startForegroundService(intent)
+                            } else {
+                                startService(intent)
+                            }
+                            result.success(true)
                         } else {
-                            startService(intent)
+                            result.success(false)
                         }
-                        result.success(true)
-                    } catch (e: Exception) {
-                        result.error("SERVICE_ERROR", e.message, null)
+                    } catch (_: Exception) {
+                        result.success(false)
                     }
                 }
                 "stopTracking" -> {
