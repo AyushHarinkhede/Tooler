@@ -25,21 +25,23 @@ class ToolerStepBootReceiver : BroadcastReceiver() {
                 val hasActivity = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     context.checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
                 } else true
-                val hasLocation = context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                                  context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
-                // Only auto-resume if permissions are already granted
-                if (hasActivity || hasLocation) {
+                // Only auto-resume if activity recognition is granted
+                if (hasActivity) {
                     val serviceIntent = Intent(context, ToolerStepService::class.java).apply {
                         this.action = ToolerStepService.ACTION_START_TRACKING
                     }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        context.startForegroundService(serviceIntent)
-                    } else {
+                    try {
                         context.startService(serviceIntent)
+                    } catch (_: Throwable) {
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                context.startForegroundService(serviceIntent)
+                            }
+                        } catch (_: Throwable) {}
                     }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Throwable) {}
         }
     }
 }

@@ -80,12 +80,12 @@
             android:foregroundServiceType="microphone"
             android:stopWithTask="false" />
 
-        <!-- Hardware-Fused Background Step Counter & GNSS Tracking Service -->
+        <!-- Hardware-Fused Background Step Counter Tracking Service -->
         <service
             android:name=".ToolerStepService"
             android:enabled="true"
             android:exported="false"
-            android:foregroundServiceType="health|location"
+            android:foregroundServiceType="health"
             android:stopWithTask="false" />
 
         <!-- Auto-Resume Background Step Tracking on Device Reboot -->
