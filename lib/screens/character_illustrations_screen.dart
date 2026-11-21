@@ -165,7 +165,6 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
     final hexPrimary = '#${(widget.theme.primary.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
     final hexLight = '#${(widget.theme.primary.withValues(alpha: 0.22).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
     final hexPantsBack = '#${(widget.theme.primary.withValues(alpha: 0.78).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
-    final isDark = widget.theme.isDark;
 
     var svg = rawSvg
         .replaceAll('var(--char-accent, #9468E8)', hexPrimary)
@@ -176,17 +175,8 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
         .replaceAll('#C8B6FA', hexLight)
         .replaceAll('#DDD6FE', hexLight);
 
-    if (isDark) {
-      svg = svg
-          .replaceAll('#1E2235', '#F4F4F5')
-          .replaceAll('#1D2436', '#F4F4F5')
-          .replaceAll('#23233A', '#F4F4F5')
-          .replaceAll('#181829', '#F4F4F5')
-          .replaceAll('#18181B', '#F4F4F5')
-          .replaceAll('#F8F7FC', '#27272A')
-          .replaceAll('#F4F1F8', '#27272A')
-          .replaceAll('#FEE8DE', '#2C2B36');
-    }
+    // Keep character's hair and clothes authentic black (#1D2436, #1E2235) in both Light and Dark mode!
+    // Never turn human hair or dress into white.
     return svg;
   }
 
@@ -264,14 +254,23 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                 width: double.infinity,
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: widget.theme.isDark ? const Color(0xFF1E1E24) : widget.theme.lavenderCard,
+                  color: widget.theme.characterBg,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: widget.theme.isDark
-                        ? widget.theme.primary.withValues(alpha: 0.25)
+                        ? widget.theme.primary.withValues(alpha: 0.35)
                         : widget.theme.lavenderBubble,
                     width: 1.5,
                   ),
+                  boxShadow: widget.theme.isDark
+                      ? [
+                          BoxShadow(
+                            color: widget.theme.primary.withValues(alpha: 0.12),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ]
+                      : null,
                 ),
                 child: SvgPicture.string(
                   svgCode,
@@ -286,10 +285,7 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
                 runSpacing: 6,
                 children: [
                   _buildColorChip("Theme Accent", widget.theme.primary),
-                  _buildColorChip(
-                    widget.theme.isDark ? "Inverted White Lines" : "Charcoal Lines",
-                    widget.theme.isDark ? const Color(0xFFF4F4F5) : const Color(0xFF23233A),
-                  ),
+                  _buildColorChip("Charcoal Lines", const Color(0xFF23233A)),
                   _buildColorChip("Light Tint", widget.theme.primary.withValues(alpha: 0.25)),
                   _buildColorChip("Pure White", const Color(0xFFFFFFFF)),
                 ],
@@ -379,48 +375,7 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
           SafeArea(
             child: Column(
               children: [
-                // Top Banner with Description & Palette
-                Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: widget.theme.isDark ? const Color(0xFF1E1E24) : widget.theme.lavenderCard,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: widget.theme.isDark ? widget.theme.primary.withValues(alpha: 0.3) : widget.theme.primary,
-                      width: 2,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: widget.theme.primary,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.palette_outlined, color: Colors.white, size: 26),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              "2D Flat Vector Character Pack",
-                              style: widget.theme.fontDisplay(fontSize: 15, fontWeight: FontWeight.bold, color: widget.theme.text),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              "Dynamic Theme Accent • White Outlines in Dark Mode • Vector SVG",
-                              style: widget.theme.fontMono(fontSize: 11, color: widget.theme.text.withValues(alpha: 0.7)),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                const SizedBox(height: 8),
 
                 // Category Filter Pills
                 SingleChildScrollView(
@@ -561,14 +516,23 @@ class _CharacterIllustrationsScreenState extends State<CharacterIllustrationsScr
             margin: const EdgeInsets.only(top: 12, bottom: 12),
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: widget.theme.isDark ? const Color(0xFF1E1E24) : widget.theme.lavenderCard,
+              color: widget.theme.characterBg,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: widget.theme.isDark
-                    ? widget.theme.primary.withValues(alpha: 0.25)
+                    ? widget.theme.primary.withValues(alpha: 0.35)
                     : widget.theme.lavenderBubble,
                 width: 1.5,
               ),
+              boxShadow: widget.theme.isDark
+                  ? [
+                      BoxShadow(
+                        color: widget.theme.primary.withValues(alpha: 0.12),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : null,
             ),
             child: themedSvg != null
                 ? SvgPicture.string(

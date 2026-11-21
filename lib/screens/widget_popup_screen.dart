@@ -108,7 +108,7 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
         );
       case 'calendar':
         return _PopupToolMeta(
-          title: 'Calendar & Observances',
+          title: 'Calendar',
           subtitle: 'Festivals, Holidays & Personal Notes',
           tag: 'Schedule',
           child: CalendarScreen(theme: t),

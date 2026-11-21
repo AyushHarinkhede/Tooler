@@ -439,6 +439,38 @@ class StationeryTheme {
     }
   }
 
+  /// Pastel background tint for character backdrops across all themes (both Light & Dark)
+  Color get characterBg {
+    switch (accentPalette) {
+      case ToolerAccent.lilac:
+        return const Color(0xFFF5F3FF);
+      case ToolerAccent.rose:
+        return const Color(0xFFFFF1F2);
+      case ToolerAccent.mint:
+        return const Color(0xFFF0FDF4);
+      case ToolerAccent.sky:
+        return const Color(0xFFF0F9FF);
+      case ToolerAccent.amber:
+        return const Color(0xFFFFFBEB);
+      case ToolerAccent.indigo:
+        return const Color(0xFFEEF2FF);
+      case ToolerAccent.emerald:
+        return const Color(0xFFECFDF5);
+      case ToolerAccent.coral:
+        return const Color(0xFFFFF7ED);
+      case ToolerAccent.cyan:
+        return const Color(0xFFECFEFF);
+      case ToolerAccent.crimson:
+        return const Color(0xFFFFF1F2);
+      case ToolerAccent.berry:
+        return const Color(0xFFFDF4FF);
+      case ToolerAccent.lemon:
+        return const Color(0xFFF7FEE7);
+      case ToolerAccent.slate:
+        return const Color(0xFFF8FAFC);
+    }
+  }
+
   Color get tape => primary.withValues(alpha: 0.2);
 
   // Modern Clean Typography

@@ -41,6 +41,7 @@ class ToolerCharacter extends StatefulWidget {
   final VoidCallback? onTap;
   final bool animate;
   final BoxFit fit;
+  final bool withBackdrop;
 
   const ToolerCharacter({
     super.key,
@@ -51,6 +52,7 @@ class ToolerCharacter extends StatefulWidget {
     this.onTap,
     this.animate = false,
     this.fit = BoxFit.contain,
+    this.withBackdrop = false,
   });
 
   // Convenience named constructors for popular screen roles
@@ -62,6 +64,7 @@ class ToolerCharacter extends StatefulWidget {
     this.onTap,
     this.animate = false,
     this.fit = BoxFit.contain,
+    this.withBackdrop = false,
   }) : pose = ToolerCharacterPose.workingLaptop;
 
   const ToolerCharacter.celebrating({
@@ -72,6 +75,7 @@ class ToolerCharacter extends StatefulWidget {
     this.onTap,
     this.animate = false,
     this.fit = BoxFit.contain,
+    this.withBackdrop = false,
   }) : pose = ToolerCharacterPose.celebratingSuccess;
 
   const ToolerCharacter.studying({
@@ -82,6 +86,7 @@ class ToolerCharacter extends StatefulWidget {
     this.onTap,
     this.animate = false,
     this.fit = BoxFit.contain,
+    this.withBackdrop = false,
   }) : pose = ToolerCharacterPose.studyWriting;
 
   const ToolerCharacter.planning({
@@ -92,6 +97,7 @@ class ToolerCharacter extends StatefulWidget {
     this.onTap,
     this.animate = false,
     this.fit = BoxFit.contain,
+    this.withBackdrop = false,
   }) : pose = ToolerCharacterPose.whiteboardPlanning;
 
   const ToolerCharacter.waving({
@@ -102,6 +108,7 @@ class ToolerCharacter extends StatefulWidget {
     this.onTap,
     this.animate = false,
     this.fit = BoxFit.contain,
+    this.withBackdrop = false,
   }) : pose = ToolerCharacterPose.videoCall;
 
   const ToolerCharacter.thinking({
@@ -112,6 +119,7 @@ class ToolerCharacter extends StatefulWidget {
     this.onTap,
     this.animate = false,
     this.fit = BoxFit.contain,
+    this.withBackdrop = false,
   }) : pose = ToolerCharacterPose.tabletThinking;
 
   const ToolerCharacter.designing({
@@ -122,6 +130,7 @@ class ToolerCharacter extends StatefulWidget {
     this.onTap,
     this.animate = false,
     this.fit = BoxFit.contain,
+    this.withBackdrop = false,
   }) : pose = ToolerCharacterPose.creativeDrawing;
 
   @override
@@ -205,7 +214,6 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
     final hexPrimary = '#${(theme.primary.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
     final hexLight = '#${(theme.primary.withValues(alpha: 0.22).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
     final hexPantsBack = '#${(theme.primary.withValues(alpha: 0.78).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
-    final isDark = theme.isDark;
 
     var svg = rawSvg
         .replaceAll('var(--char-accent, #9468E8)', hexPrimary)
@@ -215,17 +223,8 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
         .replaceAll('#C8B6FA', hexLight)
         .replaceAll('#DDD6FE', hexLight);
 
-    if (isDark) {
-      // In dark mode: adapt furniture fills and dark outlines to sleek, high-contrast palette
-      // NEVER turn human skin dark/black! Skin stays warm natural peach (#FEE8DE).
-      svg = svg
-          .replaceAll('fill="#F4F1F8"', 'fill="#262335"')
-          .replaceAll('fill="#F8F7FC"', 'fill="#262335"')
-          .replaceAll('stroke="#1E2235"', 'stroke="#E4E4E7"')
-          .replaceAll('fill="#1E2235"', 'fill="#F4F4F5"')
-          .replaceAll('fill="#1D2436"', 'fill="#F4F4F5"'); // Outlines, hair & linework become clean white/silver
-    }
-
+    // Keep character's hair and clothes authentic black (#1D2436, #1E2235) in both Light and Dark mode!
+    // Never turn human hair or dress into white.
     return svg;
   }
 
@@ -257,6 +256,28 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
           },
           child: content,
         ),
+      );
+    }
+
+    if (widget.withBackdrop) {
+      content = Container(
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(
+          color: widget.theme.characterBg,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: widget.theme.primary.withValues(alpha: 0.35),
+            width: 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: widget.theme.primary.withValues(alpha: 0.15),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: content,
       );
     }
 

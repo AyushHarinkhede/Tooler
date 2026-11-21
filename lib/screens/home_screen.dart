@@ -481,7 +481,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       {
         'id': 'calendar',
-        'title': 'Calendar & Observances',
+        'title': 'Calendar',
         'subtitle': 'International days, swipe navigation & reminders',
         'category': 'Time & Tasks',
         'tag': 'Global & Personal',
@@ -1356,14 +1356,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              // Interactive Themed Vector Character (Tap to Cycle Poses!)
-              ToolerCharacter(
-                pose: _heroPose,
-                width: 140,
-                height: 115,
-                theme: theme,
-                animate: true,
+              // Interactive Themed Vector Character (Tap to Cycle Poses!) with Pastel Backdrop
+              BouncyTap(
                 onTap: _cycleHeroPose,
+                scaleFraction: 0.94,
+                child: Container(
+                  padding: isDark
+                      ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
+                      : EdgeInsets.zero,
+                  decoration: BoxDecoration(
+                    color: isDark ? theme.characterBg : Colors.transparent,
+                    borderRadius: BorderRadius.circular(20),
+                    border: isDark
+                        ? Border.all(
+                            color: theme.primary.withValues(alpha: 0.35),
+                            width: 1.2,
+                          )
+                        : null,
+                    boxShadow: isDark
+                        ? [
+                            BoxShadow(
+                              color: theme.primary.withValues(alpha: 0.15),
+                              blurRadius: 12,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: ToolerCharacter(
+                    pose: _heroPose,
+                    width: isDark ? 124 : 140,
+                    height: isDark ? 100 : 115,
+                    theme: theme,
+                    animate: true,
+                  ),
+                ),
               ),
             ],
           ),

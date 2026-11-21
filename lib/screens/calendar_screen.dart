@@ -34,10 +34,12 @@ class CalendarScreen extends StatefulWidget {
   State<CalendarScreen> createState() => _CalendarScreenState();
 }
 
-class _CalendarScreenState extends State<CalendarScreen> {
+class _CalendarScreenState extends State<CalendarScreen> with SingleTickerProviderStateMixin {
   static const int _basePage = 1200;
   late final DateTime _baseDate;
   late final PageController _pageController;
+  late final AnimationController _beatController;
+  late final Animation<double> _beatAnimation;
 
   int _currentPage = _basePage;
   late DateTime _currentMonth;
@@ -57,11 +59,24 @@ class _CalendarScreenState extends State<CalendarScreen> {
     _selectedDate = DateTime(now.year, now.month, now.day);
     _pageController = PageController(initialPage: _basePage);
 
+    _beatController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1300),
+    )..repeat(reverse: true);
+
+    _beatAnimation = Tween<double>(begin: 1.0, end: 1.22).animate(
+      CurvedAnimation(
+        parent: _beatController,
+        curve: Curves.easeInOutSine,
+      ),
+    );
+
     _loadData();
   }
 
   @override
   void dispose() {
+    _beatController.dispose();
     _pageController.dispose();
     super.dispose();
   }
@@ -795,7 +810,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     buffer.writeln('📅 $formattedDate');
     buffer.writeln(_getYearAndWeekString(_selectedDate));
     if (intlDay != null) {
-      buffer.writeln('✨ Observance: ${intlDay.title}');
+      buffer.writeln('✨ Event: ${intlDay.title}');
       buffer.writeln('ℹ️ ${intlDay.description}');
     }
     if (events.isNotEmpty) {
@@ -910,8 +925,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       SnackBar(
                         content: Text(
                           nextVal
-                              ? 'Global observance reminders enabled'
-                              : 'Global observance reminders muted',
+                              ? 'Global celebration reminders enabled'
+                              : 'Global celebration reminders muted',
                         ),
                         duration: const Duration(seconds: 2),
                       ),
@@ -1125,18 +1140,18 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
               if (intlDay != null) {
                 containerBg =
-                    theme.primary.withValues(alpha: isSelected ? 0.28 : 0.16);
+                    theme.primary.withValues(alpha: isSelected ? 0.28 : (isToday ? 0.22 : 0.16));
                 border = Border.all(
                   color: theme.primary,
-                  width: isSelected ? 2.0 : 1.2,
+                  width: isSelected ? 2.2 : (isToday ? 1.8 : 1.2),
                 );
               } else if (isSelected) {
-                containerBg = theme.primary.withValues(alpha: 0.12);
-                border = Border.all(color: theme.primary, width: 2.0);
+                containerBg = theme.primary.withValues(alpha: isToday ? 0.20 : 0.12);
+                border = Border.all(color: theme.primary, width: isToday ? 2.4 : 2.0);
               } else if (isToday) {
-                containerBg = theme.cardBg;
+                containerBg = theme.primary.withValues(alpha: 0.10);
                 border = Border.all(
-                    color: theme.primary.withValues(alpha: 0.65), width: 1.4);
+                    color: theme.primary, width: 1.8);
               } else {
                 containerBg = theme.cardBg;
                 border = Border.all(
@@ -1151,6 +1166,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 numColor = theme.primary;
               } else if (isSelected) {
                 numColor = theme.primaryDark;
+              } else if (isToday) {
+                numColor = theme.primary;
               } else {
                 numColor = theme.text;
               }
@@ -1171,11 +1188,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       color: containerBg,
                       borderRadius: BorderRadius.circular(10),
                       border: border,
-                      boxShadow: isSelected
+                      boxShadow: (isSelected || isToday)
                           ? [
                               BoxShadow(
-                                color: theme.primary.withValues(alpha: 0.20),
-                                blurRadius: 6,
+                                color: theme.primary.withValues(alpha: isSelected ? 0.22 : 0.15),
+                                blurRadius: isToday ? 8 : 6,
                                 offset: const Offset(0, 2),
                               )
                             ]
@@ -1184,19 +1201,31 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          '$dayNum',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 12,
-                            fontWeight: (isSunday ||
-                                    isToday ||
-                                    intlDay != null ||
-                                    isSelected)
-                                ? FontWeight.w800
-                                : FontWeight.w600,
-                            color: numColor,
-                          ),
-                        ),
+                        isToday
+                            ? ScaleTransition(
+                                scale: _beatAnimation,
+                                child: Text(
+                                  '$dayNum',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w900,
+                                    color: numColor,
+                                    letterSpacing: 0.2,
+                                  ),
+                                ),
+                              )
+                            : Text(
+                                '$dayNum',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: (isSunday ||
+                                          intlDay != null ||
+                                          isSelected)
+                                      ? FontWeight.w800
+                                      : FontWeight.w600,
+                                  color: numColor,
+                                ),
+                              ),
                         const SizedBox(height: 1),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -1218,6 +1247,20 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 decoration: BoxDecoration(
                                   color: events.first.tagColor,
                                   shape: BoxShape.circle,
+                                ),
+                              ),
+                            if (isToday && intlDay == null && !hasPersonal)
+                              ScaleTransition(
+                                scale: _beatAnimation,
+                                child: Container(
+                                  width: 4,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: isSunday
+                                        ? const Color(0xFFE74C3C)
+                                        : theme.primary,
+                                    shape: BoxShape.circle,
+                                  ),
                                 ),
                               ),
                           ],
@@ -1258,7 +1301,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   Icon(Icons.stars_rounded, size: 16, color: theme.primary),
                   const SizedBox(width: 6),
                   Text(
-                    "${DateFormat('MMMM').format(_currentMonth)} Observances (${monthDays.length})",
+                    "${DateFormat('MMMM').format(_currentMonth)} Special Days (${monthDays.length})",
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w800,
@@ -1545,7 +1588,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'Global Observance',
+                                'Special Day',
                                 style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: theme.primary),
                               ),
                             ),
