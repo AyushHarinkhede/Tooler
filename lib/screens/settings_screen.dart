@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../theme/stationery_theme.dart';
@@ -9,6 +10,7 @@ import '../services/widget_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_character.dart';
+import '../widgets_3d/tooler_hover_sheet.dart';
 import 'widget_settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -89,6 +91,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
     widget.onThemeChanged(nextMode);
   }
 
+  StationeryTheme get _currentTheme => StationeryTheme.custom(
+        isDark: _isDark,
+        accent: _accent,
+      );
+
   void _onSelectAccent(ToolerAccent accent) async {
     SoundService().playClick();
     setState(() => _accent = accent);
@@ -101,6 +108,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ? StationeryThemeMode.neonHighlighter
             : StationeryThemeMode.classicDoodle);
     widget.onThemeChanged(nextMode);
+  }
+
+  void _openColorPaletteHoverSheet() {
+    SoundService().playClick();
+    ToolerHoverSheet.show(
+      context: context,
+      title: 'Color Palette',
+      subtitle: 'Select accent color for buttons, badges & cards',
+      tag: '${ToolerAccent.values.length} Themes',
+      theme: _currentTheme,
+      child: _ColorPaletteHoverContent(
+        initialAccent: _accent,
+        isDark: _isDark,
+        onAccentChanged: (newAccent) {
+          _onSelectAccent(newAccent);
+        },
+      ),
+    );
   }
 
   void _onToggleNotifications(bool val) async {
@@ -511,7 +536,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.theme;
+    final theme = _currentTheme;
 
     return Scaffold(
       backgroundColor: theme.bg,
@@ -598,25 +623,200 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 18),
 
-            // 2. Color Accent Palette
+            // 2. Color Accent Palette (Tap to open Color Palette Hover Page)
             _buildSectionCard(
               title: 'Color Palette',
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Select accent color for buttons, badges & cards',
+                    'Select accent color for buttons, badges, icons & cards',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 12,
                       color: theme.textSecondary,
                     ),
                   ),
                   const SizedBox(height: 12),
-                  _buildAccentTile('Lilac Violet', const Color(0xFFA855F7), ToolerAccent.lilac),
-                  _buildAccentTile('Soft Blush Rose', const Color(0xFFFB7185), ToolerAccent.rose),
-                  _buildAccentTile('Sage Mint', const Color(0xFF10B981), ToolerAccent.mint),
-                  _buildAccentTile('Ocean Sky', const Color(0xFF0EA5E9), ToolerAccent.sky),
-                  _buildAccentTile('Sunset Amber', const Color(0xFFF59E0B), ToolerAccent.amber),
+
+                  // Active Palette Showcase Card (Tap to open full Hover Page!)
+                  BouncyTap(
+                    onTap: _openColorPaletteHoverSheet,
+                    scaleFraction: 0.96,
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: theme.lavenderCard,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: theme.primary.withValues(alpha: 0.35),
+                          width: 1.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: theme.primary.withValues(alpha: 0.08),
+                            blurRadius: 10,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          // Glowing circular color swatch
+                          Container(
+                            width: 38,
+                            height: 38,
+                            decoration: BoxDecoration(
+                              color: _accent.swatchColor,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: _accent.swatchColor.withValues(alpha: 0.45),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 3),
+                                ),
+                              ],
+                              border: Border.all(color: Colors.white, width: 2.2),
+                            ),
+                            child: const Center(
+                              child: Icon(
+                                Icons.check_rounded,
+                                size: 20,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Text(
+                                      _accent.displayName,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800,
+                                        color: theme.text,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: theme.primary.withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'ACTIVE',
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 9.5,
+                                          fontWeight: FontWeight.w900,
+                                          color: theme.primary,
+                                          letterSpacing: 0.5,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 3),
+                                Text(
+                                  _accent.description,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                    color: theme.textSecondary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: theme.primary,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.palette_outlined,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Explore',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Horizontal Quick-Access Color Swatches Row
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    child: Row(
+                      children: ToolerAccent.values.map((accent) {
+                        final isSelected = _accent == accent;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 9),
+                          child: BouncyTap(
+                            onTap: () => _onSelectAccent(accent),
+                            scaleFraction: 0.88,
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.all(2.5),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected ? theme.primary : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: Container(
+                                width: 28,
+                                height: 28,
+                                decoration: BoxDecoration(
+                                  color: accent.swatchColor,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: accent.swatchColor.withValues(alpha: 0.35),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: isSelected
+                                    ? const Icon(
+                                        Icons.check_rounded,
+                                        size: 16,
+                                        color: Colors.white,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1074,7 +1274,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSectionCard({required String title, required Widget child}) {
-    final theme = widget.theme;
+    final theme = _currentTheme;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -1100,72 +1300,634 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+}
 
-  Widget _buildAccentTile(String name, Color dotColor, ToolerAccent accent) {
-    final theme = widget.theme;
-    final isSelected = _accent == accent;
+/// ---------------------------------------------------------------------------
+/// DEDICATED THEME COLOR PALETTE HOVER SHEET
+/// ---------------------------------------------------------------------------
+class _ColorPaletteHoverContent extends StatefulWidget {
+  final ToolerAccent initialAccent;
+  final bool isDark;
+  final ValueChanged<ToolerAccent> onAccentChanged;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: BouncyTap(
-        onTap: () => _onSelectAccent(accent),
-        scaleFraction: 0.94,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutBack,
-          height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: isSelected ? theme.lavenderCard : theme.cardBg,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isSelected ? theme.primary : theme.border,
-              width: isSelected ? 1.5 : 1.2,
+  const _ColorPaletteHoverContent({
+    required this.initialAccent,
+    required this.isDark,
+    required this.onAccentChanged,
+  });
+
+  @override
+  State<_ColorPaletteHoverContent> createState() =>
+      _ColorPaletteHoverContentState();
+}
+
+class _ColorPaletteHoverContentState extends State<_ColorPaletteHoverContent> {
+  late ToolerAccent _selectedAccent;
+  String _activeFilter = 'All';
+
+  final List<String> _filters = [
+    'All',
+    'Popular',
+    'Vibrant',
+    'Pastel',
+    'Cool',
+    'Warm',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedAccent = widget.initialAccent;
+  }
+
+  List<ToolerAccent> get _filteredAccents {
+    if (_activeFilter == 'All') return ToolerAccent.values;
+    return ToolerAccent.values.where((accent) {
+      switch (_activeFilter) {
+        case 'Popular':
+          return [
+            ToolerAccent.lilac,
+            ToolerAccent.sky,
+            ToolerAccent.indigo,
+            ToolerAccent.emerald,
+            ToolerAccent.amber,
+          ].contains(accent);
+        case 'Vibrant':
+          return [
+            ToolerAccent.indigo,
+            ToolerAccent.coral,
+            ToolerAccent.cyan,
+            ToolerAccent.berry,
+            ToolerAccent.lemon,
+            ToolerAccent.crimson,
+          ].contains(accent);
+        case 'Pastel':
+          return [
+            ToolerAccent.lilac,
+            ToolerAccent.rose,
+            ToolerAccent.mint,
+            ToolerAccent.sky,
+            ToolerAccent.amber,
+          ].contains(accent);
+        case 'Cool':
+          return [
+            ToolerAccent.sky,
+            ToolerAccent.cyan,
+            ToolerAccent.indigo,
+            ToolerAccent.mint,
+            ToolerAccent.emerald,
+            ToolerAccent.slate,
+          ].contains(accent);
+        case 'Warm':
+          return [
+            ToolerAccent.rose,
+            ToolerAccent.coral,
+            ToolerAccent.amber,
+            ToolerAccent.crimson,
+            ToolerAccent.berry,
+            ToolerAccent.lemon,
+          ].contains(accent);
+        default:
+          return true;
+      }
+    }).toList();
+  }
+
+  void _selectAccent(ToolerAccent accent) {
+    if (_selectedAccent == accent) return;
+    SoundService().playTap();
+    HapticFeedback.selectionClick();
+    setState(() {
+      _selectedAccent = accent;
+    });
+    widget.onAccentChanged(accent);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final activeTheme = StationeryTheme.custom(
+      isDark: widget.isDark,
+      accent: _selectedAccent,
+    );
+
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(18, 10, 18, 30),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. Live Active Theme Showcase Banner
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: activeTheme.lavenderCard,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: activeTheme.primary.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: activeTheme.primary.withValues(alpha: 0.1),
+                  blurRadius: 16,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    // Glowing aura circle with swatch
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: _selectedAccent.swatchColor,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: _selectedAccent.swatchColor
+                                .withValues(alpha: 0.5),
+                            blurRadius: 12,
+                            offset: const Offset(0, 3),
+                          ),
+                        ],
+                        border: Border.all(color: Colors.white, width: 2.5),
+                      ),
+                      child: const Center(
+                        child: Icon(
+                          Icons.check_rounded,
+                          size: 22,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Text(
+                                _selectedAccent.displayName,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.3,
+                                  color: activeTheme.text,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2.5),
+                                decoration: BoxDecoration(
+                                  color: activeTheme.primary
+                                      .withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(
+                                    color: activeTheme.primary
+                                        .withValues(alpha: 0.3),
+                                    width: 0.8,
+                                  ),
+                                ),
+                                child: Text(
+                                  'CURRENTLY SELECTED',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.w900,
+                                    color: activeTheme.primary,
+                                    letterSpacing: 0.4,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Text(
+                            _selectedAccent.description,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: activeTheme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                // Divider
+                Container(
+                  height: 1,
+                  color: activeTheme.primary.withValues(alpha: 0.15),
+                ),
+                const SizedBox(height: 12),
+
+                // Live UI Simulation Preview Strip
+                Text(
+                  'LIVE UI ELEMENT PREVIEW',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: activeTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    // Filled Primary Button Preview
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: activeTheme.primary,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: activeTheme.primary.withValues(alpha: 0.35),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.touch_app_rounded,
+                            size: 14,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            'Accent Button',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Tinted Chip Badge Preview
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: activeTheme.lavenderBubble,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: activeTheme.primary.withValues(alpha: 0.4),
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.auto_awesome_rounded,
+                            size: 13,
+                            color: activeTheme.primary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Active Pill Badge',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: activeTheme.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Slider / Switch preview dot
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: activeTheme.cardBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border:
+                            Border.all(color: activeTheme.border, width: 1.0),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: activeTheme.primary,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Live Accent',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: activeTheme.text,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-          child: Row(
+
+          const SizedBox(height: 18),
+
+          // 2. Filter Tabs
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // 14px Circular Color Dot with AnimatedScale
-              AnimatedScale(
-                scale: isSelected ? 1.25 : 1.0,
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutBack,
-                child: Container(
-                  width: 16,
-                  height: 16,
+              Text(
+                'Available Colors (${ToolerAccent.values.length})',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: activeTheme.text,
+                ),
+              ),
+              Text(
+                'Tap to apply instantly',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 11.5,
+                  color: activeTheme.textSecondary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+
+          // Category filter pills
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const BouncingScrollPhysics(),
+            child: Row(
+              children: _filters.map((filter) {
+                final isFilterActive = _activeFilter == filter;
+                return Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: BouncyTap(
+                    onTap: () {
+                      SoundService().playTap();
+                      setState(() {
+                        _activeFilter = filter;
+                      });
+                    },
+                    scaleFraction: 0.94,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: isFilterActive
+                            ? activeTheme.primary
+                            : activeTheme.cardBg,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: isFilterActive
+                              ? activeTheme.primary
+                              : activeTheme.border,
+                          width: 1.0,
+                        ),
+                      ),
+                      child: Text(
+                        filter,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: isFilterActive
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: isFilterActive
+                              ? Colors.white
+                              : activeTheme.textSecondary,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // 3. Grid of Color Palettes
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 1.15,
+            ),
+            itemCount: _filteredAccents.length,
+            itemBuilder: (context, index) {
+              final accent = _filteredAccents[index];
+              final isSelected = _selectedAccent == accent;
+
+              return BouncyTap(
+                onTap: () => _selectAccent(accent),
+                scaleFraction: 0.94,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutBack,
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: dotColor,
-                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? activeTheme.lavenderCard
+                        : activeTheme.cardBg,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isSelected ? accent.swatchColor : activeTheme.border,
+                      width: isSelected ? 2.0 : 1.2,
+                    ),
                     boxShadow: [
                       BoxShadow(
-                        color: dotColor.withValues(alpha: 0.35),
-                        blurRadius: 6,
-                        offset: const Offset(0, 2),
+                        color: isSelected
+                            ? accent.swatchColor.withValues(alpha: 0.22)
+                            : Colors.black.withValues(alpha: 0.03),
+                        blurRadius: isSelected ? 12 : 6,
+                        offset: const Offset(0, 3),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // Top Row: Swatch Circle + Status/Tag
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          // Color Swatch Circle
+                          AnimatedScale(
+                            scale: isSelected ? 1.15 : 1.0,
+                            duration: const Duration(milliseconds: 220),
+                            curve: Curves.easeOutBack,
+                            child: Container(
+                              width: 26,
+                              height: 26,
+                              decoration: BoxDecoration(
+                                color: accent.swatchColor,
+                                shape: BoxShape.circle,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: accent.swatchColor
+                                        .withValues(alpha: 0.45),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 1.5,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          // Active Badge or Tag
+                          if (isSelected)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 7, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: accent.swatchColor,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.check_rounded,
+                                    size: 11,
+                                    color: Colors.white,
+                                  ),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'ACTIVE',
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w900,
+                                      color: Colors.white,
+                                      letterSpacing: 0.3,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: activeTheme.border.withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                accent.tag,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: activeTheme.textSecondary,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+
+                      // Bottom Info: Name & Short Description
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            accent.displayName,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13.5,
+                              fontWeight: isSelected
+                                  ? FontWeight.w800
+                                  : FontWeight.w700,
+                              color: activeTheme.text,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            accent.description,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: activeTheme.textSecondary,
+                            ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
+              );
+            },
+          ),
+
+          const SizedBox(height: 22),
+
+          // Done / Dismiss Button
+          BouncyTap(
+            onTap: () {
+              SoundService().playClick();
+              Navigator.pop(context);
+            },
+            scaleFraction: 0.96,
+            child: Container(
+              width: double.infinity,
+              height: 48,
+              decoration: BoxDecoration(
+                color: activeTheme.primary,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: activeTheme.primary.withValues(alpha: 0.35),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
-              const SizedBox(width: 14),
-              Expanded(
+              child: Center(
                 child: Text(
-                  name,
+                  'Apply & Close',
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 14,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: theme.text,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: Colors.white,
                   ),
                 ),
               ),
-              if (isSelected)
-                Icon(
-                  Icons.check_rounded,
-                  size: 20,
-                  color: theme.primary,
-                ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
