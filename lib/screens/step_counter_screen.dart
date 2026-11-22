@@ -256,16 +256,16 @@ class _StepCounterScreenState extends State<StepCounterScreen>
 
                 const SizedBox(height: 12),
 
-                // Center Compact Dial Progress Ring & Big Step Count
+                // Center Compact Dial Progress Ring & Big Step Count (Noise-Meter Style)
                 SizedBox(
-                  height: 140,
-                  width: 140,
+                  height: 175,
+                  width: 175,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
                       CustomPaint(
-                        size: const Size(140, 140),
-                        painter: _StepProgressRingPainter(
+                        size: const Size(175, 175),
+                        painter: _StepRadialBarPainter(
                           progress: progress,
                           theme: theme,
                           isWalking: isWalking,
@@ -275,27 +275,34 @@ class _StepCounterScreenState extends State<StepCounterScreen>
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
-                            Icons.directions_walk_rounded,
-                            size: 22,
-                            color: theme.primary,
+                            isWalking ? Icons.directions_walk_rounded : Icons.directions_walk_outlined,
+                            size: 24,
+                            color: progress >= 1.0 ? const Color(0xFF10B981) : theme.primary,
                           ),
                           const SizedBox(height: 2),
                           Text(
                             NumberFormat('#,###').format(todaySteps),
                             style: GoogleFonts.jetBrainsMono(
-                              fontSize: 26,
+                              fontSize: 28,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -1.0,
                               color: theme.text,
                             ),
                           ),
-                          Text(
-                            'STEPS TODAY',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 8.5,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.8,
-                              color: theme.textSecondary,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: (progress >= 1.0 ? const Color(0xFF10B981) : theme.primary).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Text(
+                              'STEPS TODAY',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 9.0,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.8,
+                                color: progress >= 1.0 ? const Color(0xFF10B981) : theme.primary,
+                              ),
                             ),
                           ),
                         ],
@@ -776,12 +783,13 @@ class _GraphBarData {
   });
 }
 
-class _StepProgressRingPainter extends CustomPainter {
+/// Silky Smooth Radial Step Bar Gauge (Noise Meter Style)
+class _StepRadialBarPainter extends CustomPainter {
   final double progress;
   final StationeryTheme theme;
   final bool isWalking;
 
-  _StepProgressRingPainter({
+  _StepRadialBarPainter({
     required this.progress,
     required this.theme,
     required this.isWalking,
@@ -789,44 +797,118 @@ class _StepProgressRingPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width * 0.44;
-    const strokeWidth = 8.5;
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double radius = (size.width / 2) - 16;
+    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
 
-    // Background track ring
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = theme.border
+    // 260° sweep from bottom-left (140°) to bottom-right (400°)
+    const double startAngle = 140.0 * math.pi / 180.0;
+    const double totalSweep = 260.0 * math.pi / 180.0;
+
+    final double clampedProgress = progress.clamp(0.0, 1.0);
+    final double activeSweep = totalSweep * clampedProgress;
+
+    final Color gaugeColor = progress >= 1.0
+        ? const Color(0xFF10B981)
+        : (isWalking ? const Color(0xFF06B6D4) : theme.primary);
+
+    // 1. Subtle Inner Micro-Tick Scale Dots (24 precision ticks)
+    const int tickCount = 24;
+    for (int i = 0; i <= tickCount; i++) {
+      final double frac = i / tickCount;
+      final double ang = startAngle + (totalSweep * frac);
+      final bool isMajor = i % 6 == 0;
+      final bool isLit = frac <= clampedProgress;
+      final double innerR = radius - (isMajor ? 14.5 : 12.0);
+      final double outerR = radius - 9.0;
+      final Paint tickPaint = Paint()
+        ..color = isLit
+            ? gaugeColor.withValues(alpha: isMajor ? 0.75 : 0.45)
+            : theme.border.withValues(alpha: isMajor ? 0.65 : 0.35)
+        ..strokeWidth = isMajor ? 2.0 : 1.2
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawLine(
+        Offset(center.dx + innerR * math.cos(ang), center.dy + innerR * math.sin(ang)),
+        Offset(center.dx + outerR * math.cos(ang), center.dy + outerR * math.sin(ang)),
+        tickPaint,
+      );
+    }
+
+    // 2. Smooth Recessed Background Track Arc
+    final Paint trackPaint = Paint()
+      ..color = theme.border.withValues(alpha: 0.35)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 11.0
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
+
+    // 3. Soft Ambient Glow Under Active Arc
+    if (activeSweep > 0.01) {
+      final Paint glowPaint = Paint()
+        ..color = gaugeColor.withValues(alpha: 0.28)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth,
-    );
+        ..strokeWidth = 16.0
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6.0);
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
 
-    // Active progress arc
-    final sweepAngle = math.pi * 2 * progress;
-    final progressShader = SweepGradient(
-      startAngle: -math.pi / 2,
-      endAngle: 3 * math.pi / 2,
-      colors: progress >= 1.0
-          ? [const Color(0xFF10B981), const Color(0xFF059669)]
-          : [theme.primary, const Color(0xFFF43F5E)],
-    ).createShader(Rect.fromCircle(center: center, radius: radius));
+      // 4. Silky SweepGradient Active Step Arc
+      final Shader arcShader = SweepGradient(
+        startAngle: 0.0,
+        endAngle: totalSweep,
+        colors: [
+          theme.primary,
+          Color.lerp(theme.primary, gaugeColor, 0.55)!,
+          gaugeColor,
+        ],
+        stops: const [0.0, 0.62, 1.0],
+        transform: const GradientRotation(startAngle),
+      ).createShader(arcRect);
 
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -math.pi / 2,
-      sweepAngle,
-      false,
-      Paint()
-        ..shader = progressShader
+      final Paint activePaint = Paint()
+        ..shader = arcShader
         ..style = PaintingStyle.stroke
-        ..strokeWidth = strokeWidth
-        ..strokeCap = StrokeCap.round,
-    );
+        ..strokeWidth = 11.0
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
+
+      // 5. Crisp Luminous Leading Tip Orb
+      final double tipAngle = startAngle + activeSweep;
+      final Offset tipCenter = Offset(
+        center.dx + radius * math.cos(tipAngle),
+        center.dy + radius * math.sin(tipAngle),
+      );
+      canvas.drawCircle(
+        tipCenter,
+        6.5,
+        Paint()
+          ..color = gaugeColor.withValues(alpha: 0.35)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
+      );
+      canvas.drawCircle(
+        tipCenter,
+        3.8,
+        Paint()..color = Colors.white.withValues(alpha: 0.95),
+      );
+    }
+
+    // 6. Daily Goal (100%) Milestone Benchmark Marker Dot
+    if (clampedProgress < 0.98) {
+      const double goalAngle = startAngle + totalSweep;
+      final Offset goalPos = Offset(
+        center.dx + radius * math.cos(goalAngle),
+        center.dy + radius * math.sin(goalAngle),
+      );
+      canvas.drawCircle(
+        goalPos,
+        3.5,
+        Paint()..color = const Color(0xFF10B981).withValues(alpha: 0.75),
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _StepProgressRingPainter old) =>
+  bool shouldRepaint(covariant _StepRadialBarPainter old) =>
       old.progress != progress || old.isWalking != isWalking;
 }

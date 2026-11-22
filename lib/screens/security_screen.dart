@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -43,13 +44,14 @@ class _LiveAuditLog {
 }
 
 class _SecurityScreenState extends State<SecurityScreen>
-    with WidgetsBindingObserver {
+    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   static const MethodChannel _methodChannel =
       MethodChannel('com.tooler.tooler/security_scan');
   static const EventChannel _eventChannel =
       EventChannel('com.tooler.tooler/security_scan_events');
 
   StreamSubscription<dynamic>? _eventSub;
+  late final AnimationController _waveController;
 
   _ScanState _scanState = _ScanState.idle;
   double _scanProgress = 0.0;
@@ -104,6 +106,10 @@ class _SecurityScreenState extends State<SecurityScreen>
   @override
   void initState() {
     super.initState();
+    _waveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    )..repeat();
     WidgetsBinding.instance.addObserver(this);
     _subscribeToScanEvents();
     _fetchSystemSecurityData();
@@ -112,6 +118,7 @@ class _SecurityScreenState extends State<SecurityScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _waveController.dispose();
     _eventSub?.cancel();
     if (_scanState == _ScanState.scanning) {
       _methodChannel.invokeMethod('cancelScan');
@@ -667,21 +674,8 @@ class _SecurityScreenState extends State<SecurityScreen>
 
               const SizedBox(height: 12),
 
-              // 2. OUT-OF-THIS-WORLD TRUE 3D HOLOGRAPHIC SCANNER + 3D WAVES
-              Holo3DSecurityScanner(
-                mode: _scannerMode,
-                progress: _scanProgress,
-                securityScore: _scanState == _ScanState.completed ? _securityScore : null,
-                statusSubtitle: isScanning
-                    ? _currentStage
-                    : (_scannerMode == HoloScannerMode.clean
-                        ? 'VERIFIED SAFE'
-                        : (_scannerMode == HoloScannerMode.threat
-                            ? 'THREATS FOUND'
-                            : 'REVIEW ISSUES')),
-                theme: theme,
-                onTap: _startOrStopScan,
-              ),
+              // 2. NOISE-METER STYLE RADIAL SECURITY SCAN BAR GAUGE WITH BACKGROUND WAVES
+              _buildSecurityRadialBarCard(theme, isScanning),
 
               const SizedBox(height: 12),
 
@@ -865,6 +859,238 @@ class _SecurityScreenState extends State<SecurityScreen>
   }
 
   // ===========================================================================
+  // 2. NOISE-METER STYLE RADIAL SECURITY SCAN BAR GAUGE (WITH BACKGROUND WAVES)
+  // ===========================================================================
+  Widget _buildSecurityRadialBarCard(StationeryTheme theme, bool isScanning) {
+    Color statusColor;
+    if (isScanning) {
+      statusColor = const Color(0xFF06B6D4);
+    } else if (_scannerMode == HoloScannerMode.threat) {
+      statusColor = const Color(0xFFF43F5E);
+    } else if (_scannerMode == HoloScannerMode.warning) {
+      statusColor = const Color(0xFFF59E0B);
+    } else if (_scannerMode == HoloScannerMode.clean) {
+      statusColor = const Color(0xFF10B981);
+    } else {
+      statusColor = theme.primary;
+    }
+
+    final double barProgress = isScanning
+        ? _scanProgress.clamp(0.02, 1.0)
+        : (_scanState == _ScanState.completed
+            ? ((_securityScore ?? 100) / 100.0).clamp(0.0, 1.0)
+            : 0.0);
+
+    final String statusBadge = isScanning
+        ? 'SCANNING'
+        : (_scannerMode == HoloScannerMode.threat
+            ? 'THREATS FOUND'
+            : (_scannerMode == HoloScannerMode.warning
+                ? 'REVIEW ISSUES'
+                : (_scannerMode == HoloScannerMode.clean
+                    ? 'VERIFIED SAFE'
+                    : 'READY')));
+
+    return BouncyTap(
+      onTap: _startOrStopScan,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+        decoration: BoxDecoration(
+          color: theme.cardBg,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: statusColor.withValues(alpha: 0.55),
+            width: 2.0,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: statusColor.withValues(alpha: 0.18),
+              offset: const Offset(0, 6),
+              blurRadius: 16,
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            SizedBox(
+              width: 220,
+              height: 220,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  // 1. Concentric Animated Security Waves in the Background
+                  AnimatedBuilder(
+                    animation: _waveController,
+                    builder: (context, child) {
+                      return CustomPaint(
+                        size: const Size(220, 220),
+                        painter: _SecurityWaveBackgroundPainter(
+                          animationValue: _waveController.value,
+                          isScanning: isScanning,
+                          waveColor: statusColor,
+                        ),
+                      );
+                    },
+                  ),
+
+                  // 2. Silky Smooth Radial Bar Gauge (Noise-Meter Style)
+                  CustomPaint(
+                    size: const Size(220, 220),
+                    painter: _SecurityRadialBarPainter(
+                      progress: barProgress,
+                      peakHoldProgress: isScanning ? _scanProgress : 1.0,
+                      gaugeColor: statusColor,
+                      primaryColor: const Color(0xFF06B6D4),
+                      trackColor: theme.border.withValues(alpha: 0.35),
+                    ),
+                  ),
+
+                  // 3. Center Live Score, Percent or Status Info
+                  Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (isScanning) ...[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              "${(barProgress * 100).toInt()}",
+                              style: theme.fontDisplay(
+                                fontSize: 48,
+                                fontWeight: FontWeight.w900,
+                                color: statusColor,
+                              ),
+                            ),
+                            Text(
+                              "%",
+                              style: theme.fontMono(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: theme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1),
+                          ),
+                          child: Text(
+                            statusBadge,
+                            style: theme.fontMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "$_liveAppsScanned Apps • $_liveFilesScanned Files",
+                          style: theme.fontMono(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: theme.textSecondary,
+                          ),
+                        ),
+                      ] else if (_scanState == _ScanState.completed) ...[
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
+                            Text(
+                              "${_securityScore ?? 100}",
+                              style: theme.fontDisplay(
+                                fontSize: 48,
+                                fontWeight: FontWeight.w900,
+                                color: statusColor,
+                              ),
+                            ),
+                            Text(
+                              "/100",
+                              style: theme.fontMono(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: theme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1),
+                          ),
+                          child: Text(
+                            statusBadge,
+                            style: theme.fontMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "$_liveAppsScanned Apps & $_liveFilesScanned Files",
+                          style: theme.fontMono(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w600,
+                            color: theme.textSecondary,
+                          ),
+                        ),
+                      ] else ...[
+                        Icon(Icons.shield_outlined, size: 42, color: statusColor),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: statusColor.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1),
+                          ),
+                          child: Text(
+                            "READY",
+                            style: theme.fontMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: statusColor,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "DEEP AUDIT",
+                          style: theme.fontMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: theme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ===========================================================================
   // 3. ACTION BUTTON
   // ===========================================================================
   Widget _buildActionButton(StationeryTheme theme) {
@@ -975,17 +1201,6 @@ class _SecurityScreenState extends State<SecurityScreen>
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          // Real live progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: _scanProgress.clamp(0.02, 1.0),
-              minHeight: 5,
-              backgroundColor: theme.border,
-              valueColor: const AlwaysStoppedAnimation(Color(0xFF06B6D4)),
-            ),
           ),
           const SizedBox(height: 12),
           // Live real counters row
@@ -2261,4 +2476,173 @@ class _SecurityScreenState extends State<SecurityScreen>
     final mm = dt.minute.toString().padLeft(2, '0');
     return '${dt.year}-$m-$d $hh:$mm';
   }
+}
+
+/// Animated Concentric Wave Ripple Background for Security Scanner
+class _SecurityWaveBackgroundPainter extends CustomPainter {
+  final double animationValue;
+  final bool isScanning;
+  final Color waveColor;
+
+  _SecurityWaveBackgroundPainter({
+    required this.animationValue,
+    required this.isScanning,
+    required this.waveColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final maxRadius = size.width * 0.44;
+
+    const int waveCount = 3;
+    for (int i = 0; i < waveCount; i++) {
+      final double waveProgress = (animationValue + (i / waveCount)) % 1.0;
+      final double r = maxRadius * (0.35 + (0.65 * waveProgress));
+      final double alpha = (1.0 - waveProgress) * (isScanning ? 0.35 : 0.18);
+
+      final paint = Paint()
+        ..color = waveColor.withValues(alpha: alpha)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isScanning ? 2.0 : 1.2;
+
+      canvas.drawCircle(center, r, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SecurityWaveBackgroundPainter oldDelegate) => true;
+}
+
+/// Noise-Meter Style Silky Smooth Radial Security Scan Bar Gauge
+class _SecurityRadialBarPainter extends CustomPainter {
+  final double progress;
+  final double peakHoldProgress;
+  final Color gaugeColor;
+  final Color primaryColor;
+  final Color trackColor;
+
+  _SecurityRadialBarPainter({
+    required this.progress,
+    required this.peakHoldProgress,
+    required this.gaugeColor,
+    required this.primaryColor,
+    required this.trackColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double radius = (size.width / 2) - 18;
+    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
+
+    // 260° sweep from bottom-left (140°) to bottom-right (400°)
+    const double startAngle = 140.0 * math.pi / 180.0;
+    const double totalSweep = 260.0 * math.pi / 180.0;
+
+    final double clampedProgress = progress.clamp(0.0, 1.0);
+    final double activeSweep = totalSweep * clampedProgress;
+    final double clampedPeak = peakHoldProgress.clamp(0.0, 1.0);
+
+    // 1. Subtle Inner Micro-Tick Scale Dots (24 precision ticks)
+    const int tickCount = 24;
+    for (int i = 0; i <= tickCount; i++) {
+      final double frac = i / tickCount;
+      final double ang = startAngle + (totalSweep * frac);
+      final bool isMajor = i % 6 == 0;
+      final bool isLit = frac <= clampedProgress;
+      final double innerR = radius - (isMajor ? 16.5 : 14.0);
+      final double outerR = radius - 10.5;
+      final Paint tickPaint = Paint()
+        ..color = isLit
+            ? gaugeColor.withValues(alpha: isMajor ? 0.75 : 0.45)
+            : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
+        ..strokeWidth = isMajor ? 2.0 : 1.2
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawLine(
+        Offset(center.dx + innerR * math.cos(ang), center.dy + innerR * math.sin(ang)),
+        Offset(center.dx + outerR * math.cos(ang), center.dy + outerR * math.sin(ang)),
+        tickPaint,
+      );
+    }
+
+    // 2. Smooth Recessed Background Track Arc
+    final Paint trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
+
+    // 3. Soft Ambient Glow Under Active Arc
+    if (activeSweep > 0.01) {
+      final Paint glowPaint = Paint()
+        ..color = gaugeColor.withValues(alpha: 0.28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 18.0
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
+
+      // 4. Silky SweepGradient Active Arc
+      final Shader arcShader = SweepGradient(
+        startAngle: 0.0,
+        endAngle: totalSweep,
+        colors: [
+          primaryColor,
+          Color.lerp(primaryColor, gaugeColor, 0.55)!,
+          gaugeColor,
+        ],
+        stops: const [0.0, 0.62, 1.0],
+        transform: const GradientRotation(startAngle),
+      ).createShader(arcRect);
+
+      final Paint activePaint = Paint()
+        ..shader = arcShader
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12.5
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
+
+      // 5. Crisp Luminous Leading Tip Orb
+      final double tipAngle = startAngle + activeSweep;
+      final Offset tipCenter = Offset(
+        center.dx + radius * math.cos(tipAngle),
+        center.dy + radius * math.sin(tipAngle),
+      );
+      canvas.drawCircle(
+        tipCenter,
+        7.5,
+        Paint()
+          ..color = gaugeColor.withValues(alpha: 0.35)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
+      );
+      canvas.drawCircle(
+        tipCenter,
+        4.2,
+        Paint()..color = Colors.white.withValues(alpha: 0.95),
+      );
+    }
+
+    // 6. Floating Peak-Hold Indicator Marker Dot
+    if (clampedPeak > clampedProgress + 0.02) {
+      final double peakAngle = startAngle + (totalSweep * clampedPeak);
+      final Offset peakPos = Offset(
+        center.dx + radius * math.cos(peakAngle),
+        center.dy + radius * math.sin(peakAngle),
+      );
+      canvas.drawCircle(
+        peakPos,
+        3.6,
+        Paint()..color = gaugeColor.withValues(alpha: 0.85),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _SecurityRadialBarPainter oldDelegate) =>
+      oldDelegate.progress != progress ||
+      oldDelegate.peakHoldProgress != peakHoldProgress ||
+      oldDelegate.gaugeColor != gaugeColor;
 }

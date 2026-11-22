@@ -451,14 +451,14 @@ class _TimerScreenState extends State<TimerScreen>
                               },
                             ),
 
-                          // Custom Progress Painter
+                          // Noise-Meter Style Silky Smooth Radial Bar Gauge
                           CustomPaint(
                             size: const Size(260, 260),
-                            painter: _TimerProgressPainter(
+                            painter: _TimerRadialBarPainter(
                               progress: progress,
-                              color: progressColor,
-                              bgColor: widget.theme.border.withValues(alpha: 0.15),
-                              borderColor: widget.theme.border,
+                              gaugeColor: progressColor,
+                              primaryColor: widget.theme.primary,
+                              trackColor: widget.theme.border.withValues(alpha: 0.35),
                             ),
                           ),
 
@@ -909,69 +909,130 @@ class _TimerScreenState extends State<TimerScreen>
   }
 }
 
-class _TimerProgressPainter extends CustomPainter {
+/// Silky Smooth Radial Bar Countdown Instrument (Noise Meter Style)
+class _TimerRadialBarPainter extends CustomPainter {
   final double progress;
-  final Color color;
-  final Color bgColor;
-  final Color borderColor;
+  final Color gaugeColor;
+  final Color primaryColor;
+  final Color trackColor;
 
-  _TimerProgressPainter({
+  _TimerRadialBarPainter({
     required this.progress,
-    required this.color,
-    required this.bgColor,
-    required this.borderColor,
+    required this.gaugeColor,
+    required this.primaryColor,
+    required this.trackColor,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = (size.width / 2) - 14;
+    final double radius = (size.width / 2) - 18;
+    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
 
-    // Background track groove
-    final Paint bgPaint = Paint()
-      ..color = bgColor
-      ..strokeWidth = 14
-      ..style = PaintingStyle.stroke;
-    canvas.drawCircle(center, radius, bgPaint);
+    // 260° sweep from bottom-left (140°) to bottom-right (400°)
+    const double startAngle = 140.0 * math.pi / 180.0;
+    const double totalSweep = 260.0 * math.pi / 180.0;
 
-    // Subtle tick markings along track
-    final Paint tickPaint = Paint()
-      ..color = borderColor.withValues(alpha: 0.25)
-      ..strokeWidth = 1.2;
-    for (int i = 0; i < 60; i++) {
-      final double angle = (i * 6) * math.pi / 180;
-      final double innerR = (i % 5 == 0) ? radius - 10 : radius - 5;
-      final Offset p1 = Offset(
-        center.dx + innerR * math.sin(angle),
-        center.dy - innerR * math.cos(angle),
+    final double clampedProgress = progress.clamp(0.0, 1.0);
+    final double activeSweep = totalSweep * clampedProgress;
+
+    // 1. Subtle Inner Micro-Tick Scale Dots (24 precision ticks that light up)
+    const int tickCount = 24;
+    for (int i = 0; i <= tickCount; i++) {
+      final double frac = i / tickCount;
+      final double ang = startAngle + (totalSweep * frac);
+      final bool isMajor = i % 6 == 0;
+      final bool isLit = frac <= clampedProgress;
+      final double innerR = radius - (isMajor ? 16.5 : 14.0);
+      final double outerR = radius - 10.5;
+      final Paint tickPaint = Paint()
+        ..color = isLit
+            ? gaugeColor.withValues(alpha: isMajor ? 0.75 : 0.45)
+            : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
+        ..strokeWidth = isMajor ? 2.0 : 1.2
+        ..strokeCap = StrokeCap.round;
+
+      canvas.drawLine(
+        Offset(center.dx + innerR * math.cos(ang), center.dy + innerR * math.sin(ang)),
+        Offset(center.dx + outerR * math.cos(ang), center.dy + outerR * math.sin(ang)),
+        tickPaint,
       );
-      final Offset p2 = Offset(
-        center.dx + radius * math.sin(angle),
-        center.dy - radius * math.cos(angle),
-      );
-      canvas.drawLine(p1, p2, tickPaint);
     }
 
-    // Active progress arc
-    final Paint activePaint = Paint()
-      ..color = color
-      ..strokeWidth = 14
-      ..strokeCap = StrokeCap.round
-      ..style = PaintingStyle.stroke;
+    // 2. Smooth Recessed Background Track Arc
+    final Paint trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 12.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
 
-    const double startAngle = -math.pi / 2;
-    final double sweepAngle = 2 * math.pi * progress;
+    // 3. Soft Ambient Glow Under Active Arc
+    if (activeSweep > 0.01) {
+      final Paint glowPaint = Paint()
+        ..color = gaugeColor.withValues(alpha: 0.28)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 18.0
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
 
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      startAngle,
-      sweepAngle,
-      false,
-      activePaint,
-    );
+      // 4. Silky SweepGradient Active Arc
+      final Shader arcShader = SweepGradient(
+        startAngle: 0.0,
+        endAngle: totalSweep,
+        colors: [
+          primaryColor,
+          Color.lerp(primaryColor, gaugeColor, 0.55)!,
+          gaugeColor,
+        ],
+        stops: const [0.0, 0.62, 1.0],
+        transform: const GradientRotation(startAngle),
+      ).createShader(arcRect);
+
+      final Paint activePaint = Paint()
+        ..shader = arcShader
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12.5
+        ..strokeCap = StrokeCap.round;
+      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
+
+      // 5. Crisp Luminous Leading Tip Orb
+      final double tipAngle = startAngle + activeSweep;
+      final Offset tipCenter = Offset(
+        center.dx + radius * math.cos(tipAngle),
+        center.dy + radius * math.sin(tipAngle),
+      );
+      canvas.drawCircle(
+        tipCenter,
+        7.5,
+        Paint()
+          ..color = gaugeColor.withValues(alpha: 0.35)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
+      );
+      canvas.drawCircle(
+        tipCenter,
+        4.2,
+        Paint()..color = Colors.white.withValues(alpha: 0.95),
+      );
+    }
+
+    // 6. 100% Full Duration Benchmark Marker Dot at end of arc
+    if (clampedProgress < 0.97) {
+      const double endAngle = startAngle + totalSweep;
+      final Offset endPos = Offset(
+        center.dx + radius * math.cos(endAngle),
+        center.dy + radius * math.sin(endAngle),
+      );
+      canvas.drawCircle(
+        endPos,
+        3.6,
+        Paint()..color = gaugeColor.withValues(alpha: 0.65),
+      );
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _TimerProgressPainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.color != color;
+  bool shouldRepaint(covariant _TimerRadialBarPainter oldDelegate) =>
+      oldDelegate.progress != progress || oldDelegate.gaugeColor != gaugeColor;
 }
