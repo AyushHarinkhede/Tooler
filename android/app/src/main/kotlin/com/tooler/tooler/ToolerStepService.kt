@@ -163,9 +163,7 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
                     resetAllData()
                 }
             }
-        } catch (_: Exception) {
-            stopSelf()
-        }
+        } catch (_: Exception) {}
 
         return START_STICKY
     }
@@ -195,19 +193,30 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
             ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
         } else true
 
-        // If on Android 14+ and no required permissions are granted, abort foreground service to avoid SecurityException
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && !hasLocation && !hasActivity) {
-            isServiceRunning = false
-            stopSelf()
+        isServiceRunning = true
+
+        try {
+            if (hasActivity) {
+                registerSensors()
+            }
+            if (hasLocation) {
+                registerLocationUpdates()
+                registerGnssStatus()
+            }
+            pushLiveTelemetry()
+        } catch (_: Exception) {}
+
+        // If no permissions are granted yet, run as basic in-memory service without calling startForeground
+        if (!hasLocation && !hasActivity) {
             return
         }
 
-        val notification = buildOngoingNotification(
-            "Tooler Step Counter Active",
-            "$liveTodaySteps steps today · ${String.format(Locale.US, "%.2f", liveDistanceKm)} km"
-        )
-
         try {
+            val notification = buildOngoingNotification(
+                "Tooler Step Counter Active",
+                "$liveTodaySteps steps today · ${String.format(Locale.US, "%.2f", liveDistanceKm)} km"
+            ) ?: return
+
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 var fType = 0
                 if (hasActivity) {
@@ -218,9 +227,6 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
                 }
                 if (fType != 0) {
                     startForeground(NOTIFICATION_ID, notification, fType)
-                } else {
-                    stopSelf()
-                    return
                 }
             } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 if (hasLocation) {
@@ -231,19 +237,9 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
             } else {
                 startForeground(NOTIFICATION_ID, notification)
             }
-            isServiceRunning = true
         } catch (_: Exception) {
-            isServiceRunning = false
-            stopSelf()
-            return
+            // Never call stopSelf() on startForeground failure; remain running safely as a background service
         }
-
-        try {
-            registerSensors()
-            registerLocationUpdates()
-            registerGnssStatus()
-            pushLiveTelemetry()
-        } catch (_: Exception) {}
     }
 
     private fun stopTracking() {
@@ -255,26 +251,42 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
                 locationManager?.unregisterGnssStatusCallback(gnssCallback!!)
             }
         } catch (_: Exception) {}
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        try {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } catch (_: Exception) {}
     }
 
     private fun registerSensors() {
         val sm = sensorManager ?: return
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val hasPerm = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
+                if (!hasPerm) {
+                    isHardwareSynced = false
+                    return
+                }
+            }
 
-        // 1. Hardware Step Counter (Sensor Hub batching: 60,000,000 us = 60s max batch latency for 0% battery impact)
-        stepCounterSensor = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
-        if (stepCounterSensor != null) {
-            sm.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_NORMAL, 60_000_000)
-            isHardwareSynced = true
-        } else {
+            // 1. Hardware Step Counter
+            stepCounterSensor = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+            if (stepCounterSensor != null) {
+                val registered = sm.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_NORMAL, 60_000_000)
+                if (registered) {
+                    isHardwareSynced = true
+                    return
+                }
+            }
+
             // 2. Hardware Step Detector fallback
             stepDetectorSensor = sm.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
             if (stepDetectorSensor != null) {
-                sm.registerListener(this, stepDetectorSensor, SensorManager.SENSOR_DELAY_NORMAL, 10_000_000)
-                isHardwareSynced = true
+                val registered = sm.registerListener(this, stepDetectorSensor, SensorManager.SENSOR_DELAY_NORMAL, 10_000_000)
+                isHardwareSynced = registered
             } else {
                 isHardwareSynced = false
             }
+        } catch (_: Exception) {
+            isHardwareSynced = false
         }
     }
 
@@ -287,11 +299,11 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
 
         try {
             if (lm.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-                // Request updates every 5 seconds or 8 meters
-                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 8.0f, this)
+                // Request updates every 5 seconds or 8 meters with MainLooper
+                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 8.0f, this, android.os.Looper.getMainLooper())
             }
             if (lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000L, 15.0f, this)
+                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 10000L, 15.0f, this, android.os.Looper.getMainLooper())
             }
         } catch (_: Exception) {}
     }
@@ -304,25 +316,27 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
 
         gnssCallback = object : GnssStatus.Callback() {
             override fun onSatelliteStatusChanged(status: GnssStatus) {
-                var usedCount = 0
-                var foundNavic = false
+                try {
+                    var usedCount = 0
+                    var foundNavic = false
 
-                for (i in 0 until status.satelliteCount) {
-                    if (status.usedInFix(i)) {
-                        usedCount++
+                    for (i in 0 until status.satelliteCount) {
+                        if (status.usedInFix(i)) {
+                            usedCount++
+                        }
+                        // Constellation 7 = CONSTELLATION_IRNSS (NavIC India)
+                        if (status.getConstellationType(i) == GnssStatus.CONSTELLATION_IRNSS) {
+                            foundNavic = true
+                        }
                     }
-                    // Constellation 7 = CONSTELLATION_IRNSS (NavIC India)
-                    if (status.getConstellationType(i) == GnssStatus.CONSTELLATION_IRNSS) {
-                        foundNavic = true
-                    }
-                }
-                gnssSatellitesCount = usedCount
-                hasNavicFix = foundNavic
+                    gnssSatellitesCount = usedCount
+                    hasNavicFix = foundNavic
+                } catch (_: Exception) {}
             }
         }
 
         try {
-            lm.registerGnssStatusCallback(gnssCallback!!, null)
+            lm.registerGnssStatusCallback(gnssCallback!!, android.os.Handler(android.os.Looper.getMainLooper()))
         } catch (_: Exception) {}
     }
 
@@ -656,45 +670,45 @@ class ToolerStepService : Service(), SensorEventListener, LocationListener {
         }
     }
 
-    private fun buildOngoingNotification(title: String, text: String): Notification {
-        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-        val pendingIntent = PendingIntent.getActivity(
-            this,
-            0,
-            launchIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
+    private fun buildOngoingNotification(title: String, text: String): Notification? {
+        return try {
+            val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: Intent(this, MainActivity::class.java)
+            val pendingIntent = PendingIntent.getActivity(
+                this,
+                0,
+                launchIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            )
 
-        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            Notification.Builder(this, CHANNEL_ID)
-        } else {
-            @Suppress("DEPRECATION")
-            Notification.Builder(this)
-        }
+            val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Notification.Builder(this, CHANNEL_ID)
+            } else {
+                @Suppress("DEPRECATION")
+                Notification.Builder(this)
+            }
 
-        try {
-            builder.setSmallIcon(R.drawable.ic_step_notification)
-        } catch (_: Exception) {
             builder.setSmallIcon(android.R.drawable.ic_menu_directions)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setContentIntent(pendingIntent)
+                .build()
+        } catch (_: Exception) {
+            null
         }
-
-        return builder
-            .setContentTitle(title)
-            .setContentText(text)
-            .setOngoing(true)
-            .setAutoCancel(false)
-            .setContentIntent(pendingIntent)
-            .build()
     }
 
     private fun updateNotification() {
         if (!isServiceRunning) return
-        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-        val notif = buildOngoingNotification(
-            "Tooler Step Counter Active",
-            "$liveTodaySteps steps today · ${String.format(Locale.US, "%.2f", liveDistanceKm)} km"
-        )
-        nm?.notify(NOTIFICATION_ID, notif)
+        try {
+            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
+            val notif = buildOngoingNotification(
+                "Tooler Step Counter Active",
+                "$liveTodaySteps steps today · ${String.format(Locale.US, "%.2f", liveDistanceKm)} km"
+            ) ?: return
+            nm?.notify(NOTIFICATION_ID, notif)
+        } catch (_: Exception) {}
     }
 
     override fun onDestroy() {

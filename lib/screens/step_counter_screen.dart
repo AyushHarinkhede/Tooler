@@ -131,8 +131,8 @@ class _StepCounterScreenState extends State<StepCounterScreen>
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final todaySteps = _pedometer.todaySteps;
-    final goal = _pedometer.dailyGoal;
-    final progress = (todaySteps / goal).clamp(0.0, 1.0);
+    final goal = _pedometer.dailyGoal <= 0 ? 10000 : _pedometer.dailyGoal;
+    final progress = goal > 0 ? (todaySteps / goal).clamp(0.0, 1.0) : 0.0;
     final distKm = _pedometer.distanceKm;
     final speed = _pedometer.avgSpeedKmh;
     final cals = _pedometer.caloriesKcal;
@@ -700,7 +700,8 @@ class _StepCounterScreenState extends State<StepCounterScreen>
               crossAxisAlignment: CrossAxisAlignment.end,
               children: List.generate(dataPoints.length, (idx) {
                 final pt = dataPoints[idx];
-                final frac = pt.steps > 0 ? (pt.steps / maxSteps).clamp(0.08, 1.0) : 0.0;
+                final safeMax = maxSteps <= 0 ? 10000 : maxSteps;
+                final frac = pt.steps > 0 ? (pt.steps / safeMax).clamp(0.08, 1.0) : 0.0;
                 final barHeight = pt.steps > 0 ? (74 * frac) : 3.0;
                 final isSelected = _selectedBarIndex == idx;
 

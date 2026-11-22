@@ -3,6 +3,7 @@ package com.tooler.tooler
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Build
 
 /**
@@ -21,13 +22,22 @@ class ToolerStepBootReceiver : BroadcastReceiver() {
             action == "com.htc.intent.action.QUICKBOOT_POWERON"
         ) {
             try {
-                val serviceIntent = Intent(context, ToolerStepService::class.java).apply {
-                    this.action = ToolerStepService.ACTION_START_TRACKING
-                }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    context.startForegroundService(serviceIntent)
-                } else {
-                    context.startService(serviceIntent)
+                val hasActivity = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    context.checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
+                } else true
+                val hasLocation = context.checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                                  context.checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+                // Only auto-resume if permissions are already granted
+                if (hasActivity || hasLocation) {
+                    val serviceIntent = Intent(context, ToolerStepService::class.java).apply {
+                        this.action = ToolerStepService.ACTION_START_TRACKING
+                    }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        context.startForegroundService(serviceIntent)
+                    } else {
+                        context.startService(serviceIntent)
+                    }
                 }
             } catch (_: Exception) {}
         }

@@ -150,13 +150,18 @@ class PedometerSensorService {
   List<StepTrailPoint> _todayTrail = [];
   List<DailyStepRecord> _historyRecords = [];
 
-  final StreamController<int> _stepStreamController =
+  StreamController<int> _stepStreamController =
       StreamController<int>.broadcast();
-  Stream<int> get stepStream => _stepStreamController.stream;
+  Stream<int> get stepStream {
+    if (_stepStreamController.isClosed) {
+      _stepStreamController = StreamController<int>.broadcast();
+    }
+    return _stepStreamController.stream;
+  }
 
   // Getters
   int get todaySteps => _todaySteps;
-  int get dailyGoal => _dailyGoal;
+  int get dailyGoal => _dailyGoal <= 0 ? 10000 : _dailyGoal;
   int get activeSeconds => _activeSeconds;
   bool get isHardwareSynced => _isHardwareSynced;
   bool get isWalkingNow => _isWalkingNow;
@@ -173,8 +178,9 @@ class PedometerSensorService {
 
   /// Calculated total walking distance today in kilometers
   double get distanceKm {
-    return double.parse(
-        ((_todaySteps * _strideLengthM) / 1000.0).toStringAsFixed(2));
+    return double.tryParse(
+            ((_todaySteps * _strideLengthM) / 1000.0).toStringAsFixed(2)) ??
+        0.0;
   }
 
   /// Calculated average speed in km/h
@@ -182,8 +188,9 @@ class PedometerSensorService {
     if (_currentSpeedKmh > 0) return _currentSpeedKmh;
     if (_activeSeconds < 20 || distanceKm <= 0.01) return 0.0;
     final hours = _activeSeconds / 3600.0;
+    if (hours <= 0) return 0.0;
     final speed = distanceKm / hours;
-    return double.parse(speed.clamp(1.0, 14.0).toStringAsFixed(1));
+    return double.tryParse(speed.clamp(1.0, 14.0).toStringAsFixed(1)) ?? 0.0;
   }
 
   /// Calories burned today
@@ -238,7 +245,9 @@ class PedometerSensorService {
     );
     _installDate = DateTime.now();
 
-    _stepStreamController.add(0);
+    if (!_stepStreamController.isClosed) {
+      _stepStreamController.add(0);
+    }
   }
 
   void _connectNativeServiceAndSensors() {
@@ -257,6 +266,7 @@ class PedometerSensorService {
 
       // 3. Listen to Native Live Step & GNSS Telemetry stream
       try {
+        _nativeEventSub?.cancel();
         _nativeEventSub = _stepEventChannel.receiveBroadcastStream().listen(
           (dynamic event) {
             if (event is Map) {
@@ -286,7 +296,11 @@ class PedometerSensorService {
                 _lastLon = lon;
               }
 
-              _stepStreamController.add(_todaySteps);
+              if (!_stepStreamController.isClosed) {
+                if (!_stepStreamController.isClosed) {
+      _stepStreamController.add(_todaySteps);
+    }
+              }
             }
           },
           onError: (_) {},
@@ -298,6 +312,7 @@ class PedometerSensorService {
     _startFallbackSensorListening();
 
     // 5. Active walking timeout checker
+    _activeWalkTimer?.cancel();
     _activeWalkTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       final now = DateTime.now();
       if (_isWalkingNow &&
@@ -310,6 +325,9 @@ class PedometerSensorService {
 
   void _startFallbackSensorListening() {
     try {
+      _gyroSub?.cancel();
+      _userAccelSub?.cancel();
+
       // Listen to Gyroscope to filter out hand flips/rotations
       _gyroSub = gyroscopeEventStream().listen((gEvent) {
         _currentGyroRate = math.sqrt(
@@ -400,7 +418,9 @@ class PedometerSensorService {
         ? 'Running'
         : (_currentSpeedKmh > 4.5 ? 'Brisk Walk' : 'Walking');
 
-    _stepStreamController.add(_todaySteps);
+    if (!_stepStreamController.isClosed) {
+      _stepStreamController.add(_todaySteps);
+    }
     if (_todaySteps % 5 == 0 || count > 1) {
       _persistState();
     }

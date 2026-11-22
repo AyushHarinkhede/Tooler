@@ -109,11 +109,7 @@ open class MainActivity : FlutterActivity() {
                     val intent = Intent(this, ToolerStepService::class.java).apply {
                         action = ToolerStepService.ACTION_START_TRACKING
                     }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        startForegroundService(intent)
-                    } else {
-                        startService(intent)
-                    }
+                    startService(intent)
                 } catch (_: Exception) {}
             }
         }
@@ -873,37 +869,18 @@ open class MainActivity : FlutterActivity() {
                             val intent = Intent(this, ToolerStepService::class.java).apply {
                                 action = ToolerStepService.ACTION_START_TRACKING
                             }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                startForegroundService(intent)
-                            } else {
-                                startService(intent)
-                            }
+                            startService(intent)
                         } catch (_: Exception) {}
                         result.success(true)
                     }
                 }
                 "startTracking" -> {
                     try {
-                        val hasLocation = checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-                                          checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                        val hasActivity = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                            checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
-                        } else true
-
-                        // Only start foreground service if at least one permission is granted
-                        if (hasActivity || hasLocation) {
-                            val intent = Intent(this, ToolerStepService::class.java).apply {
-                                action = ToolerStepService.ACTION_START_TRACKING
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                startForegroundService(intent)
-                            } else {
-                                startService(intent)
-                            }
-                            result.success(true)
-                        } else {
-                            result.success(false)
+                        val intent = Intent(this, ToolerStepService::class.java).apply {
+                            action = ToolerStepService.ACTION_START_TRACKING
                         }
+                        startService(intent)
+                        result.success(true)
                     } catch (_: Exception) {
                         result.success(false)
                     }
