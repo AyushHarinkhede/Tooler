@@ -25,11 +25,13 @@ class _SizerScreenState extends State<SizerScreen> {
   // Diameter in mm: min 13.5mm (US 2.5) to max 31.8mm (Circumference 10.0cm)
   double _ringDiameterMm = 18.2;
   final TextEditingController _ringCircumferenceCtrl = TextEditingController(text: '5.72');
+  bool _ringUnitIsMm = false;
 
   // --- 2. BANGLE STATE ---
   // Diameter in mm: min 54.0mm (Size 2-2) to max 76.2mm (Size 3-0)
   double _bangleDiameterMm = 60.3;
   final TextEditingController _bangleKnuckleCtrl = TextEditingController(text: '18.9');
+  bool _bangleUnitIsMm = false;
 
   // --- 3. WATCH STRAP STATE ---
   int _selectedLugMm = 20;
@@ -55,18 +57,33 @@ class _SizerScreenState extends State<SizerScreen> {
   }
 
   // --- Helper calculations: Ring ---
+  void _setRingUnit(bool isMm) {
+    if (_ringUnitIsMm == isMm) return;
+    setState(() {
+      _ringUnitIsMm = isMm;
+      _updateCircumferenceTextFromRingDiameter();
+    });
+  }
+
   void _updateCircumferenceTextFromRingDiameter() {
-    final cm = (_ringDiameterMm * math.pi) / 10.0;
-    _ringCircumferenceCtrl.text = cm.toStringAsFixed(2);
+    if (_ringUnitIsMm) {
+      final mm = _ringDiameterMm * math.pi;
+      _ringCircumferenceCtrl.text = mm.toStringAsFixed(1);
+    } else {
+      final cm = (_ringDiameterMm * math.pi) / 10.0;
+      _ringCircumferenceCtrl.text = cm.toStringAsFixed(2);
+    }
   }
 
   void _onRingCircumferenceInput(String val) {
-    final cm = double.tryParse(val);
-    if (cm != null && cm > 0 && cm <= 10.0) {
-      final mm = (cm * 10.0) / math.pi;
-      setState(() {
-        _ringDiameterMm = mm.clamp(13.5, 31.8);
-      });
+    final numVal = double.tryParse(val);
+    if (numVal != null && numVal > 0) {
+      final mm = _ringUnitIsMm ? (numVal / math.pi) : ((numVal * 10.0) / math.pi);
+      if (mm >= 13.0 && mm <= 33.0) {
+        setState(() {
+          _ringDiameterMm = mm.clamp(13.5, 31.8);
+        });
+      }
     }
   }
 
@@ -98,18 +115,31 @@ class _SizerScreenState extends State<SizerScreen> {
   }
 
   // --- Helper calculations: Bangle ---
+  void _setBangleUnit(bool isMm) {
+    if (_bangleUnitIsMm == isMm) return;
+    setState(() {
+      _bangleUnitIsMm = isMm;
+      _updateKnuckleTextFromBangleDiameter();
+    });
+  }
+
   void _updateKnuckleTextFromBangleDiameter() {
-    final cm = (_bangleDiameterMm * math.pi) / 10.0;
-    _bangleKnuckleCtrl.text = cm.toStringAsFixed(2);
+    if (_bangleUnitIsMm) {
+      final mm = _bangleDiameterMm * math.pi;
+      _bangleKnuckleCtrl.text = mm.toStringAsFixed(1);
+    } else {
+      final cm = (_bangleDiameterMm * math.pi) / 10.0;
+      _bangleKnuckleCtrl.text = cm.toStringAsFixed(2);
+    }
   }
 
   void _onBangleKnuckleInput(String val) {
-    final cm = double.tryParse(val);
-    if (cm != null && cm > 0) {
-      final mm = (cm * 10.0) / math.pi;
-      if (mm >= 50.0 && mm <= 85.0) {
+    final numVal = double.tryParse(val);
+    if (numVal != null && numVal > 0) {
+      final mm = _bangleUnitIsMm ? (numVal / math.pi) : ((numVal * 10.0) / math.pi);
+      if (mm >= 48.0 && mm <= 85.0) {
         setState(() {
-          _bangleDiameterMm = mm;
+          _bangleDiameterMm = mm.clamp(50.0, 80.0);
         });
       }
     }
@@ -227,6 +257,49 @@ class _SizerScreenState extends State<SizerScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // Top Title & Screen Calibration Header
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        "Scale & Dimension Studio",
+                        style: widget.theme.fontDisplay(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w800,
+                          color: widget.theme.textSecondary,
+                        ),
+                      ),
+                      BouncyTap(
+                        onTap: _showCalibrationDialog,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: widget.theme.cardBg,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: widget.theme.border, width: 1.2),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.tune_rounded, size: 13, color: widget.theme.primary),
+                              const SizedBox(width: 4),
+                              Text(
+                                "Screen Calibration",
+                                style: widget.theme.fontMono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: widget.theme.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 10),
+
                   // Tab selection row
                   Row(
                     children: [
@@ -321,11 +394,12 @@ class _SizerScreenState extends State<SizerScreen> {
   Widget _buildRingSizer() {
     final sizes = _getRingSizes(_ringDiameterMm);
     final circumferenceCm = (_ringDiameterMm * math.pi) / 10.0;
+    final circumferenceMm = _ringDiameterMm * math.pi;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Full Graph Container with Live Ring Circle & Millimeter Coordinate Grid
+        // 1. Full Graph Container with Live Ring Circle (ONLY Circle & Grid - NO overlay badges, NO calibration button)
         Container(
           height: 270,
           width: double.infinity,
@@ -334,84 +408,110 @@ class _SizerScreenState extends State<SizerScreen> {
             color: widget.theme.cardBg,
             borderWidth: 2.2,
           ),
-          child: Stack(
+          child: CustomPaint(
+            painter: _RingGraphContainerPainter(
+              ringDiameterMm: _ringDiameterMm,
+              pixelsPerMm: _pixelsPerMm,
+              primaryColor: widget.theme.primary,
+              accentColor: const Color(0xFFF1C40F),
+              textColor: widget.theme.text,
+              gridColor: widget.theme.border,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // 2. Dedicated Live Diameter & Circumference Dimension Card (Showing both mm & cm prominently)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: widget.theme.doodleCard(
+            color: widget.theme.cardBg,
+            borderWidth: 1.8,
+          ),
+          child: Row(
             children: [
-              // Full Precision Coordinate Graph
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _RingGraphContainerPainter(
-                    ringDiameterMm: _ringDiameterMm,
-                    pixelsPerMm: _pixelsPerMm,
-                    primaryColor: widget.theme.primary,
-                    accentColor: const Color(0xFFF1C40F),
-                    textColor: widget.theme.text,
-                    gridColor: widget.theme.border,
-                  ),
-                ),
-              ),
-
-              // Calibration Shortcut Button (Top Right)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: BouncyTap(
-                  onTap: _showCalibrationDialog,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: widget.theme.bg.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: widget.theme.border, width: 1.2),
-                    ),
-                    child: Icon(Icons.tune_rounded, size: 16, color: widget.theme.primary),
-                  ),
-                ),
-              ),
-
-              // Top Live Dimension Badge
-              Positioned(
-                top: 10,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: widget.theme.bg.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: widget.theme.primary.withValues(alpha: 0.4), width: 1.2),
-                  ),
-                  child: Text(
-                    "⌀ ${_ringDiameterMm.toStringAsFixed(2)} mm",
-                    style: widget.theme.fontMono(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: widget.theme.primary,
-                    ),
-                  ),
-                ),
-              ),
-
-              // Bottom Live Circumference Metric
-              Positioned(
-                bottom: 10,
-                left: 12,
-                right: 12,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+              // Diameter Column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: widget.theme.bg.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: widget.theme.border, width: 1.2),
-                      ),
-                      child: Text(
-                        "Diameter: ${_ringDiameterMm.toStringAsFixed(1)} mm  •  Circumference: ${circumferenceCm.toStringAsFixed(2)} cm",
-                        style: widget.theme.fontMono(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: widget.theme.text,
+                    Row(
+                      children: [
+                        Icon(Icons.circle_outlined, size: 14, color: widget.theme.primary),
+                        const SizedBox(width: 5),
+                        Text(
+                          "DIAMETER (⌀)",
+                          style: widget.theme.fontMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: widget.theme.textSecondary,
+                          ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "${_ringDiameterMm.toStringAsFixed(1)} mm",
+                      style: widget.theme.fontDisplay(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: widget.theme.primary,
+                      ),
+                    ),
+                    Text(
+                      "${(_ringDiameterMm / 10.0).toStringAsFixed(2)} cm",
+                      style: widget.theme.fontMono(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: widget.theme.text.withValues(alpha: 0.65),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              Container(
+                width: 1.2,
+                height: 46,
+                color: widget.theme.border,
+              ),
+              const SizedBox(width: 14),
+
+              // Circumference Column
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.all_inclusive_rounded, size: 14, color: Color(0xFFF1C40F)),
+                        const SizedBox(width: 5),
+                        Text(
+                          "CIRCUMFERENCE",
+                          style: widget.theme.fontMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: widget.theme.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      "${circumferenceCm.toStringAsFixed(2)} cm",
+                      style: widget.theme.fontDisplay(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                        color: widget.theme.text,
+                      ),
+                    ),
+                    Text(
+                      "${circumferenceMm.toStringAsFixed(1)} mm",
+                      style: widget.theme.fontMono(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: widget.theme.text.withValues(alpha: 0.65),
                       ),
                     ),
                   ],
@@ -423,7 +523,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
         const SizedBox(height: 12),
 
-        // 2. Adjust Bar (ONLY Minus Icon, Slider, Plus Icon - NO text or words)
+        // 3. Adjust Bar (ONLY Minus Icon, Slider, Plus Icon - NO text or words)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: widget.theme.doodleCard(borderWidth: 2.0),
@@ -496,7 +596,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
         const SizedBox(height: 12),
 
-        // 3. Number Select Bar in cm (Max 10.0 cm, millimeter precision, direct selection & entry)
+        // 4. Number Select Bar with mm & cm (Direct input & stepping)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: widget.theme.doodleCard(
@@ -505,29 +605,105 @@ class _SizerScreenState extends State<SizerScreen> {
           ),
           child: Column(
             children: [
+              // Unit Toggle Row [ mm | cm ]
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Circumference Value",
+                    style: widget.theme.fontMono(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: widget.theme.textSecondary,
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: widget.theme.bg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: widget.theme.border, width: 1.2),
+                    ),
+                    padding: const EdgeInsets.all(2),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _setRingUnit(true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _ringUnitIsMm ? widget.theme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "mm",
+                              style: widget.theme.fontMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _ringUnitIsMm ? Colors.white : widget.theme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _setRingUnit(false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: !_ringUnitIsMm ? widget.theme.primary : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "cm",
+                              style: widget.theme.fontMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: !_ringUnitIsMm ? Colors.white : widget.theme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
+              // Stepper & Direct Entry Row
               Row(
                 children: [
                   BouncyTap(
                     onTap: () {
-                      final currentCm = (_ringDiameterMm * math.pi) / 10.0;
-                      if (currentCm > 4.2) {
-                        final newCm = (currentCm - 0.1).clamp(4.2, 10.0);
-                        setState(() {
-                          _ringDiameterMm = ((newCm * 10.0) / math.pi).clamp(13.5, 31.8);
-                          _updateCircumferenceTextFromRingDiameter();
-                        });
+                      if (_ringUnitIsMm) {
+                        final currentMm = _ringDiameterMm * math.pi;
+                        if (currentMm > 42.4) {
+                          final newMm = (currentMm - 1.0).clamp(42.4, 100.0);
+                          setState(() {
+                            _ringDiameterMm = (newMm / math.pi).clamp(13.5, 31.8);
+                            _updateCircumferenceTextFromRingDiameter();
+                          });
+                        }
+                      } else {
+                        final currentCm = (_ringDiameterMm * math.pi) / 10.0;
+                        if (currentCm > 4.2) {
+                          final newCm = (currentCm - 0.1).clamp(4.2, 10.0);
+                          setState(() {
+                            _ringDiameterMm = ((newCm * 10.0) / math.pi).clamp(13.5, 31.8);
+                            _updateCircumferenceTextFromRingDiameter();
+                          });
+                        }
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
                         color: widget.theme.bg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: widget.theme.border, width: 1.5),
                       ),
                       child: Text(
-                        "-0.1",
-                        style: widget.theme.fontMono(fontSize: 12, fontWeight: FontWeight.bold, color: widget.theme.primary),
+                        _ringUnitIsMm ? "-1 mm" : "-0.1 cm",
+                        style: widget.theme.fontMono(fontSize: 11.5, fontWeight: FontWeight.bold, color: widget.theme.primary),
                       ),
                     ),
                   ),
@@ -535,7 +711,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
                   Expanded(
                     child: Container(
-                      height: 42,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: widget.theme.bg,
                         borderRadius: BorderRadius.circular(8),
@@ -564,19 +740,22 @@ class _SizerScreenState extends State<SizerScreen> {
                             ),
                           ),
                           Text(
-                            "cm",
+                            _ringUnitIsMm ? "mm" : "cm",
                             style: widget.theme.fontMono(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: widget.theme.text.withValues(alpha: 0.7),
+                              color: widget.theme.text.withValues(alpha: 0.75),
                             ),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            "(${((_ringDiameterMm * math.pi)).toStringAsFixed(1)} mm)",
+                            _ringUnitIsMm
+                                ? "(${((_ringDiameterMm * math.pi) / 10.0).toStringAsFixed(2)} cm)"
+                                : "(${(_ringDiameterMm * math.pi).toStringAsFixed(1)} mm)",
                             style: widget.theme.fontMono(
                               fontSize: 11,
-                              color: widget.theme.text.withValues(alpha: 0.5),
+                              fontWeight: FontWeight.w600,
+                              color: widget.theme.text.withValues(alpha: 0.55),
                             ),
                           ),
                         ],
@@ -587,25 +766,36 @@ class _SizerScreenState extends State<SizerScreen> {
 
                   BouncyTap(
                     onTap: () {
-                      final currentCm = (_ringDiameterMm * math.pi) / 10.0;
-                      if (currentCm < 10.0) {
-                        final newCm = (currentCm + 0.1).clamp(4.2, 10.0);
-                        setState(() {
-                          _ringDiameterMm = ((newCm * 10.0) / math.pi).clamp(13.5, 31.8);
-                          _updateCircumferenceTextFromRingDiameter();
-                        });
+                      if (_ringUnitIsMm) {
+                        final currentMm = _ringDiameterMm * math.pi;
+                        if (currentMm < 100.0) {
+                          final newMm = (currentMm + 1.0).clamp(42.4, 100.0);
+                          setState(() {
+                            _ringDiameterMm = (newMm / math.pi).clamp(13.5, 31.8);
+                            _updateCircumferenceTextFromRingDiameter();
+                          });
+                        }
+                      } else {
+                        final currentCm = (_ringDiameterMm * math.pi) / 10.0;
+                        if (currentCm < 10.0) {
+                          final newCm = (currentCm + 0.1).clamp(4.2, 10.0);
+                          setState(() {
+                            _ringDiameterMm = ((newCm * 10.0) / math.pi).clamp(13.5, 31.8);
+                            _updateCircumferenceTextFromRingDiameter();
+                          });
+                        }
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
                         color: widget.theme.bg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: widget.theme.border, width: 1.5),
                       ),
                       child: Text(
-                        "+0.1",
-                        style: widget.theme.fontMono(fontSize: 12, fontWeight: FontWeight.bold, color: widget.theme.primary),
+                        _ringUnitIsMm ? "+1 mm" : "+0.1 cm",
+                        style: widget.theme.fontMono(fontSize: 11.5, fontWeight: FontWeight.bold, color: widget.theme.primary),
                       ),
                     ),
                   ),
@@ -614,7 +804,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
               const SizedBox(height: 10),
 
-              // Quick cm preset selector pills
+              // Quick preset selector pills showing both mm and cm numbers
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -622,6 +812,7 @@ class _SizerScreenState extends State<SizerScreen> {
                   children: [4.8, 5.2, 5.4, 5.7, 6.0, 6.5, 7.0, 8.0, 9.0, 10.0].map((presetCm) {
                     final currentCm = (_ringDiameterMm * math.pi) / 10.0;
                     final isSelected = (currentCm - presetCm).abs() < 0.15;
+                    final presetMm = (presetCm * 10.0).round();
                     return Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: BouncyTap(
@@ -632,7 +823,7 @@ class _SizerScreenState extends State<SizerScreen> {
                           });
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
                             color: isSelected ? widget.theme.primary : widget.theme.bg,
                             borderRadius: BorderRadius.circular(6),
@@ -642,7 +833,7 @@ class _SizerScreenState extends State<SizerScreen> {
                             ),
                           ),
                           child: Text(
-                            "${presetCm.toStringAsFixed(1)} cm",
+                            "${presetMm}mm (${presetCm.toStringAsFixed(1)}cm)",
                             style: widget.theme.fontMono(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
@@ -817,11 +1008,12 @@ class _SizerScreenState extends State<SizerScreen> {
   Widget _buildBangleSizer() {
     final bangleInfo = _getBangleSizeInfo(_bangleDiameterMm);
     final innerCircumferenceCm = (_bangleDiameterMm * math.pi) / 10.0;
+    final innerCircumferenceMm = _bangleDiameterMm * math.pi;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // 1. Full Precision Millimeter Coordinate Graph Container (Reaching Screen Edges)
+        // 1. Full Precision Millimeter Coordinate Graph Container (ONLY Circle & Grid - NO overlay badges, NO calibration button)
         Container(
           height: 330,
           width: double.infinity,
@@ -830,86 +1022,136 @@ class _SizerScreenState extends State<SizerScreen> {
             color: widget.theme.cardBg,
             borderWidth: 2.2,
           ),
-          child: Stack(
+          child: CustomPaint(
+            painter: _BangleGraphContainerPainter(
+              bangleDiameterMm: _bangleDiameterMm,
+              pixelsPerMm: _pixelsPerMm,
+              primaryColor: const Color(0xFFD35400),
+              accentColor: const Color(0xFFF1C40F),
+              gridColor: widget.theme.border,
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // 2. Dedicated Live Diameter & Circumference Dimension Card (Showing both mm & cm prominently)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: widget.theme.doodleCard(
+            color: widget.theme.cardBg,
+            borderWidth: 1.8,
+          ),
+          child: Column(
             children: [
-              // Full Precision Coordinate Graph
-              Positioned.fill(
-                child: CustomPaint(
-                  painter: _BangleGraphContainerPainter(
-                    bangleDiameterMm: _bangleDiameterMm,
-                    pixelsPerMm: _pixelsPerMm,
-                    primaryColor: const Color(0xFFD35400),
-                    accentColor: const Color(0xFFF1C40F),
-                    gridColor: widget.theme.border,
-                  ),
-                ),
-              ),
-
-              // Calibration Shortcut Button (Top Right)
-              Positioned(
-                top: 8,
-                right: 8,
-                child: BouncyTap(
-                  onTap: _showCalibrationDialog,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: widget.theme.bg.withValues(alpha: 0.9),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: widget.theme.border, width: 1.2),
+              Row(
+                children: [
+                  // Diameter Column
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.circle_outlined, size: 14, color: Color(0xFFD35400)),
+                            const SizedBox(width: 5),
+                            Text(
+                              "INNER DIAMETER (⌀)",
+                              style: widget.theme.fontMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: widget.theme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "${_bangleDiameterMm.toStringAsFixed(1)} mm",
+                          style: widget.theme.fontDisplay(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: const Color(0xFFD35400),
+                          ),
+                        ),
+                        Text(
+                          "${(_bangleDiameterMm / 10.0).toStringAsFixed(2)} cm",
+                          style: widget.theme.fontMono(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: widget.theme.text.withValues(alpha: 0.65),
+                          ),
+                        ),
+                      ],
                     ),
-                    child: const Icon(Icons.tune_rounded, size: 16, color: Color(0xFFD35400)),
                   ),
-                ),
-              ),
 
-              // Top Live Dimension Badge
-              Positioned(
-                top: 10,
-                left: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: widget.theme.bg.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFFD35400).withValues(alpha: 0.4), width: 1.2),
+                  Container(
+                    width: 1.2,
+                    height: 46,
+                    color: widget.theme.border,
                   ),
+                  const SizedBox(width: 14),
+
+                  // Circumference Column
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.all_inclusive_rounded, size: 14, color: Color(0xFFF1C40F)),
+                            const SizedBox(width: 5),
+                            Text(
+                              "CIRCUMFERENCE",
+                              style: widget.theme.fontMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: widget.theme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "${innerCircumferenceCm.toStringAsFixed(2)} cm",
+                          style: widget.theme.fontDisplay(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: widget.theme.text,
+                          ),
+                        ),
+                        Text(
+                          "${innerCircumferenceMm.toStringAsFixed(1)} mm",
+                          style: widget.theme.fontMono(
+                            fontSize: 11.5,
+                            fontWeight: FontWeight.w700,
+                            color: widget.theme.text.withValues(alpha: 0.65),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD35400).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFD35400).withValues(alpha: 0.25)),
+                ),
+                child: Center(
                   child: Text(
-                    "Bangle: ${bangleInfo['name']} (${bangleInfo['inches']}) • ⌀ ${_bangleDiameterMm.toStringAsFixed(1)} mm",
+                    "Standard Indian Size: ${bangleInfo['name']} (${bangleInfo['inches']}) • ${bangleInfo['label']}",
                     style: widget.theme.fontMono(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
                       color: const Color(0xFFD35400),
                     ),
                   ),
-                ),
-              ),
-
-              // Bottom Live Circumference Metric
-              Positioned(
-                bottom: 10,
-                left: 12,
-                right: 12,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: widget.theme.bg.withValues(alpha: 0.92),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: widget.theme.border, width: 1.2),
-                      ),
-                      child: Text(
-                        "Inner Diameter: ${_bangleDiameterMm.toStringAsFixed(1)} mm  •  Circumference: ${innerCircumferenceCm.toStringAsFixed(2)} cm",
-                        style: widget.theme.fontMono(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: widget.theme.text,
-                        ),
-                      ),
-                    ),
-                  ],
                 ),
               ),
             ],
@@ -918,7 +1160,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
         const SizedBox(height: 12),
 
-        // 2. Adjust Bar (ONLY Minus Icon, Slider, Plus Icon - NO text or words)
+        // 3. Adjust Bar (ONLY Minus Icon, Slider, Plus Icon - NO text or words)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: widget.theme.doodleCard(borderWidth: 2.0),
@@ -991,7 +1233,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
         const SizedBox(height: 12),
 
-        // 3. Number Select Bar in cm (Direct typing & stepping, max 26.0 cm, millimeter precision)
+        // 4. Number Select Bar with mm & cm (Direct typing & stepping)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: widget.theme.doodleCard(
@@ -1000,29 +1242,104 @@ class _SizerScreenState extends State<SizerScreen> {
           ),
           child: Column(
             children: [
+              // Unit Toggle Row [ mm | cm ]
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    "Bangle Circumference",
+                    style: widget.theme.fontMono(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: widget.theme.textSecondary,
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: widget.theme.bg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: widget.theme.border, width: 1.2),
+                    ),
+                    padding: const EdgeInsets.all(2),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          onTap: () => _setBangleUnit(true),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: _bangleUnitIsMm ? const Color(0xFFD35400) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "mm",
+                              style: widget.theme.fontMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: _bangleUnitIsMm ? Colors.white : widget.theme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => _setBangleUnit(false),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: !_bangleUnitIsMm ? const Color(0xFFD35400) : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              "cm",
+                              style: widget.theme.fontMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: !_bangleUnitIsMm ? Colors.white : widget.theme.textSecondary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+
               Row(
                 children: [
                   BouncyTap(
                     onTap: () {
-                      final currentCm = (_bangleDiameterMm * math.pi) / 10.0;
-                      if (currentCm > 15.0) {
-                        final newCm = (currentCm - 0.1).clamp(15.0, 26.0);
-                        setState(() {
-                          _bangleDiameterMm = ((newCm * 10.0) / math.pi).clamp(50.0, 80.0);
-                          _updateKnuckleTextFromBangleDiameter();
-                        });
+                      if (_bangleUnitIsMm) {
+                        final currentMm = _bangleDiameterMm * math.pi;
+                        if (currentMm > 157.0) {
+                          final newMm = (currentMm - 2.0).clamp(157.0, 251.3);
+                          setState(() {
+                            _bangleDiameterMm = (newMm / math.pi).clamp(50.0, 80.0);
+                            _updateKnuckleTextFromBangleDiameter();
+                          });
+                        }
+                      } else {
+                        final currentCm = (_bangleDiameterMm * math.pi) / 10.0;
+                        if (currentCm > 15.7) {
+                          final newCm = (currentCm - 0.1).clamp(15.0, 26.0);
+                          setState(() {
+                            _bangleDiameterMm = ((newCm * 10.0) / math.pi).clamp(50.0, 80.0);
+                            _updateKnuckleTextFromBangleDiameter();
+                          });
+                        }
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
                         color: widget.theme.bg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: widget.theme.border, width: 1.5),
                       ),
                       child: Text(
-                        "-0.1",
-                        style: widget.theme.fontMono(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFFD35400)),
+                        _bangleUnitIsMm ? "-2 mm" : "-0.1 cm",
+                        style: widget.theme.fontMono(fontSize: 11.5, fontWeight: FontWeight.bold, color: const Color(0xFFD35400)),
                       ),
                     ),
                   ),
@@ -1030,7 +1347,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
                   Expanded(
                     child: Container(
-                      height: 42,
+                      height: 44,
                       decoration: BoxDecoration(
                         color: widget.theme.bg,
                         borderRadius: BorderRadius.circular(8),
@@ -1059,19 +1376,22 @@ class _SizerScreenState extends State<SizerScreen> {
                             ),
                           ),
                           Text(
-                            "cm",
+                            _bangleUnitIsMm ? "mm" : "cm",
                             style: widget.theme.fontMono(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: widget.theme.text.withValues(alpha: 0.7),
+                              color: widget.theme.text.withValues(alpha: 0.75),
                             ),
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            "(${_bangleDiameterMm.toStringAsFixed(1)} mm)",
+                            _bangleUnitIsMm
+                                ? "(${((_bangleDiameterMm * math.pi) / 10.0).toStringAsFixed(2)} cm)"
+                                : "(${(_bangleDiameterMm * math.pi).toStringAsFixed(1)} mm)",
                             style: widget.theme.fontMono(
                               fontSize: 11,
-                              color: widget.theme.text.withValues(alpha: 0.5),
+                              fontWeight: FontWeight.w600,
+                              color: widget.theme.text.withValues(alpha: 0.55),
                             ),
                           ),
                         ],
@@ -1082,25 +1402,36 @@ class _SizerScreenState extends State<SizerScreen> {
 
                   BouncyTap(
                     onTap: () {
-                      final currentCm = (_bangleDiameterMm * math.pi) / 10.0;
-                      if (currentCm < 26.0) {
-                        final newCm = (currentCm + 0.1).clamp(15.0, 26.0);
-                        setState(() {
-                          _bangleDiameterMm = ((newCm * 10.0) / math.pi).clamp(50.0, 80.0);
-                          _updateKnuckleTextFromBangleDiameter();
-                        });
+                      if (_bangleUnitIsMm) {
+                        final currentMm = _bangleDiameterMm * math.pi;
+                        if (currentMm < 251.3) {
+                          final newMm = (currentMm + 2.0).clamp(157.0, 251.3);
+                          setState(() {
+                            _bangleDiameterMm = (newMm / math.pi).clamp(50.0, 80.0);
+                            _updateKnuckleTextFromBangleDiameter();
+                          });
+                        }
+                      } else {
+                        final currentCm = (_bangleDiameterMm * math.pi) / 10.0;
+                        if (currentCm < 25.1) {
+                          final newCm = (currentCm + 0.1).clamp(15.0, 26.0);
+                          setState(() {
+                            _bangleDiameterMm = ((newCm * 10.0) / math.pi).clamp(50.0, 80.0);
+                            _updateKnuckleTextFromBangleDiameter();
+                          });
+                        }
                       }
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                       decoration: BoxDecoration(
                         color: widget.theme.bg,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: widget.theme.border, width: 1.5),
                       ),
                       child: Text(
-                        "+0.1",
-                        style: widget.theme.fontMono(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFFD35400)),
+                        _bangleUnitIsMm ? "+2 mm" : "+0.1 cm",
+                        style: widget.theme.fontMono(fontSize: 11.5, fontWeight: FontWeight.bold, color: const Color(0xFFD35400)),
                       ),
                     ),
                   ),
@@ -1109,7 +1440,7 @@ class _SizerScreenState extends State<SizerScreen> {
 
               const SizedBox(height: 10),
 
-              // Quick Standard Bangle Size Chips
+              // Quick Standard Bangle Size Chips (Showing both mm and cm numbers)
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 physics: const BouncingScrollPhysics(),
@@ -1126,6 +1457,7 @@ class _SizerScreenState extends State<SizerScreen> {
                   ].map((item) {
                     final mm = item['mm'] as double;
                     final isSelected = (_bangleDiameterMm - mm).abs() < 1.2;
+                    final mmStr = "${mm.toStringAsFixed(1)}mm";
                     return Padding(
                       padding: const EdgeInsets.only(right: 6),
                       child: BouncyTap(
@@ -1147,7 +1479,7 @@ class _SizerScreenState extends State<SizerScreen> {
                             ),
                           ),
                           child: Text(
-                            "${item['name']} (${item['cm']})",
+                            "${item['name']} • $mmStr (${item['cm']})",
                             style: widget.theme.fontMono(
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
