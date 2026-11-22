@@ -6,6 +6,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/weather_telemetry_service.dart';
+import '../services/pedometer_sensor_service.dart';
 import '../services/widget_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
@@ -71,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Timer? _clockTimer;
   DateTime _now = DateTime.now();
+  StreamSubscription<int>? _stepSub;
 
   void _cycleHeroPose() {
     final nextIdx = (_heroPose.index + 1) % ToolerCharacterPose.values.length;
@@ -93,6 +95,12 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     WeatherTelemetryService().init();
+    PedometerSensorService().initialize();
+    _stepSub = PedometerSensorService().stepStream.listen((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         setState(() {
@@ -164,6 +172,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _stepSub?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _scrollController.dispose();
@@ -1011,10 +1020,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 1. Live Real-Time Clock (Hour : Minute : Second AM/PM)
+                    // 1. Live Real-Time Clock with Animated Seconds
                     Row(
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
                           DateFormat('hh:mm').format(_now),
@@ -1025,27 +1033,71 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: theme.text,
                           ),
                         ),
-                        Text(
-                          ':${DateFormat('ss').format(_now)}',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            color: theme.primary,
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 2.5),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              AnimatedOpacity(
+                                duration: const Duration(milliseconds: 250),
+                                opacity: _now.second % 2 == 0 ? 1.0 : 0.4,
+                                child: Text(
+                                  ':',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: theme.primary,
+                                  ),
+                                ),
+                              ),
+                              ClipRect(
+                                child: AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 320),
+                                  transitionBuilder: (child, animation) {
+                                    return SlideTransition(
+                                      position: Tween<Offset>(
+                                        begin: const Offset(0.0, -0.45),
+                                        end: Offset.zero,
+                                      ).animate(CurvedAnimation(
+                                        parent: animation,
+                                        curve: Curves.easeOutBack,
+                                      )),
+                                      child: FadeTransition(
+                                        opacity: animation,
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    DateFormat('ss').format(_now),
+                                    key: ValueKey<int>(_now.second),
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: theme.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                          decoration: BoxDecoration(
-                            color: theme.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            DateFormat('a').format(_now),
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: theme.primary,
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4.5),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                            decoration: BoxDecoration(
+                              color: theme.primary.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(5),
+                            ),
+                            child: Text(
+                              DateFormat('a').format(_now),
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w800,
+                                color: theme.primary,
+                              ),
                             ),
                           ),
                         ),
@@ -1072,117 +1124,233 @@ class _HomeScreenState extends State<HomeScreen> {
                         final weather = WeatherTelemetryService().data;
                         final isRefreshing = WeatherTelemetryService().isFetching;
 
-                        return BouncyTap(
-                          onTap: () {
-                            SoundService().playTap();
-                            WeatherTelemetryService().fetchTelemetry();
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF1E1E22) : Colors.white.withValues(alpha: 0.85),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isDark ? const Color(0xFF333338) : theme.lavenderBubble,
-                                width: 0.9,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.03),
-                                  blurRadius: 4,
-                                  offset: const Offset(0, 1),
+                        return FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: BouncyTap(
+                            onTap: () {
+                              SoundService().playTap();
+                              WeatherTelemetryService().fetchTelemetry();
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1E1E22) : Colors.white.withValues(alpha: 0.85),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isDark ? const Color(0xFF333338) : theme.lavenderBubble,
+                                  width: 0.9,
                                 ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // Pulsing Weather Icon
-                                Icon(
-                                  WeatherTelemetryService().getWeatherIcon(weather.weatherCode, weather.isDay),
-                                  size: 14,
-                                  color: weather.isDay ? const Color(0xFFF59E0B) : theme.primary,
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '${weather.temperatureC.round()}°C',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w800,
-                                    color: theme.text,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '•',
-                                  style: TextStyle(fontSize: 10, color: theme.textSecondary),
-                                ),
-                                const SizedBox(width: 4),
-                                // Location City
-                                ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: 80),
-                                  child: Text(
-                                    weather.city,
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 10.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: theme.text,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                // Real-time AQI Badge
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                                  decoration: BoxDecoration(
-                                    color: weather.aqiColor.withValues(alpha: 0.14),
-                                    borderRadius: BorderRadius.circular(5),
-                                    border: Border.all(
-                                      color: weather.aqiColor.withValues(alpha: 0.4),
-                                      width: 0.7,
-                                    ),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Container(
-                                        width: 4.5,
-                                        height: 4.5,
-                                        decoration: BoxDecoration(
-                                          color: weather.aqiColor,
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 3.5),
-                                      Text(
-                                        'AQI ${weather.aqi}',
-                                        style: GoogleFonts.jetBrainsMono(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w800,
-                                          color: weather.aqiColor,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                if (isRefreshing) ...[
-                                  const SizedBox(width: 4),
-                                  SizedBox(
-                                    width: 8,
-                                    height: 8,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 1.2,
-                                      color: theme.primary,
-                                    ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.03),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 1),
                                   ),
                                 ],
-                              ],
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Pulsing Weather Icon
+                                  Icon(
+                                    WeatherTelemetryService().getWeatherIcon(weather.weatherCode, weather.isDay),
+                                    size: 14,
+                                    color: weather.isDay ? const Color(0xFFF59E0B) : theme.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${weather.temperatureC.round()}°C',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w800,
+                                      color: theme.text,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '•',
+                                    style: TextStyle(fontSize: 10, color: theme.textSecondary),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  // Location City
+                                  ConstrainedBox(
+                                    constraints: const BoxConstraints(maxWidth: 80),
+                                    child: Text(
+                                      weather.city,
+                                      style: GoogleFonts.plusJakartaSans(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: theme.text,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  // Real-time AQI Badge
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                    decoration: BoxDecoration(
+                                      color: weather.aqiColor.withValues(alpha: 0.14),
+                                      borderRadius: BorderRadius.circular(5),
+                                      border: Border.all(
+                                        color: weather.aqiColor.withValues(alpha: 0.4),
+                                        width: 0.7,
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          width: 4.5,
+                                          height: 4.5,
+                                          decoration: BoxDecoration(
+                                            color: weather.aqiColor,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 3.5),
+                                        Text(
+                                          'AQI ${weather.aqi}',
+                                          style: GoogleFonts.jetBrainsMono(
+                                            fontSize: 9.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: weather.aqiColor,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  if (isRefreshing) ...[
+                                    const SizedBox(width: 4),
+                                    SizedBox(
+                                      width: 8,
+                                      height: 8,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 1.2,
+                                        color: theme.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
                           ),
                         );
                       },
+                    ),
+                    const SizedBox(height: 5),
+
+                    // 4. Live Steps, Distance & Calories Pill Row (Synced with Real Pedometer Sensor)
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: BouncyTap(
+                        onTap: () {
+                          SoundService().playTap();
+                          final stepTool = _tools.firstWhere(
+                            (t) => t['id'] == 'steps',
+                            orElse: () => {},
+                          );
+                          if (stepTool.isNotEmpty) {
+                            _openTool(stepTool);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isDark ? const Color(0xFF1E1E22) : Colors.white.withValues(alpha: 0.85),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark ? const Color(0xFF333338) : theme.lavenderBubble,
+                              width: 0.9,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.03),
+                                blurRadius: 4,
+                                offset: const Offset(0, 1),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Steps Icon & Live Steps Count
+                              const Icon(
+                                Icons.directions_walk_rounded,
+                                size: 14,
+                                color: Color(0xFF10B981),
+                              ),
+                              const SizedBox(width: 3.5),
+                              Text(
+                                NumberFormat('#,###').format(PedometerSensorService().todaySteps),
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.text,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '•',
+                                style: TextStyle(fontSize: 10, color: theme.textSecondary),
+                              ),
+                              const SizedBox(width: 4),
+
+                              // Distance Icon & Real Distance in km
+                              const Icon(
+                                Icons.straighten_rounded,
+                                size: 12.5,
+                                color: Color(0xFF3B82F6),
+                              ),
+                              const SizedBox(width: 3),
+                              Text(
+                                '${PedometerSensorService().distanceKm.toStringAsFixed(1)}km',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.text,
+                                ),
+                              ),
+                              const SizedBox(width: 5),
+
+                              // Calories Pill Badge (Matching AQI Badge Aesthetic)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF97316).withValues(alpha: 0.14),
+                                  borderRadius: BorderRadius.circular(5),
+                                  border: Border.all(
+                                    color: const Color(0xFFF97316).withValues(alpha: 0.4),
+                                    width: 0.7,
+                                  ),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.local_fire_department_rounded,
+                                      size: 10,
+                                      color: Color(0xFFF97316),
+                                    ),
+                                    const SizedBox(width: 3),
+                                    Text(
+                                      '${PedometerSensorService().caloriesKcal} kcal',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 9.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: const Color(0xFFF97316),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -1191,8 +1359,8 @@ class _HomeScreenState extends State<HomeScreen> {
               // Interactive Themed Vector Character (Tap to Cycle Poses!)
               ToolerCharacter(
                 pose: _heroPose,
-                width: 125,
-                height: 100,
+                width: 140,
+                height: 115,
                 theme: theme,
                 animate: true,
                 onTap: _cycleHeroPose,
