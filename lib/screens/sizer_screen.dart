@@ -156,6 +156,17 @@ class _SizerScreenState extends State<SizerScreen> {
     return {'name': '3-0', 'inches': '3.00"', 'cm': '7.6 cm', 'label': '3X Large'};
   }
 
+  // Ruler Full Screen Transitions
+  void _enterFullScreenRuler() {
+    SoundService().playClick();
+    setState(() => _isFullScreenRuler = true);
+  }
+
+  void _exitFullScreenRuler() {
+    SoundService().playClick();
+    setState(() => _isFullScreenRuler = false);
+  }
+
   // Calibration Dialog
   void _showCalibrationDialog() {
     SoundService().playClick();
@@ -252,86 +263,98 @@ class _SizerScreenState extends State<SizerScreen> {
             painter: NotebookBackgroundPainter(mode: widget.theme.mode),
           ),
           SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Top Title & Screen Calibration Header
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            bottom: false,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top Title & Screen Calibration Header + Tab selection row
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        "Scale & Dimension Studio",
-                        style: widget.theme.fontDisplay(
-                          fontSize: 12.5,
-                          fontWeight: FontWeight.w800,
-                          color: widget.theme.textSecondary,
-                        ),
-                      ),
-                      BouncyTap(
-                        onTap: _showCalibrationDialog,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: widget.theme.cardBg,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: widget.theme.border, width: 1.2),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            "Scale & Dimension Studio",
+                            style: widget.theme.fontDisplay(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w800,
+                              color: widget.theme.textSecondary,
+                            ),
                           ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.tune_rounded, size: 13, color: widget.theme.primary),
-                              const SizedBox(width: 4),
-                              Text(
-                                "Screen Calibration",
-                                style: widget.theme.fontMono(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: widget.theme.primary,
-                                ),
+                          BouncyTap(
+                            onTap: _showCalibrationDialog,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: widget.theme.cardBg,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: widget.theme.border, width: 1.2),
                               ),
-                            ],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.tune_rounded, size: 13, color: widget.theme.primary),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    "Screen Calibration",
+                                    style: widget.theme.fontMono(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: widget.theme.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Tab selection row
+                      Row(
+                        children: [
+                          _buildTabBtn("Ring Sizer", SizerToolType.ring, Icons.adjust_rounded),
+                          const SizedBox(width: 6),
+                          _buildTabBtn("Bangle Sizer", SizerToolType.bangle, Icons.radio_button_unchecked_rounded),
+                          const SizedBox(width: 6),
+                          _buildTabBtn("Watch Strap", SizerToolType.strap, Icons.watch_rounded),
+                          const SizedBox(width: 6),
+                          _buildTabBtn("Ruler", SizerToolType.ruler, Icons.straighten_rounded),
+                        ],
                       ),
                     ],
                   ),
+                ),
 
-                  const SizedBox(height: 10),
+                const SizedBox(height: 12),
 
-                  // Tab selection row
-                  Row(
-                    children: [
-                      _buildTabBtn("Ring Sizer", SizerToolType.ring, Icons.adjust_rounded),
-                      const SizedBox(width: 6),
-                      _buildTabBtn("Bangle Sizer", SizerToolType.bangle, Icons.radio_button_unchecked_rounded),
-                      const SizedBox(width: 6),
-                      _buildTabBtn("Watch Strap", SizerToolType.strap, Icons.watch_rounded),
-                      const SizedBox(width: 6),
-                      _buildTabBtn("Ruler", SizerToolType.ruler, Icons.straighten_rounded),
-                    ],
-                  ),
-
-                  const SizedBox(height: 14),
-
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 260),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    child: KeyedSubtree(
-                      key: ValueKey<SizerToolType>(_activeType),
-                      child: _activeType == SizerToolType.ring
-                          ? _buildRingSizer()
-                          : _activeType == SizerToolType.bangle
-                              ? _buildBangleSizer()
-                              : _activeType == SizerToolType.strap
-                                  ? _buildWatchStrapSizer()
-                                  : _buildRulerSizer(),
-                    ),
-                  ),
-                ],
-              ),
+                // Active Tool Content (Ruler expands flush to bottom screen edge; others scroll)
+                Expanded(
+                  child: _activeType == SizerToolType.ruler
+                      ? _buildRulerSizer()
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16.0, 0, 16.0, 16.0),
+                          child: AnimatedSwitcher(
+                            duration: const Duration(milliseconds: 260),
+                            switchInCurve: Curves.easeOutCubic,
+                            switchOutCurve: Curves.easeInCubic,
+                            child: KeyedSubtree(
+                              key: ValueKey<SizerToolType>(_activeType),
+                              child: _activeType == SizerToolType.ring
+                                  ? _buildRingSizer()
+                                  : _activeType == SizerToolType.bangle
+                                      ? _buildBangleSizer()
+                                      : _buildWatchStrapSizer(),
+                            ),
+                          ),
+                        ),
+                ),
+              ],
             ),
           ),
         ],
@@ -1934,228 +1957,234 @@ class _SizerScreenState extends State<SizerScreen> {
   }
 
   // =========================================================================
-  // 4. RULER SIZER (Vertical Default View ~10 to 30 cm & Full Screen Mode)
+  // 4. RULER SIZER (Vertical Default View reaching bottom edge & Full Screen Hover trigger)
   // =========================================================================
   Widget _buildRulerSizer() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        // Top edge unit indicator & single full-screen action button
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: widget.theme.doodleCard(borderWidth: 2.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Left side unit indicator
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.arrow_left_rounded, color: Color(0xFF27AE60), size: 22),
-                  Text(
-                    "CM / MM (Metric)",
-                    style: widget.theme.fontDisplay(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF27AE60),
-                    ),
-                  ),
-                ],
-              ),
-              // Single full-screen button (No extra words or captions)
-              Material(
-                color: widget.theme.primary,
-                borderRadius: BorderRadius.circular(10),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  onTap: () {
-                    SoundService().playClick();
-                    setState(() => _isFullScreenRuler = true);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.all(8),
-                    child: const Icon(
-                      Icons.fullscreen_rounded,
-                      color: Colors.white,
-                      size: 26,
-                    ),
-                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final double rulerHeight = constraints.maxHeight;
+          final double totalCm = (rulerHeight / _pixelsPerMm) / 10.0;
+
+          return Container(
+            width: double.infinity,
+            height: rulerHeight,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF9F1DC),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border.all(color: widget.theme.border, width: 2.2),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.theme.border.withValues(alpha: 0.25),
+                  offset: const Offset(0, -2),
+                  blurRadius: 8,
                 ),
-              ),
-              // Right side unit indicator
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    "(Imperial) INCHES",
-                    style: widget.theme.fontDisplay(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF0984E3),
-                    ),
-                  ),
-                  const Icon(Icons.arrow_right_rounded, color: Color(0xFF0984E3), size: 22),
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        const SizedBox(height: 12),
-
-        // Default Vertical Physical Ruler (around 10 to 30 cm height based on phone/tab screen)
-        LayoutBuilder(
-          builder: (context, constraints) {
-            const double rulerHeight = 360.0; // ~20 cm physical height on phone screen
-            return Container(
-              height: rulerHeight,
-              decoration: widget.theme.doodleCard(
-                color: const Color(0xFFF9F1DC),
-                borderWidth: 2.2,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: CustomPaint(
-                  size: Size(constraints.maxWidth, rulerHeight),
-                  painter: _InfiniteTapeRulerPainter(
-                    pixelsPerMm: _pixelsPerMm,
-                    totalCm: (rulerHeight / _pixelsPerMm) / 10.0,
-                    pinnedPointsMm: _pinnedPointsMm,
-                    primaryColor: widget.theme.primary,
-                  ),
-                ),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
-  // =========================================================================
-  // 5. FULL SCREEN SCROLLABLE RULER (Smooth Scroll, Dual Edge, Vector Pins & Modal)
-  // =========================================================================
-  Widget _buildFullScreenRulerView() {
-    const double totalLengthCm = 500.0; // 500 cm = 5 Meters seamless tape without displayed limits
-    final double totalHeightPx = totalLengthCm * 10.0 * _pixelsPerMm;
-
-    return Scaffold(
-      backgroundColor: widget.theme.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Full Screen Top Header Bar: Back, Unit Indicators & Pin Point Button
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: widget.theme.cardBg,
-                border: Border(bottom: BorderSide(color: widget.theme.border, width: 2)),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  // Back button
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded, size: 24),
-                    onPressed: () {
-                      SoundService().playClick();
-                      setState(() => _isFullScreenRuler = false);
-                    },
-                  ),
-                  // Middle: Unit indicators showing Left vs Right
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        "◀ CM / MM",
-                        style: widget.theme.fontDisplay(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF27AE60),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Text(
-                        "INCHES ▶",
-                        style: widget.theme.fontDisplay(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: const Color(0xFF0984E3),
-                        ),
-                      ),
-                    ],
-                  ),
-                  // Pin points button with badge (opens bottom hover sheet)
-                  Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.push_pin_rounded, color: Color(0xFFE74C3C), size: 24),
-                        onPressed: () {
-                          SoundService().playClick();
-                          _showPinsBottomSheet();
-                        },
-                      ),
-                      if (_pinnedPointsMm.isNotEmpty)
-                        Positioned(
-                          right: 4,
-                          top: 4,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: const BoxDecoration(
-                              color: Color(0xFFE74C3C),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Text(
-                              '${_pinnedPointsMm.length}',
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 9,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
+              ],
             ),
-
-            // Smooth Scrollable Ruler Canvas
-            Expanded(
-              child: GestureDetector(
-                onTapUp: (details) {
-                  // User tapped on the ruler canvas: Pin this exact position!
-                  SoundService().playClick();
-                  final localY = details.localPosition.dy;
-                  final scrollY = _rulerScrollCtrl.hasClients ? _rulerScrollCtrl.offset : 0.0;
-                  final tappedMm = (scrollY + localY) / _pixelsPerMm;
-                  setState(() {
-                    _pinnedPointsMm.add(tappedMm);
-                  });
-                },
-                child: SingleChildScrollView(
-                  controller: _rulerScrollCtrl,
-                  physics: const BouncingScrollPhysics(),
-                  child: SizedBox(
-                    width: double.infinity,
-                    height: totalHeightPx,
+            child: Stack(
+              children: [
+                // Ruler Canvas that triggers full-screen on slight scroll / drag
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onVerticalDragUpdate: (details) {
+                      if (details.primaryDelta != null && details.primaryDelta!.abs() > 1.5) {
+                        _enterFullScreenRuler();
+                      }
+                    },
                     child: CustomPaint(
-                      size: Size(double.infinity, totalHeightPx),
+                      size: Size(constraints.maxWidth, rulerHeight),
                       painter: _InfiniteTapeRulerPainter(
                         pixelsPerMm: _pixelsPerMm,
-                        totalCm: totalLengthCm,
+                        totalCm: totalCm,
                         pinnedPointsMm: _pinnedPointsMm,
                         primaryColor: widget.theme.primary,
                       ),
                     ),
                   ),
                 ),
+
+                // Upper Middle Hover Full Screen Button (in place of back & pin)
+                Positioned(
+                  top: 14,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: BouncyTap(
+                      onTap: _enterFullScreenRuler,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2D3436).withValues(alpha: 0.90),
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.28),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.fullscreen_rounded, color: Colors.white, size: 20),
+                            SizedBox(width: 6),
+                            Text(
+                              "Full Screen",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  // =========================================================================
+  // 5. FULL SCREEN SCROLLABLE RULER (Edge-to-Edge, Hover Upper Middle Buttons)
+  // =========================================================================
+  Widget _buildFullScreenRulerView() {
+    const double totalLengthCm = 500.0; // 500 cm = 5 Meters seamless tape
+    final double totalHeightPx = totalLengthCm * 10.0 * _pixelsPerMm;
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF9F1DC),
+      body: Stack(
+        children: [
+          // 1. Edge-to-Edge Smooth Scrollable Ruler Canvas (from absolute top to bottom)
+          Positioned.fill(
+            child: GestureDetector(
+              onTapUp: (details) {
+                // User tapped on the ruler canvas: Pin this exact position!
+                SoundService().playClick();
+                final localY = details.localPosition.dy;
+                final scrollY = _rulerScrollCtrl.hasClients ? _rulerScrollCtrl.offset : 0.0;
+                final tappedMm = (scrollY + localY) / _pixelsPerMm;
+                setState(() {
+                  _pinnedPointsMm.add(tappedMm);
+                });
+              },
+              child: SingleChildScrollView(
+                controller: _rulerScrollCtrl,
+                physics: const BouncingScrollPhysics(),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: totalHeightPx,
+                  child: CustomPaint(
+                    size: Size(double.infinity, totalHeightPx),
+                    painter: _InfiniteTapeRulerPainter(
+                      pixelsPerMm: _pixelsPerMm,
+                      totalCm: totalLengthCm,
+                      pinnedPointsMm: _pinnedPointsMm,
+                      primaryColor: widget.theme.primary,
+                    ),
+                  ),
+                ),
               ),
             ),
-          ],
-        ),
+          ),
+
+          // 2. Upper Middle Hover Action Buttons (Back & Pin) - NO navigation bar!
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2D3436).withValues(alpha: 0.90),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 1.2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Back Hover Button (Restores normal screen size)
+                    BouncyTap(
+                      onTap: _exitFullScreenRuler,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.arrow_back_rounded, color: Colors.white, size: 18),
+                            SizedBox(width: 5),
+                            Text(
+                              "Back",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    // Pin Hover Button with count badge
+                    BouncyTap(
+                      onTap: () {
+                        SoundService().playClick();
+                        _showPinsBottomSheet();
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(18),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.push_pin_rounded, color: Color(0xFFFF7675), size: 17),
+                            const SizedBox(width: 5),
+                            Text(
+                              _pinnedPointsMm.isEmpty ? "Pin" : "Pin (${_pinnedPointsMm.length})",
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -2849,6 +2878,19 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
     final tp = TextPainter(textDirection: TextDirection.ltr);
 
     // 1. Draw Metric Scale on Left Edge (mm, cm, m)
+    // Top metric unit indicator
+    tp.text = const TextSpan(
+      text: '◀ CM / MM',
+      style: TextStyle(
+        color: Color(0xFF27AE60),
+        fontSize: 9.0,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    );
+    tp.layout();
+    tp.paint(canvas, const Offset(6, 6));
+
     for (int mm = 0; mm <= totalMm; mm++) {
       final double y = mm * pixelsPerMm;
       final bool isMeter = (mm % 1000 == 0 && mm > 0);
@@ -2859,7 +2901,7 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
         // Meter Milestone Line
         canvas.drawRect(Rect.fromLTWH(0, y - 2, w, 4), meterBannerPaint);
         tp.text = TextSpan(
-          text: '${mm ~/ 1000} METER',
+          text: '${mm ~/ 1000} METER (${mm ~/ 10} cm)',
           style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w900),
         );
         tp.layout();
@@ -2869,26 +2911,62 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
         );
         tp.paint(canvas, Offset(w * 0.5 - tp.width / 2, y - tp.height / 2));
       } else if (isCm) {
-        canvas.drawLine(Offset(0, y), Offset(40, y), cmTickPaint);
+        canvas.drawLine(Offset(0, y), Offset(38, y), cmTickPaint);
         final cmVal = mm ~/ 10;
         tp.text = TextSpan(
-          text: '$cmVal',
+          children: [
+            TextSpan(
+              text: '$cmVal',
+              style: TextStyle(
+                color: cmVal % 10 == 0 ? const Color(0xFFD63031) : const Color(0xFF2D3436),
+                fontSize: 11.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextSpan(
+              text: ' cm',
+              style: TextStyle(
+                color: cmVal % 10 == 0 ? const Color(0xFFD63031) : const Color(0xFF27AE60),
+                fontSize: 8.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        );
+        tp.layout();
+        tp.paint(canvas, Offset(42, y - tp.height / 2));
+      } else if (isHalf) {
+        canvas.drawLine(Offset(0, y), Offset(22, y), tickPaint);
+        // Subtle mm indicator on half-cm tick
+        tp.text = const TextSpan(
+          text: '5mm',
           style: TextStyle(
-            color: cmVal % 10 == 0 ? const Color(0xFFD63031) : const Color(0xFF2D3436),
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
+            color: Color(0xFF7F8C8D),
+            fontSize: 7.5,
+            fontWeight: FontWeight.w600,
           ),
         );
         tp.layout();
-        tp.paint(canvas, Offset(44, y - tp.height / 2));
-      } else if (isHalf) {
-        canvas.drawLine(Offset(0, y), Offset(22, y), tickPaint);
+        tp.paint(canvas, Offset(25, y - tp.height / 2));
       } else {
         canvas.drawLine(Offset(0, y), Offset(13, y), tickPaint);
       }
     }
 
     // 2. Draw Imperial Scale on Right Edge (Inches, 1/16, 1/8, 1/4, 1/2)
+    // Top imperial unit indicator
+    tp.text = const TextSpan(
+      text: 'INCHES ▶',
+      style: TextStyle(
+        color: Color(0xFF0984E3),
+        fontSize: 9.0,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 0.5,
+      ),
+    );
+    tp.layout();
+    tp.paint(canvas, Offset(w - 6 - tp.width, 6));
+
     final double totalInches = (totalMm / 25.4);
     final int totalSixteenths = (totalInches * 16).toInt();
 
@@ -2902,16 +2980,42 @@ class _InfiniteTapeRulerPainter extends CustomPainter {
       final bool isQuarter = (s % 4 == 0);
 
       if (isWhole) {
-        canvas.drawLine(Offset(w - 40, y), Offset(w, y), cmTickPaint);
+        canvas.drawLine(Offset(w - 38, y), Offset(w, y), cmTickPaint);
         final int wholeInch = s ~/ 16;
         tp.text = TextSpan(
-          text: '$wholeInch"',
-          style: const TextStyle(color: Color(0xFF0984E3), fontSize: 12, fontWeight: FontWeight.bold),
+          children: [
+            TextSpan(
+              text: '$wholeInch',
+              style: const TextStyle(
+                color: Color(0xFF0984E3),
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const TextSpan(
+              text: ' in',
+              style: TextStyle(
+                color: Color(0xFF0984E3),
+                fontSize: 8.5,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         );
         tp.layout();
-        tp.paint(canvas, Offset(w - 44 - tp.width, y - tp.height / 2));
+        tp.paint(canvas, Offset(w - 42 - tp.width, y - tp.height / 2));
       } else if (isHalf) {
-        canvas.drawLine(Offset(w - 26, y), Offset(w, y), tickPaint);
+        canvas.drawLine(Offset(w - 24, y), Offset(w, y), tickPaint);
+        tp.text = const TextSpan(
+          text: '½"',
+          style: TextStyle(
+            color: Color(0xFF74B9FF),
+            fontSize: 8.0,
+            fontWeight: FontWeight.w600,
+          ),
+        );
+        tp.layout();
+        tp.paint(canvas, Offset(w - 26 - tp.width, y - tp.height / 2));
       } else if (isQuarter) {
         canvas.drawLine(Offset(w - 18, y), Offset(w, y), tickPaint);
       } else {
