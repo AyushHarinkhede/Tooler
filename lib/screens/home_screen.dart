@@ -1231,7 +1231,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   const SizedBox(width: 4),
                                   // Location City
                                   ConstrainedBox(
-                                    constraints: const BoxConstraints(maxWidth: 80),
+                                    constraints: const BoxConstraints(maxWidth: 105),
                                     child: Text(
                                       weather.city,
                                       style: GoogleFonts.plusJakartaSans(

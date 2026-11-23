@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'notification_service.dart';
+import 'pedometer_sensor_service.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER REAL-TIME WEATHER, LOCATION, MOON PHASE & AQI TELEMETRY SERVICE
@@ -399,12 +401,28 @@ class WeatherTelemetryService extends ChangeNotifier {
   WeatherTelemetryService._internal();
 
   static const String _cacheKey = 'tooler_cached_weather_telemetry_v2';
+  static const String _manualLocationKey = 'tooler_weather_manual_location_v2';
 
   WeatherTelemetryData _data = WeatherTelemetryData.defaultData();
   WeatherTelemetryData get data => _data;
 
   bool _isFetching = false;
   bool get isFetching => _isFetching;
+
+  bool _isManualLocation = false;
+  bool get isManualLocation => _isManualLocation;
+
+  String? _manualCity;
+  String? get manualCity => _manualCity;
+
+  String? _manualCountry;
+  String? get manualCountry => _manualCountry;
+
+  double? _manualLat;
+  double? get manualLat => _manualLat;
+
+  double? _manualLon;
+  double? get manualLon => _manualLon;
 
   Timer? _syncTimer;
   bool _initialized = false;
@@ -429,6 +447,16 @@ class WeatherTelemetryService extends ChangeNotifier {
   Future<void> _loadFromCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final manualRaw = prefs.getString(_manualLocationKey);
+      if (manualRaw != null && manualRaw.isNotEmpty) {
+        final map = jsonDecode(manualRaw) as Map<String, dynamic>;
+        _isManualLocation = map['isManual'] as bool? ?? false;
+        _manualCity = map['city'] as String?;
+        _manualCountry = map['country'] as String?;
+        _manualLat = (map['lat'] as num?)?.toDouble();
+        _manualLon = (map['lon'] as num?)?.toDouble();
+      }
+
       final raw = prefs.getString(_cacheKey);
       if (raw != null && raw.isNotEmpty) {
         final Map<String, dynamic> map = jsonDecode(raw) as Map<String, dynamic>;
@@ -436,6 +464,84 @@ class WeatherTelemetryService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (_) {}
+  }
+
+  /// Sets a specific manual city/location and immediately refetches weather
+  Future<void> setManualLocation({
+    required String city,
+    required String country,
+    required double lat,
+    required double lon,
+  }) async {
+    _isManualLocation = true;
+    _manualCity = city;
+    _manualCountry = country;
+    _manualLat = lat;
+    _manualLon = lon;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _manualLocationKey,
+        jsonEncode({
+          'isManual': true,
+          'city': city,
+          'country': country,
+          'lat': lat,
+          'lon': lon,
+        }),
+      );
+    } catch (_) {}
+    await fetchTelemetry(force: true);
+  }
+
+  /// Clears manual city override and reverts to real hardware GPS detection
+  Future<void> useLiveGpsLocation() async {
+    _isManualLocation = false;
+    _manualCity = null;
+    _manualCountry = null;
+    _manualLat = null;
+    _manualLon = null;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_manualLocationKey);
+      // Auto-request location permission on Android if not yet granted
+      await PedometerSensorService().requestLocationPermission();
+    } catch (_) {}
+    await fetchTelemetry(force: true);
+  }
+
+  /// Searches worldwide cities, towns, and villages using Open-Meteo Geocoding
+  Future<List<Map<String, dynamic>>> searchCities(String query) async {
+    final q = query.trim();
+    if (q.length < 2) return [];
+    try {
+      final encoded = Uri.encodeComponent(q);
+      final url = 'https://geocoding-api.open-meteo.com/v1/search?name=$encoded&count=10&language=en&format=json';
+      final json = await _httpGetJson(url);
+      if (json != null && json.containsKey('results')) {
+        final results = json['results'] as List<dynamic>;
+        return results.map((item) {
+          final m = item as Map<String, dynamic>;
+          final name = m['name']?.toString() ?? '';
+          final admin1 = m['admin1']?.toString() ?? '';
+          final country = m['country']?.toString() ?? '';
+          final lat = (m['latitude'] as num?)?.toDouble() ?? 0.0;
+          final lon = (m['longitude'] as num?)?.toDouble() ?? 0.0;
+          final countryCode = m['country_code']?.toString() ?? '';
+          final display = admin1.isNotEmpty ? '$name, $admin1, $country' : '$name, $country';
+          return {
+            'name': name,
+            'admin1': admin1,
+            'country': country,
+            'countryCode': countryCode,
+            'latitude': lat,
+            'longitude': lon,
+            'displayName': display,
+          };
+        }).toList();
+      }
+    } catch (_) {}
+    return [];
   }
 
   Future<void> _saveToCache() async {
@@ -485,54 +591,112 @@ class WeatherTelemetryService extends ChangeNotifier {
     return math.max(aqiPm25, aqiPm10).clamp(0, 500);
   }
 
-  Future<void> fetchTelemetry({bool silent = false}) async {
-    if (_isFetching) return;
+  Future<void> fetchTelemetry({bool silent = false, bool force = false}) async {
+    if (_isFetching && !force) return;
     _isFetching = true;
     if (!silent) notifyListeners();
 
     try {
       // -----------------------------------------------------------------------
-      // Step 1: Multi-Source Geolocation Engine (Consensus & Failover)
+      // Step 1: Multi-Tier High-Precision Geolocation Engine
+      // Tier 1: User Pinned / Selected City
+      // Tier 2: Real Hardware GPS & Network Location (Fused LocationManager)
+      // Tier 3: Client Reverse-Geocoding (BigDataCloud + OpenStreetMap)
+      // Tier 4: Multi-Source IP Geolocation Consensus (ipwho.is + BigDataCloud)
       // -----------------------------------------------------------------------
       String city = _data.city;
       String country = _data.country;
       double lat = 21.146;
       double lon = 79.0983;
 
-      // Primary Geo Provider: FreeIPApi (HTTPS)
-      final geoRes1 = await _httpGetJson('https://freeipapi.com/api/json');
-      if (geoRes1 != null && geoRes1['cityName'] != null && geoRes1['cityName'].toString().isNotEmpty) {
-        city = geoRes1['cityName'].toString();
-        country = (geoRes1['countryCode'] as String?) ?? country;
-        final rawLat = (geoRes1['latitude'] as num?)?.toDouble();
-        final rawLon = (geoRes1['longitude'] as num?)?.toDouble();
-        if (rawLat != null && rawLon != null) {
-          lat = rawLat;
-          lon = rawLon;
-        }
+      if (_isManualLocation && _manualLat != null && _manualLon != null) {
+        lat = _manualLat!;
+        lon = _manualLon!;
+        city = _manualCity ?? city;
+        country = _manualCountry ?? country;
       } else {
-        // Fallback Geo Provider: IP-API
-        final geoRes2 = await _httpGetJson('http://ip-api.com/json/?fields=status,countryCode,city,lat,lon');
-        if (geoRes2 != null && geoRes2['status'] == 'success') {
-          city = (geoRes2['city'] as String?) ?? city;
-          country = (geoRes2['countryCode'] as String?) ?? country;
-          final rawLat = (geoRes2['lat'] as num?)?.toDouble();
-          final rawLon = (geoRes2['lon'] as num?)?.toDouble();
-          if (rawLat != null && rawLon != null) {
-            lat = rawLat;
-            lon = rawLon;
+        bool gotGpsFix = false;
+        if (!kIsWeb && Platform.isAndroid) {
+          try {
+            final gps = await PedometerSensorService().getCurrentLocation();
+            if (gps != null) {
+              final gLat = (gps['latitude'] as num?)?.toDouble() ?? 0.0;
+              final gLon = (gps['longitude'] as num?)?.toDouble() ?? 0.0;
+              if (gLat != 0.0 && gLon != 0.0) {
+                lat = gLat;
+                lon = gLon;
+                gotGpsFix = true;
+                final gCity = gps['city'] as String?;
+                final gCountry = gps['country'] as String?;
+                if (gCity != null && gCity.trim().isNotEmpty) {
+                  city = gCity.trim();
+                }
+                if (gCountry != null && gCountry.trim().isNotEmpty) {
+                  country = gCountry.trim();
+                }
+              }
+            }
+          } catch (_) {}
+        }
+
+        if (gotGpsFix) {
+          // If city was not resolved by native geocoder or is default, reverse geocode
+          if (city == 'Live Location' || city.isEmpty || city == 'Nagpur') {
+            try {
+              final revUrl =
+                  'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=$lat&longitude=$lon&localityLanguage=en';
+              final revJson = await _httpGetJson(revUrl);
+              if (revJson != null) {
+                final rCity = revJson['city']?.toString() ?? revJson['locality']?.toString();
+                final rCountry = revJson['countryCode']?.toString();
+                if (rCity != null && rCity.trim().isNotEmpty) {
+                  city = rCity.trim();
+                }
+                if (rCountry != null && rCountry.trim().isNotEmpty) {
+                  country = rCountry.trim();
+                }
+              }
+            } catch (_) {}
           }
         } else {
-          // Tertiary Fallback Geo Provider: IPApi.co
-          final geoRes3 = await _httpGetJson('https://ipapi.co/json/');
-          if (geoRes3 != null && geoRes3['city'] != null) {
-            city = (geoRes3['city'] as String?) ?? city;
-            country = (geoRes3['country_code'] as String?) ?? country;
-            final rawLat = (geoRes3['latitude'] as num?)?.toDouble();
-            final rawLon = (geoRes3['longitude'] as num?)?.toDouble();
+          // Fallback: Multi-Source IP Geolocation Consensus
+          final ipWho = await _httpGetJson('https://ipwho.is/');
+          if (ipWho != null && ipWho['success'] == true) {
+            final rawLat = (ipWho['latitude'] as num?)?.toDouble();
+            final rawLon = (ipWho['longitude'] as num?)?.toDouble();
+            final ipCity = ipWho['city']?.toString();
+            final ipCountry = ipWho['country_code']?.toString();
             if (rawLat != null && rawLon != null) {
               lat = rawLat;
               lon = rawLon;
+            }
+            if (ipCity != null && ipCity.isNotEmpty) city = ipCity;
+            if (ipCountry != null && ipCountry.isNotEmpty) country = ipCountry;
+          } else {
+            final bdc = await _httpGetJson('https://api.bigdatacloud.net/data/reverse-geocode-client');
+            if (bdc != null) {
+              final bCity = bdc['city']?.toString() ?? bdc['locality']?.toString();
+              final bCountry = bdc['countryCode']?.toString();
+              final rawLat = (bdc['latitude'] as num?)?.toDouble();
+              final rawLon = (bdc['longitude'] as num?)?.toDouble();
+              if (rawLat != null && rawLon != null) {
+                lat = rawLat;
+                lon = rawLon;
+              }
+              if (bCity != null && bCity.isNotEmpty) city = bCity;
+              if (bCountry != null && bCountry.isNotEmpty) country = bCountry;
+            } else {
+              final geoRes1 = await _httpGetJson('https://freeipapi.com/api/json');
+              if (geoRes1 != null && geoRes1['cityName'] != null && geoRes1['cityName'].toString().isNotEmpty) {
+                city = geoRes1['cityName'].toString();
+                country = (geoRes1['countryCode'] as String?) ?? country;
+                final rawLat = (geoRes1['latitude'] as num?)?.toDouble();
+                final rawLon = (geoRes1['longitude'] as num?)?.toDouble();
+                if (rawLat != null && rawLon != null) {
+                  lat = rawLat;
+                  lon = rawLon;
+                }
+              }
             }
           }
         }
@@ -542,8 +706,7 @@ class WeatherTelemetryService extends ChangeNotifier {
       // Step 2: Multi-Source Concurrent Meteorological & Atmospheric Query
       // 1. Open-Meteo High-Resolution Numerical Model (Current, 24h, Past 7d, Future 7d)
       // 2. Wttr.in Observed Local Meteorological & Aviation Station Feed (METAR)
-      // 3. Open-Meteo CAMS Global Air Quality API (US AQI, PM2.5, PM10, CO, NO2, O3)
-      // 4. WAQI World Air Quality Index Ground Sensor Station Feed
+      // 3. Open-Meteo CAMS Global Atmospheric Air Quality Model (PM2.5, PM10, US AQI, EAQI)
       // -----------------------------------------------------------------------
       final openMeteoWeatherUrl =
           'https://api.open-meteo.com/v1/forecast?latitude=$lat&longitude=$lon'
@@ -558,20 +721,15 @@ class WeatherTelemetryService extends ChangeNotifier {
           'https://air-quality-api.open-meteo.com/v1/air-quality?latitude=$lat&longitude=$lon'
           '&current=us_aqi,european_aqi,pm2_5,pm10,carbon_monoxide,nitrogen_dioxide,ozone';
 
-      final waqiUrl = 'https://api.waqi.info/feed/geo:$lat;$lon/?token=demo';
-
-      // Launch all 4 queries concurrently
       final apiResults = await Future.wait([
         _httpGetJson(openMeteoWeatherUrl),
         _httpGetJson(wttrUrl),
         _httpGetJson(openMeteoAqiUrl),
-        _httpGetJson(waqiUrl),
       ]);
 
       final openMeteoWeatherJson = apiResults[0];
       final wttrJson = apiResults[1];
       final openMeteoAqiJson = apiResults[2];
-      final waqiJson = apiResults[3];
 
       // -----------------------------------------------------------------------
       // Step 3: Meteorological Sensor Fusion & Organic Calculation Engine
@@ -755,13 +913,13 @@ class WeatherTelemetryService extends ChangeNotifier {
       }
 
       // -----------------------------------------------------------------------
-      // Step 6: Multi-Source Air Quality & EPA Consensus (CAMS + WAQI + EPA Formula)
+      // Step 6: Authentic Air Quality & EPA Consensus (CAMS + EPA Formula)
       // -----------------------------------------------------------------------
-      int aqi = _data.aqi;
+      int aqi = 50;
       double pm25 = _data.pm25;
       double pm10 = _data.pm10;
 
-      // A. Open-Meteo CAMS Atmospheric Model
+      // Authentic Open-Meteo CAMS Atmospheric Model (0.25° High-Resolution Global Model)
       int? omAqi;
       if (openMeteoAqiJson != null && openMeteoAqiJson.containsKey('current')) {
         final currentAqi = openMeteoAqiJson['current'] as Map<String, dynamic>;
@@ -772,39 +930,11 @@ class WeatherTelemetryService extends ChangeNotifier {
         if (rawPm10 != null) pm10 = rawPm10;
       }
 
-      // B. WAQI Real Ground Sensor Station Feed
-      int? waqiAqi;
-      if (waqiJson != null && waqiJson['status'] == 'ok' && waqiJson['data'] is Map<String, dynamic>) {
-        final wData = waqiJson['data'] as Map<String, dynamic>;
-        final rawAqi = wData['aqi'];
-        if (rawAqi is num) {
-          waqiAqi = rawAqi.toInt();
-        }
-        final iaqi = wData['iaqi'] as Map<String, dynamic>?;
-        if (iaqi != null) {
-          final pm25Node = iaqi['pm25'] as Map<String, dynamic>?;
-          if (pm25Node != null && pm25Node['v'] is num) {
-            final waqiPm25 = (pm25Node['v'] as num).toDouble();
-            pm25 = double.parse(((pm25 * 0.5) + (waqiPm25 * 0.5)).toStringAsFixed(1));
-          }
-          final pm10Node = iaqi['pm10'] as Map<String, dynamic>?;
-          if (pm10Node != null && pm10Node['v'] is num) {
-            final waqiPm10 = (pm10Node['v'] as num).toDouble();
-            pm10 = double.parse(((pm10 * 0.5) + (waqiPm10 * 0.5)).toStringAsFixed(1));
-          }
-        }
-      }
-
-      // C. Official EPA Standard Breakpoint Calculation directly from PM2.5 & PM10
+      // Official EPA Standard Breakpoint Calculation directly from PM2.5 & PM10
       final epaCalculatedAqi = calculateEpaAqiFromPm(pm25, pm10);
 
-      // Organic Multi-Source AQI Consensus
-      if (omAqi != null && waqiAqi != null) {
-        aqi = ((omAqi * 0.40) + (waqiAqi * 0.35) + (epaCalculatedAqi * 0.25)).round();
-      } else if (omAqi != null) {
-        aqi = ((omAqi * 0.65) + (epaCalculatedAqi * 0.35)).round();
-      } else if (waqiAqi != null) {
-        aqi = ((waqiAqi * 0.65) + (epaCalculatedAqi * 0.35)).round();
+      if (omAqi != null && omAqi > 0) {
+        aqi = ((omAqi * 0.60) + (epaCalculatedAqi * 0.40)).round();
       } else {
         aqi = epaCalculatedAqi;
       }

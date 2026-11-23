@@ -1122,16 +1122,43 @@ open class MainActivity : FlutterActivity() {
                                 }
                             } catch (_: Throwable) {}
 
+                            if (bestLoc == null && (ToolerStepService.lastLatitude != 0.0 || ToolerStepService.lastLongitude != 0.0)) {
+                                bestLoc = android.location.Location("step_service").apply {
+                                    latitude = ToolerStepService.lastLatitude
+                                    longitude = ToolerStepService.lastLongitude
+                                    accuracy = 25f
+                                    time = System.currentTimeMillis()
+                                }
+                            }
+
                             if (bestLoc != null) {
                                 ToolerStepService.lastLatitude = bestLoc.latitude
                                 ToolerStepService.lastLongitude = bestLoc.longitude
+
+                                var resolvedCity = ""
+                                var resolvedCountry = ""
+                                try {
+                                    if (android.location.Geocoder.isPresent()) {
+                                        val geocoder = android.location.Geocoder(this@MainActivity, java.util.Locale.ENGLISH)
+                                        @Suppress("DEPRECATION")
+                                        val list = geocoder.getFromLocation(bestLoc.latitude, bestLoc.longitude, 1)
+                                        if (!list.isNullOrEmpty()) {
+                                            val a = list[0]
+                                            resolvedCity = a.locality ?: a.subAdminArea ?: a.subLocality ?: a.adminArea ?: ""
+                                            resolvedCountry = a.countryCode ?: ""
+                                        }
+                                    }
+                                } catch (_: Throwable) {}
+
                                 result.success(
                                     mapOf(
                                         "latitude" to bestLoc.latitude,
                                         "longitude" to bestLoc.longitude,
                                         "accuracy" to bestLoc.accuracy.toDouble(),
                                         "speed" to (bestLoc.speed * 3.6).toDouble(),
-                                        "time" to bestLoc.time
+                                        "time" to bestLoc.time,
+                                        "city" to resolvedCity,
+                                        "country" to resolvedCountry
                                     )
                                 )
                             } else {

@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
+import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/minimal_2d_illustrations.dart';
 import '../services/sound_service.dart';
 import '../services/weather_telemetry_service.dart';
@@ -458,14 +460,20 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
       ),
       elevation: 8,
       onSelected: (value) {
-        if (value == 'unit') {
+        if (value == 'location') {
+          SoundService().playTap();
+          _showLocationPickerSheet(theme, isDark);
+        } else if (value == 'gps') {
+          SoundService().playTap();
+          _telemetry.useLiveGpsLocation();
+        } else if (value == 'unit') {
           SoundService().playClick();
           HapticFeedback.selectionClick();
           setState(() => _useFahrenheit = !_useFahrenheit);
         } else if (value == 'refresh') {
           SoundService().playTap();
           HapticFeedback.lightImpact();
-          _telemetry.fetchTelemetry();
+          _telemetry.fetchTelemetry(force: true);
         } else if (value == 'simulator') {
           SoundService().playSpecialClick();
           _showSimulationSheet(theme, isDark);
@@ -478,6 +486,55 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
         }
       },
       itemBuilder: (context) => [
+        // 0. Location Selection
+        PopupMenuItem<String>(
+          value: 'location',
+          child: Row(
+            children: [
+              const Icon(
+                Icons.location_on_rounded,
+                size: 18,
+                color: Color(0xFF38BDF8),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Change City / Location',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: theme.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'gps',
+          child: Row(
+            children: [
+              Icon(
+                Icons.my_location_rounded,
+                size: 18,
+                color: theme.primary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Detect Live GPS Location',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: theme.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(height: 1),
+
         // 1. Temperature Unit Toggle (°C / °F)
         PopupMenuItem<String>(
           value: 'unit',
@@ -733,33 +790,50 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: (isDark ? const Color(0xFF1E1E22) : Colors.white).withValues(alpha: 0.88),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: theme.border.withValues(alpha: 0.6), width: 1),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.08),
-                              blurRadius: 4,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.location_on_rounded, size: 13, color: Color(0xFF38BDF8)),
-                            const SizedBox(width: 4),
-                            Text(
-                              '${weather.city}, ${weather.country}',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: theme.text,
+                      BouncyTap(
+                        onTap: () {
+                          SoundService().playTap();
+                          _showLocationPickerSheet(theme, isDark);
+                        },
+                        scaleFraction: 0.96,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: (isDark ? const Color(0xFF1E1E22) : Colors.white).withValues(alpha: 0.88),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: theme.border.withValues(alpha: 0.6), width: 1),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 4,
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                _telemetry.isManualLocation ? Icons.location_city_rounded : Icons.location_on_rounded,
+                                size: 13,
+                                color: const Color(0xFF38BDF8),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${weather.city}, ${weather.country}',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.text,
+                                ),
+                              ),
+                              const SizedBox(width: 3),
+                              Icon(
+                                Icons.edit_rounded,
+                                size: 10,
+                                color: theme.textSecondary.withValues(alpha: 0.6),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       const SizedBox(width: 6),
@@ -850,24 +924,40 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                       ),
                       const SizedBox(height: 6),
 
-                      // Live Location
-                      Row(
-                        children: [
-                          const Icon(Icons.near_me_rounded, size: 12, color: Color(0xFF38BDF8)),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              '${weather.city}, ${weather.country}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600,
-                                color: theme.textSecondary,
+                      // Live Location (Tap to change or use GPS)
+                      BouncyTap(
+                        onTap: () {
+                          SoundService().playTap();
+                          _showLocationPickerSheet(theme, isDark);
+                        },
+                        scaleFraction: 0.97,
+                        child: Row(
+                          children: [
+                            Icon(
+                              _telemetry.isManualLocation ? Icons.location_city_rounded : Icons.near_me_rounded,
+                              size: 12,
+                              color: const Color(0xFF38BDF8),
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                '${weather.city}, ${weather.country} • ${_telemetry.isManualLocation ? "Custom" : "Live GPS"}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.textSecondary,
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                            Icon(
+                              Icons.keyboard_arrow_right_rounded,
+                              size: 14,
+                              color: theme.textSecondary.withValues(alpha: 0.6),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -1531,6 +1621,365 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           ),
         ],
       ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5. LOCATION SEARCH & LIVE GPS PICKER SHEET
+  // ---------------------------------------------------------------------------
+  void _showLocationPickerSheet(StationeryTheme theme, bool isDark) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: isDark ? const Color(0xFF1E1E22) : Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        String searchQuery = '';
+        List<Map<String, dynamic>> searchResults = [];
+        bool isSearching = false;
+        Timer? debounce;
+
+        final popularCities = [
+          {'name': 'Balaghat', 'country': 'India', 'countryCode': 'IN', 'lat': 21.8156, 'lon': 80.1885, 'admin1': 'Madhya Pradesh'},
+          {'name': 'Bhopal', 'country': 'India', 'countryCode': 'IN', 'lat': 23.2599, 'lon': 77.4126, 'admin1': 'Madhya Pradesh'},
+          {'name': 'Indore', 'country': 'India', 'countryCode': 'IN', 'lat': 22.7196, 'lon': 75.8577, 'admin1': 'Madhya Pradesh'},
+          {'name': 'Nagpur', 'country': 'India', 'countryCode': 'IN', 'lat': 21.1458, 'lon': 79.0882, 'admin1': 'Maharashtra'},
+          {'name': 'Mumbai', 'country': 'India', 'countryCode': 'IN', 'lat': 19.0760, 'lon': 72.8777, 'admin1': 'Maharashtra'},
+          {'name': 'Pune', 'country': 'India', 'countryCode': 'IN', 'lat': 18.5204, 'lon': 73.8567, 'admin1': 'Maharashtra'},
+          {'name': 'New Delhi', 'country': 'India', 'countryCode': 'IN', 'lat': 28.6139, 'lon': 77.2090, 'admin1': 'Delhi'},
+          {'name': 'Bengaluru', 'country': 'India', 'countryCode': 'IN', 'lat': 12.9716, 'lon': 77.5946, 'admin1': 'Karnataka'},
+          {'name': 'Hyderabad', 'country': 'India', 'countryCode': 'IN', 'lat': 17.3850, 'lon': 78.4867, 'admin1': 'Telangana'},
+          {'name': 'Kolkata', 'country': 'India', 'countryCode': 'IN', 'lat': 22.5726, 'lon': 88.3639, 'admin1': 'West Bengal'},
+        ];
+
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            void performSearch(String val) {
+              debounce?.cancel();
+              if (val.trim().length < 2) {
+                setSheetState(() {
+                  searchQuery = val;
+                  searchResults = [];
+                  isSearching = false;
+                });
+                return;
+              }
+              setSheetState(() {
+                searchQuery = val;
+                isSearching = true;
+              });
+              debounce = Timer(const Duration(milliseconds: 320), () async {
+                final list = await _telemetry.searchCities(val);
+                setSheetState(() {
+                  searchResults = list;
+                  isSearching = false;
+                });
+              });
+            }
+
+            final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 18,
+                bottom: bottomInset + 18,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.border,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Weather Location',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: theme.text,
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close_rounded),
+                          onPressed: () {
+                            debounce?.cancel();
+                            Navigator.pop(ctx);
+                          },
+                        ),
+                      ],
+                    ),
+                    Text(
+                      'Detect your live GPS position or search any city or town worldwide.',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        color: theme.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Quick Action: Use Live GPS Location
+                    BouncyTap(
+                      onTap: () async {
+                        debounce?.cancel();
+                        SoundService().playTap();
+                        Navigator.pop(ctx);
+                        ScaffoldMessenger.of(this.context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Detecting live GPS location...',
+                              style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                            backgroundColor: theme.primary,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                        await _telemetry.useLiveGpsLocation();
+                      },
+                      scaleFraction: 0.98,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: !_telemetry.isManualLocation
+                              ? theme.primary.withValues(alpha: 0.12)
+                              : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F6)),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                            color: !_telemetry.isManualLocation ? theme.primary : theme.border,
+                            width: !_telemetry.isManualLocation ? 1.5 : 1.0,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: theme.primary.withValues(alpha: 0.18),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Icon(Icons.my_location_rounded, size: 18, color: theme.primary),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Use Live GPS Location',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: theme.text,
+                                    ),
+                                  ),
+                                  Text(
+                                    !_telemetry.isManualLocation
+                                        ? 'Currently active (${_telemetry.data.city})'
+                                        : 'Auto-detect exact live phone location',
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 11,
+                                      color: !_telemetry.isManualLocation ? theme.primary : theme.textSecondary,
+                                      fontWeight: !_telemetry.isManualLocation ? FontWeight.w600 : FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (!_telemetry.isManualLocation)
+                              Icon(Icons.check_circle_rounded, color: theme.primary, size: 20),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Search Input Box
+                    Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F6),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: theme.border, width: 1.1),
+                      ),
+                      child: TextField(
+                        onChanged: performSearch,
+                        style: GoogleFonts.plusJakartaSans(fontSize: 14, color: theme.text),
+                        decoration: InputDecoration(
+                          hintText: 'Search city (e.g. Balaghat, Indore, Pune)...',
+                          hintStyle: GoogleFonts.plusJakartaSans(fontSize: 13, color: theme.textSecondary),
+                          prefixIcon: Icon(Icons.search_rounded, color: theme.primary, size: 20),
+                          suffixIcon: isSearching
+                              ? const SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: Padding(
+                                    padding: EdgeInsets.all(12),
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                )
+                              : (searchQuery.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear_rounded, size: 18),
+                                      onPressed: () => performSearch(''),
+                                    )
+                                  : null),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 14),
+
+                    // Search Results List
+                    if (searchResults.isNotEmpty) ...[
+                      Text(
+                        'Search Results',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: searchResults.length,
+                          separatorBuilder: (_, __) => Divider(color: theme.border.withValues(alpha: 0.5), height: 1),
+                          itemBuilder: (context, idx) {
+                            final item = searchResults[idx];
+                            final name = item['name'] as String;
+                            final admin = item['admin1'] as String;
+                            final country = item['country'] as String;
+                            final cCode = item['countryCode'] as String;
+                            final lat = item['latitude'] as double;
+                            final lon = item['longitude'] as double;
+
+                            return ListTile(
+                              dense: true,
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+                              leading: const Icon(Icons.location_city_rounded, size: 18, color: Color(0xFF38BDF8)),
+                              title: Text(
+                                name,
+                                style: GoogleFonts.plusJakartaSans(fontSize: 13.5, fontWeight: FontWeight.w700, color: theme.text),
+                              ),
+                              subtitle: Text(
+                                admin.isNotEmpty ? '$admin, $country' : country,
+                                style: GoogleFonts.plusJakartaSans(fontSize: 11, color: theme.textSecondary),
+                              ),
+                              onTap: () async {
+                                debounce?.cancel();
+                                SoundService().playTap();
+                                Navigator.pop(ctx);
+                                ScaffoldMessenger.of(this.context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      'Weather updated to $name ($admin)',
+                                      style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
+                                    ),
+                                    backgroundColor: theme.primary,
+                                    duration: const Duration(seconds: 2),
+                                  ),
+                                );
+                                await _telemetry.setManualLocation(
+                                  city: name,
+                                  country: cCode.isNotEmpty ? cCode : 'IN',
+                                  lat: lat,
+                                  lon: lon,
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                    ] else if (searchQuery.isNotEmpty && !isSearching) ...[
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Text(
+                            'No matching cities found. Try another spelling.',
+                            style: GoogleFonts.plusJakartaSans(fontSize: 12, color: theme.textSecondary),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      // Popular Cities
+                      Text(
+                        'Popular Cities',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: popularCities.map((c) {
+                          final isSelected = _telemetry.isManualLocation && _telemetry.manualCity == c['name'];
+                          return InkWell(
+                            onTap: () async {
+                              debounce?.cancel();
+                              SoundService().playTap();
+                              Navigator.pop(ctx);
+                              await _telemetry.setManualLocation(
+                                city: c['name'] as String,
+                                country: c['countryCode'] as String,
+                                lat: c['lat'] as double,
+                                lon: c['lon'] as double,
+                              );
+                            },
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? theme.primary.withValues(alpha: 0.16)
+                                    : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F4F6)),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: isSelected ? theme.primary : theme.border,
+                                  width: isSelected ? 1.4 : 1.0,
+                                ),
+                              ),
+                              child: Text(
+                                c['name'] as String,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                                  color: isSelected ? theme.primary : theme.text,
+                                ),
+                              ),
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
