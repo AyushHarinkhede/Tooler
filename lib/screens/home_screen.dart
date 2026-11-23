@@ -697,7 +697,7 @@ class _HomeScreenState extends State<HomeScreen> {
       {
         'id': 'steps',
         'title': 'Step Counter',
-        'subtitle': 'Hardware-synced pedometer, distance, speed & GPS walk map',
+        'subtitle': 'Hardware-synced pedometer, distance, speed & walk trail',
         'category': 'Time & Tasks',
         'tag': 'Pedometer',
         'iconType': 'steps',
@@ -706,11 +706,11 @@ class _HomeScreenState extends State<HomeScreen> {
           {'name': 'Hardware Step Tracking', 'desc': 'Real-time step counter synced with device accelerometer & pedometer sensors'},
           {'name': 'Distance & Avg Speed', 'desc': 'Precision walking distance, active calories burned & average walking speed'},
           {'name': 'Historical Activity Graph', 'desc': 'Clean single-bar toggle for 7D, 1M, 3M, 6M & 1Y activity trends'},
-          {'name': 'Real Trajectory Route Map', 'desc': 'OpenStreetMap GPS trail line with speed-colored segments & waypoints'},
+          {'name': 'Walk Trail Map', 'desc': 'Precision GPS street trail with speed-colored segments & waypoints'},
         ],
         'keywords': [
           'step counter', 'steps', 'pedometer', 'walk', 'walking', 'distance', 'speed',
-          'calories', 'fitness', 'health', 'tracker', 'route map', 'trajectory', 'gps',
+          'calories', 'fitness', 'health', 'tracker', 'walk trail', 'route map', 'trajectory', 'gps',
           'kadam', 'chalna', 'speed meter',
         ],
         'builder': (context) => StepCounterScreen(theme: widget.theme),

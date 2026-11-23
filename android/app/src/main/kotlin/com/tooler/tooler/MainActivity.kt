@@ -100,6 +100,7 @@ open class MainActivity : FlutterActivity() {
     private var lastTrailRecordLat: Double = 0.0
     private var lastTrailRecordLon: Double = 0.0
     private var lastTrailRecordTime: Long = 0L
+    private var lastTrailRecordSteps: Int = -1
 
     private fun calculateTrailDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         if (lat1 == 0.0 || lon1 == 0.0) return 999.0
@@ -108,7 +109,7 @@ open class MainActivity : FlutterActivity() {
         return results[0].toDouble()
     }
 
-    private fun appendTrailWaypoint(lat: Double, lon: Double, speedKmh: Double, isVehicle: Boolean) {
+    private fun appendTrailWaypoint(lat: Double, lon: Double, speedKmh: Double, isVehicle: Boolean, activity: String = "") {
         try {
             val prefs = getSharedPreferences(ToolerStepService.PREFS_NAME, Context.MODE_PRIVATE)
             val isoTime = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", java.util.Locale.US).apply {
@@ -118,6 +119,8 @@ open class MainActivity : FlutterActivity() {
             val rawTrail = prefs.getString(ToolerStepService.KEY_TRAIL_POINTS, "[]") ?: "[]"
             val array = org.json.JSONArray(rawTrail)
 
+            val resolvedActivity = if (activity.isNotEmpty()) activity else (if (isVehicle) "Drive" else (if (speedKmh > 6.0) "Run" else "Walk"))
+
             val pt = org.json.JSONObject().apply {
                 put("lat", lat)
                 put("lon", lon)
@@ -125,7 +128,7 @@ open class MainActivity : FlutterActivity() {
                 put("distanceKm", ToolerStepService.liveDistanceKm)
                 put("steps", ToolerStepService.liveTodaySteps)
                 put("isVehicle", isVehicle)
-                put("activity", ToolerStepService.currentActivity)
+                put("activity", resolvedActivity)
                 put("timestamp", isoTime)
             }
             array.put(pt)
@@ -1203,7 +1206,7 @@ open class MainActivity : FlutterActivity() {
                                 liveTrailLocationListener = object : android.location.LocationListener {
                                     override fun onLocationChanged(loc: android.location.Location) {
                                         try {
-                                            if (loc.accuracy > 40.0f) return
+                                            if (loc.accuracy > 25.0f) return
                                             val lat = loc.latitude
                                             val lon = loc.longitude
                                             val now = System.currentTimeMillis()
@@ -1213,15 +1216,29 @@ open class MainActivity : FlutterActivity() {
                                             val speedKmh = if (loc.hasSpeed() && loc.speed >= 0f) (loc.speed * 3.6).toDouble() else 0.0
                                             val clampedSpeed = String.format(java.util.Locale.US, "%.1f", speedKmh.coerceIn(0.0, 150.0)).toDoubleOrNull() ?: 0.0
                                             ToolerStepService.liveSpeedKmh = clampedSpeed
-                                            ToolerStepService.isVehicleMode = clampedSpeed > 16.0
+                                            val isDrive = clampedSpeed > 18.0
+                                            ToolerStepService.isVehicleMode = isDrive
                                             ToolerStepService.pushLiveTelemetry(force = true)
 
                                             val distMeters = calculateTrailDistance(lastTrailRecordLat, lastTrailRecordLon, lat, lon)
-                                            if (lastTrailRecordTime == 0L || distMeters > 5.0 || (now - lastTrailRecordTime > 12000L)) {
+                                            val currentSteps = ToolerStepService.liveTodaySteps
+                                            val stepDelta = if (lastTrailRecordSteps >= 0) (currentSteps - lastTrailRecordSteps) else 0
+
+                                            // Anti-Jitter Movement Gate:
+                                            // 1. Initial fix
+                                            val isInitialFix = lastTrailRecordTime == 0L || lastTrailRecordLat == 0.0
+                                            // 2. Drive mode (> 18 km/h and > 30m distance)
+                                            val isDriveMove = isDrive && distMeters >= 30.0
+                                            // 3. Walk / Run: user must take steps and move beyond GPS noise threshold
+                                            val isWalkMove = !isDrive && (stepDelta >= 4 || ToolerStepService.isWalkingNow) && distMeters >= 12.0 && distMeters >= (loc.accuracy * 0.65f)
+
+                                            if (isInitialFix || isDriveMove || isWalkMove) {
                                                 lastTrailRecordLat = lat
                                                 lastTrailRecordLon = lon
                                                 lastTrailRecordTime = now
-                                                appendTrailWaypoint(lat, lon, clampedSpeed, ToolerStepService.isVehicleMode)
+                                                lastTrailRecordSteps = currentSteps
+                                                val activityStr = if (isDrive) "Drive" else (if (clampedSpeed > 6.0) "Run" else "Walk")
+                                                appendTrailWaypoint(lat, lon, clampedSpeed, isDrive, activityStr)
                                             }
                                         } catch (_: Throwable) {}
                                     }

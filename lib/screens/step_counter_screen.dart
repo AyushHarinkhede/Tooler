@@ -67,9 +67,9 @@ class _StepCounterScreenState extends State<StepCounterScreen>
     HapticFeedback.mediumImpact();
     ToolerHoverSheet.show(
       context: context,
-      title: "Today's Walk Trail",
-      subtitle: 'Real-time GPS trajectory & speed waypoints',
-      tag: 'Trail Map',
+      title: "Walk Trail",
+      subtitle: "",
+      tag: "Walk Trail",
       theme: widget.theme,
       child: StepRouteMapScreen(theme: widget.theme),
     );
@@ -376,7 +376,7 @@ class _StepCounterScreenState extends State<StepCounterScreen>
           BouncyTap(
             onTap: _openRouteMap,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: theme.cardBg,
                 borderRadius: BorderRadius.circular(16),
@@ -402,30 +402,17 @@ class _StepCounterScreenState extends State<StepCounterScreen>
                       borderRadius: BorderRadius.circular(11),
                     ),
                     child: Icon(Icons.map_rounded,
-                        color: theme.primary, size: 20),
+                        color: theme.primary, size: 21),
                   ),
-                  const SizedBox(width: 11),
+                  const SizedBox(width: 12),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "OPEN TODAY'S WALK MAP",
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11.5,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: 0.4,
-                            color: theme.text,
-                          ),
-                        ),
-                        Text(
-                          'View real street trajectory line & speed points',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10.5,
-                            color: theme.textSecondary,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      "Walk Trail",
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w800,
+                        color: theme.text,
+                      ),
                     ),
                   ),
                   Icon(Icons.arrow_forward_ios_rounded,

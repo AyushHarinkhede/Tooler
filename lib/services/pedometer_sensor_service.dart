@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -253,8 +254,56 @@ class PedometerSensorService {
     }
   }
 
-  /// Appends real verified waypoint to today's walk trail
+  static double _calculateDist(double lat1, double lon1, double lat2, double lon2) {
+    const r = 6371000.0;
+    final dLat = (lat2 - lat1) * math.pi / 180.0;
+    final dLon = (lon2 - lon1) * math.pi / 180.0;
+    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
+        math.cos(lat1 * math.pi / 180.0) *
+            math.cos(lat2 * math.pi / 180.0) *
+            math.sin(dLon / 2) *
+            math.sin(dLon / 2);
+    final c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+    return r * c;
+  }
+
+  /// Filters out stationary GPS jitter/noise (spider web pattern while sitting or resting)
+  static List<StepTrailPoint> cleanJitterPoints(List<StepTrailPoint> points) {
+    if (points.length <= 1) return points;
+    final List<StepTrailPoint> cleaned = [];
+    cleaned.add(points.first);
+    for (int i = 1; i < points.length; i++) {
+      final curr = points[i];
+      final prev = cleaned.last;
+      final distM = _calculateDist(prev.lat, prev.lon, curr.lat, curr.lon);
+      final stepDelta = (curr.steps - prev.steps).abs();
+      final isDrive = curr.isVehicle || curr.activity == 'Drive' || curr.speedKmh > 16.0;
+
+      // If user is not driving, took < 3 steps and distance is < 16m, it's stationary GPS noise!
+      if (!isDrive && stepDelta < 3 && distM < 16.0) {
+        continue;
+      }
+      cleaned.add(curr);
+    }
+    return cleaned;
+  }
+
+  /// Appends real verified waypoint to today's walk trail with anti-jitter precision gate
   void addTrailPoint(StepTrailPoint pt) {
+    if (_todayTrail.isNotEmpty) {
+      final last = _todayTrail.last;
+      final distM = _calculateDist(last.lat, last.lon, pt.lat, pt.lon);
+      final stepDelta = (pt.steps - last.steps).abs();
+      final isDrive = pt.isVehicle || pt.activity == 'Drive' || pt.speedKmh > 16.0;
+
+      // Stationary filter: Ignore if no steps taken and within GPS drift radius (< 16m)
+      if (!isDrive && stepDelta < 3 && distM < 16.0) {
+        return;
+      }
+      if (distM < 6.0) {
+        return;
+      }
+    }
     _todayTrail.add(pt);
     _lastLat = pt.lat;
     _lastLon = pt.lon;
@@ -474,14 +523,15 @@ class PedometerSensorService {
         await prefs.setString(_prefInstallTimeKey, _installDate!.toIso8601String());
       }
 
-      // Load Real Trail
+      // Load Real Trail (with stationary anti-jitter cleaning)
       final trailRaw = prefs.getString(_prefTrailKey);
       if (trailRaw != null && trailRaw.isNotEmpty) {
         final List decoded = jsonDecode(trailRaw);
-        _todayTrail = decoded
+        final rawList = decoded
             .map((e) =>
                 StepTrailPoint.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
+        _todayTrail = cleanJitterPoints(rawList);
         if (_todayTrail.isNotEmpty) {
           _lastLat = _todayTrail.last.lat;
           _lastLon = _todayTrail.last.lon;
