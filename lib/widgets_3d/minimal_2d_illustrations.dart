@@ -1245,57 +1245,56 @@ class _IllustrationPainter extends CustomPainter {
 
   void _drawWeather(Canvas canvas, double w, double h, Paint p, Paint fill) {
     // 1. Sun Peeking Behind Cloud in Upper Right (Matching Reference Image)
-    final sunCenter = Offset(w * 0.62, h * 0.32);
-    final rSun = w * 0.15;
+    final sunCenter = Offset(w * 0.63, h * 0.33);
+    final rSun = w * 0.16;
 
-    // Radiating Sun Rays in Tooler line-art stroke (p)
+    // Radiating Sun Rays in Tooler line-art stroke (p) - 5 crisp clean rays
     final rayAngles = [
-      155 * math.pi / 180, // Upper-left
-      120 * math.pi / 180, // Upper-left
-      85 * math.pi / 180,  // Straight up
+      150 * math.pi / 180, // Upper-left
+      118 * math.pi / 180, // Upper-left-up
+      84 * math.pi / 180,  // Straight up
       50 * math.pi / 180,  // Upper-right
-      18 * math.pi / 180,  // Right
+      16 * math.pi / 180,  // Right
     ];
 
     for (final angle in rayAngles) {
       final p1 = Offset(
-        sunCenter.dx + math.cos(angle) * (rSun + w * 0.04),
-        sunCenter.dy - math.sin(angle) * (rSun + w * 0.04),
+        sunCenter.dx + math.cos(angle) * (rSun + w * 0.05),
+        sunCenter.dy - math.sin(angle) * (rSun + w * 0.05),
       );
       final p2 = Offset(
-        sunCenter.dx + math.cos(angle) * (rSun + w * 0.11),
-        sunCenter.dy - math.sin(angle) * (rSun + w * 0.11),
+        sunCenter.dx + math.cos(angle) * (rSun + w * 0.125),
+        sunCenter.dy - math.sin(angle) * (rSun + w * 0.125),
       );
       canvas.drawLine(p1, p2, p);
     }
 
-    // Sun Disc Body (Accent Theme Color Fill + Tooler Line-Art Outline)
-    canvas.drawCircle(sunCenter, rSun, fill);
-    canvas.drawCircle(sunCenter, rSun, p);
+    // Sun Disc Arc Peeking Outside Cloud (Pure Line-Art Stroke, NO Bold Solid Fill!)
+    canvas.drawArc(
+      Rect.fromCircle(center: sunCenter, radius: rSun),
+      -15 * math.pi / 180,
+      -155 * math.pi / 180,
+      false,
+      p,
+    );
 
     // 2. Soft Puffy Cloud (Matching Reference Image in Tooler Line-Art Style)
     final cloud = Path();
-    cloud.moveTo(w * 0.22, h * 0.62);
+    cloud.moveTo(w * 0.20, h * 0.62);
     cloud.lineTo(w * 0.70, h * 0.62);
     // Right rounded bottom cap
     cloud.arcToPoint(Offset(w * 0.76, h * 0.54), radius: Radius.circular(w * 0.08));
     // Right puff dome
-    cloud.arcToPoint(Offset(w * 0.61, h * 0.40), radius: Radius.circular(w * 0.12));
+    cloud.arcToPoint(Offset(w * 0.64, h * 0.44), radius: Radius.circular(w * 0.12));
     // Center/highest main dome
-    cloud.arcToPoint(Offset(w * 0.35, h * 0.42), radius: Radius.circular(w * 0.16));
+    cloud.arcToPoint(Offset(w * 0.34, h * 0.40), radius: Radius.circular(w * 0.18));
     // Left puff dome
-    cloud.arcToPoint(Offset(w * 0.16, h * 0.54), radius: Radius.circular(w * 0.12));
+    cloud.arcToPoint(Offset(w * 0.14, h * 0.52), radius: Radius.circular(w * 0.12));
     // Left rounded bottom cap
-    cloud.arcToPoint(Offset(w * 0.22, h * 0.62), radius: Radius.circular(w * 0.08));
+    cloud.arcToPoint(Offset(w * 0.20, h * 0.62), radius: Radius.circular(w * 0.08));
     cloud.close();
 
-    // Card background fill (masks out the sun behind the cloud so they don't clash)
-    final bgFill = Paint()
-      ..color = isDark ? const Color(0xFF18181B) : Colors.white
-      ..style = PaintingStyle.fill;
-    canvas.drawPath(cloud, bgFill);
-
-    // Tooler Line-Art Stroke for the cloud
+    // Tooler Line-Art Stroke for the cloud (NO opaque background block covering bubble!)
     canvas.drawPath(cloud, p);
 
     // 3. Rain Droplets Below Cloud (Slanted, Delicate Theme Accents)
@@ -1307,7 +1306,7 @@ class _IllustrationPainter extends CustomPainter {
 
     final dx = -w * 0.035;
     final dy = h * 0.10;
-    final dropXs = [w * 0.30, w * 0.46, w * 0.62];
+    final dropXs = [w * 0.30, w * 0.45, w * 0.60];
     const dropY = 0.71;
 
     for (final x in dropXs) {

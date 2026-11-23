@@ -358,50 +358,41 @@ object ToolerWidgetRenderer {
             }
             "weather" -> {
                 // Minimal sun behind cloud with radiating rays, puffy cloud, and rain drops in Tooler line-art
-                val sunX = s * 0.62f
-                val sunY = s * 0.32f
-                val rSun = s * 0.15f
+                val sunX = s * 0.63f
+                val sunY = s * 0.33f
+                val rSun = s * 0.16f
 
-                // Radiating sun rays in line-art stroke
-                val anglesDeg = floatArrayOf(155f, 120f, 85f, 50f, 18f)
+                // Radiating sun rays in line-art stroke - 5 clean balanced rays
+                val anglesDeg = floatArrayOf(150f, 118f, 84f, 50f, 16f)
                 for (deg in anglesDeg) {
                     val rad = Math.toRadians(deg.toDouble())
-                    val x1 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.04f)
-                    val y1 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.04f)
-                    val x2 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.11f)
-                    val y2 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.11f)
+                    val x1 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.05f)
+                    val y1 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.05f)
+                    val x2 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.125f)
+                    val y2 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.125f)
                     canvas.drawLine(x1, y1, x2, y2, stroke)
                 }
 
-                // Sun disc (accent theme color fill + line-art outline)
-                canvas.drawCircle(sunX, sunY, rSun, accentFill)
-                canvas.drawCircle(sunX, sunY, rSun, stroke)
+                // Sun disc arc peeking outside cloud (Pure line-art stroke, NO bold solid fill!)
+                val sunOval = RectF(sunX - rSun, sunY - rSun, sunX + rSun, sunY + rSun)
+                canvas.drawArc(sunOval, -15f, -155f, false, stroke)
 
-                // Soft puffy cloud
+                // Soft puffy cloud in line-art stroke (NO opaque background block covering bubble!)
                 val cloud = Path().apply {
-                    moveTo(s * 0.22f, s * 0.62f)
+                    moveTo(s * 0.20f, s * 0.62f)
                     lineTo(s * 0.70f, s * 0.62f)
-                    arcTo(RectF(s * 0.62f, s * 0.46f, s * 0.78f, s * 0.62f), 90f, -90f, false)
-                    arcTo(RectF(s * 0.49f, s * 0.28f, s * 0.73f, s * 0.52f), 0f, -120f, false)
-                    arcTo(RectF(s * 0.19f, s * 0.26f, s * 0.51f, s * 0.58f), 0f, -140f, false)
-                    arcTo(RectF(s * 0.10f, s * 0.46f, s * 0.26f, s * 0.62f), -180f, -90f, false)
+                    arcTo(RectF(s * 0.64f, s * 0.48f, s * 0.76f, s * 0.62f), 90f, -90f, false)
+                    arcTo(RectF(s * 0.52f, s * 0.36f, s * 0.72f, s * 0.54f), 0f, -115f, false)
+                    arcTo(RectF(s * 0.24f, s * 0.24f, s * 0.58f, s * 0.52f), 0f, -145f, false)
+                    arcTo(RectF(s * 0.12f, s * 0.46f, s * 0.28f, s * 0.62f), -180f, -90f, false)
                     close()
                 }
-
-                // Mask background so cloud blocks sun cleanly
-                val cutoutPaint = android.graphics.Paint().apply {
-                    xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
-                    style = android.graphics.Paint.Style.FILL
-                }
-                canvas.drawPath(cloud, cutoutPaint)
-
-                // Cloud line-art stroke
                 canvas.drawPath(cloud, stroke)
 
-                // Rain droplets in accent color
+                // 3 Delicate rain drops below cloud in UI accent color
                 val dx = -s * 0.035f
                 val dy = s * 0.10f
-                val dropXs = floatArrayOf(s * 0.30f, s * 0.46f, s * 0.62f)
+                val dropXs = floatArrayOf(s * 0.30f, s * 0.45f, s * 0.60f)
                 val dropY = s * 0.71f
                 for (x in dropXs) {
                     canvas.drawLine(x, dropY, x + dx, dropY + dy, accentStroke)

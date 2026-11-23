@@ -2189,15 +2189,17 @@ class _CelestialSkySvgPainter extends CustomPainter {
     final cloudFill = Paint()
       ..color = isSecondary
           ? (isDark ? const Color(0xFF262630) : theme.lavenderBubble.withValues(alpha: 0.6))
-          : (isDark ? const Color(0xFF2C2D36) : theme.lavenderBubble.withValues(alpha: 0.95))
+          : (isDark ? const Color(0xFF24242A) : theme.lavenderBubble.withValues(alpha: 0.95))
       ..style = PaintingStyle.fill;
 
     final cloudStroke = Paint()
       ..color = isSecondary
           ? theme.border.withValues(alpha: 0.5)
-          : theme.border
+          : (isDark ? const Color(0xFFE4E4E7) : theme.text)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3;
+      ..strokeWidth = 1.6
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
 
     // Organic soft cloud path with smooth overlapping puffs
     final path = Path();
@@ -2224,14 +2226,6 @@ class _CelestialSkySvgPainter extends CustomPainter {
       radius: 15 * scale,
     ));
 
-    // Subtle drop shadow behind main cloud
-    if (!isSecondary) {
-      final shadowPaint = Paint()
-        ..color = Colors.black.withValues(alpha: isDark ? 0.35 : 0.08)
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8);
-      canvas.drawPath(path, shadowPaint);
-    }
-
     canvas.drawPath(path, cloudFill);
     canvas.drawPath(path, cloudStroke);
   }
@@ -2239,18 +2233,7 @@ class _CelestialSkySvgPainter extends CustomPainter {
   void _paintSvgSun(Canvas canvas, Offset center) {
     const r = 16.0;
 
-    // Corona glow in UI primary / golden amber
-    final corona = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          (isDark ? const Color(0xFFFBBF24) : accentColor).withValues(alpha: 0.6),
-          (isDark ? const Color(0xFFF59E0B) : accentColor).withValues(alpha: 0.15),
-          Colors.transparent,
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: r * 2.2));
-    canvas.drawCircle(center, r * 2.2, corona);
-
-    // Rotating solar rays
+    // Rotating solar rays in crisp stroke
     final rayPaint = Paint()
       ..color = isDark ? const Color(0xFFFEF08A) : accentColor
       ..strokeWidth = 1.8
@@ -2264,15 +2247,17 @@ class _CelestialSkySvgPainter extends CustomPainter {
       canvas.drawLine(p1, p2, rayPaint);
     }
 
-    // Golden core
-    final sunCore = Paint()
-      ..shader = RadialGradient(
-        colors: [
-          const Color(0xFFFFFBEB),
-          isDark ? const Color(0xFFF59E0B) : accentColor,
-        ],
-      ).createShader(Rect.fromCircle(center: center, radius: r));
-    canvas.drawCircle(center, r, sunCore);
+    // Clean sun disc with soft tint and crisp outline in theme color
+    final sunFill = Paint()
+      ..color = (isDark ? const Color(0xFFFBBF24) : accentColor).withValues(alpha: 0.22)
+      ..style = PaintingStyle.fill;
+    final sunStroke = Paint()
+      ..color = isDark ? const Color(0xFFFEF08A) : accentColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8;
+
+    canvas.drawCircle(center, r, sunFill);
+    canvas.drawCircle(center, r, sunStroke);
   }
 
   void _paintSvgMoon(Canvas canvas, Offset center) {
