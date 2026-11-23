@@ -1244,59 +1244,30 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawWeather(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // 1. Radiant Minimal Sun Peeking Behind Cloud (Upper Right)
-    final sunCenter = Offset(w * 0.64, h * 0.36);
-    final sunRadius = w * 0.15;
-
-    // Elegant minimal sunbeams
-    final rayPaint = Paint()
-      ..color = p.color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
-      ..strokeCap = StrokeCap.round;
-
-    for (int i = 0; i < 4; i++) {
-      final angle = -math.pi * 0.58 + (i * (math.pi * 0.52 / 3));
-      final p1 = Offset(
-        sunCenter.dx + math.cos(angle) * (sunRadius + w * 0.05),
-        sunCenter.dy + math.sin(angle) * (sunRadius + w * 0.05),
-      );
-      final p2 = Offset(
-        sunCenter.dx + math.cos(angle) * (sunRadius + w * 0.13),
-        sunCenter.dy + math.sin(angle) * (sunRadius + w * 0.13),
-      );
-      canvas.drawLine(p1, p2, rayPaint);
-    }
+    // 1. Pure Minimal Sun Peeking Behind Cloud (Upper Right)
+    final sunCenter = Offset(w * 0.63, h * 0.36);
+    final sunRadius = w * 0.16;
 
     // Sun Disc Body (Accent Fill + Line Outline)
     canvas.drawCircle(sunCenter, sunRadius, fill);
     canvas.drawCircle(sunCenter, sunRadius, p);
 
-    // 2. Modern Minimalist Vector Cloud (Foreground)
+    // 2. Minimalist Vector Cloud with Soft Flowing Curves (Foreground)
     final cloud = Path();
-    cloud.moveTo(w * 0.24, h * 0.68);
-    cloud.lineTo(w * 0.74, h * 0.68);
-    cloud.arcToPoint(Offset(w * 0.82, h * 0.56), radius: Radius.circular(w * 0.12));
+    cloud.moveTo(w * 0.25, h * 0.68);
+    cloud.lineTo(w * 0.73, h * 0.68);
+    cloud.arcToPoint(Offset(w * 0.81, h * 0.56), radius: Radius.circular(w * 0.12));
     cloud.arcToPoint(Offset(w * 0.64, h * 0.44), radius: Radius.circular(w * 0.14));
     cloud.arcToPoint(Offset(w * 0.38, h * 0.46), radius: Radius.circular(w * 0.17));
-    cloud.arcToPoint(Offset(w * 0.18, h * 0.58), radius: Radius.circular(w * 0.13));
-    cloud.arcToPoint(Offset(w * 0.24, h * 0.68), radius: Radius.circular(w * 0.10));
+    cloud.arcToPoint(Offset(w * 0.19, h * 0.58), radius: Radius.circular(w * 0.13));
+    cloud.arcToPoint(Offset(w * 0.25, h * 0.68), radius: Radius.circular(w * 0.10));
     cloud.close();
 
     final bgFill = Paint()
-      ..color = isDark ? const Color(0xFF27272A) : Colors.white
+      ..color = isDark ? const Color(0xFF18181B) : Colors.white
       ..style = PaintingStyle.fill;
     canvas.drawPath(cloud, bgFill);
     canvas.drawPath(cloud, p);
-
-    // 3. Subtle Gentle Atmospheric Breeze Lines (Minimalist accents)
-    final breeze = Paint()
-      ..color = p.color.withValues(alpha: isDark ? 0.4 : 0.3)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3
-      ..strokeCap = StrokeCap.round;
-    canvas.drawLine(Offset(w * 0.32, h * 0.78), Offset(w * 0.54, h * 0.78), breeze);
-    canvas.drawLine(Offset(w * 0.42, h * 0.85), Offset(w * 0.62, h * 0.85), breeze);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {
