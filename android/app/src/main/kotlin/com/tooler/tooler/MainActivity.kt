@@ -102,6 +102,10 @@ open class MainActivity : FlutterActivity() {
     private var lastTrailRecordTime: Long = 0L
     private var lastTrailRecordSteps: Int = -1
 
+    // Session peak charging brick wattage tracker (survives CV/Float taper until unplugged)
+    private var sessionPeakBrickWatts: Int = 0
+    private var wasChargingSession: Boolean = false
+
     private fun calculateTrailDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
         if (lat1 == 0.0 || lon1 == 0.0) return 999.0
         val results = FloatArray(1)
@@ -2129,51 +2133,100 @@ open class MainActivity : FlutterActivity() {
         val deliveredWatts = voltageV * (currentMa / 1000.0)
         data["deliveredWatts"] = deliveredWatts
 
-        // 5. Charger Hardware & Fast Charging Technology Recognition
-        var maxChargingVoltageUv = -1
-        var maxChargingCurrentUa = -1
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            maxChargingVoltageUv = batteryStatus?.getIntExtra("max_charging_voltage", -1) ?: -1
-            maxChargingCurrentUa = batteryStatus?.getIntExtra("max_charging_current", -1) ?: -1
-        }
-        if (maxChargingVoltageUv <= 0) {
-            try {
-                val sysV = File("/sys/class/power_supply/usb/voltage_max").readText().trim().toIntOrNull()
-                if (sysV != null && sysV > 0) maxChargingVoltageUv = sysV
-            } catch (_: Exception) {}
-        }
-        if (maxChargingCurrentUa <= 0) {
-            try {
-                val sysI = File("/sys/class/power_supply/usb/current_max").readText().trim().toIntOrNull()
-                if (sysI != null && sysI > 0) maxChargingCurrentUa = sysI
-            } catch (_: Exception) {}
+        // 5. Charger Hardware & Fast Charging Technology Recognition (Hardware + Software)
+        fun readSysfsLong(path: String): Long? {
+            return try {
+                val f = File(path)
+                if (f.exists()) f.readText().trim().toLongOrNull() else null
+            } catch (_: Exception) { null }
         }
 
-        var sysUsbType: String? = null
-        try {
-            val f = File("/sys/class/power_supply/usb/type")
-            if (f.exists()) sysUsbType = f.readText().trim()
-        } catch (_: Exception) {}
+        fun readSysfsStr(path: String): String? {
+            return try {
+                val f = File(path)
+                if (f.exists()) f.readText().trim() else null
+            } catch (_: Exception) { null }
+        }
+
+        fun snapBrickWattage(rawWatts: Double): Int {
+            val tiers = intArrayOf(5, 10, 15, 18, 20, 25, 27, 30, 33, 45, 65, 67, 68, 80, 90, 100, 120, 125, 150)
+            for (tier in tiers) {
+                val tol = if (tier <= 20) 1.4 else (tier * 0.06)
+                if (kotlin.math.abs(rawWatts - tier) <= tol) {
+                    return tier
+                }
+            }
+            return rawWatts.roundToInt().coerceAtLeast(1)
+        }
+
+        var maxChargingVoltageUv = -1L
+        var maxChargingCurrentUa = -1L
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            maxChargingVoltageUv = (batteryStatus?.getIntExtra("max_charging_voltage", -1) ?: -1).toLong()
+            maxChargingCurrentUa = (batteryStatus?.getIntExtra("max_charging_current", -1) ?: -1).toLong()
+        }
+
+        val usbVoltageMaxCandidates = listOfNotNull(
+            if (maxChargingVoltageUv > 0) maxChargingVoltageUv else null,
+            readSysfsLong("/sys/class/power_supply/usb/voltage_max"),
+            readSysfsLong("/sys/class/power_supply/charger/voltage_max"),
+            readSysfsLong("/sys/class/power_supply/ac/voltage_max")
+        ).filter { it > 0L }
+        val usbCurrentMaxCandidates = listOfNotNull(
+            if (maxChargingCurrentUa > 0) maxChargingCurrentUa else null,
+            readSysfsLong("/sys/class/power_supply/usb/current_max"),
+            readSysfsLong("/sys/class/power_supply/usb/input_current_limit"),
+            readSysfsLong("/sys/class/power_supply/charger/current_max"),
+            readSysfsLong("/sys/class/power_supply/battery/input_current_limit")
+        ).filter { it > 0L }
+
+        val resolvedMaxVoltageUv = usbVoltageMaxCandidates.maxOrNull() ?: -1L
+        val resolvedMaxCurrentUa = usbCurrentMaxCandidates.maxOrNull() ?: -1L
+
+        val usbPowerNowUw = readSysfsLong("/sys/class/power_supply/usb/power_now")
+            ?: readSysfsLong("/sys/class/power_supply/charger/power_now")
+        val usbVoltNowUv = readSysfsLong("/sys/class/power_supply/usb/voltage_now")
+            ?: readSysfsLong("/sys/class/power_supply/charger/voltage_now")
+        val usbCurrNowUa = readSysfsLong("/sys/class/power_supply/usb/current_now")
+            ?: readSysfsLong("/sys/class/power_supply/charger/current_now")
+
+        val sysUsbTypeParts = listOfNotNull(
+            readSysfsStr("/sys/class/power_supply/usb/type"),
+            readSysfsStr("/sys/class/power_supply/usb/real_type"),
+            readSysfsStr("/sys/class/power_supply/usb/usb_type"),
+            readSysfsStr("/sys/class/power_supply/charger/type"),
+            readSysfsStr("/sys/class/power_supply/battery/charge_type")
+        )
+        val sysUsbType = sysUsbTypeParts.joinToString(" ").trim().ifEmpty { null }
 
         var sysPdActive = false
-        try {
-            val f = File("/sys/class/power_supply/usb/pd_active")
-            if (f.exists()) sysPdActive = (f.readText().trim() == "1")
-        } catch (_: Exception) {}
+        val pdVal = readSysfsStr("/sys/class/power_supply/usb/pd_active")
+        if (pdVal == "1" || (sysUsbType?.contains("PD", ignoreCase = true) == true) ||
+            (sysUsbType?.contains("PPS", ignoreCase = true) == true)) {
+            sysPdActive = true
+        }
+
+        val usbFastDetected = (sysUsbType != null) && (
+            sysUsbType.contains("HVDCP", ignoreCase = true) ||
+                sysUsbType.contains("TURBO", ignoreCase = true) ||
+                sysUsbType.contains("VOOC", ignoreCase = true) ||
+                sysUsbType.contains("WARP", ignoreCase = true) ||
+                sysUsbType.contains("DART", ignoreCase = true) ||
+                sysUsbType.contains("FLASH", ignoreCase = true) ||
+                sysUsbType.contains("AFC", ignoreCase = true) ||
+                sysUsbType.contains("FAST", ignoreCase = true)
+            )
 
         // Check authentic OEM fast charge hardware signature
         var isOemChargerConfirmed = false
         var isMotoTurboOem = false
         if (brandName == "MOTOROLA") {
-            try {
-                val f1 = File("/sys/class/power_supply/usb/turbo_power")
-                if (f1.exists() && f1.readText().trim() == "1") isMotoTurboOem = true
-                val f2 = File("/sys/class/power_supply/battery/fastcharge_mode")
-                if (f2.exists() && (f2.readText().trim().toIntOrNull() ?: 0) > 0) isMotoTurboOem = true
-            } catch (_: Exception) {}
-            if (maxChargingVoltageUv in 10000000..12000000 && maxChargingCurrentUa >= 5000000) {
+            if (readSysfsStr("/sys/class/power_supply/usb/turbo_power") == "1") isMotoTurboOem = true
+            if ((readSysfsLong("/sys/class/power_supply/battery/fastcharge_mode") ?: 0L) > 0L) isMotoTurboOem = true
+            if (resolvedMaxVoltageUv in 9000000L..22000000L && resolvedMaxCurrentUa >= 3000000L) {
                 isMotoTurboOem = true
             }
+            if (usbFastDetected) isMotoTurboOem = true
             if (isMotoTurboOem) isOemChargerConfirmed = true
         } else if (brandName in listOf("ONEPLUS", "OPPO", "REALME")) {
             val isVooc = (sysUsbType?.contains("VOOC", ignoreCase = true) == true) ||
@@ -2183,29 +2236,92 @@ open class MainActivity : FlutterActivity() {
         } else if (brandName in listOf("VIVO", "IQOO")) {
             if (sysUsbType?.contains("FLASH", ignoreCase = true) == true) isOemChargerConfirmed = true
         } else if (brandName in listOf("XIAOMI", "REDMI", "POCO")) {
-            try {
-                val f = File("/sys/class/power_supply/battery/fastcharge_mode")
-                if (f.exists() && (f.readText().trim().toIntOrNull() ?: 0) > 0) isOemChargerConfirmed = true
-            } catch (_: Exception) {}
+            if ((readSysfsLong("/sys/class/power_supply/battery/fastcharge_mode") ?: 0L) > 0L) {
+                isOemChargerConfirmed = true
+            }
         } else if (brandName == "SAMSUNG") {
-            if (maxChargingVoltageUv in 9000000..11500000 && maxChargingCurrentUa >= 2500000) {
+            if (resolvedMaxVoltageUv in 9000000L..15000000L && resolvedMaxCurrentUa >= 2500000L) {
                 isOemChargerConfirmed = true
             }
         }
 
-        // Calculate negotiated electrical charger capacity (Watts)
-        var negotiatedChargerWatts = spec?.maxWatts ?: 68
-        if (maxChargingVoltageUv > 0 && maxChargingCurrentUa > 0) {
-            val negotiatedW = (maxChargingVoltageUv / 1000000.0) * (maxChargingCurrentUa / 1000000.0)
-            if (negotiatedW >= 15.0) {
-                negotiatedChargerWatts = Math.round(negotiatedW).toInt()
+        // Compute direct hardware adapter wattage from USB / Android BatteryManager signals
+        var hwNegotiatedWatts = 0.0
+        if (resolvedMaxVoltageUv > 0L && resolvedMaxCurrentUa > 0L) {
+            val w = (resolvedMaxVoltageUv / 1000000.0) * (resolvedMaxCurrentUa / 1000000.0)
+            if (w in 2.0..240.0) hwNegotiatedWatts = maxOf(hwNegotiatedWatts, w)
+        }
+        if (usbPowerNowUw != null && usbPowerNowUw > 0L) {
+            val w = usbPowerNowUw / 1000000.0
+            if (w in 2.0..240.0) hwNegotiatedWatts = maxOf(hwNegotiatedWatts, w)
+        }
+        if (usbVoltNowUv != null && usbVoltNowUv > 0L && usbCurrNowUa != null && usbCurrNowUa > 0L) {
+            val w = (usbVoltNowUv / 1000000.0) * (usbCurrNowUa / 1000000.0)
+            if (w in 2.0..240.0) hwNegotiatedWatts = maxOf(hwNegotiatedWatts, w)
+        }
+
+        // Calculate negotiated electrical charger brick capacity (Watts) using hardware + software curve
+        var negotiatedChargerWatts = 0
+        var brickSource = "Unplugged"
+
+        if (!isCharging) {
+            wasChargingSession = false
+            sessionPeakBrickWatts = 0
+            negotiatedChargerWatts = 0
+            brickSource = "Unplugged"
+        } else {
+            if (!wasChargingSession) {
+                wasChargingSession = true
+                sessionPeakBrickWatts = 0
+            }
+
+            if (plugType == "WIRELESS") {
+                negotiatedChargerWatts = if (hwNegotiatedWatts >= 5.0) snapBrickWattage(hwNegotiatedWatts) else 15
+                brickSource = if (hwNegotiatedWatts >= 5.0) "Hardware Wireless" else "Qi Wireless 15W"
+            } else if (plugType == "USB") {
+                negotiatedChargerWatts = if (hwNegotiatedWatts >= 7.0) snapBrickWattage(hwNegotiatedWatts) else 5
+                brickSource = "USB Host Port"
+            } else {
+                // AC Wall Brick: combine Hardware V*I, conversion-compensated delivery, and session peak
+                val batteryCompensatedW = if (!isFull && percentage < 85 && deliveredWatts > 6.0) {
+                    deliveredWatts / 0.86 // ~14% PMIC / charge-pump / cable conversion overhead
+                } else {
+                    0.0
+                }
+                val combinedWatts = maxOf(hwNegotiatedWatts, batteryCompensatedW)
+
+                if (combinedWatts >= 12.0) {
+                    negotiatedChargerWatts = snapBrickWattage(combinedWatts)
+                    brickSource = if (hwNegotiatedWatts >= batteryCompensatedW) {
+                        "Hardware V×I Negotiation"
+                    } else {
+                        "Software Efficiency Curve"
+                    }
+                } else if (isOemChargerConfirmed || sysPdActive || usbFastDetected) {
+                    negotiatedChargerWatts = spec?.maxWatts ?: 33
+                    brickSource = "Hardware Protocol Profile"
+                } else if (hwNegotiatedWatts >= 4.0) {
+                    negotiatedChargerWatts = snapBrickWattage(hwNegotiatedWatts)
+                    brickSource = "Hardware USB Negotiation"
+                } else {
+                    negotiatedChargerWatts = 10
+                    brickSource = "Standard 5V/2A DCP"
+                }
+
+                // Preserve peak brick rating across CV / Float trickle taper in the same charge session
+                if (negotiatedChargerWatts > sessionPeakBrickWatts) {
+                    sessionPeakBrickWatts = negotiatedChargerWatts
+                } else if (sessionPeakBrickWatts > negotiatedChargerWatts) {
+                    negotiatedChargerWatts = sessionPeakBrickWatts
+                    brickSource = "Session Peak Brick Hold"
+                }
             }
         }
 
         // Resolve Charger Brand Name & Actual Charging Technology Protocol
-        var chargerBrandName = "Unknown"
-        var chargerProtocolName = "Standard Charging"
-        var chargerTechnology = "Standard 5V/2A (10W)"
+        var chargerBrandName = "None"
+        var chargerProtocolName = "Discharging"
+        var chargerTechnology = "Battery Discharge"
 
         if (!isCharging) {
             chargerBrandName = "None"
@@ -2214,33 +2330,29 @@ open class MainActivity : FlutterActivity() {
         } else if (plugType == "WIRELESS") {
             chargerBrandName = "Qi Wireless"
             chargerProtocolName = "Qi Wireless Induction"
-            chargerTechnology = "Wireless Qi (15W Max)"
-            negotiatedChargerWatts = 15
+            chargerTechnology = "Wireless Qi (${negotiatedChargerWatts}W)"
         } else if (plugType == "USB") {
             chargerBrandName = "PC USB Host"
             chargerProtocolName = "USB 2.0 / 3.0"
             chargerTechnology = "Standard USB Host (5V 0.5A - 0.9A)"
-            negotiatedChargerWatts = 5
         } else {
             // Plugged into AC Wall Adapter
-            if (isOemChargerConfirmed) {
+            if (isOemChargerConfirmed || (negotiatedChargerWatts >= (spec?.maxWatts ?: 999) && (spec?.maxWatts ?: 0) >= 25)) {
                 chargerBrandName = brandName
                 chargerProtocolName = spec?.fastChargeName ?: "Fast Charging ${negotiatedChargerWatts}W"
                 chargerTechnology = "${spec?.fastChargeName ?: "Fast Charge"} (OEM Authentic)"
-            } else if (sysPdActive || sysUsbType?.contains("PD", ignoreCase = true) == true || deliveredWatts >= 18.0) {
+            } else if (sysPdActive || usbFastDetected || negotiatedChargerWatts >= 20) {
                 chargerBrandName = "Universal GaN / USB-PD"
                 chargerProtocolName = "USB-PD 3.0 PPS"
                 chargerTechnology = "USB-PD 3.0 PPS (${negotiatedChargerWatts}W Universal)"
-            } else if (deliveredWatts >= 12.0) {
+            } else if (negotiatedChargerWatts >= 15) {
                 chargerBrandName = "Qualcomm Quick Charge"
                 chargerProtocolName = "Quick Charge 3.0"
-                chargerTechnology = "Qualcomm Quick Charge 3.0 (18W)"
-                negotiatedChargerWatts = 18
+                chargerTechnology = "Qualcomm Quick Charge 3.0 (${negotiatedChargerWatts}W)"
             } else {
                 chargerBrandName = "Standard Adapter"
                 chargerProtocolName = "USB DCP (5V/2A)"
-                chargerTechnology = "Standard 5V/2A (10W USB)"
-                negotiatedChargerWatts = 10
+                chargerTechnology = "Standard 5V/2A (${negotiatedChargerWatts}W USB)"
             }
         }
 
@@ -2251,6 +2363,7 @@ open class MainActivity : FlutterActivity() {
         data["chargerTechnology"] = chargerTechnology
         data["isOemConfirmed"] = isOemChargerConfirmed
         data["negotiatedChargerWatts"] = negotiatedChargerWatts
+        data["brickSource"] = brickSource
         data["cableMaxWatts"] = cableMaxWatts
 
         // Fast Charging Protocol String

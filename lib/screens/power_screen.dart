@@ -8,6 +8,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/brand_svg_logos.dart';
+import '../widgets_3d/smooth_radial_gauge.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER HARDWARE POWER & CHARGING TELEMETRY SCREEN (V2 IMPROVED)
@@ -66,12 +67,13 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
   String _chargerTechnology = 'TurboPower 68W (OEM)';
   bool _isOemConfirmed = true;
   int _cableRatedWatts = 100;
+  String _brickSource = 'Unplugged';
 
   // Temperature unit preference (tap to toggle °C / °F)
   bool _isFahrenheit = false;
 
   // Configurable / Auto-detected Charger Rated Wattage
-  int _chargerRatedWatts = 68;
+  int _chargerRatedWatts = 0;
 
   bool _isLoading = true;
 
@@ -112,31 +114,37 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
         final chargerTech = res['chargerTechnology'] as String? ?? nativeFastCharge;
         final isOemConfirmed = res['isOemConfirmed'] as bool? ?? true;
         final cableWatts = (res['cableMaxWatts'] as num?)?.toInt() ?? (nativeMaxWatts >= 65 ? 100 : 60);
-        final negotiatedWatts = (res['negotiatedChargerWatts'] as num?)?.toInt() ?? nativeMaxWatts;
+        final negotiatedWatts = (res['negotiatedChargerWatts'] as num?)?.toInt() ?? 0;
+        final brickSource = res['brickSource'] as String? ?? (newIsCharging ? 'Hardware + Software' : 'Unplugged');
 
-        // Auto-negotiate rated charger capacity based on hardware max and delivered wattage
+        // Auto-negotiate rated charger brick capacity based on HW V*I + SW efficiency curve
         int detectedRated = _chargerRatedWatts;
-        if (!_userOverrodeChargerRating && negotiatedWatts > 0) {
-          detectedRated = negotiatedWatts;
-        } else if (!_userOverrodeChargerRating && nativeMaxWatts > 0) {
-          detectedRated = nativeMaxWatts;
-        } else if (newIsCharging) {
-          if (newWatts > 110) {
-            detectedRated = 120;
-          } else if (newWatts > 90) {
-            detectedRated = 100;
-          } else if (newWatts > 75) {
-            detectedRated = 80;
-          } else if (newWatts > 60) {
-            detectedRated = 68;
-          } else if (newWatts > 40) {
-            detectedRated = 45;
-          } else if (newWatts > 28) {
-            detectedRated = 33;
-          } else if (newWatts > 20) {
-            detectedRated = 25;
-          } else if (newWatts > 12) {
-            detectedRated = 18;
+        if (!_userOverrodeChargerRating) {
+          if (!newIsCharging) {
+            detectedRated = 0;
+          } else if (negotiatedWatts > 0) {
+            detectedRated = negotiatedWatts;
+          } else {
+            final est = newWatts / 0.86;
+            if (est > 110) {
+              detectedRated = 120;
+            } else if (est > 90) {
+              detectedRated = 100;
+            } else if (est > 75) {
+              detectedRated = 80;
+            } else if (est > 60) {
+              detectedRated = 68;
+            } else if (est > 40) {
+              detectedRated = 45;
+            } else if (est > 28) {
+              detectedRated = 33;
+            } else if (est > 20) {
+              detectedRated = 25;
+            } else if (est > 14) {
+              detectedRated = 18;
+            } else {
+              detectedRated = nativeMaxWatts > 0 ? nativeMaxWatts : 10;
+            }
           }
         }
 
@@ -167,6 +175,7 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
           _isDualCell = isDualCell;
           _cableRatedWatts = cableWatts;
           _isOemConfirmed = isOemConfirmed;
+          _brickSource = brickSource;
           if (!_userOverrodeChargerRating) {
             _chargerRatedWatts = detectedRated;
             _chargerBrand = chargerBrand;
@@ -288,12 +297,17 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 1. Direct Phone Brand Name & Model Header Badge (Tap for hardware specs)
+                    // 1. Independent Unboxed Half-Circle Voltage Gauge + Amperes/Watts & Brick Row
+                    _buildChargingTelemetryCard(theme),
+
+                    const SizedBox(height: 16),
+
+                    // 2. Direct Phone Brand Name & Model Header Badge (Tap for hardware specs)
                     _buildDeviceHeader(theme),
 
                     const SizedBox(height: 16),
 
-                    // 2. Dual Paired Cards: Battery Capacity (mAh) + Dynamic Filling Battery Level (%)
+                    // 3. Dual Paired Cards: Battery Capacity (mAh) + Dynamic Filling Battery Level (%)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -308,11 +322,6 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                         ),
                       ],
                     ),
-
-                    const SizedBox(height: 16),
-
-                    // 3. Charging Telemetry (Real-time Watts, Amperes, Rated vs Delivered Charger Wattage)
-                    _buildChargingTelemetryCard(theme),
 
                     const SizedBox(height: 16),
 
@@ -603,293 +612,293 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
     );
   }
 
-  /// 4. Real-time Charging Telemetry (Watts, Amps, Rated Capacity Output)
+  /// 1. Unboxed Independent Half-Circle Voltage Gauge + Amperes/Watts & Charging Brick Row
   Widget _buildChargingTelemetryCard(StationeryTheme theme) {
-    final wattsDelivered = _isCharging ? _deliveredWatts : (_voltageV * (_currentMa / 1000.0));
     final ampsDelivered = _currentMa / 1000.0;
-    final percentOfRated = _chargerRatedWatts > 0
-        ? ((wattsDelivered / _chargerRatedWatts) * 100).clamp(0.0, 100.0)
-        : 0.0;
+    final wattsDelivered =
+        _isCharging ? _deliveredWatts : (_voltageV * ampsDelivered);
+    final Color gaugeColor =
+        _isCharging ? const Color(0xFF10B981) : theme.primary;
+    final double voltageProgress = (_voltageV <= 5.5
+            ? (_voltageV / 5.0)
+            : (_voltageV / 20.0))
+        .clamp(0.04, 1.0);
+    final bool hasBrickData = _isCharging || _userOverrodeChargerRating;
 
-    // Charging Phase Determination
-    String phaseLabel;
-    if (!_isCharging) {
-      phaseLabel = 'DISCHARGING DRAIN';
-    } else if (_percentage >= 100 || _isFull) {
-      phaseLabel = 'FLOAT TRICKLE PROTECTION';
-    } else if (_percentage >= 80) {
-      phaseLabel = 'CV TAPER OPTIMIZATION';
-    } else {
-      phaseLabel = 'CC FAST CHARGE STAGE';
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: _isCharging ? theme.primary.withValues(alpha: 0.4) : theme.border,
-          width: 1.4,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Top Row: Section Tag & Charger Rating Selector
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    _isCharging ? Icons.bolt_rounded : Icons.power_settings_new_rounded,
-                    size: 20,
-                    color: _isCharging ? const Color(0xFF10B981) : theme.primary,
+    return Column(
+      children: [
+        // Completely Independent Unboxed Half-Circle Voltage Bar (Zero Container / Zero Border)
+        Center(
+          child: SmoothRadialGauge(
+            size: 264,
+            progress: voltageProgress,
+            gaugeColor: gaugeColor,
+            primaryColor: theme.primary,
+            trackColor: theme.border.withValues(
+              alpha: theme.isDark ? 0.45 : 0.65,
+            ),
+            endBenchmarkColor: const Color(0xFF10B981),
+            smoothDamping: true,
+            enableAutoPeakHold: true,
+            center: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _isCharging
+                      ? Icons.bolt_rounded
+                      : Icons.electric_bolt_rounded,
+                  size: 24,
+                  color: gaugeColor,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _voltageV.toStringAsFixed(2),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 44,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.5,
+                    color: theme.text,
                   ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isCharging ? 'CHARGING OUTPUT' : 'POWER OUTPUT',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                      color: theme.textSecondary,
+                ),
+                Text(
+                  'V',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.8,
+                    color: gaugeColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // Side-by-Side Row: Left = Amperes & Watts, Right = Small Charging Brick Container
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Left: Ampere & Watt Readout
+              Expanded(
+                flex: 11,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: theme.cardBg,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: _isCharging
+                          ? theme.primary.withValues(alpha: 0.35)
+                          : theme.border,
+                      width: 1.2,
                     ),
                   ),
-                ],
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    ampsDelivered.toStringAsFixed(2),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: theme.text,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'A',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: theme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Ampere',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: theme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        width: 1,
+                        height: 30,
+                        margin: const EdgeInsets.symmetric(horizontal: 10),
+                        color: theme.border,
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    wattsDelivered.toStringAsFixed(1),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: theme.text,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 3),
+                                Text(
+                                  'W',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w800,
+                                    color: gaugeColor,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Watt',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: theme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-              // Rated Charger Capacity Pill (Tap to calibrate/switch)
-              if (_isCharging)
-                BouncyTap(
+
+              const SizedBox(width: 10),
+
+              // Right: Small Charging Brick Container (Hardware + Software Calculated Brick Wattage)
+              Expanded(
+                flex: 9,
+                child: BouncyTap(
                   onTap: _showChargerRatingPicker,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
                     decoration: BoxDecoration(
-                      color: theme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: theme.primary.withValues(alpha: 0.3)),
+                      color: theme.cardBg,
+                      borderRadius: BorderRadius.circular(18),
+                      border: Border.all(
+                        color: hasBrickData
+                            ? gaugeColor.withValues(alpha: 0.4)
+                            : theme.border,
+                        width: 1.2,
+                      ),
                     ),
                     child: Row(
                       children: [
-                        Text(
-                          '${_chargerRatedWatts}W Rated',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w800,
-                            color: theme.primary,
+                        SizedBox(
+                          width: 34,
+                          height: 34,
+                          child: CustomPaint(
+                            painter: _ChargingBrickSvgPainter(
+                              strokeColor: theme.text,
+                              accentColor: gaugeColor,
+                              fillColor: gaugeColor.withValues(alpha: 0.14),
+                              isCharging: _isCharging,
+                            ),
                           ),
                         ),
-                        const SizedBox(width: 4),
-                        Icon(
-                          Icons.arrow_drop_down_rounded,
-                          size: 16,
-                          color: theme.primary,
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                hasBrickData && _chargerRatedWatts > 0
+                                    ? '${_chargerRatedWatts}W'
+                                    : '-- W',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w900,
+                                  color: hasBrickData && _chargerRatedWatts > 0
+                                      ? theme.text
+                                      : theme.textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 1),
+                              Text(
+                                hasBrickData && _chargerRatedWatts > 0
+                                    ? 'Brick • $_chargerBrandLabel'
+                                    : 'No Brick',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.textSecondary,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ),
-            ],
-          ),
-
-          const SizedBox(height: 10),
-
-          // Charging Phase Sub-badge
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: (_isCharging ? const Color(0xFF10B981) : theme.primary).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              phaseLabel,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.8,
-                color: _isCharging ? const Color(0xFF10B981) : theme.primary,
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Main Hero Wattage Number
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                wattsDelivered.toStringAsFixed(1),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 44,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1.5,
-                  color: theme.text,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'W',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: _isCharging ? const Color(0xFF10B981) : theme.primary,
-                ),
-              ),
-              const Spacer(),
-              // Current & Voltage Micro Pill
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(
-                  color: theme.bg,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: theme.border),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '${ampsDelivered.toStringAsFixed(2)} A',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: theme.text,
-                      ),
-                    ),
-                    Text(
-                      '${_voltageV.toStringAsFixed(2)} V',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: theme.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
-
-          const SizedBox(height: 14),
-
-          // Charger Delivery vs Rated Capacity Comparison Bar
-          if (_isCharging) ...[
-            ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: SizedBox(
-                height: 8,
-                child: Stack(
-                  children: [
-                    Container(color: theme.border),
-                    FractionallySizedBox(
-                      widthFactor: (_percentage >= 100 || _isFull) ? 1.0 : (percentOfRated / 100.0),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: (_percentage >= 100 || _isFull)
-                                ? [const Color(0xFF10B981), const Color(0xFF059669)]
-                                : [theme.primary, const Color(0xFF10B981)],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    (_percentage >= 100 || _isFull)
-                        ? 'Delivering ${wattsDelivered.toStringAsFixed(1)}W (Float Trickle)'
-                        : 'Delivering ${wattsDelivered.toStringAsFixed(1)}W of ${_chargerRatedWatts}W',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: theme.textSecondary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    (_percentage >= 100 || _isFull)
-                        ? 'Protected 100%'
-                        : '${percentOfRated.round()}% Peak',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF10B981),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (_percentage >= 100 || _isFull) ...[
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF10B981).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.shield_outlined, size: 14, color: Color(0xFF10B981)),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        'Current safely throttled to 0.27A to protect battery longevity and prevent overcharge.',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: const Color(0xFF065F46),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ] else ...[
-            Text(
-              'Battery Discharging • System Drain ~${_currentMa.round()} mA',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: theme.textSecondary,
-              ),
-            ),
-          ],
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   String get _chargerBrandLabel {
-    if (!_isCharging) return 'None';
-    if (_isFull || _percentage >= 100) return 'Float BMS';
+    if (!_isCharging && !_userOverrodeChargerRating) return 'None';
     final b = _chargerBrand.toLowerCase();
     if (b.contains('moto')) return 'TurboPower';
     if (b.contains('sam')) return 'SFC';
-    if (b.contains('one') || b.contains('oppo') || b.contains('realme')) return 'SuperVOOC';
-    if (b.contains('xiao') || b.contains('redmi') || b.contains('poco')) return 'HyperCharge';
+    if (b.contains('one') || b.contains('oppo') || b.contains('realme')) {
+      return 'SuperVOOC';
+    }
+    if (b.contains('xiao') || b.contains('redmi') || b.contains('poco')) {
+      return 'HyperCharge';
+    }
     if (b.contains('vivo') || b.contains('iqoo')) return 'FlashCharge';
     if (b.contains('apple')) return 'Apple PD';
     if (b.contains('google')) return 'Pixel PPS';
-    if (b.contains('gan') || b.contains('pd')) return 'GaN PPS';
+    if (b.contains('gan') || b.contains('pd')) return 'USB-PD';
+    if (b.contains('qualcomm') || b.contains('qc')) return 'QC 3.0';
+    if (b.contains('pc')) return 'USB Host';
+    if (b.contains('standard')) return 'USB 5V';
+    if (b.contains('qi')) return 'Qi';
     return _chargerBrand.split(' ').first;
   }
 
@@ -1255,6 +1264,7 @@ class _PowerScreenState extends State<PowerScreen> with SingleTickerProviderStat
                   _buildSpecRow('Fast Charge Tech', _fastChargeProtocol),
                   _buildSpecRow('Max Hardware Input', '${_maxSupportedWatts}W Supported'),
                   _buildSpecRow('Connected Charger', _isCharging ? '$_chargerBrand • ${_chargerRatedWatts}W' : 'Unplugged'),
+                  _buildSpecRow('Brick Detection', _brickSource),
                   _buildSpecRow('Charger Protocol', _isCharging ? _chargerProtocol : 'Discharging'),
                   _buildSpecRow('OEM Authentication', _isOemConfirmed ? 'Verified Authentic OEM Link' : 'Standard USB-PD Link'),
                   _buildSpecRow('Cable Capability', '${_cableRatedWatts}W E-Marker Rating'),
@@ -1771,6 +1781,102 @@ class _ChargerPreset {
 // =============================================================================
 // VECTOR SVG PAINTERS
 // =============================================================================
+
+/// Minimal Vector SVG Charging Brick (Power Adapter) Icon
+class _ChargingBrickSvgPainter extends CustomPainter {
+  final Color strokeColor;
+  final Color accentColor;
+  final Color fillColor;
+  final bool isCharging;
+
+  _ChargingBrickSvgPainter({
+    required this.strokeColor,
+    required this.accentColor,
+    required this.fillColor,
+    required this.isCharging,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final strokePaint = Paint()
+      ..color = strokeColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.9
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final fillPaint = Paint()
+      ..color = fillColor
+      ..style = PaintingStyle.fill;
+
+    final accentStroke = Paint()
+      ..color = accentColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final accentFill = Paint()
+      ..color = accentColor
+      ..style = PaintingStyle.fill;
+
+    // Top AC prongs
+    canvas.drawLine(
+      Offset(w * 0.36, h * 0.12),
+      Offset(w * 0.36, h * 0.27),
+      strokePaint,
+    );
+    canvas.drawLine(
+      Offset(w * 0.64, h * 0.12),
+      Offset(w * 0.64, h * 0.27),
+      strokePaint,
+    );
+
+    // Brick body
+    final brickRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.20, h * 0.27, w * 0.60, h * 0.56),
+      Radius.circular(w * 0.14),
+    );
+    canvas.drawRRect(brickRect, fillPaint);
+    canvas.drawRRect(brickRect, strokePaint);
+
+    // Bottom USB-C cable strain collar
+    final collar = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.41, h * 0.83, w * 0.18, h * 0.08),
+      Radius.circular(w * 0.03),
+    );
+    canvas.drawRRect(collar, strokePaint);
+
+    if (isCharging) {
+      final bolt = Path()
+        ..moveTo(w * 0.53, h * 0.37)
+        ..lineTo(w * 0.41, h * 0.56)
+        ..lineTo(w * 0.50, h * 0.56)
+        ..lineTo(w * 0.47, h * 0.72)
+        ..lineTo(w * 0.59, h * 0.52)
+        ..lineTo(w * 0.50, h * 0.52)
+        ..close();
+      canvas.drawPath(bolt, accentFill);
+    } else {
+      // Subtle USB-C port line
+      canvas.drawLine(
+        Offset(w * 0.42, h * 0.55),
+        Offset(w * 0.58, h * 0.55),
+        accentStroke,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ChargingBrickSvgPainter old) =>
+      old.strokeColor != strokeColor ||
+      old.accentColor != accentColor ||
+      old.fillColor != fillColor ||
+      old.isCharging != isCharging;
+}
 
 /// Large Battery Capacity (mAh) Multi-Cell Vector SVG Icon
 class _CapacityCellSvgPainter extends CustomPainter {
