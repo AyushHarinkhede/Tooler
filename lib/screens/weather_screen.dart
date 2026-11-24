@@ -47,6 +47,7 @@ class WeatherScreen extends StatefulWidget {
 class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateMixin {
   final WeatherTelemetryService _telemetry = WeatherTelemetryService();
   bool _useFahrenheit = false;
+  bool _activitiesExpanded = true;
   int _forecastTab = 0; // 0: Hourly 24h, 1: 14 Days, 2: Past 7 Days, 3: Next 7 Days
   WeatherSimMode _simMode = WeatherSimMode.live;
   int? _simAqiOverride;
@@ -62,10 +63,10 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     super.initState();
     _telemetry.init();
 
-    // Main ambient landscape loop (slow line-by-line clouds, sun rotation, breeze, birds)
+    // Main ambient landscape loop (gentle line-by-line clouds, sun rotation, breeze, birds)
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 24000),
+      duration: const Duration(milliseconds: 32000),
     )..repeat();
 
     // Lightning flash burst controller
@@ -743,14 +744,16 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Top Weather Visual — positioned right beneath the hover title to eliminate top gap
+          // 1. Top Weather Visual — pushed up directly beneath the hover title to fill top gap
           SizedBox(
-            height: 112,
+            height: 106,
             width: double.infinity,
             child: AnimatedBuilder(
               animation: Listenable.merge([
                 _animController,
                 _lightningController,
+                _floodController,
+                _twisterController,
               ]),
               builder: (context, _) {
                 return CustomPaint(
@@ -759,8 +762,8 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                     moonPhase: raw.moonPhase,
                     animProgress: _animController.value,
                     lightningProgress: _lightningController.value,
-                    floodProgress: 0.0,
-                    twisterProgress: 0.0,
+                    floodProgress: _floodController.value,
+                    twisterProgress: _twisterController.value,
                     isDark: isDark,
                     accentColor: theme.primary,
                     theme: theme,
@@ -770,19 +773,19 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
             ),
           ),
 
-          // 2. Character Mascot (Tucked snugly under the sky canvas)
+          // 2. Character Mascot (Tucked snugly under the sky canvas with trimmed SVG padding)
           Transform.translate(
-            offset: const Offset(0, -6),
+            offset: const Offset(0, -10),
             child: _AqiToolerCharacter(
               mood: mood,
               theme: theme,
               isDark: isDark,
               animValue: 0.0,
-              width: 174,
-              height: 150,
+              width: 176,
+              height: 148,
             ),
           ),
-          const SizedBox(height: 2),
+          const SizedBox(height: 0),
 
           // 3. Weather Data: Temperature centered cleanly in the middle
           Center(
@@ -1693,179 +1696,128 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
   ) {
     final season = _resolveSeason(weather);
 
-    // Compute Outdoor Activity suitability dynamically
+    // Compute Outdoor Activity suitability dynamically (Running, Jogging, Cycling, Hiking)
     final bool severeWeather = weather.isThunder || weather.isTwister || weather.isFlood;
     final bool wetOrSnow = weather.isRain || weather.isSnow;
 
-    String runStatus;
-    Color runColor;
-    String runNote;
+    final String runStatus;
+    final Color runColor;
     if (severeWeather || weather.aqi > 150) {
-      runStatus = 'Avoid';
+      runStatus = 'Poor';
       runColor = const Color(0xFFEF4444);
-      runNote = weather.aqi > 150 ? 'High AQI ${weather.aqi}' : 'Storm hazard';
     } else if (wetOrSnow || weather.aqi > 100 || weather.tempC > 34 || weather.tempC < 4) {
       runStatus = 'Fair';
       runColor = const Color(0xFFF59E0B);
-      runNote = wetOrSnow ? 'Slippery surface' : (weather.tempC > 34 ? 'High heat' : 'Moderate air');
     } else {
-      runStatus = 'Great';
+      runStatus = 'Good';
       runColor = const Color(0xFF10B981);
-      runNote = 'Fresh air • ${weather.tempC.round()}°C';
     }
 
-    String cycleStatus;
-    Color cycleColor;
-    String cycleNote;
+    final String jogStatus;
+    final Color jogColor;
+    if (severeWeather || weather.aqi > 150) {
+      jogStatus = 'Poor';
+      jogColor = const Color(0xFFEF4444);
+    } else if (wetOrSnow || weather.aqi > 110 || weather.tempC > 35 || weather.tempC < 3) {
+      jogStatus = 'Fair';
+      jogColor = const Color(0xFFF59E0B);
+    } else {
+      jogStatus = 'Good';
+      jogColor = const Color(0xFF10B981);
+    }
+
+    final String cycleStatus;
+    final Color cycleColor;
     if (severeWeather || weather.isSnow || raw.windSpeedKmH > 28 || weather.aqi > 150) {
       cycleStatus = 'Poor';
       cycleColor = const Color(0xFFEF4444);
-      cycleNote = raw.windSpeedKmH > 28 ? 'Strong gusts' : (weather.isSnow ? 'Icy roads' : 'Unsafe air');
     } else if (weather.isRain || raw.windSpeedKmH > 18 || weather.aqi > 100) {
       cycleStatus = 'Fair';
       cycleColor = const Color(0xFFF59E0B);
-      cycleNote = weather.isRain ? 'Wet traction' : '${raw.windSpeedKmH.round()} km/h wind';
     } else {
       cycleStatus = 'Good';
       cycleColor = const Color(0xFF10B981);
-      cycleNote = 'Steady ${raw.windSpeedKmH.round()} km/h breeze';
     }
 
-    String driveStatus;
-    Color driveColor;
-    String driveNote;
-    if (weather.isThunder || weather.isSnow || weather.isFlood || weather.isTwister) {
-      driveStatus = 'Caution';
-      driveColor = const Color(0xFFEF4444);
-      driveNote = weather.isSnow ? 'Low grip • Snow' : 'Low visibility';
-    } else if (weather.isRain || [45, 48].contains(raw.weatherCode)) {
-      driveStatus = 'Fair';
-      driveColor = const Color(0xFFF59E0B);
-      driveNote = weather.isRain ? 'Slick roads' : 'Haze / Fog';
+    final String hikeStatus;
+    final Color hikeColor;
+    if (severeWeather || weather.isRain || weather.isSnow || weather.aqi > 150) {
+      hikeStatus = 'Poor';
+      hikeColor = const Color(0xFFEF4444);
+    } else if (weather.aqi > 100 || raw.windSpeedKmH > 24 || weather.tempC > 34 || weather.tempC < 5) {
+      hikeStatus = 'Fair';
+      hikeColor = const Color(0xFFF59E0B);
     } else {
-      driveStatus = 'Clear';
-      driveColor = const Color(0xFF10B981);
-      driveNote = 'Smooth visibility';
+      hikeStatus = 'Good';
+      hikeColor = const Color(0xFF10B981);
     }
 
-    String starStatus;
-    Color starColor;
-    String starNote;
-    if (weather.isRain || weather.isThunder || weather.isSnow || weather.isCloudy) {
-      starStatus = 'Poor';
-      starColor = const Color(0xFF64748B);
-      starNote = 'Cloud / precip cover';
-    } else if (!weather.isDay) {
-      starStatus = 'Great';
-      starColor = const Color(0xFF8B5CF6);
-      starNote = 'Clear night sky';
+    // Compute Dust & Dander + Secondary Allergy Levels dynamically
+    final String dustStatus;
+    final Color dustColor;
+    if (weather.aqi > 200 || raw.pm10 >= 150 || raw.pm25 >= 75) {
+      dustStatus = 'Extreme';
+      dustColor = const Color(0xFFEF4444);
+    } else if (weather.aqi > 125 || raw.pm10 >= 55 || raw.pm25 >= 35) {
+      dustStatus = 'Extreme';
+      dustColor = const Color(0xFFF97316);
+    } else if (weather.aqi > 75 || raw.pm10 >= 30) {
+      dustStatus = 'Moderate';
+      dustColor = const Color(0xFFF59E0B);
     } else {
-      starStatus = 'Good';
-      starColor = const Color(0xFF0EA5E9);
-      starNote = 'Clear after sunset';
+      dustStatus = 'Low';
+      dustColor = const Color(0xFF10B981);
     }
 
-    // Compute Allergy & Health Outlooks dynamically
     final bool dryWindy = !weather.isRain && !weather.isSnow && raw.windSpeedKmH >= 10;
     final String pollenLevel;
     final Color pollenColor;
-    final double pollenRatio;
-    final String pollenNote;
     if (weather.isRain || weather.isSnow || season == WeatherSeason.winter) {
       pollenLevel = 'Low';
       pollenColor = const Color(0xFF10B981);
-      pollenRatio = 0.22;
-      pollenNote = weather.isRain ? 'Washed by rain' : 'Dormant cold';
     } else if ((season == WeatherSeason.spring || season == WeatherSeason.autumn) && dryWindy) {
       pollenLevel = 'High';
       pollenColor = const Color(0xFFF97316);
-      pollenRatio = 0.78;
-      pollenNote = '${season.label} wind spread';
     } else {
       pollenLevel = 'Moderate';
       pollenColor = const Color(0xFFF59E0B);
-      pollenRatio = 0.48;
-      pollenNote = '${season.label} grass & trees';
-    }
-
-    final String dustLevel;
-    final Color dustColor;
-    final double dustRatio;
-    if (weather.aqi <= 50) {
-      dustLevel = 'Low';
-      dustColor = const Color(0xFF10B981);
-      dustRatio = 0.22;
-    } else if (weather.aqi <= 100) {
-      dustLevel = 'Moderate';
-      dustColor = const Color(0xFFF59E0B);
-      dustRatio = 0.50;
-    } else if (weather.aqi <= 200) {
-      dustLevel = 'High';
-      dustColor = const Color(0xFFF97316);
-      dustRatio = 0.78;
-    } else {
-      dustLevel = 'Severe';
-      dustColor = const Color(0xFFEF4444);
-      dustRatio = 0.96;
     }
 
     final String moldLevel;
     final Color moldColor;
-    final double moldRatio;
     if (raw.humidity >= 75 || weather.isRain) {
       moldLevel = 'High';
       moldColor = const Color(0xFFF97316);
-      moldRatio = 0.76;
     } else if (raw.humidity >= 55) {
       moldLevel = 'Moderate';
       moldColor = const Color(0xFFF59E0B);
-      moldRatio = 0.48;
     } else {
       moldLevel = 'Low';
       moldColor = const Color(0xFF10B981);
-      moldRatio = 0.22;
     }
 
     final String sinusLevel;
     final Color sinusColor;
-    final double sinusRatio;
-    final String sinusNote;
     if (weather.aqi > 150 || raw.uvIndex >= 8 || weather.tempC <= 5) {
       sinusLevel = 'High';
       sinusColor = const Color(0xFFEF4444);
-      sinusRatio = 0.80;
-      sinusNote = weather.aqi > 150 ? 'Wear N95 outdoors' : (weather.tempC <= 5 ? 'Cold dry trigger' : 'UV ${raw.uvIndex.toStringAsFixed(1)}');
     } else if (weather.aqi > 80 || raw.uvIndex >= 5 || raw.humidity < 35) {
       sinusLevel = 'Moderate';
       sinusColor = const Color(0xFFF59E0B);
-      sinusRatio = 0.50;
-      sinusNote = 'UV ${raw.uvIndex.toStringAsFixed(1)} • Hydrate';
     } else {
       sinusLevel = 'Low';
       sinusColor = const Color(0xFF10B981);
-      sinusRatio = 0.22;
-      sinusNote = 'Mild comfort';
     }
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Activities & Allergies',
-          style: GoogleFonts.plusJakartaSans(
-            fontSize: 15,
-            fontWeight: FontWeight.w800,
-            color: theme.text,
-          ),
-        ),
-        const SizedBox(height: 10),
-
-        // 1. Outdoor Activities Card
+        // 1. Activities Card (Collapsible 2x2 grid: Running, Jogging, Cycling, Hiking)
         Container(
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E1E22) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: theme.border, width: 1.2),
             boxShadow: [
               BoxShadow(
@@ -1878,93 +1830,107 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.directions_run_rounded, size: 16, color: theme.primary),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Outdoor Activities',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: theme.text,
-                    ),
+              InkWell(
+                onTap: () {
+                  SoundService().playTap();
+                  setState(() => _activitiesExpanded = !_activitiesExpanded);
+                },
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Activities',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: theme.text,
+                        ),
+                      ),
+                      Icon(
+                        _activitiesExpanded
+                            ? Icons.keyboard_arrow_up_rounded
+                            : Icons.keyboard_arrow_down_rounded,
+                        size: 22,
+                        color: theme.text,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _buildActivityMiniTile(
-                        theme,
-                        isDark,
-                        icon: Icons.directions_run_rounded,
-                        title: 'Running',
-                        status: runStatus,
-                        note: runNote,
-                        color: runColor,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildActivityMiniTile(
-                        theme,
-                        isDark,
-                        icon: Icons.directions_bike_rounded,
-                        title: 'Cycling',
-                        status: cycleStatus,
-                        note: cycleNote,
-                        color: cycleColor,
-                      ),
-                    ),
-                  ],
                 ),
               ),
-              const SizedBox(height: 8),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _buildActivityMiniTile(
-                        theme,
-                        isDark,
-                        icon: Icons.directions_car_rounded,
-                        title: 'Driving',
-                        status: driveStatus,
-                        note: driveNote,
-                        color: driveColor,
+              if (_activitiesExpanded) ...[
+                const SizedBox(height: 12),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _buildActivityMiniTile(
+                          theme,
+                          isDark,
+                          icon: Icons.directions_run_rounded,
+                          title: 'Running',
+                          status: runStatus,
+                          color: runColor,
+                        ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildActivityMiniTile(
-                        theme,
-                        isDark,
-                        icon: Icons.auto_awesome_rounded,
-                        title: 'Stargazing',
-                        status: starStatus,
-                        note: starNote,
-                        color: starColor,
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildActivityMiniTile(
+                          theme,
+                          isDark,
+                          icon: Icons.directions_walk_rounded,
+                          title: 'Jogging',
+                          status: jogStatus,
+                          color: jogColor,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                const SizedBox(height: 10),
+                IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _buildActivityMiniTile(
+                          theme,
+                          isDark,
+                          icon: Icons.directions_bike_rounded,
+                          title: 'Cycling',
+                          status: cycleStatus,
+                          color: cycleColor,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildActivityMiniTile(
+                          theme,
+                          isDark,
+                          icon: Icons.hiking_rounded,
+                          title: 'Hiking',
+                          status: hikeStatus,
+                          color: hikeColor,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: 14),
 
-        // 2. Allergies & Health Card
+        // 2. Allergies Card (Featured Dust and dander banner + Pollen/Mold/Sinus chips)
         Container(
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
             color: isDark ? const Color(0xFF1E1E22) : Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(22),
             border: Border.all(color: theme.border, width: 1.2),
             boxShadow: [
               BoxShadow(
@@ -1977,85 +1943,105 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Allergies',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: theme.text,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                decoration: BoxDecoration(
+                  color: isDark ? const Color(0xFF141418) : const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: theme.border.withValues(alpha: 0.65), width: 1),
+                ),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CustomPaint(
+                        painter: _DustDropletIconPainter(
+                          color: isDark ? Colors.white : theme.text,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Dust and dander',
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13.5,
+                              fontWeight: FontWeight.w800,
+                              color: theme.text,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            dustStatus,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: dustColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Text(
+                      'PM2.5 ${raw.pm25.toStringAsFixed(0)}',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: theme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(Icons.healing_rounded, size: 16, color: Color(0xFFF97316)),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Allergies & Triggers',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: theme.text,
+                  Expanded(
+                    child: _buildAllergyMiniChip(
+                      theme,
+                      isDark,
+                      icon: Icons.local_florist_rounded,
+                      title: 'Pollen',
+                      level: pollenLevel,
+                      color: pollenColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildAllergyMiniChip(
+                      theme,
+                      isDark,
+                      icon: Icons.water_drop_rounded,
+                      title: 'Mold',
+                      level: moldLevel,
+                      color: moldColor,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _buildAllergyMiniChip(
+                      theme,
+                      isDark,
+                      icon: Icons.wb_sunny_outlined,
+                      title: 'Sinus & UV',
+                      level: sinusLevel,
+                      color: sinusColor,
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 10),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _buildAllergyMiniTile(
-                        theme,
-                        isDark,
-                        icon: Icons.local_florist_rounded,
-                        title: 'Pollen',
-                        level: pollenLevel,
-                        note: pollenNote,
-                        ratio: pollenRatio,
-                        color: pollenColor,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildAllergyMiniTile(
-                        theme,
-                        isDark,
-                        icon: Icons.masks_rounded,
-                        title: 'Dust & Smog',
-                        level: dustLevel,
-                        note: 'PM2.5 ${raw.pm25} µg/m³',
-                        ratio: dustRatio,
-                        color: dustColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: _buildAllergyMiniTile(
-                        theme,
-                        isDark,
-                        icon: Icons.water_drop_rounded,
-                        title: 'Mold Spores',
-                        level: moldLevel,
-                        note: 'Humidity ${raw.humidity.round()}%',
-                        ratio: moldRatio,
-                        color: moldColor,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: _buildAllergyMiniTile(
-                        theme,
-                        isDark,
-                        icon: Icons.air_rounded,
-                        title: 'Sinus & UV',
-                        level: sinusLevel,
-                        note: sinusNote,
-                        ratio: sinusRatio,
-                        color: sinusColor,
-                      ),
-                    ),
-                  ],
-                ),
               ),
             ],
           ),
@@ -2070,62 +2056,46 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     required IconData icon,
     required String title,
     required String status,
-    required String note,
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF25252B) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(13),
+        color: isDark ? const Color(0xFF141418) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(color: theme.border.withValues(alpha: 0.65), width: 1),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Icon(icon, size: 15, color: color),
-              const SizedBox(width: 5),
-              Expanded(
-                child: Text(
+          Icon(icon, size: 22, color: isDark ? Colors.white : theme.text),
+          const SizedBox(width: 11),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 12,
+                    fontSize: 13.5,
                     fontWeight: FontWeight.w800,
                     color: theme.text,
                   ),
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(7),
-                ),
-                child: Text(
+                const SizedBox(height: 2),
+                Text(
                   status,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 9.5,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
                     color: color,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 5),
-          Text(
-            note,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: theme.textSecondary,
+              ],
             ),
           ),
         ],
@@ -2133,72 +2103,51 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildAllergyMiniTile(
+  Widget _buildAllergyMiniChip(
     StationeryTheme theme,
     bool isDark, {
     required IconData icon,
     required String title,
     required String level,
-    required String note,
-    required double ratio,
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF25252B) : const Color(0xFFF8FAFC),
+        color: isDark ? const Color(0xFF141418) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: theme.border.withValues(alpha: 0.65), width: 1),
+        border: Border.all(color: theme.border.withValues(alpha: 0.55), width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
-              Icon(icon, size: 14.5, color: color),
-              const SizedBox(width: 5),
+              Icon(icon, size: 12.5, color: color),
+              const SizedBox(width: 4),
               Expanded(
                 child: Text(
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w800,
-                    color: theme.text,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w700,
+                    color: theme.textSecondary,
                   ),
-                ),
-              ),
-              Text(
-                level,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w800,
-                  color: color,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: ratio.clamp(0.08, 1.0),
-              minHeight: 4.5,
-              backgroundColor: isDark ? const Color(0xFF34343D) : const Color(0xFFE2E8F0),
-              valueColor: AlwaysStoppedAnimation<Color>(color),
-            ),
-          ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 3),
           Text(
-            note,
+            level,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-              color: theme.textSecondary,
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+              color: color,
             ),
           ),
         ],
@@ -2757,6 +2706,8 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                       _buildSimChip('Rain Showers', WeatherSimMode.rainyDeluge, setSheetState, theme, isDark),
                       _buildSimChip('Thunder Lightning', WeatherSimMode.thunderstorm, setSheetState, theme, isDark),
                       _buildSimChip('Snowfall', WeatherSimMode.snowfall, setSheetState, theme, isDark),
+                      _buildSimChip('Mountain Flood', WeatherSimMode.mountainFlood, setSheetState, theme, isDark),
+                      _buildSimChip('Tornado Twister', WeatherSimMode.tornadoTwister, setSheetState, theme, isDark),
                       _buildSimChip('Toxic Smog', WeatherSimMode.severeSmog, setSheetState, theme, isDark),
                     ],
                   ),
@@ -2881,11 +2832,62 @@ class _CloudTrackSpec {
 }
 
 // ---------------------------------------------------------------------------
+// DUST & DANDER CUSTOM VECTOR ICON (Droplet + Exclamation + Particle Sprinkles)
+// ---------------------------------------------------------------------------
+class _DustDropletIconPainter extends CustomPainter {
+  final Color color;
+  const _DustDropletIconPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+
+    final dropPaint = Paint()..color = color;
+    // Teardrop slightly left-aligned so exclamation and dust motes fit cleanly
+    final cx = w * 0.40;
+    final dropPath = Path()
+      ..moveTo(cx, h * 0.14)
+      ..cubicTo(cx + w * 0.24, h * 0.42, cx + w * 0.24, h * 0.64, cx, h * 0.72)
+      ..cubicTo(cx - w * 0.24, h * 0.64, cx - w * 0.24, h * 0.42, cx, h * 0.14)
+      ..close();
+    canvas.drawPath(dropPath, dropPaint);
+
+    // Exclamation mark next to droplet
+    final exPaint = Paint()
+      ..color = color
+      ..strokeWidth = 2.1
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(Offset(w * 0.76, h * 0.18), Offset(w * 0.76, h * 0.46), exPaint);
+    canvas.drawCircle(Offset(w * 0.76, h * 0.60), 1.3, dropPaint);
+
+    // Fine dust / dander particle dots beneath
+    const dots = [
+      [0.14, 0.80, 1.1],
+      [0.28, 0.86, 1.3],
+      [0.44, 0.84, 1.0],
+      [0.58, 0.88, 1.2],
+      [0.72, 0.82, 1.1],
+      [0.86, 0.86, 1.0],
+      [0.36, 0.76, 0.9],
+      [0.64, 0.76, 1.0],
+    ];
+    for (final d in dots) {
+      canvas.drawCircle(Offset(w * d[0], h * d[1]), d[2], dropPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DustDropletIconPainter old) => old.color != color;
+}
+
+// ---------------------------------------------------------------------------
 // CELESTIAL SKY SVG PAINTER
 // - Larger Sun & Moon pushed higher up right below the hover sheet title
 // - Abundant line-by-line clouds drifting gently left-to-right across 3 lanes
-// - Smooth edge fade, birds, breeze streams, twinkling stars + shooting star,
-//   multi-layer rain + splashes, drifting snowflakes & lightning flash
+// - Smooth edge fade, birds, breeze streams, dust motes, twinkling stars +
+//   shooting stars, multi-layer rain + splash ripples, drifting snow crystals,
+//   lightning flash, flood surge waves & tornado twister vortex
 // ---------------------------------------------------------------------------
 class _CelestialSkySvgPainter extends CustomPainter {
   final _EffectiveWeather weather;
@@ -2926,60 +2928,88 @@ class _CelestialSkySvgPainter extends CustomPainter {
     canvas.save();
     canvas.clipRect(Offset.zero & size);
 
-    // 1. Night Twinkling Stars + Periodic Shooting Star
+    // Subtle thunderstorm sky flash pulse
+    if (weather.isThunder && lightningProgress > 0.80) {
+      final flashAlpha = ((lightningProgress - 0.80) / 0.20).clamp(0.0, 1.0) * 0.14;
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()..color = const Color(0xFFFEF08A).withValues(alpha: flashAlpha),
+      );
+    }
+
+    // 1. Night Twinkling Stars + Periodic Shooting Stars
     if (!weather.isDay) {
       final starPaint = Paint()..color = (isDark ? Colors.white : theme.text);
       final starOffsets = <Offset>[
-        Offset(cx - 138, 16),
-        Offset(cx - 102, 34),
-        Offset(cx - 72, 14),
-        Offset(cx - 38, 28),
-        Offset(cx + 8, 12),
-        Offset(cx + 68, 16),
-        Offset(cx + 104, 26),
-        Offset(cx + 140, 18),
-        Offset(cx - 122, 62),
-        Offset(cx + 124, 58),
-        Offset(cx - 56, 52),
-        Offset(cx + 84, 44),
+        Offset(cx - 150, 12),
+        Offset(cx - 122, 26),
+        Offset(cx - 94, 10),
+        Offset(cx - 66, 24),
+        Offset(cx - 34, 14),
+        Offset(cx - 4, 9),
+        Offset(cx + 68, 12),
+        Offset(cx + 98, 22),
+        Offset(cx + 128, 11),
+        Offset(cx + 152, 28),
+        Offset(cx - 134, 52),
+        Offset(cx - 78, 46),
+        Offset(cx + 88, 44),
+        Offset(cx + 138, 52),
+        Offset(cx - 110, 72),
+        Offset(cx + 114, 70),
       ];
       for (int i = 0; i < starOffsets.length; i++) {
-        final twinkle = (math.sin((animProgress * math.pi * 4) + i * 1.35) + 1.0) / 2.0;
-        starPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.18 + (twinkle * 0.65));
-        canvas.drawCircle(starOffsets[i], 0.9 + (twinkle * 0.9), starPaint);
+        final twinkle = (math.sin((animProgress * math.pi * 6) + i * 1.35) + 1.0) / 2.0;
+        starPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.20 + (twinkle * 0.68));
+        canvas.drawCircle(starOffsets[i], 0.9 + (twinkle * 1.05), starPaint);
       }
 
-      // Delicate shooting star gliding every cycle
-      final shootPhase = (animProgress * 2.0) % 1.0;
-      if (shootPhase < 0.24) {
-        final t = shootPhase / 0.24;
-        final sx = cx - 95 + (t * 125);
-        final sy = 12 + (t * 28);
-        final alpha = math.sin(t * math.pi).clamp(0.0, 1.0);
-        final shootPaint = Paint()
-          ..color = (isDark ? const Color(0xFFFEF08A) : accentColor).withValues(alpha: alpha * 0.75)
-          ..strokeWidth = 1.6
-          ..strokeCap = StrokeCap.round;
-        canvas.drawLine(Offset(sx, sy), Offset(sx - 20, sy - 5), shootPaint);
+      // Two staggered delicate shooting stars
+      for (int s = 0; s < 2; s++) {
+        final shootPhase = (animProgress * 2.0 + s * 0.5) % 1.0;
+        if (shootPhase < 0.22) {
+          final t = shootPhase / 0.22;
+          final startX = s == 0 ? cx - 105 : cx + 10;
+          final sx = startX + (t * 115);
+          final sy = (s == 0 ? 8.0 : 14.0) + (t * 24);
+          final alpha = math.sin(t * math.pi).clamp(0.0, 1.0);
+          final shootPaint = Paint()
+            ..color = (isDark ? const Color(0xFFFEF08A) : accentColor).withValues(alpha: alpha * 0.78)
+            ..strokeWidth = 1.65
+            ..strokeCap = StrokeCap.round;
+          canvas.drawLine(Offset(sx, sy), Offset(sx - 20, sy - 5), shootPaint);
+        }
       }
     }
 
-    // 2. Gentle Continuous Left-to-Right Wind / Breeze Streamlines
+    // 2. Gentle Continuous Left-to-Right Wind / Breeze Streamlines + Drifting Air Motes
     final breezePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5
+      ..strokeWidth = 1.45
       ..strokeCap = StrokeCap.round;
-    const breezeRows = [28.0, 56.0, 84.0];
+    const breezeRows = [18.0, 38.0, 60.0, 82.0];
     for (int i = 0; i < breezeRows.length; i++) {
-      final t = (animProgress * 2.0 + (i * 0.34)) % 1.0;
-      final bx = -50.0 + t * (w + 100.0);
-      final by = breezeRows[i] + math.sin((animProgress * math.pi * 4) + i) * 2.2;
-      final alpha = _edgeFadeAlpha(bx, w) * 0.24;
+      final t = (animProgress * 3.0 + (i * 0.27)) % 1.0;
+      final bx = -55.0 + t * (w + 110.0);
+      final by = breezeRows[i] + math.sin((animProgress * math.pi * 4) + i) * 2.0;
+      final alpha = _edgeFadeAlpha(bx, w) * 0.25;
       breezePaint.color = (isDark ? Colors.white : theme.textSecondary).withValues(alpha: alpha);
       final path = Path()
-        ..moveTo(bx - 24, by)
-        ..quadraticBezierTo(bx, by - 6, bx + 26, by);
+        ..moveTo(bx - 26, by)
+        ..quadraticBezierTo(bx, by - 5.5, bx + 28, by);
       canvas.drawPath(path, breezePaint);
+    }
+
+    // Subtle floating atmospheric particles drifting left-to-right
+    final motePaint = Paint();
+    for (int i = 0; i < 8; i++) {
+      final t = (animProgress * 2.0 + (i * 0.125)) % 1.0;
+      final mx = -20.0 + t * (w + 40.0);
+      final my = 16.0 + ((i * 11.0) % (h - 32.0)) + math.sin(animProgress * math.pi * 6 + i) * 2.5;
+      final mAlpha = _edgeFadeAlpha(mx, w) * (weather.aqi > 120 ? 0.36 : 0.22);
+      motePaint.color = (weather.aqi > 120 ? weather.aqiColor : (isDark ? Colors.white : accentColor))
+          .withValues(alpha: mAlpha);
+      canvas.drawCircle(Offset(mx, my), i.isEven ? 1.5 : 1.1, motePaint);
     }
 
     // 3. Minimalist Gliding Birds in calm daytime sky
@@ -2990,18 +3020,19 @@ class _CelestialSkySvgPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
       const birdSpecs = [
-        [0.14, 24.0, 1.0],
-        [0.48, 34.0, 0.85],
-        [0.78, 18.0, 0.92],
+        [0.10, 18.0, 0.95],
+        [0.38, 28.0, 0.84],
+        [0.64, 14.0, 0.90],
+        [0.86, 25.0, 0.80],
       ];
       for (int i = 0; i < birdSpecs.length; i++) {
         final spec = birdSpecs[i];
-        final progress = (animProgress + spec[0]) % 1.0;
+        final progress = (animProgress * 2.0 + spec[0]) % 1.0;
         final bx = -24.0 + progress * (w + 48.0);
-        final by = spec[1] + math.sin(progress * math.pi * 6 + i) * 3.2;
-        final flap = math.sin(animProgress * math.pi * 16 + i * 2.1) * 3.2;
-        final span = 7.0 * spec[2];
-        birdPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: _edgeFadeAlpha(bx, w) * 0.55);
+        final by = spec[1] + math.sin(progress * math.pi * 6 + i) * 3.0;
+        final flap = math.sin(animProgress * math.pi * 20 + i * 2.1) * 3.2;
+        final span = 6.8 * spec[2];
+        birdPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: _edgeFadeAlpha(bx, w) * 0.56);
         final bPath = Path()
           ..moveTo(bx - span, by - flap)
           ..quadraticBezierTo(bx - span * 0.45, by - 3.5, bx, by)
@@ -3010,34 +3041,40 @@ class _CelestialSkySvgPainter extends CustomPainter {
       }
     }
 
-    // 4. Build Line-by-Line Drifting Cloud Tracks (Left -> Right)
+    // 4. Abundant Line-by-Line Drifting Cloud Tracks (Left -> Right across 3 layered rows)
     final bool denseClouds = weather.isCloudy || weather.isRain || weather.isThunder || weather.isSnow;
     final cloudSpecs = <_CloudTrackSpec>[
-      // Line 1 (Upper sky lane, gentle 1x drift)
-      const _CloudTrackSpec(lane: 0, y: 20.0, scale: 0.56, phaseOffset: 0.06, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 0, y: 22.0, scale: 0.62, phaseOffset: 0.31, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 0, y: 19.0, scale: 0.58, phaseOffset: 0.57, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 0, y: 23.0, scale: 0.60, phaseOffset: 0.82, cycles: 1, isSecondary: true),
+      // Line 1 (Top sky row, gentle 1x drift)
+      const _CloudTrackSpec(lane: 0, y: 14.0, scale: 0.54, phaseOffset: 0.03, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 0, y: 16.0, scale: 0.60, phaseOffset: 0.20, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 0, y: 13.5, scale: 0.56, phaseOffset: 0.37, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 0, y: 16.5, scale: 0.62, phaseOffset: 0.54, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 0, y: 14.5, scale: 0.55, phaseOffset: 0.71, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 0, y: 16.0, scale: 0.58, phaseOffset: 0.88, cycles: 1, isSecondary: true),
       if (denseClouds)
-        const _CloudTrackSpec(lane: 0, y: 21.0, scale: 0.66, phaseOffset: 0.44, cycles: 1, isSecondary: true),
+        const _CloudTrackSpec(lane: 0, y: 15.0, scale: 0.64, phaseOffset: 0.45, cycles: 1, isSecondary: true),
 
-      // Line 2 (Mid sky lane, gentle 1x drift)
-      const _CloudTrackSpec(lane: 1, y: 45.0, scale: 0.72, phaseOffset: 0.14, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 1, y: 47.0, scale: 0.76, phaseOffset: 0.47, cycles: 1, isSecondary: false),
-      const _CloudTrackSpec(lane: 1, y: 44.0, scale: 0.70, phaseOffset: 0.79, cycles: 1, isSecondary: true),
+      // Line 2 (Middle sky row, gentle 2x drift)
+      const _CloudTrackSpec(lane: 1, y: 36.0, scale: 0.68, phaseOffset: 0.07, cycles: 2, isSecondary: true),
+      const _CloudTrackSpec(lane: 1, y: 39.0, scale: 0.74, phaseOffset: 0.27, cycles: 2, isSecondary: false),
+      const _CloudTrackSpec(lane: 1, y: 35.5, scale: 0.70, phaseOffset: 0.47, cycles: 2, isSecondary: true),
+      const _CloudTrackSpec(lane: 1, y: 39.5, scale: 0.76, phaseOffset: 0.67, cycles: 2, isSecondary: false),
+      const _CloudTrackSpec(lane: 1, y: 37.0, scale: 0.69, phaseOffset: 0.87, cycles: 2, isSecondary: true),
       if (denseClouds)
-        const _CloudTrackSpec(lane: 1, y: 48.0, scale: 0.80, phaseOffset: 0.63, cycles: 1, isSecondary: false),
+        const _CloudTrackSpec(lane: 1, y: 38.0, scale: 0.78, phaseOffset: 0.57, cycles: 2, isSecondary: false),
 
-      // Line 3 (Foreground lower sky lane, slightly faster 2x drift)
-      const _CloudTrackSpec(lane: 2, y: 69.0, scale: 0.88, phaseOffset: 0.10, cycles: 2, isSecondary: false),
-      const _CloudTrackSpec(lane: 2, y: 72.0, scale: 0.96, phaseOffset: 0.43, cycles: 2, isSecondary: false),
-      const _CloudTrackSpec(lane: 2, y: 68.0, scale: 0.86, phaseOffset: 0.76, cycles: 2, isSecondary: false),
+      // Line 3 (Foreground lower row, slightly brisker 3x gentle breeze drift)
+      const _CloudTrackSpec(lane: 2, y: 60.0, scale: 0.84, phaseOffset: 0.04, cycles: 3, isSecondary: false),
+      const _CloudTrackSpec(lane: 2, y: 64.0, scale: 0.94, phaseOffset: 0.24, cycles: 3, isSecondary: false),
+      const _CloudTrackSpec(lane: 2, y: 59.0, scale: 0.86, phaseOffset: 0.44, cycles: 3, isSecondary: false),
+      const _CloudTrackSpec(lane: 2, y: 63.0, scale: 0.90, phaseOffset: 0.64, cycles: 3, isSecondary: false),
+      const _CloudTrackSpec(lane: 2, y: 61.0, scale: 0.85, phaseOffset: 0.84, cycles: 3, isSecondary: false),
       if (denseClouds)
-        const _CloudTrackSpec(lane: 2, y: 73.0, scale: 0.94, phaseOffset: 0.27, cycles: 2, isSecondary: false),
+        const _CloudTrackSpec(lane: 2, y: 65.0, scale: 0.95, phaseOffset: 0.34, cycles: 3, isSecondary: false),
     ];
 
     final resolvedClouds = <({Offset center, double scale, bool isSecondary, Path path, double alpha})>[];
-    const horizontalMargin = 52.0;
+    const horizontalMargin = 54.0;
     final totalSpan = w + (horizontalMargin * 2);
 
     for (final spec in cloudSpecs) {
@@ -3056,7 +3093,7 @@ class _CelestialSkySvgPainter extends CustomPainter {
       ));
     }
 
-    // 5. Paint Upper-Lane Back Clouds behind Sun/Moon
+    // 5. Paint Upper/Mid Back Clouds behind Sun/Moon
     for (final c in resolvedClouds.where((c) => c.isSecondary)) {
       _paintSoftCloud(
         canvas,
@@ -3068,8 +3105,8 @@ class _CelestialSkySvgPainter extends CustomPainter {
       );
     }
 
-    // 6. Isolated Layer for Larger Sun or Moon + Clean Cutout around Foreground Clouds
-    final celestialCenter = Offset(cx + 22, 41.0);
+    // 6. Isolated Layer for Larger Sun or Moon (pushed higher up under title) + Foreground Cutout
+    final celestialCenter = Offset(cx + 26, 33.5);
     canvas.saveLayer(Offset.zero & size, Paint());
     if (weather.isDay) {
       _paintSvgSun(canvas, celestialCenter);
@@ -3105,11 +3142,11 @@ class _CelestialSkySvgPainter extends CustomPainter {
       );
     }
 
-    // 8. Precipitation & Thunder Animations anchored below foreground clouds
+    // 8. Precipitation, Thunder, Flood Surge & Tornado Twister Animations
     final foregroundClouds = resolvedClouds.where((c) => !c.isSecondary && c.center.dx > 20 && c.center.dx < w - 20).toList();
     if (weather.isRain || weather.isThunder) {
       for (final c in foregroundClouds) {
-        _paintSvgRain(canvas, c.center.dx, c.center.dy, c.scale, c.alpha);
+        _paintSvgRain(canvas, c.center.dx, c.center.dy, c.scale, c.alpha, h);
       }
     }
     if (weather.isSnow) {
@@ -3117,8 +3154,14 @@ class _CelestialSkySvgPainter extends CustomPainter {
     }
     if (weather.isThunder) {
       final anchorX = foregroundClouds.isNotEmpty ? foregroundClouds.first.center.dx : cx - 10;
-      final anchorY = foregroundClouds.isNotEmpty ? foregroundClouds.first.center.dy : 68.0;
+      final anchorY = foregroundClouds.isNotEmpty ? foregroundClouds.first.center.dy : 60.0;
       _paintSvgThunder(canvas, anchorX, anchorY);
+    }
+    if (weather.isFlood) {
+      _paintSvgFlood(canvas, w, h);
+    }
+    if (weather.isTwister) {
+      _paintSvgTwister(canvas, cx - 34, h);
     }
 
     canvas.restore();
@@ -3154,13 +3197,13 @@ class _CelestialSkySvgPainter extends CustomPainter {
 
     final cloudFill = Paint()
       ..color = (isSecondary
-              ? (isDark ? const Color(0xFF23232C) : theme.lavenderBubble).withValues(alpha: 0.42 * alphaScale)
-              : (isDark ? const Color(0xFF22222A) : theme.lavenderBubble).withValues(alpha: 0.68 * alphaScale))
+              ? (isDark ? const Color(0xFF23232C) : theme.lavenderBubble).withValues(alpha: 0.44 * alphaScale)
+              : (isDark ? const Color(0xFF22222A) : theme.lavenderBubble).withValues(alpha: 0.72 * alphaScale))
       ..style = PaintingStyle.fill;
 
     final cloudStroke = Paint()
       ..color = (isSecondary
-              ? (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.40 * alphaScale)
+              ? (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.42 * alphaScale)
               : (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.95 * alphaScale))
       ..style = PaintingStyle.stroke
       ..strokeWidth = isSecondary ? 1.2 : 1.55
@@ -3172,64 +3215,64 @@ class _CelestialSkySvgPainter extends CustomPainter {
   }
 
   void _paintSvgSun(Canvas canvas, Offset center) {
-    const r = 21.5;
+    const r = 24.5;
     final sunCol = isDark ? const Color(0xFFFEF08A) : accentColor;
-    final pulse = 1.0 + (math.sin(animProgress * math.pi * 4) * 0.08);
+    final pulse = 1.0 + (math.sin(animProgress * math.pi * 6) * 0.09);
 
-    // Warm breathing outer aura
+    // Warm breathing outer corona
     final auraPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          sunCol.withValues(alpha: isDark ? 0.28 : 0.20),
+          sunCol.withValues(alpha: isDark ? 0.32 : 0.22),
           Colors.transparent,
         ],
-      ).createShader(Rect.fromCircle(center: center, radius: r * 2.1 * pulse));
-    canvas.drawCircle(center, r * 2.1 * pulse, auraPaint);
+      ).createShader(Rect.fromCircle(center: center, radius: r * 2.15 * pulse));
+    canvas.drawCircle(center, r * 2.15 * pulse, auraPaint);
 
     // Crisp rotating primary & secondary solar rays
     final rayPaint = Paint()
       ..color = sunCol
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.65
+      ..strokeWidth = 1.7
       ..strokeCap = StrokeCap.round;
 
     final rot = animProgress * math.pi * 2;
     for (int i = 0; i < 12; i++) {
       final angle = rot + (i * (math.pi / 6));
       final isMajor = i.isEven;
-      const inner = r * 1.22;
-      final outer = r * (isMajor ? 1.58 * pulse : 1.40);
+      const inner = r * 1.18;
+      final outer = r * (isMajor ? 1.52 * pulse : 1.35);
       final p1 = Offset(center.dx + math.cos(angle) * inner, center.dy + math.sin(angle) * inner);
       final p2 = Offset(center.dx + math.cos(angle) * outer, center.dy + math.sin(angle) * outer);
-      canvas.drawLine(p1, p2, rayPaint..strokeWidth = isMajor ? 1.75 : 1.25);
+      canvas.drawLine(p1, p2, rayPaint..strokeWidth = isMajor ? 1.8 : 1.3);
     }
 
-    // Translucent UI-themed sun disc + crisp thin outline
+    // Translucent UI-themed sun disc + inner shimmer ring + crisp outline
     final sunFill = Paint()
-      ..color = sunCol.withValues(alpha: isDark ? 0.25 : 0.18)
+      ..color = sunCol.withValues(alpha: isDark ? 0.26 : 0.19)
       ..style = PaintingStyle.fill;
     final sunStroke = Paint()
       ..color = sunCol
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.75;
+      ..strokeWidth = 1.8;
 
     canvas.drawCircle(center, r, sunFill);
     canvas.drawCircle(center, r, sunStroke);
   }
 
   void _paintSvgMoon(Canvas canvas, Offset center) {
-    const r = 21.5;
-    final pulse = 1.0 + (math.sin(animProgress * math.pi * 4) * 0.08);
+    const r = 24.5;
+    final pulse = 1.0 + (math.sin(animProgress * math.pi * 6) * 0.09);
 
     // Pulsing Moon Glow
     final glow = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFE0E7FF).withValues(alpha: 0.48),
+          const Color(0xFFE0E7FF).withValues(alpha: 0.50),
           Colors.transparent,
         ],
-      ).createShader(Rect.fromCircle(center: center, radius: r * 2.1 * pulse));
-    canvas.drawCircle(center, r * 2.1 * pulse, glow);
+      ).createShader(Rect.fromCircle(center: center, radius: r * 2.15 * pulse));
+    canvas.drawCircle(center, r * 2.15 * pulse, glow);
 
     // Dark base disc
     final darkBase = Paint()..color = isDark ? const Color(0xFF1E2430) : const Color(0xFFCBD5E1);
@@ -3267,18 +3310,18 @@ class _CelestialSkySvgPainter extends CustomPainter {
     canvas.drawPath(path, litPaint);
 
     // Subtle lunar craters
-    final craterPaint = Paint()..color = (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)).withValues(alpha: 0.22);
-    canvas.drawCircle(Offset(center.dx - 5, center.dy - 6), 3.2, craterPaint);
-    canvas.drawCircle(Offset(center.dx + 6, center.dy + 5), 2.3, craterPaint);
+    final craterPaint = Paint()..color = (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)).withValues(alpha: 0.24);
+    canvas.drawCircle(Offset(center.dx - 6, center.dy - 7), 3.6, craterPaint);
+    canvas.drawCircle(Offset(center.dx + 7, center.dy + 6), 2.6, craterPaint);
 
     final stroke = Paint()
-      ..color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.4)
+      ..color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.42)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.25;
+      ..strokeWidth = 1.3;
     canvas.drawCircle(center, r, stroke);
   }
 
-  void _paintSvgRain(Canvas canvas, double cloudX, double cloudY, double scale, double alphaScale) {
+  void _paintSvgRain(Canvas canvas, double cloudX, double cloudY, double scale, double alphaScale, double h) {
     final rainPaint = Paint()
       ..color = accentColor.withValues(alpha: 0.88 * alphaScale)
       ..strokeWidth = 1.55
@@ -3286,29 +3329,45 @@ class _CelestialSkySvgPainter extends CustomPainter {
 
     for (int i = 0; i < 4; i++) {
       final x = (cloudX - 16 * scale) + (i * 10.5 * scale);
-      final dropProg = (animProgress * 5.0 + (i * 0.24)) % 1.0;
-      final yStart = (cloudY + 14 * scale) + (dropProg * 16.0);
-      canvas.drawLine(Offset(x, yStart), Offset(x - 2.4, yStart + 7.0), rainPaint);
+      final dropProg = (animProgress * 7.0 + (i * 0.24)) % 1.0;
+      final yStart = (cloudY + 13 * scale) + (dropProg * 18.0);
+      canvas.drawLine(Offset(x, yStart), Offset(x - 2.6, yStart + 7.5), rainPaint);
+
+      // Animated puddle splash ripple near sky baseline
+      if (dropProg > 0.82) {
+        final splashT = ((dropProg - 0.82) / 0.18).clamp(0.0, 1.0);
+        final splashPaint = Paint()
+          ..color = accentColor.withValues(alpha: (1.0 - splashT) * 0.55 * alphaScale)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.1;
+        canvas.drawOval(
+          Rect.fromCenter(center: Offset(x - 2.0, h - 6), width: 4.0 + splashT * 7.0, height: 2.2),
+          splashPaint,
+        );
+      }
     }
   }
 
   void _paintSvgSnow(Canvas canvas, double w, double h) {
     final snowPaint = Paint()
-      ..color = (isDark ? const Color(0xFFE0F2FE) : const Color(0xFF0EA5E9)).withValues(alpha: 0.85)
+      ..color = (isDark ? const Color(0xFFE0F2FE) : const Color(0xFF0EA5E9)).withValues(alpha: 0.88)
       ..strokeWidth = 1.25
       ..strokeCap = StrokeCap.round;
 
-    for (int i = 0; i < 14; i++) {
-      final baseFrac = (i + 0.5) / 14.0;
-      final prog = (animProgress * 3.0 + (i * 0.19)) % 1.0;
-      final sway = math.sin((animProgress * math.pi * 6) + i) * 6.0;
+    for (int i = 0; i < 18; i++) {
+      final baseFrac = (i + 0.5) / 18.0;
+      final prog = (animProgress * 4.0 + (i * 0.17)) % 1.0;
+      final sway = math.sin((animProgress * math.pi * 8) + i) * 7.0;
       final sx = (baseFrac * w) + sway;
-      final sy = 16.0 + (prog * (h - 22.0));
+      final sy = 10.0 + (prog * (h - 16.0));
       final alpha = math.sin(prog * math.pi).clamp(0.0, 1.0) * _edgeFadeAlpha(sx, w);
-      snowPaint.color = (isDark ? const Color(0xFFE0F2FE) : const Color(0xFF0284C7)).withValues(alpha: alpha * 0.85);
-      // Tiny crystal cross + dot
-      canvas.drawLine(Offset(sx - 2.6, sy), Offset(sx + 2.6, sy), snowPaint);
-      canvas.drawLine(Offset(sx, sy - 2.6), Offset(sx, sy + 2.6), snowPaint);
+      snowPaint.color = (isDark ? const Color(0xFFE0F2FE) : const Color(0xFF0284C7)).withValues(alpha: alpha * 0.88);
+      final r = i.isEven ? 2.8 : 2.1;
+      canvas.drawLine(Offset(sx - r, sy), Offset(sx + r, sy), snowPaint);
+      canvas.drawLine(Offset(sx, sy - r), Offset(sx, sy + r), snowPaint);
+      if (i % 3 == 0) {
+        canvas.drawLine(Offset(sx - r * 0.65, sy - r * 0.65), Offset(sx + r * 0.65, sy + r * 0.65), snowPaint);
+      }
     }
   }
 
@@ -3319,11 +3378,11 @@ class _CelestialSkySvgPainter extends CustomPainter {
     final by = cloudY + 10;
 
     bolt.moveTo(bx + 4, by);
-    bolt.lineTo(bx - 5, by + 14);
-    bolt.lineTo(bx + 1, by + 14);
-    bolt.lineTo(bx - 6, by + 30);
-    bolt.lineTo(bx + 6, by + 12);
-    bolt.lineTo(bx, by + 12);
+    bolt.lineTo(bx - 5, by + 13);
+    bolt.lineTo(bx + 1, by + 13);
+    bolt.lineTo(bx - 6, by + 29);
+    bolt.lineTo(bx + 6, by + 11);
+    bolt.lineTo(bx, by + 11);
     bolt.close();
 
     final boltPaint = Paint()
@@ -3332,10 +3391,48 @@ class _CelestialSkySvgPainter extends CustomPainter {
 
     if (isFlashing) {
       final halo = Paint()
-        ..color = const Color(0xFFFEF08A).withValues(alpha: 0.65)
+        ..color = const Color(0xFFFEF08A).withValues(alpha: 0.68)
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.6;
       canvas.drawPath(bolt, halo);
+    }
+  }
+
+  void _paintSvgFlood(Canvas canvas, double w, double h) {
+    final wavePaint = Paint()
+      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.55)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    for (int row = 0; row < 2; row++) {
+      final yBase = h - 10.0 - (row * 6.0);
+      final phase = (floodProgress * math.pi * 2) + (row * 1.4);
+      final path = Path()..moveTo(0, yBase);
+      for (double x = 0; x <= w; x += 14) {
+        final y = yBase + math.sin((x / 24.0) + phase) * 3.0;
+        path.lineTo(x, y);
+      }
+      canvas.drawPath(path, wavePaint);
+    }
+  }
+
+  void _paintSvgTwister(Canvas canvas, double centerX, double h) {
+    final funnelPaint = Paint()
+      ..color = (isDark ? const Color(0xFF94A3B8) : const Color(0xFF64748B)).withValues(alpha: 0.62)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0
+      ..strokeCap = StrokeCap.round;
+
+    for (int i = 0; i < 6; i++) {
+      final frac = i / 5.0;
+      final y = 36.0 + frac * (h - 46.0);
+      final radiusX = 24.0 * (1.0 - frac * 0.72);
+      final wobble = math.sin((twisterProgress * math.pi * 2) + (i * 1.1)) * 5.0;
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset(centerX + wobble, y), width: radiusX * 2, height: 6.5),
+        funnelPaint,
+      );
     }
   }
 
@@ -3509,6 +3606,8 @@ class _AqiToolerCharacterState extends State<_AqiToolerCharacter> {
     final hexLight = '#${(widget.theme.primary.withValues(alpha: 0.22).toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase()}';
 
     final processed = rawSvg
+        // Trim dead top/bottom padding around the character while preserving full leaves & pose
+        .replaceFirst('viewBox="0 0 1134 1005"', 'viewBox="80 108 1000 832"')
         // Strip out smog dots / gray circles for a clean, crisp character
         .replaceAll(RegExp(r'<circle[^>]+fill="(?:#A8A29E|#D6D3D1|#78716C)"[^>]*/>'), '')
         .replaceAll(RegExp(r'<circle[^>]+fill-opacity="[^"]+"[^>]+fill="(?:#A8A29E|#D6D3D1|#78716C)"[^>]*/>'), '')

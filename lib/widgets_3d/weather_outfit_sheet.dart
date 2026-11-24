@@ -581,25 +581,25 @@ class OutfitRecommendation {
     );
 
     const summerTools = SeasonalKitSection(
-      title: 'Summer Tools & Essentials',
+      title: 'Summer Tools & Clothes',
       icon: Icons.wb_sunny_rounded,
       color: Color(0xFFF59E0B),
       items: [
-        GearToolItem(name: 'SPF 50+ Sunscreen', detail: 'Reapply every 2 hours', icon: Icons.spa_rounded, color: Color(0xFFF59E0B)),
-        GearToolItem(name: 'Polarized Sunglasses', detail: 'UV400 eye shield', icon: Icons.dark_mode_rounded, color: Color(0xFFFB923C)),
+        GearToolItem(name: 'Cotton Tee, Shorts & Sun Cap', detail: 'Airy light clothes + open slippers', icon: Icons.checkroom_rounded, color: Color(0xFFF59E0B)),
+        GearToolItem(name: 'SPF 50+ Sunscreen & Shades', detail: 'UV400 sunglasses + UV sun umbrella', icon: Icons.dark_mode_rounded, color: Color(0xFFFB923C)),
         GearToolItem(name: 'Insulated Water Bottle', detail: 'Electrolytes + cold hydration', icon: Icons.water_drop_rounded, color: Color(0xFF0EA5E9)),
         GearToolItem(name: 'Cooling Towel / Mini Fan', detail: 'Instant heat relief outdoors', icon: Icons.air_rounded, color: Color(0xFF10B981)),
       ],
     );
 
     const winterTools = SeasonalKitSection(
-      title: 'Winter Tools & Layering',
+      title: 'Winter Tools & Clothes',
       icon: Icons.severe_cold_rounded,
       color: Color(0xFF60A5FA),
       items: [
+        GearToolItem(name: 'Wool Beanie, Sweater & Gloves', detail: 'Thermal shirt + denim + warm boots', icon: Icons.checkroom_rounded, color: Color(0xFF38BDF8)),
         GearToolItem(name: 'Thermos Hot Flask', detail: 'Warm tea, soup or water', icon: Icons.local_cafe_rounded, color: Color(0xFFF97316)),
-        GearToolItem(name: 'Wool Scarf & Socks', detail: 'Neck muffler + thermal socks', icon: Icons.checkroom_rounded, color: Color(0xFF38BDF8)),
-        GearToolItem(name: 'Lip Balm & Cream', detail: 'Prevent cold-air chapping', icon: Icons.healing_rounded, color: Color(0xFFEC4899)),
+        GearToolItem(name: 'Wool Scarf & Lip Balm', detail: 'Neck muffler + cold-air skin care', icon: Icons.healing_rounded, color: Color(0xFFEC4899)),
         GearToolItem(name: 'Pocket Hand Warmers', detail: 'Keep fingers warm outside', icon: Icons.whatshot_rounded, color: Color(0xFFEF4444)),
       ],
     );
@@ -1067,7 +1067,7 @@ class _WhatToWearHoverPageContentState extends State<_WhatToWearHoverPageContent
                       title: 'Raincoat',
                       value: rec.raincoatStatus,
                       detail: rec.raincoatDetail,
-                      icon: Icons.cloudy_snowing,
+                      icon: Icons.water_drop_rounded,
                       accent: const Color(0xFF0284C7),
                       active: rec.hasRaincoat,
                     ),
@@ -1412,7 +1412,7 @@ class WearableToolerCharacter extends StatelessWidget {
 
     final buf = StringBuffer();
     buf.write(
-      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1134 1005" width="100%" height="100%" style="overflow: visible;">',
+      '<svg xmlns="http://www.w3.org/2000/svg" viewBox="140 75 860 870" width="100%" height="100%" style="overflow: visible;">',
     );
 
     // 1. Subtle Seasonal / Weather Environment Accents behind character
@@ -1422,8 +1422,8 @@ class WearableToolerCharacter extends StatelessWidget {
         [910, 200, 11],
         [260, 440, 10],
         [870, 470, 13],
-        [180, 680, 10],
-        [940, 690, 11],
+        [200, 680, 10],
+        [920, 690, 11],
       ]) {
         buf.write(
           '<circle cx="${pos[0]}" cy="${pos[1]}" r="${pos[2]}" fill="#BAE6FD" stroke="$ink" stroke-width="2"/>',
@@ -1433,6 +1433,23 @@ class WearableToolerCharacter extends StatelessWidget {
       buf.write(
         '<path d="M 275 380 L 295 820" fill="none" stroke="$ink" stroke-width="14" stroke-linecap="round"/>'
         '<path d="M 248 805 L 342 805 L 348 905 Q 348 920 330 920 L 260 920 Q 242 920 242 905 Z" fill="$hexPrimary" stroke="$ink" stroke-width="4" stroke-linejoin="round"/>',
+      );
+    } else if (ctx.season == WeatherSeason.winter || ctx.tempC <= 12) {
+      // Winter frost crystals + steaming hot thermos prop
+      for (final pos in const [
+        [235, 250],
+        [890, 240],
+        [255, 580],
+        [880, 620],
+      ]) {
+        buf.write(
+          '<path d="M ${pos[0] - 18} ${pos[1]} L ${pos[0] + 18} ${pos[1]} M ${pos[0]} ${pos[1] - 18} L ${pos[0]} ${pos[1] + 18}" stroke="#60A5FA" stroke-width="4" stroke-linecap="round"/>',
+        );
+      }
+      buf.write(
+        '<rect x="785" y="475" width="42" height="96" rx="12" fill="$hexPrimary" stroke="$ink" stroke-width="3.2"/>'
+        '<rect x="793" y="455" width="26" height="22" rx="5" fill="$hexPrimaryDark" stroke="$ink" stroke-width="2.8"/>'
+        '<path d="M 800 444 Q 795 430 803 418 M 812 444 Q 807 430 815 418" fill="none" stroke="#94A3B8" stroke-width="3.2" stroke-linecap="round"/>',
       );
     } else if (ctx.season == WeatherSeason.autumn && !ctx.isRain) {
       // Drifting autumn leaves
@@ -1450,7 +1467,7 @@ class WearableToolerCharacter extends StatelessWidget {
         );
       }
     } else if (ctx.season == WeatherSeason.summer || ctx.tempC >= 30) {
-      // Warm sun badge in upper left + insulated bottle
+      // Warm sun badge in upper left + insulated water bottle
       buf.write(
         '<circle cx="235" cy="215" r="44" fill="#FDE047" fill-opacity="0.7" stroke="$ink" stroke-width="3.2"/>'
         '<rect x="785" y="455" width="44" height="105" rx="14" fill="#38BDF8" stroke="$ink" stroke-width="3.2"/>'
@@ -1466,7 +1483,7 @@ class WearableToolerCharacter extends StatelessWidget {
 
     // Ground line
     buf.write(
-      '<path d="M 120 920 L 1020 920" fill="none" stroke="$ink" stroke-width="4" stroke-linecap="round"/>',
+      '<path d="M 160 920 L 980 920" fill="none" stroke="$ink" stroke-width="4" stroke-linecap="round"/>',
     );
 
     // 2. Lower Body: Shorts vs Pants vs Thermal Snow Pants
@@ -1580,14 +1597,14 @@ class WearableToolerCharacter extends StatelessWidget {
     // Left Arm (holds oxygen cylinder if active, otherwise relaxed)
     if (rec.hasOxygenCylinder) {
       buf.write(
-        '<path d="M 469 294 L 433 398 L 417 486" fill="none" stroke="$torsoFill" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>'
-        '<path d="M 469 294 L 433 398 L 417 486" fill="none" stroke="$ink" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.25"/>',
+        '<path d="M 469 294 L 433 398 L 417 486" fill="none" stroke="$ink" stroke-width="66" stroke-linecap="round" stroke-linejoin="round"/>'
+        '<path d="M 469 294 L 433 398 L 417 486" fill="none" stroke="$torsoFill" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>',
       );
     } else if (isShortSleeve) {
       buf.write(
-        '<path d="M 467 300 L 456 385" fill="none" stroke="$torsoFill" stroke-width="62" stroke-linecap="round"/>'
+        '<path d="M 456 385 L 449 514" fill="none" stroke="$ink" stroke-width="40" stroke-linecap="round"/>'
         '<path d="M 456 385 L 449 514" fill="none" stroke="$skin" stroke-width="34" stroke-linecap="round"/>'
-        '<path d="M 456 385 L 449 514" fill="none" stroke="$ink" stroke-width="3.2" stroke-linecap="round" opacity="0.18"/>',
+        '<path d="M 467 300 L 456 385" fill="none" stroke="$torsoFill" stroke-width="62" stroke-linecap="round"/>',
       );
     } else {
       buf.write(
@@ -1599,17 +1616,34 @@ class WearableToolerCharacter extends StatelessWidget {
     final rightHandX = rec.hasUmbrella ? 752.0 : 685.0;
     final rightHandY = rec.hasUmbrella ? 378.0 : 528.0;
     if (rec.hasUmbrella) {
-      buf.write(
-        '<path d="M 667 300 L 724 395 L 752 378" fill="none" stroke="$torsoFill" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>',
-      );
+      if (isShortSleeve) {
+        buf.write(
+          '<path d="M 702 358 L 752 378" fill="none" stroke="$ink" stroke-width="40" stroke-linecap="round"/>'
+          '<path d="M 702 358 L 752 378" fill="none" stroke="$skin" stroke-width="34" stroke-linecap="round"/>'
+          '<path d="M 667 300 L 702 358" fill="none" stroke="$torsoFill" stroke-width="60" stroke-linecap="round"/>',
+        );
+      } else {
+        buf.write(
+          '<path d="M 667 300 L 724 395 L 752 378" fill="none" stroke="$torsoFill" stroke-width="60" stroke-linecap="round" stroke-linejoin="round"/>',
+        );
+      }
     } else if (isShortSleeve) {
       buf.write(
-        '<path d="M 667 300 L 678 385" fill="none" stroke="$torsoFill" stroke-width="62" stroke-linecap="round"/>'
-        '<path d="M 678 385 L 685 514" fill="none" stroke="$skin" stroke-width="34" stroke-linecap="round"/>',
+        '<path d="M 678 385 L 685 514" fill="none" stroke="$ink" stroke-width="40" stroke-linecap="round"/>'
+        '<path d="M 678 385 L 685 514" fill="none" stroke="$skin" stroke-width="34" stroke-linecap="round"/>'
+        '<path d="M 667 300 L 678 385" fill="none" stroke="$torsoFill" stroke-width="62" stroke-linecap="round"/>',
       );
     } else {
       buf.write(
         '<path d="M 667 300 L 679 410 L 685 514" fill="none" stroke="$torsoFill" stroke-width="62" stroke-linecap="round" stroke-linejoin="round"/>',
+      );
+    }
+
+    // Cozy Winter Scarf when cold / winter
+    if ((ctx.season == WeatherSeason.winter || ctx.tempC <= 12) && !rec.hasRaincoat) {
+      buf.write(
+        '<path d="M 522 252 Q 567 282 612 252 L 606 286 Q 567 306 528 286 Z" fill="$hexPrimary" stroke="$ink" stroke-width="3" stroke-linejoin="round"/>'
+        '<path d="M 580 284 L 608 284 L 616 376 L 584 376 Z" fill="$hexPrimaryDark" stroke="$ink" stroke-width="2.8" stroke-linejoin="round"/>',
       );
     }
 
@@ -1621,7 +1655,7 @@ class WearableToolerCharacter extends StatelessWidget {
       );
     }
 
-    // Hands or Gloves
+    // Hands or Gloves (with cuff trim when gloves are worn)
     final handFill = rec.hasGloves ? hexPrimaryDark : skin;
     final leftHandX = rec.hasOxygenCylinder ? 414.5 : 448.2;
     final leftHandY = rec.hasOxygenCylinder ? 499.8 : 528.0;
@@ -1631,6 +1665,12 @@ class WearableToolerCharacter extends StatelessWidget {
       '<ellipse cx="$leftHandX" cy="$leftHandY" rx="$handRx" ry="$handRy" fill="$handFill" stroke="$ink" stroke-width="3.2"/>'
       '<ellipse cx="$rightHandX" cy="$rightHandY" rx="$handRx" ry="$handRy" fill="$handFill" stroke="$ink" stroke-width="3.2"/>',
     );
+    if (rec.hasGloves) {
+      buf.write(
+        '<rect x="${leftHandX - 18}" y="${leftHandY - 22}" width="36" height="10" rx="4" fill="$hexPrimary" stroke="$ink" stroke-width="2.4"/>'
+        '<rect x="${rightHandX - 18}" y="${rightHandY - 22}" width="36" height="10" rx="4" fill="$hexPrimary" stroke="$ink" stroke-width="2.4"/>',
+      );
+    }
 
     // 7. Umbrella (held in right hand overhead)
     if (rec.hasUmbrella) {

@@ -71,7 +71,7 @@ void main() {
     expect(summerRec.pantStyle, PantStyle.shorts);
     expect(summerRec.footwearStyle, FootwearStyle.slippers);
     expect(summerRec.hasGloves, isFalse);
-    expect(summerRec.activeToolsTitle, 'Summer Tools & Essentials');
+    expect(summerRec.activeToolsTitle, 'Summer Tools & Clothes');
 
     final rainSmogRec = OutfitRecommendation.compute(
       const WeatherOutfitContext(
@@ -179,25 +179,35 @@ void main() {
 
     // 4. Activities & Allergies section exists below Atmospheric Metrics
     final metricsTitle = find.text('Atmospheric Metrics');
-    final activitiesTitle = find.text('Activities & Allergies');
+    final activitiesTitle = find.text('Activities');
+    final allergiesTitle = find.text('Allergies');
     final wearBtnFinder = find.text('What to Wear & Carry');
     expect(metricsTitle, findsOneWidget);
     expect(activitiesTitle, findsOneWidget);
+    expect(allergiesTitle, findsOneWidget);
     expect(wearBtnFinder, findsOneWidget);
 
     expect(tester.getTopLeft(metricsTitle).dy, lessThan(tester.getTopLeft(activitiesTitle).dy));
-    expect(tester.getTopLeft(activitiesTitle).dy, lessThan(tester.getTopLeft(wearBtnFinder).dy));
+    expect(tester.getTopLeft(activitiesTitle).dy, lessThan(tester.getTopLeft(allergiesTitle).dy));
+    expect(tester.getTopLeft(allergiesTitle).dy, lessThan(tester.getTopLeft(wearBtnFinder).dy));
 
-    expect(find.text('Outdoor Activities'), findsOneWidget);
     expect(find.text('Running'), findsOneWidget);
+    expect(find.text('Jogging'), findsOneWidget);
     expect(find.text('Cycling'), findsOneWidget);
-    expect(find.text('Driving'), findsOneWidget);
-    expect(find.text('Stargazing'), findsOneWidget);
-    expect(find.text('Allergies & Triggers'), findsOneWidget);
+    expect(find.text('Hiking'), findsOneWidget);
+    expect(find.text('Dust and dander'), findsOneWidget);
     expect(find.text('Pollen'), findsOneWidget);
-    expect(find.text('Dust & Smog'), findsOneWidget);
-    expect(find.text('Mold Spores'), findsOneWidget);
+    expect(find.text('Mold'), findsOneWidget);
     expect(find.text('Sinus & UV'), findsOneWidget);
+
+    // Toggle Activities collapse/expand chevron cleanly
+    await tester.ensureVisible(activitiesTitle);
+    await tester.tap(activitiesTitle);
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(find.text('Running'), findsNothing);
+    await tester.tap(activitiesTitle);
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(find.text('Running'), findsOneWidget);
 
     // 5. Legacy Weather Controls text and caption are removed, replaced by active Season + Icon
     expect(find.text('Weather Controls'), findsNothing);
@@ -337,6 +347,16 @@ void main() {
     await tester.pump(const Duration(milliseconds: 200));
     expect(find.text('Heavy Snowfall'), findsOneWidget);
     expect(find.text('Winter Season'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Mountain Flood'));
+    await tester.tap(find.text('Mountain Flood'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Mountain Flood Hazard'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Tornado Twister'));
+    await tester.tap(find.text('Tornado Twister'));
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(find.text('Tornado Twister Vortex'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.close_rounded).last);
     await tester.pump(const Duration(milliseconds: 300));
