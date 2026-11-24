@@ -14,7 +14,7 @@ import '../services/weather_telemetry_service.dart';
 /// ---------------------------------------------------------------------------
 /// TOOLER MAUSAM & WEATHER SCREEN
 /// - Real-time Weather, Location & AQI telemetry
-/// - Interactive Sky Canvas with bigger Sun, Moon Phase, Line-by-Line Drifting
+/// - Interactive Sky Canvas with bold Sun, Moon Phase, Scattered Slow-Drifting
 ///   Clouds, Breeze, Birds, Rain, Snow & Thunder Animations
 /// - Reactive Tooler Vector Character for AQI
 /// - Past 7 Days History & Next 7 Days Forecast Charts with °C / °F toggle
@@ -31,7 +31,6 @@ enum WeatherSimMode {
   rainyDeluge,
   thunderstorm,
   snowfall,
-  mountainFlood,
   tornadoTwister,
   severeSmog,
 }
@@ -54,7 +53,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
 
   late final AnimationController _animController;
   late final AnimationController _lightningController;
-  late final AnimationController _floodController;
   late final AnimationController _twisterController;
   late final AnimationController _coughController;
 
@@ -63,22 +61,16 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     super.initState();
     _telemetry.init();
 
-    // Main ambient landscape loop (gentle line-by-line clouds, sun rotation, breeze, birds)
+    // Main ambient landscape loop (ultra-gentle slow clouds, sun rotation, breeze, birds)
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 32000),
+      duration: const Duration(milliseconds: 96000),
     )..repeat();
 
     // Lightning flash burst controller
     _lightningController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 3200),
-    )..repeat();
-
-    // Mountain flood surge waves controller
-    _floodController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
     )..repeat();
 
     // Tornado twister vortex controller
@@ -98,7 +90,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
   void dispose() {
     _animController.dispose();
     _lightningController.dispose();
-    _floodController.dispose();
     _twisterController.dispose();
     _coughController.dispose();
     super.dispose();
@@ -130,7 +121,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
         isThunder: isThunder,
         isCloudy: isCloudy,
         isSnow: isSnow,
-        isFlood: false,
         isTwister: false,
         tempC: live.temperatureC,
         condition: live.condition,
@@ -150,7 +140,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: false,
           isCloudy: false,
           isSnow: false,
-          isFlood: false,
           isTwister: false,
           tempC: 32.0,
           condition: 'Sunny & Clear',
@@ -167,7 +156,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: false,
           isCloudy: false,
           isSnow: false,
-          isFlood: false,
           isTwister: false,
           tempC: 19.5,
           condition: 'Clear Moonlit Night',
@@ -184,7 +172,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: false,
           isCloudy: true,
           isSnow: false,
-          isFlood: false,
           isTwister: false,
           tempC: 24.0,
           condition: 'Dense Overcast',
@@ -201,7 +188,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: false,
           isCloudy: true,
           isSnow: false,
-          isFlood: false,
           isTwister: false,
           tempC: 21.0,
           condition: 'Heavy Rain Showers',
@@ -218,7 +204,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: true,
           isCloudy: true,
           isSnow: false,
-          isFlood: false,
           isTwister: false,
           tempC: 20.0,
           condition: 'Violent Thunderstorm',
@@ -235,7 +220,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: false,
           isCloudy: true,
           isSnow: true,
-          isFlood: false,
           isTwister: false,
           tempC: -3.0,
           condition: 'Heavy Snowfall',
@@ -245,23 +229,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           city: 'Snow Ridge',
           country: 'Sim',
         );
-      case WeatherSimMode.mountainFlood:
-        return _EffectiveWeather(
-          isDay: false,
-          isRain: true,
-          isThunder: true,
-          isCloudy: true,
-          isSnow: false,
-          isFlood: true,
-          isTwister: false,
-          tempC: 18.5,
-          condition: 'Mountain Flood Hazard',
-          aqi: _simAqiOverride ?? 92,
-          aqiStatus: 'Moderate',
-          aqiColor: const Color(0xFFF59E0B),
-          city: 'River Canyon',
-          country: 'Alert',
-        );
       case WeatherSimMode.tornadoTwister:
         return _EffectiveWeather(
           isDay: false,
@@ -269,7 +236,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: true,
           isCloudy: true,
           isSnow: false,
-          isFlood: false,
           isTwister: true,
           tempC: 17.0,
           condition: 'Tornado Twister Vortex',
@@ -286,7 +252,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: false,
           isCloudy: true,
           isSnow: false,
-          isFlood: false,
           isTwister: false,
           tempC: 29.0,
           condition: 'Severe Toxic Smog',
@@ -303,7 +268,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isThunder: false,
           isCloudy: false,
           isSnow: false,
-          isFlood: false,
           isTwister: false,
           tempC: live.temperatureC,
           condition: live.condition,
@@ -752,7 +716,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
               animation: Listenable.merge([
                 _animController,
                 _lightningController,
-                _floodController,
                 _twisterController,
               ]),
               builder: (context, _) {
@@ -762,7 +725,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                     moonPhase: raw.moonPhase,
                     animProgress: _animController.value,
                     lightningProgress: _lightningController.value,
-                    floodProgress: _floodController.value,
                     twisterProgress: _twisterController.value,
                     isDark: isDark,
                     accentColor: theme.primary,
@@ -1697,7 +1659,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     final season = _resolveSeason(weather);
 
     // Compute Outdoor Activity suitability dynamically (Running, Jogging, Cycling, Hiking)
-    final bool severeWeather = weather.isThunder || weather.isTwister || weather.isFlood;
+    final bool severeWeather = weather.isThunder || weather.isTwister;
     final bool wetOrSnow = weather.isRain || weather.isSnow;
 
     final String runStatus;
@@ -2687,7 +2649,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                     ],
                   ),
                   Text(
-                    'Experience live SVG Sun, Moon phases, Line Clouds, Rain, Snow, Thunder & AQI transformations.',
+                    'Experience live bold SVG Sun, Moon phases, slow drifting clouds, Rain, Snow, Thunder & AQI transformations.',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
                       color: theme.textSecondary,
@@ -2706,7 +2668,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                       _buildSimChip('Rain Showers', WeatherSimMode.rainyDeluge, setSheetState, theme, isDark),
                       _buildSimChip('Thunder Lightning', WeatherSimMode.thunderstorm, setSheetState, theme, isDark),
                       _buildSimChip('Snowfall', WeatherSimMode.snowfall, setSheetState, theme, isDark),
-                      _buildSimChip('Mountain Flood', WeatherSimMode.mountainFlood, setSheetState, theme, isDark),
                       _buildSimChip('Tornado Twister', WeatherSimMode.tornadoTwister, setSheetState, theme, isDark),
                       _buildSimChip('Toxic Smog', WeatherSimMode.severeSmog, setSheetState, theme, isDark),
                     ],
@@ -2785,7 +2746,6 @@ class _EffectiveWeather {
   final bool isThunder;
   final bool isCloudy;
   final bool isSnow;
-  final bool isFlood;
   final bool isTwister;
   final double tempC;
   final String condition;
@@ -2801,7 +2761,6 @@ class _EffectiveWeather {
     required this.isThunder,
     required this.isCloudy,
     required this.isSnow,
-    required this.isFlood,
     required this.isTwister,
     required this.tempC,
     required this.condition,
@@ -2814,19 +2773,19 @@ class _EffectiveWeather {
 }
 
 class _CloudTrackSpec {
-  final int lane; // 0 = upper, 1 = mid, 2 = foreground
   final double y;
   final double scale;
   final double phaseOffset;
-  final int cycles; // Integer cycles per animProgress loop for zero jump
+  final double bobAmp;
+  final int bobFreq; // Integer harmonics per animProgress loop for zero jump
   final bool isSecondary;
 
   const _CloudTrackSpec({
-    required this.lane,
     required this.y,
     required this.scale,
     required this.phaseOffset,
-    required this.cycles,
+    required this.bobAmp,
+    required this.bobFreq,
     required this.isSecondary,
   });
 }
@@ -2883,18 +2842,17 @@ class _DustDropletIconPainter extends CustomPainter {
 
 // ---------------------------------------------------------------------------
 // CELESTIAL SKY SVG PAINTER
-// - Larger Sun & Moon pushed higher up right below the hover sheet title
-// - Abundant line-by-line clouds drifting gently left-to-right across 3 lanes
+// - Bold glowing Sun & detailed Moon Phase
+// - Sparse, organically scattered slow-drifting clouds (non-aligned heights)
 // - Smooth edge fade, birds, breeze streams, dust motes, twinkling stars +
 //   shooting stars, multi-layer rain + splash ripples, drifting snow crystals,
-//   lightning flash, flood surge waves & tornado twister vortex
+//   lightning flash & tornado twister vortex
 // ---------------------------------------------------------------------------
 class _CelestialSkySvgPainter extends CustomPainter {
   final _EffectiveWeather weather;
   final MoonPhaseInfo moonPhase;
   final double animProgress;
   final double lightningProgress;
-  final double floodProgress;
   final double twisterProgress;
   final bool isDark;
   final Color accentColor;
@@ -2905,7 +2863,6 @@ class _CelestialSkySvgPainter extends CustomPainter {
     required this.moonPhase,
     required this.animProgress,
     required this.lightningProgress,
-    required this.floodProgress,
     required this.twisterProgress,
     required this.isDark,
     required this.accentColor,
@@ -2913,7 +2870,7 @@ class _CelestialSkySvgPainter extends CustomPainter {
   });
 
   double _edgeFadeAlpha(double x, double w) {
-    const fadeZone = 28.0;
+    const fadeZone = 32.0;
     if (x < fadeZone) return (x / fadeZone).clamp(0.0, 1.0);
     if (x > w - fadeZone) return ((w - x) / fadeZone).clamp(0.0, 1.0);
     return 1.0;
@@ -2959,14 +2916,14 @@ class _CelestialSkySvgPainter extends CustomPainter {
         Offset(cx + 114, 70),
       ];
       for (int i = 0; i < starOffsets.length; i++) {
-        final twinkle = (math.sin((animProgress * math.pi * 6) + i * 1.35) + 1.0) / 2.0;
+        final twinkle = (math.sin((animProgress * math.pi * 18) + i * 1.35) + 1.0) / 2.0;
         starPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.20 + (twinkle * 0.68));
         canvas.drawCircle(starOffsets[i], 0.9 + (twinkle * 1.05), starPaint);
       }
 
       // Two staggered delicate shooting stars
       for (int s = 0; s < 2; s++) {
-        final shootPhase = (animProgress * 2.0 + s * 0.5) % 1.0;
+        final shootPhase = (animProgress * 6.0 + s * 0.5) % 1.0;
         if (shootPhase < 0.22) {
           final t = shootPhase / 0.22;
           final startX = s == 0 ? cx - 105 : cx + 10;
@@ -2982,17 +2939,17 @@ class _CelestialSkySvgPainter extends CustomPainter {
       }
     }
 
-    // 2. Gentle Continuous Left-to-Right Wind / Breeze Streamlines + Drifting Air Motes
+    // 2. Gentle Ultra-Slow Left-to-Right Wind / Breeze Streamlines + Drifting Air Motes
     final breezePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.45
+      ..strokeWidth = 1.35
       ..strokeCap = StrokeCap.round;
-    const breezeRows = [18.0, 38.0, 60.0, 82.0];
-    for (int i = 0; i < breezeRows.length; i++) {
-      final t = (animProgress * 3.0 + (i * 0.27)) % 1.0;
+    const breezeHeights = [17.0, 44.0, 68.0, 86.0];
+    for (int i = 0; i < breezeHeights.length; i++) {
+      final t = (animProgress * 2.0 + (i * 0.27)) % 1.0;
       final bx = -55.0 + t * (w + 110.0);
-      final by = breezeRows[i] + math.sin((animProgress * math.pi * 4) + i) * 2.0;
-      final alpha = _edgeFadeAlpha(bx, w) * 0.25;
+      final by = breezeHeights[i] + math.sin((animProgress * math.pi * 6) + i) * 2.0;
+      final alpha = _edgeFadeAlpha(bx, w) * 0.22;
       breezePaint.color = (isDark ? Colors.white : theme.textSecondary).withValues(alpha: alpha);
       final path = Path()
         ..moveTo(bx - 26, by)
@@ -3000,13 +2957,13 @@ class _CelestialSkySvgPainter extends CustomPainter {
       canvas.drawPath(path, breezePaint);
     }
 
-    // Subtle floating atmospheric particles drifting left-to-right
+    // Subtle floating atmospheric particles drifting slowly left-to-right
     final motePaint = Paint();
     for (int i = 0; i < 8; i++) {
-      final t = (animProgress * 2.0 + (i * 0.125)) % 1.0;
+      final t = (animProgress * 3.0 + (i * 0.125)) % 1.0;
       final mx = -20.0 + t * (w + 40.0);
-      final my = 16.0 + ((i * 11.0) % (h - 32.0)) + math.sin(animProgress * math.pi * 6 + i) * 2.5;
-      final mAlpha = _edgeFadeAlpha(mx, w) * (weather.aqi > 120 ? 0.36 : 0.22);
+      final my = 16.0 + ((i * 11.0) % (h - 32.0)) + math.sin(animProgress * math.pi * 12 + i) * 2.5;
+      final mAlpha = _edgeFadeAlpha(mx, w) * (weather.aqi > 120 ? 0.36 : 0.20);
       motePaint.color = (weather.aqi > 120 ? weather.aqiColor : (isDark ? Colors.white : accentColor))
           .withValues(alpha: mAlpha);
       canvas.drawCircle(Offset(mx, my), i.isEven ? 1.5 : 1.1, motePaint);
@@ -3021,18 +2978,17 @@ class _CelestialSkySvgPainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round;
       const birdSpecs = [
         [0.10, 18.0, 0.95],
-        [0.38, 28.0, 0.84],
-        [0.64, 14.0, 0.90],
-        [0.86, 25.0, 0.80],
+        [0.44, 34.0, 0.84],
+        [0.76, 15.0, 0.90],
       ];
       for (int i = 0; i < birdSpecs.length; i++) {
         final spec = birdSpecs[i];
-        final progress = (animProgress * 2.0 + spec[0]) % 1.0;
+        final progress = (animProgress * 4.0 + spec[0]) % 1.0;
         final bx = -24.0 + progress * (w + 48.0);
         final by = spec[1] + math.sin(progress * math.pi * 6 + i) * 3.0;
-        final flap = math.sin(animProgress * math.pi * 20 + i * 2.1) * 3.2;
+        final flap = math.sin(animProgress * math.pi * 60 + i * 2.1) * 3.2;
         final span = 6.8 * spec[2];
-        birdPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: _edgeFadeAlpha(bx, w) * 0.56);
+        birdPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: _edgeFadeAlpha(bx, w) * 0.52);
         final bPath = Path()
           ..moveTo(bx - span, by - flap)
           ..quadraticBezierTo(bx - span * 0.45, by - 3.5, bx, by)
@@ -3041,46 +2997,34 @@ class _CelestialSkySvgPainter extends CustomPainter {
       }
     }
 
-    // 4. Abundant Line-by-Line Drifting Cloud Tracks (Left -> Right across 3 layered rows)
+    // 4. Sparse, Scattered & Ultra-Slow Clouds (non-aligned organic sky placement)
     final bool denseClouds = weather.isCloudy || weather.isRain || weather.isThunder || weather.isSnow;
     final cloudSpecs = <_CloudTrackSpec>[
-      // Line 1 (Top sky row, gentle 1x drift)
-      const _CloudTrackSpec(lane: 0, y: 14.0, scale: 0.54, phaseOffset: 0.03, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 0, y: 16.0, scale: 0.60, phaseOffset: 0.20, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 0, y: 13.5, scale: 0.56, phaseOffset: 0.37, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 0, y: 16.5, scale: 0.62, phaseOffset: 0.54, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 0, y: 14.5, scale: 0.55, phaseOffset: 0.71, cycles: 1, isSecondary: true),
-      const _CloudTrackSpec(lane: 0, y: 16.0, scale: 0.58, phaseOffset: 0.88, cycles: 1, isSecondary: true),
-      if (denseClouds)
-        const _CloudTrackSpec(lane: 0, y: 15.0, scale: 0.64, phaseOffset: 0.45, cycles: 1, isSecondary: true),
-
-      // Line 2 (Middle sky row, gentle 2x drift)
-      const _CloudTrackSpec(lane: 1, y: 36.0, scale: 0.68, phaseOffset: 0.07, cycles: 2, isSecondary: true),
-      const _CloudTrackSpec(lane: 1, y: 39.0, scale: 0.74, phaseOffset: 0.27, cycles: 2, isSecondary: false),
-      const _CloudTrackSpec(lane: 1, y: 35.5, scale: 0.70, phaseOffset: 0.47, cycles: 2, isSecondary: true),
-      const _CloudTrackSpec(lane: 1, y: 39.5, scale: 0.76, phaseOffset: 0.67, cycles: 2, isSecondary: false),
-      const _CloudTrackSpec(lane: 1, y: 37.0, scale: 0.69, phaseOffset: 0.87, cycles: 2, isSecondary: true),
-      if (denseClouds)
-        const _CloudTrackSpec(lane: 1, y: 38.0, scale: 0.78, phaseOffset: 0.57, cycles: 2, isSecondary: false),
-
-      // Line 3 (Foreground lower row, slightly brisker 3x gentle breeze drift)
-      const _CloudTrackSpec(lane: 2, y: 60.0, scale: 0.84, phaseOffset: 0.04, cycles: 3, isSecondary: false),
-      const _CloudTrackSpec(lane: 2, y: 64.0, scale: 0.94, phaseOffset: 0.24, cycles: 3, isSecondary: false),
-      const _CloudTrackSpec(lane: 2, y: 59.0, scale: 0.86, phaseOffset: 0.44, cycles: 3, isSecondary: false),
-      const _CloudTrackSpec(lane: 2, y: 63.0, scale: 0.90, phaseOffset: 0.64, cycles: 3, isSecondary: false),
-      const _CloudTrackSpec(lane: 2, y: 61.0, scale: 0.85, phaseOffset: 0.84, cycles: 3, isSecondary: false),
-      if (denseClouds)
-        const _CloudTrackSpec(lane: 2, y: 65.0, scale: 0.95, phaseOffset: 0.34, cycles: 3, isSecondary: false),
+      if (!denseClouds) ...[
+        // Calm Clear Sky: just 3 sparse, staggered clouds at completely different heights
+        const _CloudTrackSpec(y: 23.0, scale: 0.60, phaseOffset: 0.11, bobAmp: 4.5, bobFreq: 2, isSecondary: true),
+        const _CloudTrackSpec(y: 73.0, scale: 0.78, phaseOffset: 0.44, bobAmp: 3.5, bobFreq: 3, isSecondary: true),
+        const _CloudTrackSpec(y: 44.0, scale: 0.54, phaseOffset: 0.78, bobAmp: 5.0, bobFreq: 2, isSecondary: true),
+      ] else ...[
+        // Overcast / Rain / Thunder / Snow: moderate 6 scattered clouds (background + foreground anchors)
+        const _CloudTrackSpec(y: 19.0, scale: 0.60, phaseOffset: 0.06, bobAmp: 4.0, bobFreq: 2, isSecondary: true),
+        const _CloudTrackSpec(y: 74.0, scale: 0.88, phaseOffset: 0.21, bobAmp: 3.2, bobFreq: 2, isSecondary: false),
+        const _CloudTrackSpec(y: 49.0, scale: 0.70, phaseOffset: 0.37, bobAmp: 3.8, bobFreq: 3, isSecondary: true),
+        const _CloudTrackSpec(y: 35.0, scale: 0.78, phaseOffset: 0.55, bobAmp: 4.2, bobFreq: 3, isSecondary: false),
+        const _CloudTrackSpec(y: 26.0, scale: 0.64, phaseOffset: 0.73, bobAmp: 4.5, bobFreq: 2, isSecondary: true),
+        const _CloudTrackSpec(y: 62.0, scale: 0.90, phaseOffset: 0.89, bobAmp: 3.0, bobFreq: 2, isSecondary: false),
+      ],
     ];
 
     final resolvedClouds = <({Offset center, double scale, bool isSecondary, Path path, double alpha})>[];
-    const horizontalMargin = 54.0;
+    const horizontalMargin = 58.0;
     final totalSpan = w + (horizontalMargin * 2);
 
     for (final spec in cloudSpecs) {
-      final t = ((animProgress * spec.cycles) + spec.phaseOffset) % 1.0;
+      // Single glacial 96-second traverse left-to-right for super calm, minimal speed
+      final t = (animProgress + spec.phaseOffset) % 1.0;
       final dx = -horizontalMargin + (t * totalSpan);
-      final bob = math.sin((animProgress * math.pi * 2 * spec.cycles) + (spec.phaseOffset * math.pi * 2)) * 1.4;
+      final bob = math.sin((animProgress * math.pi * 2 * spec.bobFreq) + (spec.phaseOffset * math.pi * 2)) * spec.bobAmp;
       final center = Offset(dx, spec.y + bob);
       final path = _buildUnifiedCloudPath(center, spec.scale);
       final alpha = _edgeFadeAlpha(dx, w);
@@ -3093,7 +3037,7 @@ class _CelestialSkySvgPainter extends CustomPainter {
       ));
     }
 
-    // 5. Paint Upper/Mid Back Clouds behind Sun/Moon
+    // 5. Paint Scattered Background Clouds cleanly behind Bold Sun/Moon
     for (final c in resolvedClouds.where((c) => c.isSecondary)) {
       _paintSoftCloud(
         canvas,
@@ -3105,7 +3049,7 @@ class _CelestialSkySvgPainter extends CustomPainter {
       );
     }
 
-    // 6. Isolated Layer for Larger Sun or Moon (pushed higher up under title) + Foreground Cutout
+    // 6. Isolated Layer for Bold Sun or Moon + Foreground Cutout (only in dense cloud modes)
     final celestialCenter = Offset(cx + 26, 33.5);
     canvas.saveLayer(Offset.zero & size, Paint());
     if (weather.isDay) {
@@ -3130,7 +3074,7 @@ class _CelestialSkySvgPainter extends CustomPainter {
     }
     canvas.restore();
 
-    // 7. Foreground Crisp Clouds (Line 2/3)
+    // 7. Foreground Crisp Clouds (when overcast / rainy / stormy)
     for (final c in resolvedClouds.where((c) => !c.isSecondary)) {
       _paintSoftCloud(
         canvas,
@@ -3142,7 +3086,7 @@ class _CelestialSkySvgPainter extends CustomPainter {
       );
     }
 
-    // 8. Precipitation, Thunder, Flood Surge & Tornado Twister Animations
+    // 8. Precipitation, Thunder & Tornado Twister Animations
     final foregroundClouds = resolvedClouds.where((c) => !c.isSecondary && c.center.dx > 20 && c.center.dx < w - 20).toList();
     if (weather.isRain || weather.isThunder) {
       for (final c in foregroundClouds) {
@@ -3156,9 +3100,6 @@ class _CelestialSkySvgPainter extends CustomPainter {
       final anchorX = foregroundClouds.isNotEmpty ? foregroundClouds.first.center.dx : cx - 10;
       final anchorY = foregroundClouds.isNotEmpty ? foregroundClouds.first.center.dy : 60.0;
       _paintSvgThunder(canvas, anchorX, anchorY);
-    }
-    if (weather.isFlood) {
-      _paintSvgFlood(canvas, w, h);
     }
     if (weather.isTwister) {
       _paintSvgTwister(canvas, cx - 34, h);
@@ -3197,16 +3138,16 @@ class _CelestialSkySvgPainter extends CustomPainter {
 
     final cloudFill = Paint()
       ..color = (isSecondary
-              ? (isDark ? const Color(0xFF23232C) : theme.lavenderBubble).withValues(alpha: 0.44 * alphaScale)
-              : (isDark ? const Color(0xFF22222A) : theme.lavenderBubble).withValues(alpha: 0.72 * alphaScale))
+              ? (isDark ? const Color(0xFF23232C) : theme.lavenderBubble).withValues(alpha: 0.42 * alphaScale)
+              : (isDark ? const Color(0xFF22222A) : theme.lavenderBubble).withValues(alpha: 0.74 * alphaScale))
       ..style = PaintingStyle.fill;
 
     final cloudStroke = Paint()
       ..color = (isSecondary
-              ? (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.42 * alphaScale)
+              ? (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.44 * alphaScale)
               : (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.95 * alphaScale))
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isSecondary ? 1.2 : 1.55
+      ..strokeWidth = isSecondary ? 1.25 : 1.55
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
@@ -3215,25 +3156,26 @@ class _CelestialSkySvgPainter extends CustomPainter {
   }
 
   void _paintSvgSun(Canvas canvas, Offset center) {
-    const r = 24.5;
-    final sunCol = isDark ? const Color(0xFFFEF08A) : accentColor;
-    final pulse = 1.0 + (math.sin(animProgress * math.pi * 6) * 0.09);
+    const r = 25.5;
+    final sunCol = isDark ? const Color(0xFFFACC15) : accentColor;
+    final sunHighlight = isDark ? const Color(0xFFFEF08A) : accentColor;
+    final pulse = 1.0 + (math.sin(animProgress * math.pi * 12) * 0.07);
 
-    // Warm breathing outer corona
+    // Rich bold outer solar corona
     final auraPaint = Paint()
       ..shader = RadialGradient(
         colors: [
-          sunCol.withValues(alpha: isDark ? 0.32 : 0.22),
+          sunHighlight.withValues(alpha: isDark ? 0.52 : 0.36),
+          sunCol.withValues(alpha: isDark ? 0.16 : 0.10),
           Colors.transparent,
         ],
-      ).createShader(Rect.fromCircle(center: center, radius: r * 2.15 * pulse));
-    canvas.drawCircle(center, r * 2.15 * pulse, auraPaint);
+        stops: const [0.0, 0.52, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: r * 2.35 * pulse));
+    canvas.drawCircle(center, r * 2.35 * pulse, auraPaint);
 
-    // Crisp rotating primary & secondary solar rays
+    // Bold rotating primary & secondary solar rays
     final rayPaint = Paint()
-      ..color = sunCol
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.7
       ..strokeCap = StrokeCap.round;
 
     final rot = animProgress * math.pi * 2;
@@ -3241,28 +3183,46 @@ class _CelestialSkySvgPainter extends CustomPainter {
       final angle = rot + (i * (math.pi / 6));
       final isMajor = i.isEven;
       const inner = r * 1.18;
-      final outer = r * (isMajor ? 1.52 * pulse : 1.35);
+      final outer = r * (isMajor ? 1.56 * pulse : 1.38);
       final p1 = Offset(center.dx + math.cos(angle) * inner, center.dy + math.sin(angle) * inner);
       final p2 = Offset(center.dx + math.cos(angle) * outer, center.dy + math.sin(angle) * outer);
-      canvas.drawLine(p1, p2, rayPaint..strokeWidth = isMajor ? 1.8 : 1.3);
+      rayPaint
+        ..color = (isMajor ? sunHighlight : sunCol).withValues(alpha: isMajor ? 0.98 : 0.80)
+        ..strokeWidth = isMajor ? 3.2 : 2.2;
+      canvas.drawLine(p1, p2, rayPaint);
     }
 
-    // Translucent UI-themed sun disc + inner shimmer ring + crisp outline
+    // Bold, vibrant sun core + crisp thick rim + inner sheen
     final sunFill = Paint()
-      ..color = sunCol.withValues(alpha: isDark ? 0.26 : 0.19)
+      ..shader = RadialGradient(
+        center: const Alignment(-0.25, -0.25),
+        colors: [
+          (isDark ? const Color(0xFFFEF9C3) : Colors.white).withValues(alpha: isDark ? 0.96 : 0.88),
+          sunHighlight.withValues(alpha: isDark ? 0.94 : 0.90),
+          sunCol.withValues(alpha: isDark ? 0.92 : 0.96),
+        ],
+        stops: const [0.0, 0.55, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: r))
       ..style = PaintingStyle.fill;
+
     final sunStroke = Paint()
-      ..color = sunCol
+      ..color = isDark ? const Color(0xFFFEF08A) : accentColor
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
+      ..strokeWidth = 2.9;
+
+    final innerRim = Paint()
+      ..color = Colors.white.withValues(alpha: isDark ? 0.42 : 0.32)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.25;
 
     canvas.drawCircle(center, r, sunFill);
     canvas.drawCircle(center, r, sunStroke);
+    canvas.drawCircle(center, r * 0.76, innerRim);
   }
 
   void _paintSvgMoon(Canvas canvas, Offset center) {
     const r = 24.5;
-    final pulse = 1.0 + (math.sin(animProgress * math.pi * 6) * 0.09);
+    final pulse = 1.0 + (math.sin(animProgress * math.pi * 12) * 0.08);
 
     // Pulsing Moon Glow
     final glow = Paint()
@@ -3329,7 +3289,7 @@ class _CelestialSkySvgPainter extends CustomPainter {
 
     for (int i = 0; i < 4; i++) {
       final x = (cloudX - 16 * scale) + (i * 10.5 * scale);
-      final dropProg = (animProgress * 7.0 + (i * 0.24)) % 1.0;
+      final dropProg = (animProgress * 21.0 + (i * 0.24)) % 1.0;
       final yStart = (cloudY + 13 * scale) + (dropProg * 18.0);
       canvas.drawLine(Offset(x, yStart), Offset(x - 2.6, yStart + 7.5), rainPaint);
 
@@ -3356,8 +3316,8 @@ class _CelestialSkySvgPainter extends CustomPainter {
 
     for (int i = 0; i < 18; i++) {
       final baseFrac = (i + 0.5) / 18.0;
-      final prog = (animProgress * 4.0 + (i * 0.17)) % 1.0;
-      final sway = math.sin((animProgress * math.pi * 8) + i) * 7.0;
+      final prog = (animProgress * 12.0 + (i * 0.17)) % 1.0;
+      final sway = math.sin((animProgress * math.pi * 24) + i) * 7.0;
       final sx = (baseFrac * w) + sway;
       final sy = 10.0 + (prog * (h - 16.0));
       final alpha = math.sin(prog * math.pi).clamp(0.0, 1.0) * _edgeFadeAlpha(sx, w);
@@ -3395,25 +3355,6 @@ class _CelestialSkySvgPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.6;
       canvas.drawPath(bolt, halo);
-    }
-  }
-
-  void _paintSvgFlood(Canvas canvas, double w, double h) {
-    final wavePaint = Paint()
-      ..color = const Color(0xFF38BDF8).withValues(alpha: 0.55)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round;
-
-    for (int row = 0; row < 2; row++) {
-      final yBase = h - 10.0 - (row * 6.0);
-      final phase = (floodProgress * math.pi * 2) + (row * 1.4);
-      final path = Path()..moveTo(0, yBase);
-      for (double x = 0; x <= w; x += 14) {
-        final y = yBase + math.sin((x / 24.0) + phase) * 3.0;
-        path.lineTo(x, y);
-      }
-      canvas.drawPath(path, wavePaint);
     }
   }
 

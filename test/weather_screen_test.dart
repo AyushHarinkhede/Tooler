@@ -348,10 +348,8 @@ void main() {
     expect(find.text('Heavy Snowfall'), findsOneWidget);
     expect(find.text('Winter Season'), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Mountain Flood'));
-    await tester.tap(find.text('Mountain Flood'));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(find.text('Mountain Flood Hazard'), findsOneWidget);
+    expect(find.text('Mountain Flood'), findsNothing);
+    expect(find.text('Mountain Flood Hazard'), findsNothing);
 
     await tester.ensureVisible(find.text('Tornado Twister'));
     await tester.tap(find.text('Tornado Twister'));

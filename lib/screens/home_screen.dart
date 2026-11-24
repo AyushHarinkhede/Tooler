@@ -724,7 +724,7 @@ class _HomeScreenState extends State<HomeScreen> {
         'iconType': 'weather',
         'isFeatured': true,
         'features': [
-          {'name': 'Atmospheric Dynamic Landscape', 'desc': 'SVG Sun trajectory, 8-phase lunar cycle, moving clouds, rain streaks, lightning bolts, mountain flood & tornado disasters'},
+          {'name': 'Atmospheric Dynamic Landscape', 'desc': 'Bold SVG Sun trajectory, 8-phase lunar cycle, gently drifting scattered clouds, rain streaks, lightning bolts & tornado disasters'},
           {'name': 'AQI Reactive Tooler Character', 'desc': 'Custom vector character reacting to AQI (Smiling -> Coughing -> N95 Mask -> Oxygen Cylinder & Mask)'},
           {'name': '14-Day Past & Forecast Visualizer', 'desc': 'Interactive 7-day past history + 7-day future weather trends with °C and °F unit toggle'},
           {'name': 'Astronomical Moon Phase Engine', 'desc': 'Accurate moon phase rendering (New Moon, Crescents, Quarters, Gibbous, Full Moon) with illumination %'},
@@ -732,7 +732,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
         'keywords': [
           'weather', 'mausam', 'climate', 'temperature', 'aqi', 'air quality', 'forecast',
-          'sun', 'moon', 'moon phase', 'rain', 'clouds', 'thunder', 'lightning', 'flood',
+          'sun', 'moon', 'moon phase', 'rain', 'clouds', 'thunder', 'lightning',
           'tornado', 'twister', 'disaster', 'atmosphere', 'hawa', 'badal', 'garaj',
         ],
         'builder': (context) => WeatherScreen(theme: widget.theme),
