@@ -246,6 +246,10 @@ class SmoothRadialBarPainter extends CustomPainter {
     final double activeSweep = totalSweep * clampedProgress;
     final double? clampedPeak = peakHoldProgress?.clamp(0.0, 1.0);
 
+    // Precompute vivid hue-preserving gradient colors from primaryColor -> gaugeColor
+    final List<Color> vividColors =
+        buildVividGaugeGradientColors(primaryColor, gaugeColor, steps: 7);
+
     // 1. Subtle Inner Micro-Tick Scale Dots (25 precision ticks)
     const int tickCount = 24;
     for (int i = 0; i <= tickCount; i++) {
@@ -256,9 +260,16 @@ class SmoothRadialBarPainter extends CustomPainter {
           clampedProgress > 0.004 ? frac <= clampedProgress : i == 0;
       final double innerR = radius - (isMajor ? 18.0 : 15.0);
       final double outerR = radius - 11.0;
+
+      Color litColor = primaryColor;
+      if (isLit && clampedProgress > 0.004) {
+        final double localT = (frac / clampedProgress).clamp(0.0, 1.0);
+        litColor = sampleGradientColors(vividColors, localT);
+      }
+
       final Paint tickPaint = Paint()
         ..color = isLit
-            ? gaugeColor.withValues(alpha: isMajor ? 0.78 : 0.44)
+            ? litColor.withValues(alpha: isMajor ? 0.85 : 0.50)
             : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
         ..strokeWidth = isMajor ? 2.1 : 1.25
         ..strokeCap = StrokeCap.round;
@@ -280,28 +291,66 @@ class SmoothRadialBarPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
     canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
 
-    // 3. Soft Ambient Glow Under Active Arc
+    // 3. Soft Ambient Glow & Silky SweepGradient Active Arc
+    // Buffer the gradient rotation backward past startAngle by 0.22 rad (~12.6 deg)
+    // so StrokeCap.round's backward half-circle stays strictly within pure primaryColor
+    // instead of wrapping across 360 deg into gaugeColor.
     if (activeSweep > 0.005) {
+      const double capBufferRad = 0.22;
+      const double fullTurn = 2.0 * math.pi;
+      final double effSweep = math.max(activeSweep, 0.08);
+      const double startStop = capBufferRad / fullTurn;
+      final double endStop = (capBufferRad + effSweep) / fullTurn;
+
+      final List<Color> shaderColors = <Color>[
+        vividColors.first,
+        vividColors.first,
+      ];
+      final List<double> shaderStops = <double>[
+        0.0,
+        startStop,
+      ];
+
+      for (int i = 1; i < vividColors.length; i++) {
+        final double frac = i / (vividColors.length - 1);
+        shaderColors.add(vividColors[i]);
+        shaderStops.add(startStop + (endStop - startStop) * frac);
+      }
+
+      shaderColors.addAll(<Color>[
+        vividColors.last,
+        vividColors.first,
+        vividColors.first,
+      ]);
+      shaderStops.addAll(<double>[
+        math.max(endStop + 0.02, 0.88),
+        0.94,
+        1.0,
+      ]);
+
+      final Shader arcShader = SweepGradient(
+        startAngle: 0.0,
+        endAngle: fullTurn,
+        colors: shaderColors,
+        stops: shaderStops,
+        transform: const GradientRotation(startAngle - capBufferRad),
+      ).createShader(arcRect);
+
+      final Shader glowShader = SweepGradient(
+        startAngle: 0.0,
+        endAngle: fullTurn,
+        colors: shaderColors.map((c) => c.withValues(alpha: 0.32)).toList(),
+        stops: shaderStops,
+        transform: const GradientRotation(startAngle - capBufferRad),
+      ).createShader(arcRect);
+
       final Paint glowPaint = Paint()
-        ..color = gaugeColor.withValues(alpha: 0.30)
+        ..shader = glowShader
         ..style = PaintingStyle.stroke
         ..strokeWidth = strokeWidth + 6.0
         ..strokeCap = StrokeCap.round
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.5);
       canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
-
-      // 4. Silky SweepGradient Active Arc
-      final Shader arcShader = SweepGradient(
-        startAngle: 0.0,
-        endAngle: totalSweep,
-        colors: [
-          primaryColor,
-          Color.lerp(primaryColor, gaugeColor, 0.55)!,
-          gaugeColor,
-        ],
-        stops: const [0.0, 0.62, 1.0],
-        transform: const GradientRotation(startAngle),
-      ).createShader(arcRect);
 
       final Paint activePaint = Paint()
         ..shader = arcShader
@@ -407,4 +456,65 @@ class SmoothRadialBarPainter extends CustomPainter {
         oldDelegate.strokeWidth != strokeWidth ||
         oldDelegate.showRestingPointer != showRestingPointer;
   }
+}
+
+/// Builds a rich, vibrant multi-stop color list between [start] and [end] using
+/// shortest-arc HSV interpolation so complementary hues (such as pink/red to
+/// green or green to red) flow cleanly through warm gold/amber/lime without
+/// muddying into desaturated grey-brown midpoints.
+List<Color> buildVividGaugeGradientColors(
+  Color start,
+  Color end, {
+  int steps = 7,
+}) {
+  if (steps < 2 || start.toARGB32() == end.toARGB32()) {
+    return <Color>[start, end];
+  }
+
+  final HSVColor hsvA = HSVColor.fromColor(start);
+  final HSVColor hsvB = HSVColor.fromColor(end);
+
+  // If either endpoint is nearly achromatic (e.g. Slate), direct RGB lerp is cleanest.
+  if (hsvA.saturation < 0.12 || hsvB.saturation < 0.12) {
+    return List<Color>.generate(
+      steps,
+      (i) => Color.lerp(start, end, i / (steps - 1))!,
+    );
+  }
+
+  double deltaHue = hsvB.hue - hsvA.hue;
+  if (deltaHue > 180.0) deltaHue -= 360.0;
+  if (deltaHue < -180.0) deltaHue += 360.0;
+
+  return List<Color>.generate(steps, (i) {
+    final double t = i / (steps - 1);
+    if (i == 0) return start;
+    if (i == steps - 1) return end;
+
+    final double hue = (hsvA.hue + deltaHue * t) % 360.0;
+    final double normalizedHue = hue < 0 ? hue + 360.0 : hue;
+
+    // Gentle mid-arc saturation & value lift prevents washed-out midtones
+    final double midLift = math.sin(math.pi * t);
+    final double baseSat =
+        hsvA.saturation + (hsvB.saturation - hsvA.saturation) * t;
+    final double sat =
+        (baseSat + midLift * 0.14).clamp(math.min(hsvA.saturation, hsvB.saturation), 0.94);
+
+    final double baseVal = hsvA.value + (hsvB.value - hsvA.value) * t;
+    final double val = (baseVal + midLift * 0.05).clamp(0.0, 1.0);
+
+    return HSVColor.fromAHSV(1.0, normalizedHue, sat, val).toColor();
+  });
+}
+
+/// Samples a multi-stop [colors] list evenly at [t] in [0.0, 1.0].
+Color sampleGradientColors(List<Color> colors, double t) {
+  if (colors.isEmpty) return Colors.white;
+  if (colors.length == 1) return colors.first;
+  final double clamped = t.clamp(0.0, 1.0);
+  final double scaled = clamped * (colors.length - 1);
+  final int idx = scaled.floor().clamp(0, colors.length - 2);
+  final double localT = scaled - idx;
+  return Color.lerp(colors[idx], colors[idx + 1], localT)!;
 }

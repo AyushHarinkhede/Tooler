@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -171,5 +173,64 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
+  });
+
+  test('SmoothRadialBarPainter keeps start cap pure primaryColor and maintains vivid red<->green gradient', () async {
+    const startPinkRed = Color(0xFFFB7185);
+    const endGreen = Color(0xFF10B981);
+
+    // 1. Check multi-stop HSV gradient colors stay saturated for both Red->Green & Green->Red
+    for (final pair in [
+      (startPinkRed, endGreen),
+      (endGreen, startPinkRed),
+    ]) {
+      final stops = buildVividGaugeGradientColors(pair.$1, pair.$2, steps: 7);
+      expect(stops.first.toARGB32(), pair.$1.toARGB32());
+      expect(stops.last.toARGB32(), pair.$2.toARGB32());
+      for (final c in stops) {
+        expect(HSVColor.fromColor(c).saturation, greaterThanOrEqualTo(0.54));
+      }
+    }
+
+    // 2. Render SmoothRadialBarPainter onto offscreen 264x264 canvas & inspect starting cap pixels
+    const double size = 264.0;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    const painter = SmoothRadialBarPainter(
+      progress: 0.90,
+      gaugeColor: endGreen,
+      primaryColor: startPinkRed,
+      trackColor: Color(0xFF27272A),
+    );
+    painter.paint(canvas, const Size(size, size));
+    final picture = recorder.endRecording();
+    final image = await picture.toImage(size.toInt(), size.toInt());
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+    expect(byteData, isNotNull);
+
+    Color pixelAtAngle(double deg) {
+      final double rad = deg * math.pi / 180.0;
+      const double radius = (size / 2.0) - 18.0;
+      final int x = ((size / 2.0) + radius * math.cos(rad)).round().clamp(0, 263);
+      final int y = ((size / 2.0) + radius * math.sin(rad)).round().clamp(0, 263);
+      final int offset = (y * size.toInt() + x) * 4;
+      final int r = byteData!.getUint8(offset);
+      final int g = byteData.getUint8(offset + 1);
+      final int b = byteData.getUint8(offset + 2);
+      final int a = byteData.getUint8(offset + 3);
+      return Color.fromARGB(a, r, g, b);
+    }
+
+    // Backward cap at 138° (just before 140° startAngle) MUST be red/pink, NOT green!
+    final capColor = pixelAtAngle(138.0);
+    expect((capColor.r * 255).round(), greaterThan((capColor.g * 255).round() + 40));
+
+    // Exact start at 140° MUST match pink-red start
+    final startPx = pixelAtAngle(140.0);
+    expect((startPx.r * 255).round(), greaterThan((startPx.g * 255).round() + 40));
+
+    // Midpoint at 257° (50% of 0.90 * 260°) MUST stay saturated, never muddy grey
+    final midPx = pixelAtAngle(257.0);
+    expect(HSVColor.fromColor(midPx).saturation, greaterThan(0.50));
   });
 }
