@@ -845,7 +845,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
                       Expanded(
                         child: _buildChoiceTile(
                           label: '1 × 1 Icon',
-                          subtitle: 'Fav Shortcut',
+                          subtitle: 'Quick Shortcut',
                           icon: Icons.crop_square_rounded,
                           isSelected: _selectedRatio == '1x1',
                           onTap: () => _updateConfig(ratio: '1x1'),

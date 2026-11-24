@@ -30,7 +30,7 @@ class StorageService {
   static const String keyUseMaterialYou = 'tooler_use_material_you';
   static const String keySoundEnabled = 'tooler_sound_enabled';
   static const String keyHapticsEnabled = 'tooler_haptics_enabled';
-  static const String keyFavorites = 'tooler_favorites_list';
+  static const String keyToolOrder = 'tooler_tool_order_v1';
   static const String keyNotificationsEnabled = 'tooler_notifications_enabled';
   static const String keyTamperProtection = 'tooler_tamper_protection_enabled';
 
@@ -306,44 +306,14 @@ class StorageService {
     await saveTheme(isDark, accent);
   }
 
-  Future<List<String>> _readNormalizedFavorites(SharedPreferences prefs) async {
-    final raw = prefs.getStringList(keyFavorites) ?? [];
-    bool changed = false;
-    final migrated = <String>[];
-    for (final title in raw) {
-      final normalized = title == 'Noise Meter & Recorder' ? 'NoiseCapture' : title;
-      if (normalized != title) changed = true;
-      if (!migrated.contains(normalized)) migrated.add(normalized);
-    }
-    if (changed) {
-      await prefs.setStringList(keyFavorites, migrated);
-    }
-    return migrated;
+  Future<List<String>> loadToolOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    return List<String>.from(prefs.getStringList(keyToolOrder) ?? const []);
   }
 
-  Future<List<String>> loadFavorites() async {
+  Future<void> saveToolOrder(List<String> order) async {
     final prefs = await SharedPreferences.getInstance();
-    return _readNormalizedFavorites(prefs);
-  }
-
-  Future<bool> isToolFavorite(String toolTitle) async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = await _readNormalizedFavorites(prefs);
-    return list.contains(toolTitle);
-  }
-
-  Future<bool> toggleToolFavorite(String toolTitle) async {
-    final prefs = await SharedPreferences.getInstance();
-    final list = await _readNormalizedFavorites(prefs);
-    final bool isFav = list.contains(toolTitle);
-    if (isFav) {
-      list.remove(toolTitle);
-    } else {
-      list.remove(toolTitle);
-      list.insert(0, toolTitle); // Newest favorite placed at top priority
-    }
-    await prefs.setStringList(keyFavorites, list);
-    return !isFav;
+    await prefs.setStringList(keyToolOrder, order);
   }
 
   Future<bool> loadNotificationsEnabled() async {

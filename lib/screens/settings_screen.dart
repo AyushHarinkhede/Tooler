@@ -1290,7 +1290,7 @@ class _SettingsScreenState extends State<SettingsScreen>
 
             const SizedBox(height: 18),
 
-            // 2.5 Home Screen Widgets (4x1 Quick Bar & 1x1 Favorite Icon Shortcut)
+            // 2.5 Home Screen Widgets (4x1 Quick Bar & 1x1 Quick Icon Shortcut)
             _buildSectionCard(
               title: 'Widgets',
               child: BouncyTap(

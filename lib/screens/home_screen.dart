@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import '../theme/stationery_theme.dart';
@@ -66,13 +68,41 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  final GlobalKey _gridKey = GlobalKey();
 
-  String _selectedCategory = 'All';
+  static const List<String> _defaultToolOrder = [
+    'calc',
+    'calendar',
+    'weather',
+    'games',
+    'steps',
+    'alarm',
+    'compass',
+    'converters',
+    'age',
+    'stopwatch',
+    'timer',
+    'speed_test',
+    'power',
+    'security',
+    'sizer',
+    'counters',
+    'tasks',
+    'currency',
+    'password',
+    'browser',
+    'recorder',
+    'radio',
+    'illustrations',
+  ];
+
   String _searchQuery = '';
   bool _isSearchFocused = false;
   ToolerCharacterPose _heroPose = ToolerCharacterPose.workingLaptop;
 
   Timer? _clockTimer;
+  Timer? _autoScrollTimer;
+  double _autoScrollVelocity = 0.0;
   DateTime _now = DateTime.now();
   StreamSubscription<int>? _stepSub;
 
@@ -84,14 +114,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   late final List<Map<String, dynamic>> _tools;
-  List<String> _favoriteToolTitles = [];
-
-  final List<String> _categories = [
-    'All',
-    'Calculate',
-    'Convert',
-    'Time & Tasks',
-  ];
+  late List<String> _orderedToolIds;
+  String? _draggingToolId;
+  bool _enableGridSlideAnim = false;
 
   @override
   void initState() {
@@ -111,7 +136,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
     _initTools();
-    _loadFavorites();
+    _orderedToolIds = _reconcileToolOrder(_defaultToolOrder);
+    _loadToolOrder();
     WidgetService().init(
       theme: widget.theme,
       onWidgetLaunch: _handleWidgetLaunch,
@@ -125,6 +151,36 @@ class _HomeScreenState extends State<HomeScreen> {
       setState(() {
         _isSearchFocused = _searchFocusNode.hasFocus;
       });
+    });
+  }
+
+  List<String> _reconcileToolOrder(List<String> preferred) {
+    final validIds = _tools.map((t) => t['id'] as String).toSet();
+    final result = <String>[];
+    for (final id in preferred) {
+      if (validIds.contains(id) && !result.contains(id)) {
+        result.add(id);
+      }
+    }
+    for (final id in _defaultToolOrder) {
+      if (validIds.contains(id) && !result.contains(id)) {
+        result.add(id);
+      }
+    }
+    for (final t in _tools) {
+      final id = t['id'] as String;
+      if (!result.contains(id)) {
+        result.add(id);
+      }
+    }
+    return result;
+  }
+
+  Future<void> _loadToolOrder() async {
+    final saved = await StorageService().loadToolOrder();
+    if (!mounted || saved.isEmpty) return;
+    setState(() {
+      _orderedToolIds = _reconcileToolOrder(saved);
     });
   }
 
@@ -145,7 +201,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (toolId == 'all') {
       // Switch cleanly to main Tooler Home Screen (All Tools)
       setState(() {
-        _selectedCategory = 'All';
         _searchController.clear();
       });
       return;
@@ -162,18 +217,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _loadFavorites() async {
-    final favs = await StorageService().loadFavorites();
-    if (mounted) {
-      setState(() {
-        _favoriteToolTitles = favs;
-      });
-    }
-  }
-
   @override
   void dispose() {
     _clockTimer?.cancel();
+    _autoScrollTimer?.cancel();
     _stepSub?.cancel();
     _searchController.dispose();
     _searchFocusNode.dispose();
@@ -741,26 +788,16 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   List<Map<String, dynamic>> get _filteredTools {
-    if (_searchQuery.isEmpty) {
-      final base = _tools.where((tool) {
-        return _selectedCategory == 'All' || tool['category'] == _selectedCategory;
-      }).map((t) => Map<String, dynamic>.from(t)).toList();
+    final Map<String, Map<String, dynamic>> byId = {
+      for (final t in _tools) t['id'] as String: t,
+    };
+    final orderedTools = _orderedToolIds
+        .map((id) => byId[id])
+        .whereType<Map<String, dynamic>>()
+        .toList();
 
-      if (_favoriteToolTitles.isNotEmpty) {
-        base.sort((a, b) {
-          final aTitle = a['title'] as String;
-          final bTitle = b['title'] as String;
-          final aIdx = _favoriteToolTitles.indexOf(aTitle);
-          final bIdx = _favoriteToolTitles.indexOf(bTitle);
-          final aFav = aIdx != -1;
-          final bFav = bIdx != -1;
-          if (aFav && bFav) return aIdx.compareTo(bIdx);
-          if (aFav) return -1;
-          if (bFav) return 1;
-          return 0;
-        });
-      }
-      return base;
+    if (_searchQuery.isEmpty) {
+      return orderedTools.map((t) => Map<String, dynamic>.from(t)).toList();
     }
 
     final query = _searchQuery.trim().toLowerCase();
@@ -768,7 +805,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final List<Map<String, dynamic>> scored = [];
 
-    for (final rawTool in _tools) {
+    for (final rawTool in orderedTools) {
       final tool = Map<String, dynamic>.from(rawTool);
       final title = (tool['title'] as String? ?? '').toLowerCase();
       final subtitle = (tool['subtitle'] as String? ?? '').toLowerCase();
@@ -778,11 +815,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
       int score = 0;
       String? matchedSnippet;
-
-      // 0. Favorite Priority Bonus
-      if (_favoriteToolTitles.contains(tool['title'])) {
-        score += 350;
-      }
 
       // 1. Direct Title Match
       if (title == query) {
@@ -857,11 +889,6 @@ class _HomeScreenState extends State<HomeScreen> {
         }
       }
 
-      // 6. Context category relevance boost
-      if (_selectedCategory != 'All' && tool['category'] == _selectedCategory) {
-        score += 80;
-      }
-
       if (score > 0) {
         tool['_score'] = score;
         tool['searchHighlight'] = matchedSnippet;
@@ -873,7 +900,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return scored;
   }
 
-  /// Opens any tool in the sleek Pop-up Hover Page (Screen 3 style)
+  /// Opens any tool in the sleek Pop-up Hover Page
   void _openTool(Map<String, dynamic> tool) {
     SoundService().playClick();
     _searchFocusNode.unfocus();
@@ -884,13 +911,9 @@ class _HomeScreenState extends State<HomeScreen> {
       subtitle: tool['subtitle'],
       tag: tool['tag'],
       theme: widget.theme,
-      onFavorite: () {
-        _loadFavorites();
-      },
       child: (tool['builder'] as WidgetBuilder)(context),
     ).then((_) {
       if (mounted) {
-        _loadFavorites();
         _searchFocusNode.unfocus();
         FocusScope.of(context).unfocus();
       }
@@ -956,23 +979,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
                     const SizedBox(height: 16),
 
-                    // B. Main 2x2 Section: Calculator, Calendar, Weather, Games (SVG icons, no extra text)
-                    if (_searchQuery.isEmpty) ...[
-                      RepaintBoundary(
-                        child: _buildQuick2x2Grid(isDark),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // C. Categories Slide Buttons (Only sliding buttons with smooth slide transitions)
-                    RepaintBoundary(
-                      child: _buildCategoriesSection(isDark),
-                    ),
-
-                    const SizedBox(height: 14),
-
-                    // D. List of Tool Cards (Favorites prioritized at top, clean without tags)
-                    _buildToolsList(isDark),
+                    // B. Unified 2-Column Side-by-Side Reorderable Grid of ALL Sections
+                    _buildToolsGrid(isDark),
 
                     const SizedBox(height: 40),
                   ],
@@ -1072,87 +1080,91 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // 1. Live Real-Time Clock with Animated Seconds
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          DateFormat('hh:mm').format(_now),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 27,
-                            fontWeight: FontWeight.w900,
-                            letterSpacing: -1.0,
-                            color: theme.text,
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            DateFormat('hh:mm').format(_now),
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 27,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.0,
+                              color: theme.text,
+                            ),
                           ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 2.5),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              AnimatedOpacity(
-                                duration: const Duration(milliseconds: 250),
-                                opacity: _now.second % 2 == 0 ? 1.0 : 0.4,
-                                child: Text(
-                                  ':',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                    color: theme.primary,
-                                  ),
-                                ),
-                              ),
-                              ClipRect(
-                                child: AnimatedSwitcher(
-                                  duration: const Duration(milliseconds: 320),
-                                  transitionBuilder: (child, animation) {
-                                    return SlideTransition(
-                                      position: Tween<Offset>(
-                                        begin: const Offset(0.0, -0.45),
-                                        end: Offset.zero,
-                                      ).animate(CurvedAnimation(
-                                        parent: animation,
-                                        curve: Curves.easeOutBack,
-                                      )),
-                                      child: FadeTransition(
-                                        opacity: animation,
-                                        child: child,
-                                      ),
-                                    );
-                                  },
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 2.5),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AnimatedOpacity(
+                                  duration: const Duration(milliseconds: 250),
+                                  opacity: _now.second % 2 == 0 ? 1.0 : 0.4,
                                   child: Text(
-                                    DateFormat('ss').format(_now),
-                                    key: ValueKey<int>(_now.second),
+                                    ':',
                                     style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 15.5,
+                                      fontSize: 16,
                                       fontWeight: FontWeight.w800,
                                       color: theme.primary,
                                     ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 4.5),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
-                            decoration: BoxDecoration(
-                              color: theme.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(5),
+                                ClipRect(
+                                  child: AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 320),
+                                    transitionBuilder: (child, animation) {
+                                      return SlideTransition(
+                                        position: Tween<Offset>(
+                                          begin: const Offset(0.0, -0.45),
+                                          end: Offset.zero,
+                                        ).animate(CurvedAnimation(
+                                          parent: animation,
+                                          curve: Curves.easeOutBack,
+                                        )),
+                                        child: FadeTransition(
+                                          opacity: animation,
+                                          child: child,
+                                        ),
+                                      );
+                                    },
+                                    child: Text(
+                                      DateFormat('ss').format(_now),
+                                      key: ValueKey<int>(_now.second),
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 15.5,
+                                        fontWeight: FontWeight.w800,
+                                        color: theme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            child: Text(
-                              DateFormat('a').format(_now),
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: theme.primary,
+                          ),
+                          const SizedBox(width: 6),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 4.5),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: theme.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                DateFormat('a').format(_now),
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.primary,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                     const SizedBox(height: 3),
 
@@ -1480,175 +1492,105 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   /// -------------------------------------------------------------------------
-  /// 3. Categories Slide Buttons (Clean animated sliding chips with zero clutter text)
+  /// 3. Unified 2-Column Side-by-Side Reorderable Grid (All Sections)
+  ///    - Long-press & drag any tile (including top 4) with live animations
+  ///    - Smooth AnimatedPositioned slot gliding & auto-scroll near edges
   /// -------------------------------------------------------------------------
-  Widget _buildCategoriesSection(bool isDark) {
-    final theme = widget.theme;
-
-    return SizedBox(
-      height: 40,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: _categories.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
-        itemBuilder: (context, index) {
-          final cat = _categories[index];
-          final isSelected = _selectedCategory == cat;
-
-          return TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 0.0, end: 1.0),
-            duration: Duration(milliseconds: 180 + (index * 35)),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, child) {
-              return Transform.translate(
-                offset: Offset((1.0 - value) * 18, 0),
-                child: Opacity(
-                  opacity: value.clamp(0.0, 1.0),
-                  child: child,
-                ),
-              );
-            },
-            child: BouncyTap(
-              onTap: () {
-                SoundService().playClick();
-                _searchFocusNode.unfocus();
-                FocusScope.of(context).unfocus();
-                setState(() => _selectedCategory = cat);
-              },
-              scaleFraction: 0.93,
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 220),
-                curve: Curves.easeOutCubic,
-                padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
-                decoration: BoxDecoration(
-                  color: isSelected ? theme.lavenderBubble : theme.cardBg,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: isSelected ? theme.primary : theme.border,
-                    width: isSelected ? 1.4 : 1.2,
-                  ),
-                  boxShadow: isSelected
-                      ? [
-                          BoxShadow(
-                            color: theme.primary.withValues(alpha: 0.12),
-                            blurRadius: 8,
-                            offset: const Offset(0, 3),
-                          ),
-                        ]
-                      : null,
-                ),
-                alignment: Alignment.center,
-                child: AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeOutCubic,
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? theme.primaryDark : theme.text,
-                  ),
-                  child: Text(cat),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
+  void _handleGridDragStarted(String toolId) {
+    SoundService().playSpecialClick();
+    HapticFeedback.mediumImpact();
+    _searchFocusNode.unfocus();
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _enableGridSlideAnim = true;
+      _draggingToolId = toolId;
+    });
   }
 
-  /// -------------------------------------------------------------------------
-  /// 4. Main 2x2 Section: Calculator, Calendar, Weather, Games (SVG Icons only, no extra text)
-  /// -------------------------------------------------------------------------
-  Widget _buildQuick2x2Grid(bool isDark) {
-    final calcTool = _tools.firstWhere((t) => t['id'] == 'calc');
-    final calendarTool = _tools.firstWhere((t) => t['id'] == 'calendar');
-    final weatherTool = _tools.firstWhere((t) => t['id'] == 'weather');
-    final gamesTool = _tools.firstWhere((t) => t['id'] == 'games');
+  void _updateAutoScroll(double globalY) {
+    final mq = MediaQuery.maybeOf(context);
+    if (mq == null || !_scrollController.hasClients) {
+      _stopAutoScroll();
+      return;
+    }
+    final topThreshold = mq.padding.top + 88.0;
+    final bottomThreshold = mq.size.height - 84.0;
+    if (globalY < topThreshold) {
+      final ratio = ((topThreshold - globalY) / topThreshold).clamp(0.2, 1.0);
+      _autoScrollVelocity = -10.0 * ratio;
+    } else if (globalY > bottomThreshold) {
+      final ratio = ((globalY - bottomThreshold) / 84.0).clamp(0.2, 1.0);
+      _autoScrollVelocity = 10.0 * ratio;
+    } else {
+      _autoScrollVelocity = 0.0;
+    }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final cardW = (constraints.maxWidth - 12) / 2;
-        return Column(
-          children: [
-            Row(
-              children: [
-                _buildQuickCard(calcTool, cardW, overrideTitle: 'Calculator'),
-                const SizedBox(width: 12),
-                _buildQuickCard(calendarTool, cardW, overrideTitle: 'Calendar'),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                _buildQuickCard(weatherTool, cardW, overrideTitle: 'Weather'),
-                const SizedBox(width: 12),
-                _buildQuickCard(gamesTool, cardW, overrideTitle: 'Games'),
-              ],
-            ),
-          ],
-        );
-      },
-    );
+    if (_autoScrollVelocity == 0.0) {
+      _stopAutoScroll();
+      return;
+    }
+
+    _autoScrollTimer ??= Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!mounted || !_scrollController.hasClients || _autoScrollVelocity == 0.0) {
+        _stopAutoScroll();
+        return;
+      }
+      final pos = _scrollController.position;
+      final next = (_scrollController.offset + _autoScrollVelocity)
+          .clamp(pos.minScrollExtent, pos.maxScrollExtent);
+      if (next != _scrollController.offset) {
+        _scrollController.jumpTo(next);
+      }
+    });
   }
 
-  Widget _buildQuickCard(Map<String, dynamic> tool, double width, {String? overrideTitle}) {
-    final theme = widget.theme;
-    final isDark = theme.isDark;
-    final title = overrideTitle ?? tool['title'] as String;
-
-    return BouncyTap(
-      onTap: () => _openTool(tool),
-      scaleFraction: 0.94,
-      child: Container(
-        width: width,
-        height: 78,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: theme.cardBg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: theme.border, width: 1.2),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Minimal2DIcon(
-              type: tool['iconType'],
-              size: 42,
-              bubbleColor: theme.lavenderBubble,
-              accentColor: theme.primary,
-              isDark: isDark,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: theme.text,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  void _stopAutoScroll() {
+    _autoScrollVelocity = 0.0;
+    _autoScrollTimer?.cancel();
+    _autoScrollTimer = null;
   }
 
-  /// -------------------------------------------------------------------------
-  /// 6. List of Clean Modern Tool Cards (Pop-up Hover on tap with Staggered Slide & Bouncyness!)
-  /// -------------------------------------------------------------------------
-  Widget _buildToolsList(bool isDark) {
+  void _handleGridDragUpdate(
+    DragUpdateDetails details,
+    String draggedId,
+    double itemWidth,
+    double itemHeight,
+    double spacing,
+    int itemCount,
+  ) {
+    _updateAutoScroll(details.globalPosition.dy);
+    final box = _gridKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || itemCount <= 1) return;
+
+    final local = box.globalToLocal(details.globalPosition);
+    final int totalRows = (itemCount / 2.0).ceil();
+    final int col = local.dx < (itemWidth + spacing * 0.5) ? 0 : 1;
+    final int row = (local.dy / (itemHeight + spacing))
+        .floor()
+        .clamp(0, math.max(0, totalRows - 1));
+    final int targetIndex = (row * 2 + col).clamp(0, itemCount - 1);
+    final int currentIndex = _orderedToolIds.indexOf(draggedId);
+
+    if (currentIndex != -1 && targetIndex != currentIndex) {
+      HapticFeedback.selectionClick();
+      setState(() {
+        final moved = _orderedToolIds.removeAt(currentIndex);
+        _orderedToolIds.insert(targetIndex, moved);
+      });
+    }
+  }
+
+  void _handleGridDragFinished() {
+    _stopAutoScroll();
+    if (mounted) {
+      setState(() {
+        _draggingToolId = null;
+      });
+    }
+    StorageService().saveToolOrder(List<String>.from(_orderedToolIds));
+  }
+
+  Widget _buildToolsGrid(bool isDark) {
     final theme = widget.theme;
     final list = _filteredTools;
 
@@ -1686,152 +1628,249 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 240),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      transitionBuilder: (child, animation) {
-        return FadeTransition(
-          opacity: animation,
-          child: SlideTransition(
-            position: Tween<Offset>(
-              begin: const Offset(0, 0.04),
-              end: Offset.zero,
-            ).animate(animation),
-            child: child,
+    const double spacing = 12.0;
+
+    // When searching: render matched results cleanly in 2-column side-by-side cards
+    if (_searchQuery.isNotEmpty) {
+      const double searchItemHeight = 84.0;
+      return LayoutBuilder(
+        builder: (context, constraints) {
+          final double itemWidth = (constraints.maxWidth - spacing) / 2.0;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: list.map((tool) {
+              return _buildSideBySideToolTile(
+                tool,
+                width: itemWidth,
+                height: searchItemHeight,
+                highlight: tool['searchHighlight'] as String?,
+                isAnyDragging: false,
+              );
+            }).toList(),
+          );
+        },
+      );
+    }
+
+    // Main screen: ALL sections side-by-side in one animated drag-and-drop 2-column grid
+    const double itemHeight = 78.0;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double itemWidth = (constraints.maxWidth - spacing) / 2.0;
+        final int rows = (list.length / 2.0).ceil();
+        final double totalHeight = rows == 0
+            ? 0.0
+            : (rows * itemHeight) + ((rows - 1) * spacing);
+
+        return SizedBox(
+          height: totalHeight,
+          width: constraints.maxWidth,
+          child: Stack(
+            key: _gridKey,
+            clipBehavior: Clip.none,
+            children: list.asMap().entries.map((entry) {
+              final int index = entry.key;
+              final tool = entry.value;
+              final String id = tool['id'] as String;
+              final int row = index ~/ 2;
+              final int col = index % 2;
+              final double left = col * (itemWidth + spacing);
+              final double top = row * (itemHeight + spacing);
+              final bool isAnyDragging = _draggingToolId != null;
+              final bool isSelfDragging = _draggingToolId == id;
+
+              return AnimatedPositioned(
+                key: ValueKey<String>('tool_slot_$id'),
+                duration: _enableGridSlideAnim
+                    ? const Duration(milliseconds: 260)
+                    : Duration.zero,
+                curve: Curves.easeOutCubic,
+                left: left,
+                top: top,
+                width: itemWidth,
+                height: itemHeight,
+                child: LongPressDraggable<String>(
+                  key: ValueKey<String>('tool_card_$id'),
+                  data: id,
+                  delay: const Duration(milliseconds: 260),
+                  hapticFeedbackOnStart: false,
+                  onDragStarted: () => _handleGridDragStarted(id),
+                  onDragUpdate: (details) => _handleGridDragUpdate(
+                    details,
+                    id,
+                    itemWidth,
+                    itemHeight,
+                    spacing,
+                    list.length,
+                  ),
+                  onDragEnd: (_) => _handleGridDragFinished(),
+                  onDraggableCanceled: (_, __) => _handleGridDragFinished(),
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: TweenAnimationBuilder<double>(
+                      tween: Tween<double>(begin: 0.96, end: 1.05),
+                      duration: const Duration(milliseconds: 180),
+                      curve: Curves.easeOutBack,
+                      builder: (_, scale, child) =>
+                          Transform.scale(scale: scale, child: child),
+                      child: _buildSideBySideToolTile(
+                        tool,
+                        width: itemWidth,
+                        height: itemHeight,
+                        isDraggingFeedback: true,
+                        isAnyDragging: true,
+                      ),
+                    ),
+                  ),
+                  childWhenDragging: _buildDragPlaceholderSlot(
+                    theme,
+                    width: itemWidth,
+                    height: itemHeight,
+                  ),
+                  child: AnimatedScale(
+                    scale: (isAnyDragging && !isSelfDragging) ? 0.965 : 1.0,
+                    duration: const Duration(milliseconds: 200),
+                    curve: Curves.easeOutCubic,
+                    child: _buildSideBySideToolTile(
+                      tool,
+                      width: itemWidth,
+                      height: itemHeight,
+                      isAnyDragging: isAnyDragging,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
         );
       },
-      child: Column(
-        key: ValueKey<String>(_selectedCategory),
-        children: list.asMap().entries.map((entry) {
-          final index = entry.key;
-          final tool = entry.value;
-          final highlight = tool['searchHighlight'] as String?;
+    );
+  }
 
-          return StaggeredSlideItem(
-            index: _searchQuery.isNotEmpty ? 0 : (index < 6 ? index : 6),
-            child: Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              decoration: BoxDecoration(
-                color: theme.cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: theme.border, width: 1.2),
-                boxShadow: [
+  Widget _buildDragPlaceholderSlot(
+    StationeryTheme theme, {
+    required double width,
+    required double height,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: theme.primary.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: theme.primary.withValues(alpha: 0.55),
+          width: 1.5,
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          Icons.drag_indicator_rounded,
+          color: theme.primary.withValues(alpha: 0.65),
+          size: 22,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSideBySideToolTile(
+    Map<String, dynamic> tool, {
+    required double width,
+    required double height,
+    String? highlight,
+    bool isDraggingFeedback = false,
+    bool isAnyDragging = false,
+  }) {
+    final theme = widget.theme;
+    final isDark = theme.isDark;
+    final title = tool['title'] as String;
+
+    return BouncyTap(
+      onTap: isDraggingFeedback || isAnyDragging ? () {} : () => _openTool(tool),
+      scaleFraction: 0.94,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        width: width,
+        height: height,
+        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 10),
+        decoration: BoxDecoration(
+          color: isDraggingFeedback
+              ? (isDark ? theme.cardBg : theme.lavenderCard)
+              : theme.cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isDraggingFeedback
+                ? theme.primary
+                : (isAnyDragging
+                    ? theme.border.withValues(alpha: 0.75)
+                    : theme.border),
+            width: isDraggingFeedback ? 1.8 : 1.2,
+          ),
+          boxShadow: isDraggingFeedback
+              ? [
+                  BoxShadow(
+                    color: theme.primary.withValues(alpha: 0.28),
+                    blurRadius: 20,
+                    spreadRadius: 1.0,
+                    offset: const Offset(0, 8),
+                  ),
+                ]
+              : [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 6,
                     offset: const Offset(0, 2),
                   ),
                 ],
-              ),
-              child: BouncyTap(
-                onTap: () => _openTool(tool),
-                scaleFraction: 0.96,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  child: Row(
-                    children: [
-                      // 2D Line Illustration with Accent Bubble
-                      Minimal2DIcon(
-                        type: tool['iconType'],
-                        size: 46,
-                        bubbleColor: theme.lavenderBubble,
-                        accentColor: theme.primary,
-                        isDark: isDark,
-                      ),
-                      const SizedBox(width: 14),
-                      // Tool Info - Clean Single Title (No tags, no extra clutter words)
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              tool['title'] as String,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: theme.text,
-                              ),
-                            ),
-                            if (_searchQuery.isNotEmpty && highlight != null) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                highlight,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.primary,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Trailing morph: favorite heart when favorited, arrow when normal
-                      AnimatedSwitcher(
-                        duration: const Duration(milliseconds: 260),
-                        switchInCurve: Curves.easeOutBack,
-                        switchOutCurve: Curves.easeIn,
-                        transitionBuilder: (child, anim) => ScaleTransition(
-                          scale: anim,
-                          child: FadeTransition(opacity: anim, child: child),
-                        ),
-                        child: _favoriteToolTitles.contains(tool['title'])
-                            ? Container(
-                                key: const ValueKey('fav_active'),
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: theme.lavenderBubble,
-                                  border: Border.all(color: theme.primary, width: 1.4),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: theme.primary.withValues(alpha: 0.16),
-                                      blurRadius: 6,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
-                                ),
-                                child: const Center(
-                                  child: Icon(
-                                    Icons.favorite_rounded,
-                                    size: 18,
-                                    color: Color(0xFFFF4757),
-                                  ),
-                                ),
-                              )
-                            : Container(
-                                key: const ValueKey('fav_inactive'),
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(color: theme.border, width: 1.2),
-                                ),
-                                child: Center(
-                                  child: Icon(
-                                    Icons.arrow_forward_ios_rounded,
-                                    size: 14,
-                                    color: theme.textSecondary,
-                                  ),
-                                ),
-                              ),
-                      ),
-                    ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Minimal2DIcon(
+              type: tool['iconType'],
+              size: 40,
+              bubbleColor: theme.lavenderBubble,
+              accentColor: theme.primary,
+              isDark: isDark,
+            ),
+            const SizedBox(width: 11),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14.5,
+                      fontWeight: FontWeight.w700,
+                      height: 1.16,
+                      color: theme.text,
+                    ),
                   ),
-                ),
+                  if (_searchQuery.isNotEmpty && highlight != null) ...[
+                    const SizedBox(height: 3),
+                    Text(
+                      highlight,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: theme.primary,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          );
-        }).toList(),
+          ],
+        ),
       ),
     );
   }
