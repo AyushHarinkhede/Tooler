@@ -22,6 +22,8 @@ class StorageService {
   static const String keyCountersChecksum = 'tooler_counters_checksum';
   static const String keyCalcHistory = 'tooler_calc_history';
   static const String keyCalcHistoryChecksum = 'tooler_calc_history_checksum';
+  static const String keyCalcState = 'tooler_calc_state';
+  static const String keyCalcStateChecksum = 'tooler_calc_state_checksum';
   static const String keyThemeMode = 'tooler_theme_mode';
   static const String keyIsDarkMode = 'tooler_is_dark_mode';
   static const String keyAccentColor = 'tooler_accent_color';
@@ -177,6 +179,9 @@ class StorageService {
 
   Future<List<CalcHistoryItem>> loadCalcHistory() async {
     final prefs = await SharedPreferences.getInstance();
+    try {
+      await prefs.reload();
+    } catch (_) {}
     final str = prefs.getString(keyCalcHistory);
     if (str == null || str.isEmpty) return [];
     final checksum = prefs.getString(keyCalcHistoryChecksum);
@@ -197,6 +202,40 @@ class StorageService {
     final checksum = SecurityService().generateIntegrityChecksum(str);
     await prefs.setString(keyCalcHistory, str);
     await prefs.setString(keyCalcHistoryChecksum, checksum);
+  }
+
+  Future<Map<String, dynamic>?> loadCalculatorState() async {
+    final prefs = await SharedPreferences.getInstance();
+    try {
+      await prefs.reload();
+    } catch (_) {}
+    final str = prefs.getString(keyCalcState);
+    if (str == null || str.isEmpty) return null;
+    final checksum = prefs.getString(keyCalcStateChecksum);
+    if (!SecurityService().verifyIntegrity(content: str, storedChecksum: checksum)) {
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(str);
+      if (decoded is Map) {
+        return Map<String, dynamic>.from(decoded);
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> saveCalculatorState(Map<String, dynamic> state) async {
+    final prefs = await SharedPreferences.getInstance();
+    final str = jsonEncode(state);
+    final checksum = SecurityService().generateIntegrityChecksum(str);
+    await prefs.setString(keyCalcState, str);
+    await prefs.setString(keyCalcStateChecksum, checksum);
+  }
+
+  Future<void> clearCalculatorState() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(keyCalcState);
+    await prefs.remove(keyCalcStateChecksum);
   }
 
   Future<bool> loadUseMaterialYou() async {
@@ -387,6 +426,8 @@ class StorageService {
     await prefs.remove(keyTasks);
     await prefs.remove(keyCounters);
     await prefs.remove(keyCalcHistory);
+    await prefs.remove(keyCalcHistoryChecksum);
+    await clearCalculatorState();
     await clearTimerState();
     await clearStopwatchState();
   }

@@ -23,7 +23,8 @@ class CalculatorScreen extends StatefulWidget {
   State<CalculatorScreen> createState() => _CalculatorScreenState();
 }
 
-class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerProviderStateMixin {
+class _CalculatorScreenState extends State<CalculatorScreen>
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   CalcMode _calcMode = CalcMode.basic;
 
   // General State
@@ -35,6 +36,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
   bool _is2nd = false; // 2nd function toggle for inverse trig / alt powers
   double? _memoryValue;
   List<CalcHistoryItem> _history = [];
+  bool _userInteractedBeforeLoad = false;
 
   // Slide-up Answer Animation on '='
   late AnimationController _slideUpController;
@@ -62,7 +64,9 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadHistory();
+    _loadCalculatorState();
     _slideUpController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 280),
@@ -81,6 +85,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
             _easterEggText = _slideEgg;
             _slideUpController.reset();
           });
+          _persistCalculatorState();
         }
       }
     });
@@ -89,6 +94,8 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _persistCalculatorState();
     _slideUpController.dispose();
     _clockTimer?.cancel();
     _displayScrollController.dispose();
@@ -96,11 +103,96 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.detached) {
+      _persistCalculatorState();
+    } else if (state == AppLifecycleState.resumed) {
+      _loadHistory();
+      _loadCalculatorState(fromResume: true);
+    }
+  }
+
   Future<void> _loadHistory() async {
     final list = await StorageService().loadCalcHistory();
     if (mounted) {
       setState(() => _history = list);
     }
+  }
+
+  Future<void> _loadCalculatorState({bool fromResume = false}) async {
+    final saved = await StorageService().loadCalculatorState();
+    if (!mounted || saved == null) return;
+    if (!fromResume && _userInteractedBeforeLoad) return;
+    if (fromResume && _isSlidingUp) return;
+
+    final modeName = saved['calcMode'] as String?;
+    final restoredMode = CalcMode.values.firstWhere(
+      (m) => m.name == modeName,
+      orElse: () => CalcMode.basic,
+    );
+    final baseName = saved['progBase'] as String?;
+    final restoredBase = ProgBase.values.firstWhere(
+      (b) => b.name == baseName,
+      orElse: () => ProgBase.dec,
+    );
+    final wordName = saved['progWordSize'] as String?;
+    final restoredWord = ProgWordSize.values.firstWhere(
+      (w) => w.name == wordName,
+      orElse: () => ProgWordSize.qword64,
+    );
+    final progBig =
+        BigInt.tryParse(saved['progValue']?.toString() ?? '0') ?? BigInt.zero;
+    final memRaw = saved['memoryValue'];
+    final double? restoredMem = memRaw is num ? memRaw.toDouble() : null;
+    final rawExpr = saved['expression'] as String?;
+    final restoredExpr =
+        (rawExpr != null && rawExpr.isNotEmpty) ? rawExpr : '0';
+    final restoredLastEq = saved['lastEquation'] as String? ?? '';
+    final restoredEgg = saved['easterEggText'] as String?;
+    final restoredIsRad = saved['isRad'] == true;
+    final restoredIs2nd = saved['is2nd'] == true;
+
+    setState(() {
+      _calcMode = restoredMode;
+      _progBase = restoredBase;
+      _progWordSize = restoredWord;
+      _progValue = progBig;
+      _memoryValue = restoredMem;
+      _isRad = restoredIsRad;
+      _is2nd = restoredIs2nd;
+      _expression = restoredExpr;
+      _lastEquation = restoredLastEq;
+      _easterEggText = restoredEgg;
+      _previewResult = saved['previewResult'] as String? ?? '';
+      if (_calcMode != CalcMode.programmer &&
+          !_lastEquation.endsWith('=')) {
+        _computePreview();
+      }
+    });
+    _scrollToEnd();
+  }
+
+  Future<void> _persistCalculatorState() async {
+    final String exprToSave = _isSlidingUp ? _slidingAns : _expression;
+    final String previewToSave = _isSlidingUp ? '' : _previewResult;
+    final String? eggToSave = _isSlidingUp ? _slideEgg : _easterEggText;
+
+    await StorageService().saveCalculatorState({
+      'calcMode': _calcMode.name,
+      'expression': exprToSave,
+      'previewResult': previewToSave,
+      'lastEquation': _lastEquation,
+      'easterEggText': eggToSave,
+      'isRad': _isRad,
+      'is2nd': _is2nd,
+      'memoryValue': _memoryValue,
+      'progBase': _progBase.name,
+      'progWordSize': _progWordSize.name,
+      'progValue': _progValue.toString(),
+    });
   }
 
   void _scrollToEnd() {
@@ -153,6 +245,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
 
   // Handle all button presses
   void _onKeyPress(String key) {
+    _userInteractedBeforeLoad = true;
     _deactivateLiveClock();
     SoundService().playKey();
     HapticFeedback.lightImpact();
@@ -209,6 +302,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
       }
     });
 
+    _persistCalculatorState();
     _scrollToEnd();
   }
 
@@ -493,6 +587,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
   }
 
   void _switchProgBase(ProgBase newBase) {
+    _userInteractedBeforeLoad = true;
     SoundService().playClick();
     HapticFeedback.selectionClick();
     setState(() {
@@ -501,9 +596,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
       _expression = _progValue.toRadixString(radix).toUpperCase();
       _easterEggText = null;
     });
+    _persistCalculatorState();
   }
 
   void _cycleWordSize() {
+    _userInteractedBeforeLoad = true;
     SoundService().playClick();
     HapticFeedback.selectionClick();
     setState(() {
@@ -525,6 +622,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
       final radix = _progBase == ProgBase.hex ? 16 : _progBase == ProgBase.oct ? 8 : _progBase == ProgBase.bin ? 2 : 10;
       _expression = _progValue.toRadixString(radix).toUpperCase();
     });
+    _persistCalculatorState();
   }
 
   void _evaluateFinalProgrammer() {
@@ -999,8 +1097,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
                         Expanded(
                           child: InkWell(
                             onTap: () {
-                              setState(() => _expression = item.expression);
+                              _userInteractedBeforeLoad = true;
+                              setState(() {
+                                _expression = item.expression;
+                                _lastEquation = '';
+                              });
                               _computePreview();
+                              _persistCalculatorState();
                               Navigator.pop(context);
                             },
                             child: Column(
@@ -1037,8 +1140,13 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
                           tooltip: "Use in calculator",
                           color: widget.theme.primary,
                           onPressed: () {
-                            setState(() => _expression = item.result);
+                            _userInteractedBeforeLoad = true;
+                            setState(() {
+                              _expression = item.result;
+                              _lastEquation = '';
+                            });
                             _computePreview();
+                            _persistCalculatorState();
                             Navigator.pop(context);
                           },
                         ),
@@ -1104,38 +1212,20 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              _buildModeTab("Basic", _calcMode == CalcMode.basic, () {
-                                setState(() {
-                                  _calcMode = CalcMode.basic;
-                                  _expression = '0';
-                                  _previewResult = '';
-                                  _easterEggText = null;
-                                });
-                              }),
+                              _buildModeTab(
+                                "Basic",
+                                _calcMode == CalcMode.basic,
+                                () => _switchCalcMode(CalcMode.basic),
+                              ),
                               _buildModeTab(
                                 _calcMode == CalcMode.scientific ? "Scientific" : "Sci",
                                 _calcMode == CalcMode.scientific,
-                                () {
-                                  setState(() {
-                                    _calcMode = CalcMode.scientific;
-                                    _expression = '0';
-                                    _previewResult = '';
-                                    _easterEggText = null;
-                                  });
-                                },
+                                () => _switchCalcMode(CalcMode.scientific),
                               ),
                               _buildModeTab(
                                 _calcMode == CalcMode.programmer ? "Programming" : "Prog",
                                 _calcMode == CalcMode.programmer,
-                                () {
-                                  setState(() {
-                                    _calcMode = CalcMode.programmer;
-                                    _expression = '0';
-                                    _previewResult = '';
-                                    _easterEggText = null;
-                                    _updateProgValue();
-                                  });
-                                },
+                                () => _switchCalcMode(CalcMode.programmer),
                               ),
                             ],
                           ),
@@ -1205,6 +1295,47 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
         ),
       ),
     );
+  }
+
+  void _switchCalcMode(CalcMode nextMode) {
+    if (_calcMode == nextMode) return;
+    _userInteractedBeforeLoad = true;
+    setState(() {
+      final prevMode = _calcMode;
+      _calcMode = nextMode;
+      if (nextMode == CalcMode.programmer) {
+        final evaluated = _evaluateExpression(_expression);
+        final parsedNum = double.tryParse(evaluated ?? _expression);
+        if (parsedNum != null && parsedNum.isFinite) {
+          _progValue = BigInt.from(parsedNum.truncate()) & _getWordMask();
+          final radix = _progBase == ProgBase.hex
+              ? 16
+              : _progBase == ProgBase.oct
+                  ? 8
+                  : _progBase == ProgBase.bin
+                      ? 2
+                      : 10;
+          _expression = _progValue.toRadixString(radix).toUpperCase();
+        } else {
+          _expression = '0';
+          _progValue = BigInt.zero;
+        }
+        _previewResult = '';
+        _lastEquation = '';
+        _easterEggText = null;
+      } else {
+        if (prevMode == CalcMode.programmer) {
+          _expression = _progValue.toString();
+          _lastEquation = '';
+        }
+        if (nextMode != CalcMode.basic) {
+          _easterEggText = null;
+        }
+        _computePreview();
+      }
+    });
+    _persistCalculatorState();
+    _scrollToEnd();
   }
 
   Widget _buildModeTab(String label, bool isSelected, VoidCallback onTap) {
@@ -1458,9 +1589,11 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
                         const SizedBox(width: 6),
                         GestureDetector(
                           onTap: () {
+                            _userInteractedBeforeLoad = true;
                             HapticFeedback.selectionClick();
                             setState(() => _isRad = !_isRad);
                             _computePreview();
+                            _persistCalculatorState();
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1800,6 +1933,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
       child: Padding(
         padding: const EdgeInsets.all(3.5),
         child: _AnimatedCalcButton(
+          key: ValueKey<String>('calc_key_$key'),
           label: key,
           bg: btnBg,
           text: btnText,
@@ -1812,14 +1946,17 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
           onThreeSecondHold: isClear ? _activateLiveClock : null,
           onLongPress: key == '⌫'
               ? () {
+                  _userInteractedBeforeLoad = true;
                   HapticFeedback.heavyImpact();
                   SoundService().playKey();
                   setState(() {
                     _expression = '0';
                     _previewResult = '';
+                    _lastEquation = '';
                     _progValue = BigInt.zero;
                     _easterEggText = null;
                   });
+                  _persistCalculatorState();
                   _showToast("All cleared");
                 }
               : null,
@@ -1975,6 +2112,7 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
       child: Padding(
         padding: const EdgeInsets.all(5.0),
         child: _AnimatedCalcButton(
+          key: ValueKey<String>('calc_key_$key'),
           label: key,
           bg: btnBg,
           text: btnText,
@@ -1986,13 +2124,16 @@ class _CalculatorScreenState extends State<CalculatorScreen> with SingleTickerPr
           onThreeSecondHold: isClear ? _activateLiveClock : null,
           onLongPress: key == '⌫'
               ? () {
+                  _userInteractedBeforeLoad = true;
                   HapticFeedback.heavyImpact();
                   SoundService().playKey();
                   setState(() {
                     _expression = '0';
                     _previewResult = '';
+                    _lastEquation = '';
                     _easterEggText = null;
                   });
+                  _persistCalculatorState();
                   _showToast("All cleared");
                 }
               : null,
@@ -2020,6 +2161,7 @@ class _AnimatedCalcButton extends StatefulWidget {
   final VoidCallback? onThreeSecondHold;
 
   const _AnimatedCalcButton({
+    super.key,
     required this.label,
     required this.bg,
     required this.text,
