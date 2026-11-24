@@ -6,22 +6,21 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../theme/stationery_theme.dart';
 import '../widgets_3d/bouncy_tap.dart';
-import '../widgets_3d/minimal_2d_illustrations.dart';
+import '../widgets_3d/tooler_hover_sheet.dart';
+import '../widgets_3d/weather_outfit_sheet.dart';
 import '../services/sound_service.dart';
 import '../services/weather_telemetry_service.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER MAUSAM & WEATHER SCREEN
 /// - Real-time Weather, Location & AQI telemetry
-/// - Interactive Mountain & Sky Landscape with Sun, Moon Phase, Clouds, Rain,
-///   Thunder Lightning, Mountain Flood Surge & Tornado Disasters
-/// - Dynamic AQI Ecology: Birds gliding & lush swaying trees vs. dry bare branches
-///   and thick pollution smog
-/// - Reactive Tooler Vector Character for AQI: Smiling -> Coughing -> N95 Mask
-///   -> Oxygen Cylinder & Mask
+/// - Interactive Sky Canvas with bigger Sun, Moon Phase, Line-by-Line Drifting
+///   Clouds, Breeze, Birds, Rain, Snow & Thunder Animations
+/// - Reactive Tooler Vector Character for AQI
 /// - Past 7 Days History & Next 7 Days Forecast Charts with °C / °F toggle
 /// - Astronomical Precision Moon Phase Visualizer with all 8 phases
-/// - Interactive Weather & Disaster Simulator
+/// - Activities & Allergies Outlook + What to Wear & Carry Hover Page
+/// - Interactive Weather Simulator & Season Indicator Controls Bar
 /// ---------------------------------------------------------------------------
 
 enum WeatherSimMode {
@@ -31,6 +30,7 @@ enum WeatherSimMode {
   cloudySky,
   rainyDeluge,
   thunderstorm,
+  snowfall,
   mountainFlood,
   tornadoTwister,
   severeSmog,
@@ -62,10 +62,10 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     super.initState();
     _telemetry.init();
 
-    // Main ambient landscape loop (drifting clouds, sun rotation, birds, trees swaying)
+    // Main ambient landscape loop (slow line-by-line clouds, sun rotation, breeze, birds)
     _animController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 16000),
+      duration: const Duration(milliseconds: 24000),
     )..repeat();
 
     // Lightning flash burst controller
@@ -119,7 +119,8 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
       final aqi = _simAqiOverride ?? live.aqi;
       final code = live.weatherCode;
       final isDay = live.isDay;
-      final isRain = [51, 53, 55, 61, 63, 65, 80, 81, 82].contains(code);
+      final isSnow = [71, 73, 75, 77, 85, 86].contains(code);
+      final isRain = [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82].contains(code);
       final isThunder = [95, 96, 99].contains(code);
       final isCloudy = [2, 3, 45, 48].contains(code);
       return _EffectiveWeather(
@@ -127,6 +128,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
         isRain: isRain,
         isThunder: isThunder,
         isCloudy: isCloudy,
+        isSnow: isSnow,
         isFlood: false,
         isTwister: false,
         tempC: live.temperatureC,
@@ -146,6 +148,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isRain: false,
           isThunder: false,
           isCloudy: false,
+          isSnow: false,
           isFlood: false,
           isTwister: false,
           tempC: 32.0,
@@ -162,6 +165,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isRain: false,
           isThunder: false,
           isCloudy: false,
+          isSnow: false,
           isFlood: false,
           isTwister: false,
           tempC: 19.5,
@@ -178,6 +182,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isRain: false,
           isThunder: false,
           isCloudy: true,
+          isSnow: false,
           isFlood: false,
           isTwister: false,
           tempC: 24.0,
@@ -194,6 +199,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isRain: true,
           isThunder: false,
           isCloudy: true,
+          isSnow: false,
           isFlood: false,
           isTwister: false,
           tempC: 21.0,
@@ -210,6 +216,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isRain: true,
           isThunder: true,
           isCloudy: true,
+          isSnow: false,
           isFlood: false,
           isTwister: false,
           tempC: 20.0,
@@ -220,12 +227,30 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           city: 'Storm Peak',
           country: 'Sim',
         );
+      case WeatherSimMode.snowfall:
+        return _EffectiveWeather(
+          isDay: true,
+          isRain: false,
+          isThunder: false,
+          isCloudy: true,
+          isSnow: true,
+          isFlood: false,
+          isTwister: false,
+          tempC: -3.0,
+          condition: 'Heavy Snowfall',
+          aqi: _simAqiOverride ?? 34,
+          aqiStatus: 'Good',
+          aqiColor: const Color(0xFF10B981),
+          city: 'Snow Ridge',
+          country: 'Sim',
+        );
       case WeatherSimMode.mountainFlood:
         return _EffectiveWeather(
           isDay: false,
           isRain: true,
           isThunder: true,
           isCloudy: true,
+          isSnow: false,
           isFlood: true,
           isTwister: false,
           tempC: 18.5,
@@ -242,6 +267,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isRain: true,
           isThunder: true,
           isCloudy: true,
+          isSnow: false,
           isFlood: false,
           isTwister: true,
           tempC: 17.0,
@@ -258,6 +284,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isRain: false,
           isThunder: false,
           isCloudy: true,
+          isSnow: false,
           isFlood: false,
           isTwister: false,
           tempC: 29.0,
@@ -274,6 +301,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           isRain: false,
           isThunder: false,
           isCloudy: false,
+          isSnow: false,
           isFlood: false,
           isTwister: false,
           tempC: live.temperatureC,
@@ -305,14 +333,31 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     return const Color(0xFF881337);
   }
 
+  /// Current weather season derived from active simulation or calendar month
+  WeatherSeason _resolveSeason(_EffectiveWeather weather) {
+    if (_simMode == WeatherSimMode.snowfall || weather.isSnow || weather.tempC <= 4.0) {
+      return WeatherSeason.winter;
+    }
+    if (_simMode == WeatherSimMode.sunnyDay) {
+      return WeatherSeason.summer;
+    }
+    final month = DateTime.now().month;
+    if (month >= 3 && month <= 5) return WeatherSeason.spring;
+    if (month >= 6 && month <= 8) return WeatherSeason.summer;
+    if (month >= 9 && month <= 11) return WeatherSeason.autumn;
+    return WeatherSeason.winter;
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
     final isDark = theme.isDark;
+    final inHoverSheet = ToolerHoverSheetScope.of(context) != null;
 
     return Scaffold(
       backgroundColor: theme.bg,
       body: SafeArea(
+        top: !inHoverSheet,
         child: AnimatedBuilder(
             animation: _telemetry,
             builder: (context, _) {
@@ -321,29 +366,37 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
 
               return SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // 1. Modern Themed Hero Container (No landscape/river, SVG Sun/Moon/Cloud/Thunder/Rain + Lunar Trajectory arc, Character in center, Weather Degree, AQI in UI font, PM rating, Live Location, zero extra captions)
+                    // 1. Modern Themed Hero Container
                     _buildModernWeatherHeroCard(theme, isDark, weather, rawData),
                     const SizedBox(height: 14),
 
-                    // 2. Sleek Moon Phase Bar (Single bar with Aaj ka Moon Phase, tap to open 7/8 moon phases circular orbit hover sheet)
+                    // 2. Sleek Moon Phase Bar
                     _buildMoonPhaseBar(theme, isDark, rawData.moonPhase),
                     const SizedBox(height: 14),
 
-                    // 3. Simple Clean Graph (Hourly 24h & 14-Day Past/Future trends with toggle)
+                    // 3. Simple Clean Graph
                     _buildForecastGraphCard(theme, isDark, rawData),
                     const SizedBox(height: 14),
 
                     // 4. Detailed Atmospheric Metrics Grid
                     _buildMetricsGrid(theme, isDark, rawData, weather),
+                    const SizedBox(height: 16),
+
+                    // 5. Activities & Allergies Section
+                    _buildActivitiesAllergiesSection(theme, isDark, rawData, weather),
                     const SizedBox(height: 14),
 
-                    // 5. Dedicated Weather Controls Bar (Separately below, with °C/°F and 3-dots options menu)
-                    _buildWeatherControlsBar(theme, isDark),
-                    const SizedBox(height: 24),
+                    // 6. What to Wear & Carry Button (Opens Interactive Hover Page)
+                    _buildWhatToWearButton(theme, isDark, rawData, weather),
+                    const SizedBox(height: 14),
+
+                    // 7. Dedicated Season Indicator & Weather Controls Bar
+                    _buildWeatherControlsBar(theme, isDark, weather),
+                    const SizedBox(height: 16),
                   ],
                 ),
               );
@@ -354,11 +407,13 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
   }
 
   // ---------------------------------------------------------------------------
-  // DEDICATED WEATHER CONTROLS BAR (Shown separately below as requested)
+  // DEDICATED SEASON & WEATHER CONTROLS BAR (Season + Vector Icon, zero caption)
   // ---------------------------------------------------------------------------
-  Widget _buildWeatherControlsBar(StationeryTheme theme, bool isDark) {
+  Widget _buildWeatherControlsBar(StationeryTheme theme, bool isDark, _EffectiveWeather weather) {
+    final season = _resolveSeason(weather);
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1E1E22) : Colors.white,
         borderRadius: BorderRadius.circular(18),
@@ -373,36 +428,27 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
       ),
       child: Row(
         children: [
-          Minimal2DIcon(
-            type: 'weather',
-            size: 28,
-            bubbleColor: theme.lavenderBubble,
-            accentColor: theme.primary,
-            isDark: isDark,
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: season.color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: season.color.withValues(alpha: 0.35), width: 1),
+            ),
+            child: Icon(season.icon, size: 19, color: season.color),
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Weather Controls',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: theme.text,
-                  ),
-                ),
-                Text(
-                  '°C/°F, Live Refresh & Simulator',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                    color: theme.textSecondary,
-                  ),
-                ),
-              ],
+            child: Text(
+              '${season.label} Season',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: theme.text,
+              ),
             ),
           ),
           // Quick °C / °F Toggle Button Chip
@@ -692,14 +738,14 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
     }
 
     return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 2),
+      padding: EdgeInsets.zero,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // 1. Top Weather Visual: SVG Icons in UI theme color (Soft Cloud + Sun/Moon + Rain/Thunder/Breeze)
+          // 1. Top Weather Visual — positioned right beneath the hover title to eliminate top gap
           SizedBox(
-            height: 104,
+            height: 112,
             width: double.infinity,
             child: AnimatedBuilder(
               animation: Listenable.merge([
@@ -723,83 +769,161 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
               },
             ),
           ),
-          const SizedBox(height: 6),
 
-          // 2. Character Mascot (Enlarged, stationary / zero vibration, no smog blobs)
-          _AqiToolerCharacter(
-            mood: mood,
-            theme: theme,
-            isDark: isDark,
-            animValue: 0.0,
-            width: 175,
-            height: 155,
+          // 2. Character Mascot (Tucked snugly under the sky canvas)
+          Transform.translate(
+            offset: const Offset(0, -6),
+            child: _AqiToolerCharacter(
+              mood: mood,
+              theme: theme,
+              isDark: isDark,
+              animValue: 0.0,
+              width: 174,
+              height: 150,
+            ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 2),
 
-          // 3. Weather Data: Temperature + Unit + Weather Condition Type
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(
-                '$displayTemp',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 50,
-                  fontWeight: FontWeight.w900,
-                  color: theme.text,
-                  letterSpacing: -1.5,
+          // 3. Weather Data: Temperature centered cleanly in the middle
+          Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text(
+                  '$displayTemp',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 54,
+                    fontWeight: FontWeight.w900,
+                    color: theme.text,
+                    letterSpacing: -1.5,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              Text(
-                displayUnit,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: theme.primary,
+                const SizedBox(width: 3),
+                Text(
+                  displayUnit,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    color: theme.primary,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF222228) : theme.lavenderBubble,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: theme.border, width: 1.1),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      _telemetry.getWeatherIcon(
-                        weather.isRain
-                            ? 61
-                            : (weather.isThunder
-                                ? 95
-                                : (weather.isCloudy ? 2 : (weather.isDay ? 1 : 0))),
-                        weather.isDay,
-                      ),
-                      size: 13,
-                      color: theme.primary,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      weather.condition,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: theme.text,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 8),
 
-          // 4. AQI in UI theme font with glowing indicator dot
+          // 4. Weather Type Indicator + Location Pill — side by side, or step-by-step if location is long
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final maxLocTextWidth = math.max(150.0, constraints.maxWidth - 64);
+                return Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    // Weather condition indicator pill
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF222228) : theme.lavenderBubble,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: theme.border, width: 1.1),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _telemetry.getWeatherIcon(
+                              weather.isSnow
+                                  ? 71
+                                  : (weather.isRain
+                                      ? 61
+                                      : (weather.isThunder
+                                          ? 95
+                                          : (weather.isCloudy ? 2 : (weather.isDay ? 1 : 0)))),
+                              weather.isDay,
+                            ),
+                            size: 13,
+                            color: theme.primary,
+                          ),
+                          const SizedBox(width: 5),
+                          Text(
+                            weather.condition,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: theme.text,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // Location pill (wraps onto its own line step-by-step when city name is long)
+                    BouncyTap(
+                      onTap: () {
+                        SoundService().playTap();
+                        _showLocationPickerSheet(theme, isDark);
+                      },
+                      scaleFraction: 0.97,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4.5),
+                        decoration: BoxDecoration(
+                          color: (isDark ? const Color(0xFF1E1E24) : Colors.white).withValues(alpha: 0.85),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: theme.border, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              _telemetry.isManualLocation ? Icons.location_city_rounded : Icons.near_me_rounded,
+                              size: 13,
+                              color: const Color(0xFF38BDF8),
+                            ),
+                            const SizedBox(width: 5),
+                            ConstrainedBox(
+                              constraints: BoxConstraints(maxWidth: maxLocTextWidth),
+                              child: Text(
+                                '${weather.city}, ${weather.country}',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.text,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 15,
+                              color: theme.textSecondary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 9),
+
+          // 5. AQI in UI theme font with glowing indicator dot
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -830,7 +954,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           ),
           const SizedBox(height: 5),
 
-          // 5. PM Rating
+          // 6. PM Rating
           Text(
             'PM2.5: ${raw.pm25} µg/m³   •   PM10: ${raw.pm10} µg/m³',
             style: GoogleFonts.jetBrainsMono(
@@ -840,60 +964,6 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
             ),
           ),
           const SizedBox(height: 8),
-
-          // 6. Live Location (Tap to change or use GPS)
-          BouncyTap(
-            onTap: () {
-              SoundService().playTap();
-              _showLocationPickerSheet(theme, isDark);
-            },
-            scaleFraction: 0.97,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-              decoration: BoxDecoration(
-                color: (isDark ? const Color(0xFF1E1E24) : Colors.white).withValues(alpha: 0.8),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: theme.border, width: 1),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 4,
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _telemetry.isManualLocation ? Icons.location_city_rounded : Icons.near_me_rounded,
-                    size: 13,
-                    color: const Color(0xFF38BDF8),
-                  ),
-                  const SizedBox(width: 5),
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 240),
-                    child: Text(
-                      '${weather.city}, ${weather.country}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w700,
-                        color: theme.text,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 15,
-                    color: theme.textSecondary,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
 
           // 7. Menu Button in bottom right corner (right above the Lunar Cycle container)
           Align(
@@ -1049,27 +1119,42 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Weather Trend',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: theme.text,
+              Flexible(
+                child: Text(
+                  'Weather Trend',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: theme.text,
+                  ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    _buildForecastTabBtn('Hourly', 0, theme, isDark),
-                    _buildForecastTabBtn('14d', 1, theme, isDark),
-                    _buildForecastTabBtn('Past 7d', 2, theme, isDark),
-                    _buildForecastTabBtn('Next 7d', 3, theme, isDark),
-                  ],
+              const SizedBox(width: 8),
+              Flexible(
+                flex: 2,
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _buildForecastTabBtn('Hourly', 0, theme, isDark),
+                          _buildForecastTabBtn('14d', 1, theme, isDark),
+                          _buildForecastTabBtn('Past 7d', 2, theme, isDark),
+                          _buildForecastTabBtn('Next 7d', 3, theme, isDark),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -1427,69 +1512,97 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
           ),
         ),
         const SizedBox(height: 12),
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
-          childAspectRatio: 1.5,
-          children: [
-            _buildMetricTile(
-              theme,
-              isDark,
-              icon: Icons.water_drop_outlined,
-              title: 'Humidity',
-              value: '${raw.humidity.round()}%',
-              subtitle: raw.humidity < 40 ? 'Dry air' : (raw.humidity > 70 ? 'Humid' : 'Comfortable'),
-              accentColor: const Color(0xFF0284C7),
-            ),
-            _buildMetricTile(
-              theme,
-              isDark,
-              icon: Icons.air_rounded,
-              title: 'Wind Speed',
-              value: '${raw.windSpeedKmH.toStringAsFixed(1)} km/h',
-              subtitle: 'Gentle mountain breeze',
-              accentColor: const Color(0xFF10B981),
-            ),
-            _buildMetricTile(
-              theme,
-              isDark,
-              icon: Icons.wb_sunny_outlined,
-              title: 'UV Index',
-              value: raw.uvIndex.toStringAsFixed(1),
-              subtitle: raw.uvIndex >= 6 ? 'High (Wear sunscreen)' : 'Moderate safe level',
-              accentColor: const Color(0xFFF59E0B),
-            ),
-            _buildMetricTile(
-              theme,
-              isDark,
-              icon: Icons.speed_rounded,
-              title: 'Pressure',
-              value: '${raw.pressureHpa.round()} hPa',
-              subtitle: 'Stable atmospheric basin',
-              accentColor: const Color(0xFF8B5CF6),
-            ),
-            _buildMetricTile(
-              theme,
-              isDark,
-              icon: Icons.wb_twilight_rounded,
-              title: 'Sunrise',
-              value: raw.sunriseToday,
-              subtitle: 'Golden dawn',
-              accentColor: const Color(0xFFF97316),
-            ),
-            _buildMetricTile(
-              theme,
-              isDark,
-              icon: Icons.bedtime_outlined,
-              title: 'Sunset',
-              value: raw.sunsetToday,
-              subtitle: 'Twilight evening',
-              accentColor: const Color(0xFF6366F1),
-            ),
-          ],
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildMetricTile(
+                  theme,
+                  isDark,
+                  icon: Icons.water_drop_outlined,
+                  title: 'Humidity',
+                  value: '${raw.humidity.round()}%',
+                  subtitle: raw.humidity < 40 ? 'Dry air' : (raw.humidity > 70 ? 'Humid' : 'Comfortable'),
+                  accentColor: const Color(0xFF0284C7),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricTile(
+                  theme,
+                  isDark,
+                  icon: Icons.air_rounded,
+                  title: 'Wind Speed',
+                  value: '${raw.windSpeedKmH.toStringAsFixed(1)} km/h',
+                  subtitle: 'Gentle mountain breeze',
+                  accentColor: const Color(0xFF10B981),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildMetricTile(
+                  theme,
+                  isDark,
+                  icon: Icons.wb_sunny_outlined,
+                  title: 'UV Index',
+                  value: raw.uvIndex.toStringAsFixed(1),
+                  subtitle: raw.uvIndex >= 6 ? 'High (Wear sunscreen)' : 'Moderate safe level',
+                  accentColor: const Color(0xFFF59E0B),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricTile(
+                  theme,
+                  isDark,
+                  icon: Icons.speed_rounded,
+                  title: 'Pressure',
+                  value: '${raw.pressureHpa.round()} hPa',
+                  subtitle: 'Stable atmospheric basin',
+                  accentColor: const Color(0xFF8B5CF6),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: _buildMetricTile(
+                  theme,
+                  isDark,
+                  icon: Icons.wb_twilight_rounded,
+                  title: 'Sunrise',
+                  value: raw.sunriseToday,
+                  subtitle: 'Golden dawn',
+                  accentColor: const Color(0xFFF97316),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _buildMetricTile(
+                  theme,
+                  isDark,
+                  icon: Icons.bedtime_outlined,
+                  title: 'Sunset',
+                  value: raw.sunsetToday,
+                  subtitle: 'Twilight evening',
+                  accentColor: const Color(0xFF6366F1),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -1526,24 +1639,34 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
             children: [
               Icon(icon, size: 16, color: accentColor),
               const SizedBox(width: 6),
-              Text(
-                title,
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: theme.textSecondary,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: theme.textSecondary,
+                  ),
                 ),
               ),
             ],
           ),
-          Text(
-            value,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: theme.text,
+          const SizedBox(height: 6),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: theme.text,
+              ),
             ),
           ),
+          const SizedBox(height: 4),
           Text(
             subtitle,
             maxLines: 1,
@@ -1555,6 +1678,665 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5B. ACTIVITIES & ALLERGIES SECTION (Below Atmospheric Metrics)
+  // ---------------------------------------------------------------------------
+  Widget _buildActivitiesAllergiesSection(
+    StationeryTheme theme,
+    bool isDark,
+    WeatherTelemetryData raw,
+    _EffectiveWeather weather,
+  ) {
+    final season = _resolveSeason(weather);
+
+    // Compute Outdoor Activity suitability dynamically
+    final bool severeWeather = weather.isThunder || weather.isTwister || weather.isFlood;
+    final bool wetOrSnow = weather.isRain || weather.isSnow;
+
+    String runStatus;
+    Color runColor;
+    String runNote;
+    if (severeWeather || weather.aqi > 150) {
+      runStatus = 'Avoid';
+      runColor = const Color(0xFFEF4444);
+      runNote = weather.aqi > 150 ? 'High AQI ${weather.aqi}' : 'Storm hazard';
+    } else if (wetOrSnow || weather.aqi > 100 || weather.tempC > 34 || weather.tempC < 4) {
+      runStatus = 'Fair';
+      runColor = const Color(0xFFF59E0B);
+      runNote = wetOrSnow ? 'Slippery surface' : (weather.tempC > 34 ? 'High heat' : 'Moderate air');
+    } else {
+      runStatus = 'Great';
+      runColor = const Color(0xFF10B981);
+      runNote = 'Fresh air • ${weather.tempC.round()}°C';
+    }
+
+    String cycleStatus;
+    Color cycleColor;
+    String cycleNote;
+    if (severeWeather || weather.isSnow || raw.windSpeedKmH > 28 || weather.aqi > 150) {
+      cycleStatus = 'Poor';
+      cycleColor = const Color(0xFFEF4444);
+      cycleNote = raw.windSpeedKmH > 28 ? 'Strong gusts' : (weather.isSnow ? 'Icy roads' : 'Unsafe air');
+    } else if (weather.isRain || raw.windSpeedKmH > 18 || weather.aqi > 100) {
+      cycleStatus = 'Fair';
+      cycleColor = const Color(0xFFF59E0B);
+      cycleNote = weather.isRain ? 'Wet traction' : '${raw.windSpeedKmH.round()} km/h wind';
+    } else {
+      cycleStatus = 'Good';
+      cycleColor = const Color(0xFF10B981);
+      cycleNote = 'Steady ${raw.windSpeedKmH.round()} km/h breeze';
+    }
+
+    String driveStatus;
+    Color driveColor;
+    String driveNote;
+    if (weather.isThunder || weather.isSnow || weather.isFlood || weather.isTwister) {
+      driveStatus = 'Caution';
+      driveColor = const Color(0xFFEF4444);
+      driveNote = weather.isSnow ? 'Low grip • Snow' : 'Low visibility';
+    } else if (weather.isRain || [45, 48].contains(raw.weatherCode)) {
+      driveStatus = 'Fair';
+      driveColor = const Color(0xFFF59E0B);
+      driveNote = weather.isRain ? 'Slick roads' : 'Haze / Fog';
+    } else {
+      driveStatus = 'Clear';
+      driveColor = const Color(0xFF10B981);
+      driveNote = 'Smooth visibility';
+    }
+
+    String starStatus;
+    Color starColor;
+    String starNote;
+    if (weather.isRain || weather.isThunder || weather.isSnow || weather.isCloudy) {
+      starStatus = 'Poor';
+      starColor = const Color(0xFF64748B);
+      starNote = 'Cloud / precip cover';
+    } else if (!weather.isDay) {
+      starStatus = 'Great';
+      starColor = const Color(0xFF8B5CF6);
+      starNote = 'Clear night sky';
+    } else {
+      starStatus = 'Good';
+      starColor = const Color(0xFF0EA5E9);
+      starNote = 'Clear after sunset';
+    }
+
+    // Compute Allergy & Health Outlooks dynamically
+    final bool dryWindy = !weather.isRain && !weather.isSnow && raw.windSpeedKmH >= 10;
+    final String pollenLevel;
+    final Color pollenColor;
+    final double pollenRatio;
+    final String pollenNote;
+    if (weather.isRain || weather.isSnow || season == WeatherSeason.winter) {
+      pollenLevel = 'Low';
+      pollenColor = const Color(0xFF10B981);
+      pollenRatio = 0.22;
+      pollenNote = weather.isRain ? 'Washed by rain' : 'Dormant cold';
+    } else if ((season == WeatherSeason.spring || season == WeatherSeason.autumn) && dryWindy) {
+      pollenLevel = 'High';
+      pollenColor = const Color(0xFFF97316);
+      pollenRatio = 0.78;
+      pollenNote = '${season.label} wind spread';
+    } else {
+      pollenLevel = 'Moderate';
+      pollenColor = const Color(0xFFF59E0B);
+      pollenRatio = 0.48;
+      pollenNote = '${season.label} grass & trees';
+    }
+
+    final String dustLevel;
+    final Color dustColor;
+    final double dustRatio;
+    if (weather.aqi <= 50) {
+      dustLevel = 'Low';
+      dustColor = const Color(0xFF10B981);
+      dustRatio = 0.22;
+    } else if (weather.aqi <= 100) {
+      dustLevel = 'Moderate';
+      dustColor = const Color(0xFFF59E0B);
+      dustRatio = 0.50;
+    } else if (weather.aqi <= 200) {
+      dustLevel = 'High';
+      dustColor = const Color(0xFFF97316);
+      dustRatio = 0.78;
+    } else {
+      dustLevel = 'Severe';
+      dustColor = const Color(0xFFEF4444);
+      dustRatio = 0.96;
+    }
+
+    final String moldLevel;
+    final Color moldColor;
+    final double moldRatio;
+    if (raw.humidity >= 75 || weather.isRain) {
+      moldLevel = 'High';
+      moldColor = const Color(0xFFF97316);
+      moldRatio = 0.76;
+    } else if (raw.humidity >= 55) {
+      moldLevel = 'Moderate';
+      moldColor = const Color(0xFFF59E0B);
+      moldRatio = 0.48;
+    } else {
+      moldLevel = 'Low';
+      moldColor = const Color(0xFF10B981);
+      moldRatio = 0.22;
+    }
+
+    final String sinusLevel;
+    final Color sinusColor;
+    final double sinusRatio;
+    final String sinusNote;
+    if (weather.aqi > 150 || raw.uvIndex >= 8 || weather.tempC <= 5) {
+      sinusLevel = 'High';
+      sinusColor = const Color(0xFFEF4444);
+      sinusRatio = 0.80;
+      sinusNote = weather.aqi > 150 ? 'Wear N95 outdoors' : (weather.tempC <= 5 ? 'Cold dry trigger' : 'UV ${raw.uvIndex.toStringAsFixed(1)}');
+    } else if (weather.aqi > 80 || raw.uvIndex >= 5 || raw.humidity < 35) {
+      sinusLevel = 'Moderate';
+      sinusColor = const Color(0xFFF59E0B);
+      sinusRatio = 0.50;
+      sinusNote = 'UV ${raw.uvIndex.toStringAsFixed(1)} • Hydrate';
+    } else {
+      sinusLevel = 'Low';
+      sinusColor = const Color(0xFF10B981);
+      sinusRatio = 0.22;
+      sinusNote = 'Mild comfort';
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Activities & Allergies',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: theme.text,
+          ),
+        ),
+        const SizedBox(height: 10),
+
+        // 1. Outdoor Activities Card
+        Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E22) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: theme.border, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.directions_run_rounded, size: 16, color: theme.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Outdoor Activities',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: theme.text,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildActivityMiniTile(
+                        theme,
+                        isDark,
+                        icon: Icons.directions_run_rounded,
+                        title: 'Running',
+                        status: runStatus,
+                        note: runNote,
+                        color: runColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildActivityMiniTile(
+                        theme,
+                        isDark,
+                        icon: Icons.directions_bike_rounded,
+                        title: 'Cycling',
+                        status: cycleStatus,
+                        note: cycleNote,
+                        color: cycleColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildActivityMiniTile(
+                        theme,
+                        isDark,
+                        icon: Icons.directions_car_rounded,
+                        title: 'Driving',
+                        status: driveStatus,
+                        note: driveNote,
+                        color: driveColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildActivityMiniTile(
+                        theme,
+                        isDark,
+                        icon: Icons.auto_awesome_rounded,
+                        title: 'Stargazing',
+                        status: starStatus,
+                        note: starNote,
+                        color: starColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+
+        // 2. Allergies & Health Card
+        Container(
+          padding: const EdgeInsets.all(13),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1E1E22) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: theme.border, width: 1.2),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isDark ? 0.22 : 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.healing_rounded, size: 16, color: Color(0xFFF97316)),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Allergies & Triggers',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: theme.text,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildAllergyMiniTile(
+                        theme,
+                        isDark,
+                        icon: Icons.local_florist_rounded,
+                        title: 'Pollen',
+                        level: pollenLevel,
+                        note: pollenNote,
+                        ratio: pollenRatio,
+                        color: pollenColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildAllergyMiniTile(
+                        theme,
+                        isDark,
+                        icon: Icons.masks_rounded,
+                        title: 'Dust & Smog',
+                        level: dustLevel,
+                        note: 'PM2.5 ${raw.pm25} µg/m³',
+                        ratio: dustRatio,
+                        color: dustColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: _buildAllergyMiniTile(
+                        theme,
+                        isDark,
+                        icon: Icons.water_drop_rounded,
+                        title: 'Mold Spores',
+                        level: moldLevel,
+                        note: 'Humidity ${raw.humidity.round()}%',
+                        ratio: moldRatio,
+                        color: moldColor,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: _buildAllergyMiniTile(
+                        theme,
+                        isDark,
+                        icon: Icons.air_rounded,
+                        title: 'Sinus & UV',
+                        level: sinusLevel,
+                        note: sinusNote,
+                        ratio: sinusRatio,
+                        color: sinusColor,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivityMiniTile(
+    StationeryTheme theme,
+    bool isDark, {
+    required IconData icon,
+    required String title,
+    required String status,
+    required String note,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF25252B) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: theme.border.withValues(alpha: 0.65), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 15, color: color),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: theme.text,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                child: Text(
+                  status,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 5),
+          Text(
+            note,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: theme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllergyMiniTile(
+    StationeryTheme theme,
+    bool isDark, {
+    required IconData icon,
+    required String title,
+    required String level,
+    required String note,
+    required double ratio,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF25252B) : const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(13),
+        border: Border.all(color: theme.border.withValues(alpha: 0.65), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 14.5, color: color),
+              const SizedBox(width: 5),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w800,
+                    color: theme.text,
+                  ),
+                ),
+              ),
+              Text(
+                level,
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: ratio.clamp(0.08, 1.0),
+              minHeight: 4.5,
+              backgroundColor: isDark ? const Color(0xFF34343D) : const Color(0xFFE2E8F0),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            note,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: theme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // 5C. WHAT TO WEAR & CARRY BUTTON -> OPENS HOVER PAGE WITH CHARACTER & TOOLS
+  // ---------------------------------------------------------------------------
+  Widget _buildWhatToWearButton(
+    StationeryTheme theme,
+    bool isDark,
+    WeatherTelemetryData raw,
+    _EffectiveWeather weather,
+  ) {
+    final season = _resolveSeason(weather);
+    final outfitCtx = WeatherOutfitContext(
+      tempC: weather.tempC,
+      condition: weather.condition,
+      isDay: weather.isDay,
+      isRain: weather.isRain,
+      isThunder: weather.isThunder,
+      isCloudy: weather.isCloudy,
+      isSnow: weather.isSnow,
+      aqi: weather.aqi,
+      humidity: raw.humidity,
+      windSpeedKmH: raw.windSpeedKmH,
+      uvIndex: raw.uvIndex,
+      season: season,
+      city: weather.city,
+    );
+    final rec = OutfitRecommendation.compute(outfitCtx);
+
+    final quickSummary = [
+      rec.shirtType,
+      rec.footwearType,
+      if (rec.hasUmbrella) 'Umbrella',
+      if (rec.hasOxygenCylinder) 'O₂ Cylinder' else if (rec.hasMask) 'N95 Mask',
+    ].join(' • ');
+
+    return BouncyTap(
+      onTap: () {
+        showWhatToWearHoverPage(
+          context: context,
+          theme: theme,
+          isDark: isDark,
+          weatherContext: outfitCtx,
+          useFahrenheit: _useFahrenheit,
+        );
+      },
+      scaleFraction: 0.97,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.primary.withValues(alpha: isDark ? 0.22 : 0.13),
+              isDark ? const Color(0xFF222229) : theme.lavenderCard,
+            ],
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: theme.primary.withValues(alpha: 0.42), width: 1.3),
+          boxShadow: [
+            BoxShadow(
+              color: theme.primary.withValues(alpha: isDark ? 0.18 : 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: BoxDecoration(
+                color: theme.primary,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(Icons.checkroom_rounded, size: 22, color: Colors.white),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'What to Wear & Carry',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: theme.text,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    quickSummary,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: theme.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: theme.primary.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: theme.primary.withValues(alpha: 0.32), width: 1),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'View',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w800,
+                      color: theme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 3),
+                  Icon(Icons.arrow_forward_ios_rounded, size: 10.5, color: theme.primary),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1924,6 +2706,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
   void _showSimulationSheet(StationeryTheme theme, bool isDark) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: isDark ? const Color(0xFF1E1E22) : Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -1931,7 +2714,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setSheetState) {
-            return Padding(
+            return SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1955,7 +2738,7 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                     ],
                   ),
                   Text(
-                    'Experience live SVG Sun, Moon phases, Soft Clouds, Rain, Thunder & AQI transformations.',
+                    'Experience live SVG Sun, Moon phases, Line Clouds, Rain, Snow, Thunder & AQI transformations.',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 11.5,
                       color: theme.textSecondary,
@@ -1973,6 +2756,8 @@ class _WeatherScreenState extends State<WeatherScreen> with TickerProviderStateM
                       _buildSimChip('Moving Clouds', WeatherSimMode.cloudySky, setSheetState, theme, isDark),
                       _buildSimChip('Rain Showers', WeatherSimMode.rainyDeluge, setSheetState, theme, isDark),
                       _buildSimChip('Thunder Lightning', WeatherSimMode.thunderstorm, setSheetState, theme, isDark),
+                      _buildSimChip('Snowfall', WeatherSimMode.snowfall, setSheetState, theme, isDark),
+                      _buildSimChip('Toxic Smog', WeatherSimMode.severeSmog, setSheetState, theme, isDark),
                     ],
                   ),
                   const SizedBox(height: 20),
@@ -2048,6 +2833,7 @@ class _EffectiveWeather {
   final bool isRain;
   final bool isThunder;
   final bool isCloudy;
+  final bool isSnow;
   final bool isFlood;
   final bool isTwister;
   final double tempC;
@@ -2063,6 +2849,7 @@ class _EffectiveWeather {
     required this.isRain,
     required this.isThunder,
     required this.isCloudy,
+    required this.isSnow,
     required this.isFlood,
     required this.isTwister,
     required this.tempC,
@@ -2075,8 +2862,30 @@ class _EffectiveWeather {
   });
 }
 
+class _CloudTrackSpec {
+  final int lane; // 0 = upper, 1 = mid, 2 = foreground
+  final double y;
+  final double scale;
+  final double phaseOffset;
+  final int cycles; // Integer cycles per animProgress loop for zero jump
+  final bool isSecondary;
+
+  const _CloudTrackSpec({
+    required this.lane,
+    required this.y,
+    required this.scale,
+    required this.phaseOffset,
+    required this.cycles,
+    required this.isSecondary,
+  });
+}
+
 // ---------------------------------------------------------------------------
-// CELESTIAL SKY SVG PAINTER (Lunar / Solar Trajectory Arc + SVG Sun/Moon/Clouds/Rain/Thunder/Disasters)
+// CELESTIAL SKY SVG PAINTER
+// - Larger Sun & Moon pushed higher up right below the hover sheet title
+// - Abundant line-by-line clouds drifting gently left-to-right across 3 lanes
+// - Smooth edge fade, birds, breeze streams, twinkling stars + shooting star,
+//   multi-layer rain + splashes, drifting snowflakes & lightning flash
 // ---------------------------------------------------------------------------
 class _CelestialSkySvgPainter extends CustomPainter {
   final _EffectiveWeather weather;
@@ -2101,113 +2910,222 @@ class _CelestialSkySvgPainter extends CustomPainter {
     required this.theme,
   });
 
+  double _edgeFadeAlpha(double x, double w) {
+    const fadeZone = 28.0;
+    if (x < fadeZone) return (x / fadeZone).clamp(0.0, 1.0);
+    if (x > w - fadeZone) return ((w - x) / fadeZone).clamp(0.0, 1.0);
+    return 1.0;
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
     final cx = w / 2;
-    final cy = h / 2;
 
-    // Zero background: seamless hover page integration without bounding background color
+    canvas.save();
+    canvas.clipRect(Offset.zero & size);
 
-    // 1. Gentle Night Micro-Stars (Twinkling softly in night mode)
+    // 1. Night Twinkling Stars + Periodic Shooting Star
     if (!weather.isDay) {
       final starPaint = Paint()..color = (isDark ? Colors.white : theme.text);
-      final stars = [
-        Offset(cx - 72, cy - 24),
-        Offset(cx - 46, cy - 36),
-        Offset(cx + 64, cy - 30),
-        Offset(cx + 88, cy - 14),
-        Offset(cx - 90, cy + 8),
-        Offset(cx + 42, cy - 38),
+      final starOffsets = <Offset>[
+        Offset(cx - 138, 16),
+        Offset(cx - 102, 34),
+        Offset(cx - 72, 14),
+        Offset(cx - 38, 28),
+        Offset(cx + 8, 12),
+        Offset(cx + 68, 16),
+        Offset(cx + 104, 26),
+        Offset(cx + 140, 18),
+        Offset(cx - 122, 62),
+        Offset(cx + 124, 58),
+        Offset(cx - 56, 52),
+        Offset(cx + 84, 44),
       ];
-      for (int i = 0; i < stars.length; i++) {
-        final twinkle = (math.sin((animProgress * math.pi * 2) + i * 1.5) + 1.0) / 2.0;
-        starPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.15 + (twinkle * 0.55));
-        canvas.drawCircle(stars[i], 1.0 + (twinkle * 0.8), starPaint);
+      for (int i = 0; i < starOffsets.length; i++) {
+        final twinkle = (math.sin((animProgress * math.pi * 4) + i * 1.35) + 1.0) / 2.0;
+        starPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.18 + (twinkle * 0.65));
+        canvas.drawCircle(starOffsets[i], 0.9 + (twinkle * 0.9), starPaint);
+      }
+
+      // Delicate shooting star gliding every cycle
+      final shootPhase = (animProgress * 2.0) % 1.0;
+      if (shootPhase < 0.24) {
+        final t = shootPhase / 0.24;
+        final sx = cx - 95 + (t * 125);
+        final sy = 12 + (t * 28);
+        final alpha = math.sin(t * math.pi).clamp(0.0, 1.0);
+        final shootPaint = Paint()
+          ..color = (isDark ? const Color(0xFFFEF08A) : accentColor).withValues(alpha: alpha * 0.75)
+          ..strokeWidth = 1.6
+          ..strokeCap = StrokeCap.round;
+        canvas.drawLine(Offset(sx, sy), Offset(sx - 20, sy - 5), shootPaint);
       }
     }
 
-    // 2. Air / Breeze Streamline Curves (Soft wind wafting past)
-    final breezeShift = math.sin(animProgress * math.pi * 2) * 5.0;
+    // 2. Gentle Continuous Left-to-Right Wind / Breeze Streamlines
     final breezePaint = Paint()
-      ..color = (isDark ? Colors.white : theme.textSecondary).withValues(alpha: 0.22)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
+      ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
+    const breezeRows = [28.0, 56.0, 84.0];
+    for (int i = 0; i < breezeRows.length; i++) {
+      final t = (animProgress * 2.0 + (i * 0.34)) % 1.0;
+      final bx = -50.0 + t * (w + 100.0);
+      final by = breezeRows[i] + math.sin((animProgress * math.pi * 4) + i) * 2.2;
+      final alpha = _edgeFadeAlpha(bx, w) * 0.24;
+      breezePaint.color = (isDark ? Colors.white : theme.textSecondary).withValues(alpha: alpha);
+      final path = Path()
+        ..moveTo(bx - 24, by)
+        ..quadraticBezierTo(bx, by - 6, bx + 26, by);
+      canvas.drawPath(path, breezePaint);
+    }
 
-    final pTop = Path();
-    pTop.moveTo(cx - 96 + breezeShift, cy - 12);
-    pTop.quadraticBezierTo(cx - 70 + breezeShift, cy - 20, cx - 48 + breezeShift, cy - 12);
-    canvas.drawPath(pTop, breezePaint);
+    // 3. Minimalist Gliding Birds in calm daytime sky
+    if (weather.isDay && !weather.isRain && !weather.isThunder && !weather.isSnow) {
+      final birdPaint = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.45
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      const birdSpecs = [
+        [0.14, 24.0, 1.0],
+        [0.48, 34.0, 0.85],
+        [0.78, 18.0, 0.92],
+      ];
+      for (int i = 0; i < birdSpecs.length; i++) {
+        final spec = birdSpecs[i];
+        final progress = (animProgress + spec[0]) % 1.0;
+        final bx = -24.0 + progress * (w + 48.0);
+        final by = spec[1] + math.sin(progress * math.pi * 6 + i) * 3.2;
+        final flap = math.sin(animProgress * math.pi * 16 + i * 2.1) * 3.2;
+        final span = 7.0 * spec[2];
+        birdPaint.color = (isDark ? Colors.white : theme.text).withValues(alpha: _edgeFadeAlpha(bx, w) * 0.55);
+        final bPath = Path()
+          ..moveTo(bx - span, by - flap)
+          ..quadraticBezierTo(bx - span * 0.45, by - 3.5, bx, by)
+          ..quadraticBezierTo(bx + span * 0.45, by - 3.5, bx + span, by - flap);
+        canvas.drawPath(bPath, birdPaint);
+      }
+    }
 
-    final pBot = Path();
-    pBot.moveTo(cx - 82 + breezeShift, cy + 22);
-    pBot.quadraticBezierTo(cx - 56 + breezeShift, cy + 16, cx - 36 + breezeShift, cy + 22);
-    canvas.drawPath(pBot, breezePaint);
+    // 4. Build Line-by-Line Drifting Cloud Tracks (Left -> Right)
+    final bool denseClouds = weather.isCloudy || weather.isRain || weather.isThunder || weather.isSnow;
+    final cloudSpecs = <_CloudTrackSpec>[
+      // Line 1 (Upper sky lane, gentle 1x drift)
+      const _CloudTrackSpec(lane: 0, y: 20.0, scale: 0.56, phaseOffset: 0.06, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 0, y: 22.0, scale: 0.62, phaseOffset: 0.31, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 0, y: 19.0, scale: 0.58, phaseOffset: 0.57, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 0, y: 23.0, scale: 0.60, phaseOffset: 0.82, cycles: 1, isSecondary: true),
+      if (denseClouds)
+        const _CloudTrackSpec(lane: 0, y: 21.0, scale: 0.66, phaseOffset: 0.44, cycles: 1, isSecondary: true),
 
-    // 3. Isolated layer for Celestial Body + main cloud gap cutout
-    final floatOffset = math.sin(animProgress * math.pi * 2) * 3.5;
-    final mainCloudCenter = Offset(cx - 8 + floatOffset, cy + 8);
-    final mainCloudPath = _buildUnifiedCloudPath(mainCloudCenter, 1.0);
+      // Line 2 (Mid sky lane, gentle 1x drift)
+      const _CloudTrackSpec(lane: 1, y: 45.0, scale: 0.72, phaseOffset: 0.14, cycles: 1, isSecondary: true),
+      const _CloudTrackSpec(lane: 1, y: 47.0, scale: 0.76, phaseOffset: 0.47, cycles: 1, isSecondary: false),
+      const _CloudTrackSpec(lane: 1, y: 44.0, scale: 0.70, phaseOffset: 0.79, cycles: 1, isSecondary: true),
+      if (denseClouds)
+        const _CloudTrackSpec(lane: 1, y: 48.0, scale: 0.80, phaseOffset: 0.63, cycles: 1, isSecondary: false),
 
+      // Line 3 (Foreground lower sky lane, slightly faster 2x drift)
+      const _CloudTrackSpec(lane: 2, y: 69.0, scale: 0.88, phaseOffset: 0.10, cycles: 2, isSecondary: false),
+      const _CloudTrackSpec(lane: 2, y: 72.0, scale: 0.96, phaseOffset: 0.43, cycles: 2, isSecondary: false),
+      const _CloudTrackSpec(lane: 2, y: 68.0, scale: 0.86, phaseOffset: 0.76, cycles: 2, isSecondary: false),
+      if (denseClouds)
+        const _CloudTrackSpec(lane: 2, y: 73.0, scale: 0.94, phaseOffset: 0.27, cycles: 2, isSecondary: false),
+    ];
+
+    final resolvedClouds = <({Offset center, double scale, bool isSecondary, Path path, double alpha})>[];
+    const horizontalMargin = 52.0;
+    final totalSpan = w + (horizontalMargin * 2);
+
+    for (final spec in cloudSpecs) {
+      final t = ((animProgress * spec.cycles) + spec.phaseOffset) % 1.0;
+      final dx = -horizontalMargin + (t * totalSpan);
+      final bob = math.sin((animProgress * math.pi * 2 * spec.cycles) + (spec.phaseOffset * math.pi * 2)) * 1.4;
+      final center = Offset(dx, spec.y + bob);
+      final path = _buildUnifiedCloudPath(center, spec.scale);
+      final alpha = _edgeFadeAlpha(dx, w);
+      resolvedClouds.add((
+        center: center,
+        scale: spec.scale,
+        isSecondary: spec.isSecondary,
+        path: path,
+        alpha: alpha,
+      ));
+    }
+
+    // 5. Paint Upper-Lane Back Clouds behind Sun/Moon
+    for (final c in resolvedClouds.where((c) => c.isSecondary)) {
+      _paintSoftCloud(
+        canvas,
+        c.center,
+        c.scale,
+        isSecondary: true,
+        precomputedPath: c.path,
+        alphaScale: c.alpha,
+      );
+    }
+
+    // 6. Isolated Layer for Larger Sun or Moon + Clean Cutout around Foreground Clouds
+    final celestialCenter = Offset(cx + 22, 41.0);
     canvas.saveLayer(Offset.zero & size, Paint());
-    final celestialCenter = Offset(cx + 17, cy - 11.5);
     if (weather.isDay) {
       _paintSvgSun(canvas, celestialCenter);
     } else {
       _paintSvgMoon(canvas, celestialCenter);
     }
 
-    // Secondary Cloud (if overcast / cloudy)
-    if (weather.isCloudy) {
-      final backCloudOffset = math.sin(animProgress * math.pi * 2) * 4.0;
-      _paintSoftCloud(
-        canvas,
-        Offset(cx - 40 + backCloudOffset, cy - 14),
-        0.72,
-        isSecondary: true,
-      );
-    }
-
-    // Cleanly carve out the foreground cloud + subtle halo gap from the sun/back cloud layer
     final clearFill = Paint()
       ..blendMode = BlendMode.clear
       ..style = PaintingStyle.fill;
     final clearHalo = Paint()
       ..blendMode = BlendMode.clear
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 5.0
+      ..strokeWidth = 4.6
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-    canvas.drawPath(mainCloudPath, clearFill);
-    canvas.drawPath(mainCloudPath, clearHalo);
+
+    for (final c in resolvedClouds.where((c) => !c.isSecondary)) {
+      canvas.drawPath(c.path, clearFill);
+      canvas.drawPath(c.path, clearHalo);
+    }
     canvas.restore();
 
-    // 4. Main Foreground Unified SVG Cloud (crisp thin contour matching UI theme)
-    _paintSoftCloud(
-      canvas,
-      mainCloudCenter,
-      1.0,
-      isSecondary: false,
-      precomputedPath: mainCloudPath,
-    );
+    // 7. Foreground Crisp Clouds (Line 2/3)
+    for (final c in resolvedClouds.where((c) => !c.isSecondary)) {
+      _paintSoftCloud(
+        canvas,
+        c.center,
+        c.scale,
+        isSecondary: false,
+        precomputedPath: c.path,
+        alphaScale: c.alpha,
+      );
+    }
 
-    // 5. Light Delicate Rain Droplets (if rain or thunder)
+    // 8. Precipitation & Thunder Animations anchored below foreground clouds
+    final foregroundClouds = resolvedClouds.where((c) => !c.isSecondary && c.center.dx > 20 && c.center.dx < w - 20).toList();
     if (weather.isRain || weather.isThunder) {
-      _paintSvgRain(canvas, mainCloudCenter.dx, mainCloudCenter.dy);
+      for (final c in foregroundClouds) {
+        _paintSvgRain(canvas, c.center.dx, c.center.dy, c.scale, c.alpha);
+      }
+    }
+    if (weather.isSnow) {
+      _paintSvgSnow(canvas, w, h);
+    }
+    if (weather.isThunder) {
+      final anchorX = foregroundClouds.isNotEmpty ? foregroundClouds.first.center.dx : cx - 10;
+      final anchorY = foregroundClouds.isNotEmpty ? foregroundClouds.first.center.dy : 68.0;
+      _paintSvgThunder(canvas, anchorX, anchorY);
     }
 
-    // 6. Thunder Lightning (if thunderstorm)
-    if (weather.isThunder) {
-      _paintSvgThunder(canvas, mainCloudCenter.dx, mainCloudCenter.dy);
-    }
+    canvas.restore();
   }
 
   Path _buildUnifiedCloudPath(Offset center, double scale) {
-    // Same crisp 3-lobe continuous cubic-Bezier silhouette centered around `center`
-    // Spans ~76x44 at scale 1.0 (origin offset: dx = -30*u, dy = -32*u on 64x64 basis)
-    final u = 1.95 * scale;
+    final u = 1.72 * scale;
     final ox = center.dx - (30.0 * u);
     final oy = center.dy - (32.0 * u);
     return Path()
@@ -2229,21 +3147,23 @@ class _CelestialSkySvgPainter extends CustomPainter {
     double scale, {
     required bool isSecondary,
     Path? precomputedPath,
+    double alphaScale = 1.0,
   }) {
+    if (alphaScale <= 0.02) return;
     final path = precomputedPath ?? _buildUnifiedCloudPath(center, scale);
 
     final cloudFill = Paint()
-      ..color = isSecondary
-          ? (isDark ? const Color(0xFF23232C) : theme.lavenderBubble).withValues(alpha: 0.45)
-          : (isDark ? const Color(0xFF22222A) : theme.lavenderBubble).withValues(alpha: 0.62)
+      ..color = (isSecondary
+              ? (isDark ? const Color(0xFF23232C) : theme.lavenderBubble).withValues(alpha: 0.42 * alphaScale)
+              : (isDark ? const Color(0xFF22222A) : theme.lavenderBubble).withValues(alpha: 0.68 * alphaScale))
       ..style = PaintingStyle.fill;
 
     final cloudStroke = Paint()
-      ..color = isSecondary
-          ? (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.42)
-          : (isDark ? const Color(0xFFF4F4F5) : theme.text)
+      ..color = (isSecondary
+              ? (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.40 * alphaScale)
+              : (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.95 * alphaScale))
       ..style = PaintingStyle.stroke
-      ..strokeWidth = isSecondary ? 1.3 : 1.65
+      ..strokeWidth = isSecondary ? 1.2 : 1.55
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
@@ -2252,49 +3172,64 @@ class _CelestialSkySvgPainter extends CustomPainter {
   }
 
   void _paintSvgSun(Canvas canvas, Offset center) {
-    const r = 15.0;
+    const r = 21.5;
     final sunCol = isDark ? const Color(0xFFFEF08A) : accentColor;
+    final pulse = 1.0 + (math.sin(animProgress * math.pi * 4) * 0.08);
 
-    // Crisp rotating solar rays in thin line-art stroke
+    // Warm breathing outer aura
+    final auraPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          sunCol.withValues(alpha: isDark ? 0.28 : 0.20),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: r * 2.1 * pulse));
+    canvas.drawCircle(center, r * 2.1 * pulse, auraPaint);
+
+    // Crisp rotating primary & secondary solar rays
     final rayPaint = Paint()
       ..color = sunCol
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
+      ..strokeWidth = 1.65
       ..strokeCap = StrokeCap.round;
 
     final rot = animProgress * math.pi * 2;
-    for (int i = 0; i < 8; i++) {
-      final angle = rot + (i * (math.pi / 4));
-      final p1 = Offset(center.dx + math.cos(angle) * (r * 1.28), center.dy + math.sin(angle) * (r * 1.28));
-      final p2 = Offset(center.dx + math.cos(angle) * (r * 1.66), center.dy + math.sin(angle) * (r * 1.66));
-      canvas.drawLine(p1, p2, rayPaint);
+    for (int i = 0; i < 12; i++) {
+      final angle = rot + (i * (math.pi / 6));
+      final isMajor = i.isEven;
+      const inner = r * 1.22;
+      final outer = r * (isMajor ? 1.58 * pulse : 1.40);
+      final p1 = Offset(center.dx + math.cos(angle) * inner, center.dy + math.sin(angle) * inner);
+      final p2 = Offset(center.dx + math.cos(angle) * outer, center.dy + math.sin(angle) * outer);
+      canvas.drawLine(p1, p2, rayPaint..strokeWidth = isMajor ? 1.75 : 1.25);
     }
 
-    // Soft translucent UI-themed sun disc + crisp thin outline
+    // Translucent UI-themed sun disc + crisp thin outline
     final sunFill = Paint()
-      ..color = sunCol.withValues(alpha: isDark ? 0.22 : 0.16)
+      ..color = sunCol.withValues(alpha: isDark ? 0.25 : 0.18)
       ..style = PaintingStyle.fill;
     final sunStroke = Paint()
       ..color = sunCol
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.65;
+      ..strokeWidth = 1.75;
 
     canvas.drawCircle(center, r, sunFill);
     canvas.drawCircle(center, r, sunStroke);
   }
 
   void _paintSvgMoon(Canvas canvas, Offset center) {
-    const r = 15.0;
+    const r = 21.5;
+    final pulse = 1.0 + (math.sin(animProgress * math.pi * 4) * 0.08);
 
-    // Moon Glow
+    // Pulsing Moon Glow
     final glow = Paint()
       ..shader = RadialGradient(
         colors: [
-          const Color(0xFFE0E7FF).withValues(alpha: 0.45),
+          const Color(0xFFE0E7FF).withValues(alpha: 0.48),
           Colors.transparent,
         ],
-      ).createShader(Rect.fromCircle(center: center, radius: r * 2.0));
-    canvas.drawCircle(center, r * 2.0, glow);
+      ).createShader(Rect.fromCircle(center: center, radius: r * 2.1 * pulse));
+    canvas.drawCircle(center, r * 2.1 * pulse, glow);
 
     // Dark base disc
     final darkBase = Paint()..color = isDark ? const Color(0xFF1E2430) : const Color(0xFFCBD5E1);
@@ -2331,39 +3266,64 @@ class _CelestialSkySvgPainter extends CustomPainter {
     path.close();
     canvas.drawPath(path, litPaint);
 
+    // Subtle lunar craters
+    final craterPaint = Paint()..color = (isDark ? const Color(0xFF64748B) : const Color(0xFF94A3B8)).withValues(alpha: 0.22);
+    canvas.drawCircle(Offset(center.dx - 5, center.dy - 6), 3.2, craterPaint);
+    canvas.drawCircle(Offset(center.dx + 6, center.dy + 5), 2.3, craterPaint);
+
     final stroke = Paint()
-      ..color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.35)
+      ..color = (isDark ? Colors.white : theme.text).withValues(alpha: 0.4)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.0;
+      ..strokeWidth = 1.25;
     canvas.drawCircle(center, r, stroke);
   }
 
-  void _paintSvgRain(Canvas canvas, double cloudX, double cloudY) {
+  void _paintSvgRain(Canvas canvas, double cloudX, double cloudY, double scale, double alphaScale) {
     final rainPaint = Paint()
-      ..color = accentColor
-      ..strokeWidth = 1.65
+      ..color = accentColor.withValues(alpha: 0.88 * alphaScale)
+      ..strokeWidth = 1.55
       ..strokeCap = StrokeCap.round;
 
     for (int i = 0; i < 4; i++) {
-      final x = (cloudX - 18) + (i * 12);
-      final dropProg = (animProgress * 3.5 + (i * 0.25)) % 1.0;
-      final yStart = (cloudY + 25) + (dropProg * 14.0);
-      canvas.drawLine(Offset(x, yStart), Offset(x - 2.4, yStart + 7.5), rainPaint);
+      final x = (cloudX - 16 * scale) + (i * 10.5 * scale);
+      final dropProg = (animProgress * 5.0 + (i * 0.24)) % 1.0;
+      final yStart = (cloudY + 14 * scale) + (dropProg * 16.0);
+      canvas.drawLine(Offset(x, yStart), Offset(x - 2.4, yStart + 7.0), rainPaint);
+    }
+  }
+
+  void _paintSvgSnow(Canvas canvas, double w, double h) {
+    final snowPaint = Paint()
+      ..color = (isDark ? const Color(0xFFE0F2FE) : const Color(0xFF0EA5E9)).withValues(alpha: 0.85)
+      ..strokeWidth = 1.25
+      ..strokeCap = StrokeCap.round;
+
+    for (int i = 0; i < 14; i++) {
+      final baseFrac = (i + 0.5) / 14.0;
+      final prog = (animProgress * 3.0 + (i * 0.19)) % 1.0;
+      final sway = math.sin((animProgress * math.pi * 6) + i) * 6.0;
+      final sx = (baseFrac * w) + sway;
+      final sy = 16.0 + (prog * (h - 22.0));
+      final alpha = math.sin(prog * math.pi).clamp(0.0, 1.0) * _edgeFadeAlpha(sx, w);
+      snowPaint.color = (isDark ? const Color(0xFFE0F2FE) : const Color(0xFF0284C7)).withValues(alpha: alpha * 0.85);
+      // Tiny crystal cross + dot
+      canvas.drawLine(Offset(sx - 2.6, sy), Offset(sx + 2.6, sy), snowPaint);
+      canvas.drawLine(Offset(sx, sy - 2.6), Offset(sx, sy + 2.6), snowPaint);
     }
   }
 
   void _paintSvgThunder(Canvas canvas, double cloudX, double cloudY) {
-    final isFlashing = lightningProgress > 0.8;
+    final isFlashing = lightningProgress > 0.78;
     final bolt = Path();
     final bx = cloudX + 4;
-    final by = cloudY + 14;
+    final by = cloudY + 10;
 
     bolt.moveTo(bx + 4, by);
-    bolt.lineTo(bx - 5, by + 16);
-    bolt.lineTo(bx + 1, by + 16);
-    bolt.lineTo(bx - 6, by + 34);
-    bolt.lineTo(bx + 6, by + 14);
-    bolt.lineTo(bx, by + 14);
+    bolt.lineTo(bx - 5, by + 14);
+    bolt.lineTo(bx + 1, by + 14);
+    bolt.lineTo(bx - 6, by + 30);
+    bolt.lineTo(bx + 6, by + 12);
+    bolt.lineTo(bx, by + 12);
     bolt.close();
 
     final boltPaint = Paint()
@@ -2372,9 +3332,9 @@ class _CelestialSkySvgPainter extends CustomPainter {
 
     if (isFlashing) {
       final halo = Paint()
-        ..color = const Color(0xFFFEF08A).withValues(alpha: 0.6)
+        ..color = const Color(0xFFFEF08A).withValues(alpha: 0.65)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5;
+        ..strokeWidth = 2.6;
       canvas.drawPath(bolt, halo);
     }
   }

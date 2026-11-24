@@ -427,6 +427,20 @@ class WeatherTelemetryService extends ChangeNotifier {
   Timer? _syncTimer;
   bool _initialized = false;
 
+  @visibleForTesting
+  Future<void> resetFromCacheForTest() async {
+    _syncTimer?.cancel();
+    _initialized = false;
+    _isFetching = false;
+    _isManualLocation = false;
+    _manualCity = null;
+    _manualCountry = null;
+    _manualLat = null;
+    _manualLon = null;
+    _data = WeatherTelemetryData.defaultData();
+    await _loadFromCache();
+  }
+
   Future<void> init() async {
     if (_initialized) return;
     _initialized = true;
