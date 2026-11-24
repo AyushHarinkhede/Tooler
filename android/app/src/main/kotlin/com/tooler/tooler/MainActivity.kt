@@ -1642,7 +1642,7 @@ open class MainActivity : FlutterActivity() {
         }
 
         // In-App GitHub APK Self-Updater Channel
-        val updater = ToolerAppUpdater(applicationContext)
+        val updater = ToolerAppUpdater(applicationContext, this)
         appUpdater = updater
 
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, APP_UPDATER_EVENTS_CHANNEL).setStreamHandler(

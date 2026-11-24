@@ -771,146 +771,181 @@ class _SettingsScreenState extends State<SettingsScreen>
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              BouncyTap(
-                onTap: () {
-                  if (isBusy) return;
-                  if (isReadyToInstall) {
-                    SoundService().playClick();
-                    _updateService.launchPendingInstall();
-                  } else {
-                    _showUpdateWarningHoverPage();
-                  }
-                },
-                scaleFraction: isBusy ? 1.0 : 0.97,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Container(
-                    height: 52,
-                    decoration: BoxDecoration(
-                      color: isError
-                          ? Colors.red.withValues(alpha: 0.12)
-                          : theme.primary.withValues(
-                              alpha: isBusy ? 0.14 : 1.0,
-                            ),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: isError
-                            ? Colors.red.withValues(alpha: 0.5)
-                            : theme.primary,
-                        width: 1.3,
-                      ),
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        if (isBusy)
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: FractionallySizedBox(
-                              widthFactor: _updateService.progress.clamp(0.04, 1.0),
-                              heightFactor: 1.0,
-                              child: Container(
-                                color: theme.primary.withValues(alpha: 0.85),
-                              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: BouncyTap(
+                      onTap: () {
+                        if (isBusy) return;
+                        if (isReadyToInstall) {
+                          SoundService().playClick();
+                          _updateService.launchPendingInstall();
+                        } else {
+                          _showUpdateWarningHoverPage();
+                        }
+                      },
+                      scaleFraction: isBusy ? 1.0 : 0.97,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: Container(
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: isError
+                                ? Colors.red.withValues(alpha: 0.12)
+                                : theme.primary.withValues(
+                                    alpha: isBusy ? 0.14 : 1.0,
+                                  ),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: isError
+                                  ? Colors.red.withValues(alpha: 0.5)
+                                  : theme.primary,
+                              width: 1.3,
                             ),
                           ),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          child: Stack(
+                            alignment: Alignment.center,
                             children: [
-                              if (isBusy) ...[
-                                SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.3,
-                                    value: status == AppUpdateStatus.downloading
-                                        ? _updateService.progress.clamp(0.05, 1.0)
-                                        : null,
-                                    color: Colors.white,
-                                    backgroundColor:
-                                        Colors.white.withValues(alpha: 0.25),
-                                  ),
-                                ),
-                                const SizedBox(width: 9),
-                                Icon(
-                                  status == AppUpdateStatus.replacing
-                                      ? Icons.cleaning_services_rounded
-                                      : Icons.downloading_rounded,
-                                  size: 19,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 9),
-                                Flexible(
-                                  child: Text(
-                                    bytesText.isNotEmpty
-                                        ? '$percent%  •  $bytesText'
-                                        : '$percent%',
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 13.5,
-                                      fontWeight: FontWeight.w800,
-                                      color: Colors.white,
+                              if (isBusy)
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FractionallySizedBox(
+                                    widthFactor: _updateService.progress
+                                        .clamp(0.04, 1.0),
+                                    heightFactor: 1.0,
+                                    child: Container(
+                                      color:
+                                          theme.primary.withValues(alpha: 0.85),
                                     ),
                                   ),
                                 ),
-                              ] else if (isReadyToInstall) ...[
-                                const Icon(
-                                  Icons.install_mobile_rounded,
-                                  size: 20,
-                                  color: Colors.white,
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(horizontal: 16),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    if (isBusy) ...[
+                                      SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2.3,
+                                          value: status ==
+                                                  AppUpdateStatus.downloading
+                                              ? _updateService.progress
+                                                  .clamp(0.05, 1.0)
+                                              : null,
+                                          color: Colors.white,
+                                          backgroundColor: Colors.white
+                                              .withValues(alpha: 0.25),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 9),
+                                      Icon(
+                                        status == AppUpdateStatus.replacing
+                                            ? Icons.cleaning_services_rounded
+                                            : Icons.downloading_rounded,
+                                        size: 19,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 9),
+                                      Flexible(
+                                        child: Text(
+                                          bytesText.isNotEmpty
+                                              ? '$percent%  •  $bytesText'
+                                              : '$percent%',
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: GoogleFonts.jetBrainsMono(
+                                            fontSize: 13.5,
+                                            fontWeight: FontWeight.w800,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                    ] else if (isReadyToInstall) ...[
+                                      const Icon(
+                                        Icons.install_mobile_rounded,
+                                        size: 20,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        status ==
+                                                AppUpdateStatus.needsPermission
+                                            ? 'Allow & Install'
+                                            : 'Install Update',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ] else if (isError) ...[
+                                      const Icon(
+                                        Icons.refresh_rounded,
+                                        size: 20,
+                                        color: Colors.red,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Update',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.red,
+                                        ),
+                                      ),
+                                    ] else ...[
+                                      const Icon(
+                                        Icons.system_update_rounded,
+                                        size: 20,
+                                        color: Colors.white,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        'Update',
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14.5,
+                                          fontWeight: FontWeight.w800,
+                                          color: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ],
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  status == AppUpdateStatus.needsPermission
-                                      ? 'Allow & Install'
-                                      : 'Install Update',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ] else if (isError) ...[
-                                const Icon(
-                                  Icons.refresh_rounded,
-                                  size: 20,
-                                  color: Colors.red,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Update',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.red,
-                                  ),
-                                ),
-                              ] else ...[
-                                const Icon(
-                                  Icons.system_update_rounded,
-                                  size: 20,
-                                  color: Colors.white,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Update',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 14.5,
-                                    fontWeight: FontWeight.w800,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
+                              ),
                             ],
                           ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
+                  if (isReadyToInstall) ...[
+                    const SizedBox(width: 10),
+                    BouncyTap(
+                      onTap: () {
+                        SoundService().playClick();
+                        _showUpdateWarningHoverPage();
+                      },
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          color: theme.bg,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: theme.border, width: 1.2),
+                        ),
+                        child: Icon(
+                          Icons.refresh_rounded,
+                          size: 22,
+                          color: theme.text,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               if ((isError || status == AppUpdateStatus.needsPermission) &&
                   _updateService.message.isNotEmpty) ...[

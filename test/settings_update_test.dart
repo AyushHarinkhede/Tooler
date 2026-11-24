@@ -105,5 +105,6 @@ void main() {
     expect(startUpdateCalled, isTrue);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.textContaining('%'), findsOneWidget);
+    expect(AppUpdateService().isBusy, isTrue);
   });
 }

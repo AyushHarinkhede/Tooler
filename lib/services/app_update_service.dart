@@ -47,8 +47,7 @@ class AppUpdateService extends ChangeNotifier {
   bool get isBusy =>
       _status == AppUpdateStatus.checking ||
       _status == AppUpdateStatus.downloading ||
-      _status == AppUpdateStatus.replacing ||
-      _status == AppUpdateStatus.ready;
+      _status == AppUpdateStatus.replacing;
 
   void ensureListening() {
     if (_eventSub != null) return;

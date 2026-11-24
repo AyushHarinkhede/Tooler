@@ -1,5 +1,7 @@
 package com.tooler.tooler
 
+import android.app.Activity
+import android.content.ClipData
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
@@ -19,6 +21,7 @@ import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.lang.ref.WeakReference
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
@@ -30,7 +33,7 @@ import kotlin.concurrent.thread
  * TOOLER IN-APP GITHUB APK UPDATER
  * ---------------------------------------------------------------------------
  * - Resolves latest Tooler.apk from https://github.com/AyushHarinkhede/Tooler
- *   (GitHub Releases latest asset or main branch raw file)
+ *   (main branch raw file first, falling back to GitHub Releases assets)
  * - Streams real-time download progress (%) & byte counts to Flutter
  * - Verifies downloaded APK ZIP header (PK) before removing older Tooler*.apk
  * - Deletes previous Tooler.apk files in app updates & public Downloads/Tooler
@@ -38,22 +41,41 @@ import kotlin.concurrent.thread
  * - Checks official Android unknown-app install permission and launches the
  *   Android system Package Installer UI so the user can install/replace in-place
  */
-class ToolerAppUpdater(private val context: Context) {
+class ToolerAppUpdater(
+    private val context: Context,
+    activity: Activity? = null
+) {
 
     companion object {
         private const val REPO_OWNER = "AyushHarinkhede"
         private const val REPO_NAME = "Tooler"
         private const val APK_FILE_NAME = "Tooler.apk"
         private const val LATEST_RELEASE_API = "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
-        private val RAW_CANDIDATE_URLS = listOf(
-            "https://github.com/$REPO_OWNER/$REPO_NAME/raw/main/$APK_FILE_NAME",
+        private val MAIN_BRANCH_RAW_URLS = listOf(
             "https://raw.githubusercontent.com/$REPO_OWNER/$REPO_NAME/main/$APK_FILE_NAME",
-            "https://github.com/$REPO_OWNER/$REPO_NAME/releases/latest/download/$APK_FILE_NAME"
+            "https://github.com/$REPO_OWNER/$REPO_NAME/raw/main/$APK_FILE_NAME"
         )
+        private const val RELEASE_DIRECT_FALLBACK_URL =
+            "https://github.com/$REPO_OWNER/$REPO_NAME/releases/latest/download/$APK_FILE_NAME"
     }
 
+    private var activityRef: WeakReference<Activity>? = activity?.let { WeakReference(it) }
     private val mainHandler = Handler(Looper.getMainLooper())
     private val isBusy = AtomicBoolean(false)
+
+    fun attachActivity(activity: Activity?) {
+        activityRef = activity?.let { WeakReference(it) }
+    }
+
+    private fun launchActivitySafely(intent: Intent) {
+        val act = activityRef?.get()
+        if (act != null && !act.isFinishing && !act.isDestroyed) {
+            act.startActivity(intent)
+        } else {
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        }
+    }
 
     @Volatile
     var progressSink: EventChannel.EventSink? = null
@@ -105,14 +127,14 @@ class ToolerAppUpdater(private val context: Context) {
                 pkgInfo.versionCode.toLong()
             }
             mapOf(
-                "versionName" to (pkgInfo.versionName ?: "1.0.45"),
+                "versionName" to (pkgInfo.versionName ?: "1.0.46"),
                 "versionCode" to code,
                 "canInstallPackages" to canInstallUnknownPackages()
             )
         } catch (_: Exception) {
             mapOf(
-                "versionName" to "1.0.45",
-                "versionCode" to 36001L,
+                "versionName" to "1.0.46",
+                "versionCode" to 36002L,
                 "canInstallPackages" to canInstallUnknownPackages()
             )
         }
@@ -136,10 +158,8 @@ class ToolerAppUpdater(private val context: Context) {
                 val intent = Intent(
                     Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
                     Uri.parse("package:${context.packageName}")
-                ).apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(intent)
+                )
+                launchActivitySafely(intent)
                 true
             } else {
                 true
@@ -195,6 +215,14 @@ class ToolerAppUpdater(private val context: Context) {
                     conn.contentLength.toLong()
                 }
 
+                emitState(
+                    status = "downloading",
+                    progress = 0.05,
+                    receivedBytes = 0L,
+                    totalBytes = totalBytes,
+                    message = "Downloading latest Tooler.apk..."
+                )
+
                 var received = 0L
                 var lastEmitMs = 0L
                 try {
@@ -212,7 +240,8 @@ class ToolerAppUpdater(private val context: Context) {
                                         (0.05 + (received.toDouble() / totalBytes.toDouble()) * 0.87)
                                             .coerceIn(0.05, 0.92)
                                     } else {
-                                        0.50
+                                        (0.05 + (received.toDouble() / (52.0 * 1024.0 * 1024.0)) * 0.85)
+                                            .coerceIn(0.05, 0.90)
                                     }
                                     emitState(
                                         status = "downloading",
@@ -319,9 +348,10 @@ class ToolerAppUpdater(private val context: Context) {
             )
             val intent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                clipData = ClipData.newRawUri("Tooler Update", uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(intent)
+            launchActivitySafely(intent)
             emitState(
                 status = "installing",
                 progress = 1.0,
@@ -342,7 +372,15 @@ class ToolerAppUpdater(private val context: Context) {
     }
 
     private fun resolveLatestApkUrl(): String? {
-        // 1. Check GitHub Releases API for Tooler.apk or any .apk asset
+        // 1. Check main branch raw URLs first so the developer's latest git push
+        //    is always fetched directly without GitHub REST API rate limits.
+        for (candidate in MAIN_BRANCH_RAW_URLS) {
+            if (probeApkUrl(candidate)) {
+                return candidate
+            }
+        }
+
+        // 2. Fallback to GitHub Releases API for Tooler.apk or any .apk asset
         try {
             val apiConn = openWithRedirects(LATEST_RELEASE_API, "GET", accept = "application/vnd.github+json")
             try {
@@ -372,22 +410,40 @@ class ToolerAppUpdater(private val context: Context) {
         } catch (_: Exception) {
         }
 
-        // 2. Fallback to raw repository URLs on main branch / latest download redirect
-        for (candidate in RAW_CANDIDATE_URLS) {
-            if (probeApkUrl(candidate)) {
-                return candidate
-            }
+        // 3. Final fallback to release latest download redirect
+        if (probeApkUrl(RELEASE_DIRECT_FALLBACK_URL)) {
+            return RELEASE_DIRECT_FALLBACK_URL
         }
         return null
     }
 
     private fun probeApkUrl(urlStr: String): Boolean {
-        return try {
+        try {
             val conn = openWithRedirects(urlStr, "HEAD")
             try {
                 val code = conn.responseCode
                 val mime = conn.contentType?.lowercase(Locale.ROOT) ?: ""
-                code in 200..299 && !mime.contains("text/html")
+                if (code in 200..299 && !mime.contains("text/html")) {
+                    return true
+                }
+            } finally {
+                conn.disconnect()
+            }
+        } catch (_: Exception) {
+        }
+
+        // Fallback tiny byte-range GET in case a proxy/CDN blocks HEAD requests
+        return try {
+            val conn = openWithRedirects(urlStr, "GET", rangeHeader = "bytes=0-3")
+            try {
+                val code = conn.responseCode
+                val mime = conn.contentType?.lowercase(Locale.ROOT) ?: ""
+                if (code !in 200..299 || mime.contains("text/html")) {
+                    return false
+                }
+                val header = ByteArray(4)
+                val read = conn.inputStream.read(header)
+                read >= 2 && header[0] == 0x50.toByte() && header[1] == 0x4B.toByte()
             } finally {
                 conn.disconnect()
             }
@@ -399,7 +455,8 @@ class ToolerAppUpdater(private val context: Context) {
     private fun openWithRedirects(
         startUrl: String,
         method: String,
-        accept: String = "*/*"
+        accept: String = "*/*",
+        rangeHeader: String? = null
     ): HttpURLConnection {
         var current = startUrl
         var redirects = 0
@@ -407,10 +464,13 @@ class ToolerAppUpdater(private val context: Context) {
             val conn = (URL(current).openConnection() as HttpURLConnection).apply {
                 requestMethod = method
                 instanceFollowRedirects = false
-                connectTimeout = 15000
-                readTimeout = 30000
+                connectTimeout = 20000
+                readTimeout = 45000
                 setRequestProperty("User-Agent", "Tooler-App-Updater/1.0")
                 setRequestProperty("Accept", accept)
+                if (!rangeHeader.isNullOrBlank()) {
+                    setRequestProperty("Range", rangeHeader)
+                }
             }
             val code = conn.responseCode
             if (code == 301 || code == 302 || code == 303 || code == 307 || code == 308) {
@@ -450,6 +510,18 @@ class ToolerAppUpdater(private val context: Context) {
             updatesDir.listFiles()?.forEach { f ->
                 if (f != excludeFile && f.name.endsWith(".apk", ignoreCase = true)) {
                     f.delete()
+                }
+            }
+        } catch (_: Exception) {
+        }
+
+        try {
+            val internalUpdates = File(context.filesDir, "updates")
+            if (internalUpdates.exists() && internalUpdates != updatesDir) {
+                internalUpdates.listFiles()?.forEach { f ->
+                    if (f != excludeFile && f.name.endsWith(".apk", ignoreCase = true)) {
+                        f.delete()
+                    }
                 }
             }
         } catch (_: Exception) {
