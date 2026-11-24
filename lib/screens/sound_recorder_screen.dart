@@ -116,7 +116,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
   bool _isBluetoothConnected = false; // true if BT earphone OR wired headset is connected
   bool _isWiredConnected = false;
   String _connectedDeviceName = '';
-  double _passThroughVolume = 1.0;
+  double _passThroughVolume = 2.5;
   Timer? _bluetoothCheckTimer;
   Timer? _monitorMeterTimer;
   Timer? _recAmpFallbackTimer;
@@ -336,7 +336,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             _monitorCaptureSource = (raw['captureSource'] as String?) ?? _monitorCaptureSource;
             _monitorListenOutput = (raw['listenOutput'] as String?) ?? _monitorListenOutput;
             final double? g = (raw['gain'] as num?)?.toDouble();
-            if (g != null && g >= 0.2 && g <= 2.0) {
+            if (g != null && g >= 0.2 && g <= 4.0) {
               _passThroughVolume = g;
             }
           });
@@ -486,13 +486,22 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         }
       } catch (_) {}
 
-      // Start raw PCM 16-bit audio stream for live dB & waveform analysis
+      // Start raw PCM 16-bit audio stream for live dB & waveform analysis.
+      // Use UNPROCESSED source (raw hardware mic, no Android AGC/NS) for accurate sensitivity.
+      // Raise sample rate to 44100 so the buffer fills faster and quiet sounds register.
       final stream = await _recorder.startStream(
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
-          sampleRate: 16000,
+          sampleRate: 44100,
           numChannels: 1,
+          autoGain: false,     // disable Android AGC — it crushes quiet sounds
+          echoCancel: false,   // no AEC for ambient dB meter
+          noiseSuppress: false,// no NS so true SPL is measured
           audioInterruption: AudioInterruptionMode.none,
+          androidConfig: AndroidRecordConfig(
+            audioSource: AndroidAudioSource.unprocessed, // raw mic, no processing
+            manageBluetooth: false,
+          ),
         ),
       );
 
@@ -2741,13 +2750,70 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
                     ),
                   ],
                 ),
+
+                const SizedBox(height: 10),
+
+                // Active Route Badge — shows the live mic→speaker path clearly
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: widget.theme.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: widget.theme.primary.withValues(alpha: 0.28),
+                      width: 1.1,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        _monitorCaptureSource == 'earphone'
+                            ? Icons.headset_mic_rounded
+                            : Icons.phone_android_rounded,
+                        size: 14,
+                        color: widget.theme.primary,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _monitorCaptureSource == 'earphone' ? 'Earphone Mic' : 'Phone Mic',
+                        style: widget.theme.fontDisplay(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: widget.theme.primary,
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(Icons.arrow_forward_rounded, size: 13, color: widget.theme.primary),
+                      ),
+                      Icon(
+                        _monitorListenOutput == 'phone'
+                            ? Icons.speaker_phone_rounded
+                            : Icons.headphones_rounded,
+                        size: 14,
+                        color: widget.theme.primary,
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _monitorListenOutput == 'phone' ? 'Phone Speaker' : 'Earphone',
+                        style: widget.theme.fontDisplay(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: widget.theme.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
 
           const SizedBox(height: 14),
 
-          // Monitor Volume / Gain Slider
+          // Monitor Gain Slider (0.2× – 4.0× amplification)
           Row(
             children: [
               Icon(
@@ -2757,7 +2823,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               ),
               const SizedBox(width: 8),
               Text(
-                "Monitor Volume",
+                "Monitor Gain",
                 style: widget.theme.fontDisplay(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -2766,7 +2832,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               ),
               const Spacer(),
               Text(
-                "${(_passThroughVolume * 100).toInt()}%",
+                "${_passThroughVolume.toStringAsFixed(1)}×",
                 style: widget.theme.fontMono(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
@@ -2785,7 +2851,7 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
             child: Slider(
               value: _passThroughVolume,
               min: 0.2,
-              max: 2.0,
+              max: 4.0,
               onChanged: (val) => _updatePassThroughVolume(val),
             ),
           ),

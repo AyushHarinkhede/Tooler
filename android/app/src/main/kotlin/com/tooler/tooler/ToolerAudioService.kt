@@ -43,7 +43,7 @@ class ToolerAudioService : Service() {
         @Volatile var isLoopbackRunning: Boolean = false
         @Volatile var currentCaptureSource: String = "phone"
         @Volatile var currentListenOutput: String = "earphone"
-        @Volatile var monitorGain: Float = 1.0f
+        @Volatile var monitorGain: Float = 2.5f
         @Volatile var liveDb: Double = 36.0
         @Volatile var liveAmp: Double = 0.12
     }
@@ -322,29 +322,46 @@ class ToolerAudioService : Service() {
                 } catch (_: Exception) {}
             }
 
-            // Route speaker output explicitly when user selects phone speaker
+            // Route phone speaker output: VOICE_COMMUNICATION usage + MODE_IN_COMMUNICATION
+            // forces Android to play through BUILTIN_SPEAKER even when earphone is connected.
+            // For earphone output: stay in NORMAL mode so USAGE_MEDIA routes through A2DP/wired naturally.
             if (listenOutput == "phone") {
-                audioManager.isSpeakerphoneOn = true
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    val speakerDev = audioManager.availableCommunicationDevices.firstOrNull {
-                        it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                try {
+                    audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        val speakerDev = audioManager.availableCommunicationDevices.firstOrNull {
+                            it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
+                        }
+                        if (speakerDev != null) {
+                            audioManager.setCommunicationDevice(speakerDev)
+                        } else {
+                            @Suppress("DEPRECATION")
+                            audioManager.isSpeakerphoneOn = true
+                        }
+                    } else {
+                        @Suppress("DEPRECATION")
+                        audioManager.isSpeakerphoneOn = true
                     }
-                    if (speakerDev != null) {
-                        audioManager.setCommunicationDevice(speakerDev)
-                    }
-                }
+                } catch (_: Exception) {}
             } else {
-                audioManager.isSpeakerphoneOn = false
+                try {
+                    @Suppress("DEPRECATION")
+                    audioManager.isSpeakerphoneOn = false
+                } catch (_: Exception) {}
             }
 
             val channelConfigIn = AudioFormat.CHANNEL_IN_MONO
             val channelConfigOut = AudioFormat.CHANNEL_OUT_MONO
             val audioFormat = AudioFormat.ENCODING_PCM_16BIT
 
-            val audioSource = if (isBtScoInput || (captureSource == "phone" && listenOutput == "phone")) {
-                MediaRecorder.AudioSource.VOICE_COMMUNICATION
-            } else {
-                MediaRecorder.AudioSource.MIC
+            // UNPROCESSED = raw mic hardware signal with zero Android processing (no AGC/NS/AEC).
+            // This gives full sensitivity so quiet sounds are captured at real volume.
+            // BT SCO still needs VOICE_COMMUNICATION which manages the SCO link.
+            val audioSource = when {
+                isBtScoInput -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
+                captureSource == "phone" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ->
+                    MediaRecorder.AudioSource.UNPROCESSED
+                else -> MediaRecorder.AudioSource.MIC
             }
 
             // Safe multi-sample rate fallback
@@ -377,7 +394,10 @@ class ToolerAudioService : Service() {
             }
 
             val track = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                val usage = AudioAttributes.USAGE_MEDIA
+                // VOICE_COMMUNICATION usage keeps audio on BUILTIN_SPEAKER (via MODE_IN_COMMUNICATION).
+                // MEDIA usage lets Android route to earphone/A2DP naturally.
+                val usage = if (listenOutput == "phone") AudioAttributes.USAGE_VOICE_COMMUNICATION
+                            else AudioAttributes.USAGE_MEDIA
                 AudioTrack.Builder()
                     .setAudioAttributes(
                         AudioAttributes.Builder()
@@ -396,8 +416,9 @@ class ToolerAudioService : Service() {
                     .setTransferMode(AudioTrack.MODE_STREAM)
                     .build()
             } else {
+                val streamType = if (listenOutput == "phone") AudioManager.STREAM_VOICE_CALL else AudioManager.STREAM_MUSIC
                 @Suppress("DEPRECATION")
-                AudioTrack(AudioManager.STREAM_MUSIC, selectedSampleRate, channelConfigOut, audioFormat, bufferSize, AudioTrack.MODE_STREAM)
+                AudioTrack(streamType, selectedSampleRate, channelConfigOut, audioFormat, bufferSize, AudioTrack.MODE_STREAM)
             }
 
             // Explicit Hardware Device Routing (API 23+)
@@ -410,19 +431,22 @@ class ToolerAudioService : Service() {
                 }
             }
 
-            // Acoustic Echo Canceler & Noise Suppressor for clear live audio
-            try {
-                if (AcousticEchoCanceler.isAvailable()) {
-                    echoCanceler = AcousticEchoCanceler.create(rec.audioSessionId)?.apply {
-                        enabled = true
+            // AEC & NS only help for Bluetooth SCO (VOICE_COMMUNICATION source).
+            // For raw UNPROCESSED/MIC phone capture these effects crush quiet sounds — keep disabled.
+            if (isBtScoInput) {
+                try {
+                    if (AcousticEchoCanceler.isAvailable()) {
+                        echoCanceler = AcousticEchoCanceler.create(rec.audioSessionId)?.apply {
+                            enabled = true
+                        }
                     }
-                }
-                if (NoiseSuppressor.isAvailable()) {
-                    noiseSuppressor = NoiseSuppressor.create(rec.audioSessionId)?.apply {
-                        enabled = true
+                    if (NoiseSuppressor.isAvailable()) {
+                        noiseSuppressor = NoiseSuppressor.create(rec.audioSessionId)?.apply {
+                            enabled = true
+                        }
                     }
-                }
-            } catch (_: Exception) {}
+                } catch (_: Exception) {}
+            }
 
             audioRecord = rec
             audioTrack = track
