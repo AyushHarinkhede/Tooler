@@ -134,18 +134,78 @@ class SoundService {
   }
 
   /// Plays the authoritative, loud native alarm (hardware USAGE_ALARM stream)
-  /// with synchronized continuous haptic vibration.
+  /// with synchronized continuous haptic vibration and selected built-in or device tone.
   /// Bypasses silent/vibrate switches so the user is reliably alerted.
-  void playAlarm({bool sound = true, bool vibrate = true}) {
+  void playAlarm({
+    bool sound = true,
+    bool vibrate = true,
+    String soundKey = 'alarm',
+    String? customPath,
+  }) {
     stopAlarm();
     try {
       _nativeChannel.invokeMethod('playAlarm', {
         'sound': sound,
         'vibrate': vibrate,
+        'soundKey': soundKey,
+        'customPath': customPath,
       });
     } catch (_) {
-      if (sound) _playSound('alarm', volume: 1.0);
+      if (sound) {
+        final fallbackName = (soundKey == 'system_alarm' || soundKey == 'custom')
+            ? 'alarm'
+            : soundKey;
+        _playFallback(fallbackName, 1.0);
+      }
     }
+  }
+
+  /// Previews a selected alarm tone (built-in or device audio) without vibration.
+  Future<void> previewAlarmTone({
+    String soundKey = 'alarm',
+    String? customPath,
+  }) async {
+    stopAlarm();
+    try {
+      await _nativeChannel.invokeMethod('previewAlarmSound', {
+        'soundKey': soundKey,
+        'customPath': customPath,
+      });
+    } catch (_) {
+      final fallbackName = (soundKey == 'system_alarm' || soundKey == 'custom')
+          ? 'alarm'
+          : soundKey;
+      _playFallback(fallbackName, 0.9);
+    }
+  }
+
+  Future<void> stopAlarmPreview() async {
+    try {
+      await _nativeChannel.invokeMethod('stopAlarmPreview');
+    } catch (_) {}
+    stopAlarm();
+  }
+
+  /// Opens native Android audio picker and persists a local copy of the selected track.
+  Future<Map<String, String>?> pickDeviceAudio() async {
+    try {
+      final res =
+          await _nativeChannel.invokeMethod<Map<dynamic, dynamic>>('pickDeviceAudio');
+      if (res != null && res['path'] != null) {
+        return {
+          'path': res['path'].toString(),
+          'name': (res['name'] ?? 'Custom Audio').toString(),
+          'fileName': (res['fileName'] ?? 'Custom Audio').toString(),
+        };
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  Future<void> deleteCustomAlarmSound(String path) async {
+    try {
+      await _nativeChannel.invokeMethod('deleteCustomAlarmSound', {'path': path});
+    } catch (_) {}
   }
 
   /// Stops any currently playing alarm sound and vibration immediately.

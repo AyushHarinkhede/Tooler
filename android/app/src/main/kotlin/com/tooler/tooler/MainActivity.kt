@@ -107,6 +107,9 @@ open class MainActivity : FlutterActivity() {
     private var pendingTrashBaseData: Map<String, Any>? = null
     private var pendingTrashPromptItems: List<Map<String, Any>> = emptyList()
 
+    // Pending custom device audio picker result for Alarm custom ringtones
+    private var pendingAudioPickResult: MethodChannel.Result? = null
+
     // Session peak charging brick wattage tracker (survives CV/Float taper until unplugged)
     private var sessionPeakBrickWatts: Int = 0
     private var wasChargingSession: Boolean = false
@@ -247,6 +250,51 @@ open class MainActivity : FlutterActivity() {
                     resCallback.success(base)
                 }
             }
+        } else if (requestCode == 9043) {
+            val resCallback = pendingAudioPickResult
+            pendingAudioPickResult = null
+            if (resCallback == null) return
+            if (resultCode == android.app.Activity.RESULT_OK && data?.data != null) {
+                val uri = data.data!!
+                thread(isDaemon = true) {
+                    try {
+                        var displayName = "Custom Audio"
+                        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                            val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                            if (idx >= 0 && cursor.moveToFirst()) {
+                                val raw = cursor.getString(idx)
+                                if (!raw.isNullOrBlank()) displayName = raw
+                            }
+                        }
+                        val cleanName = displayName.replace(Regex("""[^\w.\- ()]"""), "_")
+                        val destDir = File(filesDir, "custom_alarm_sounds")
+                        if (!destDir.exists()) destDir.mkdirs()
+                        val destFile = File(destDir, "${System.currentTimeMillis()}_$cleanName")
+                        contentResolver.openInputStream(uri)?.use { input ->
+                            FileOutputStream(destFile).use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        if (destFile.exists() && destFile.length() > 0L) {
+                            runOnUiThread {
+                                resCallback.success(
+                                    mapOf(
+                                        "path" to destFile.absolutePath,
+                                        "name" to displayName.substringBeforeLast('.').ifEmpty { displayName },
+                                        "fileName" to displayName
+                                    )
+                                )
+                            }
+                        } else {
+                            runOnUiThread { resCallback.success(null) }
+                        }
+                    } catch (_: Exception) {
+                        runOnUiThread { resCallback.success(null) }
+                    }
+                }
+            } else {
+                resCallback.success(null)
+            }
         }
     }
 
@@ -330,11 +378,61 @@ open class MainActivity : FlutterActivity() {
                 "playAlarm" -> {
                     val sound = call.argument<Boolean>("sound") ?: true
                     val vibrate = call.argument<Boolean>("vibrate") ?: true
-                    playNativeAlarm(sound, vibrate)
+                    val soundKey = call.argument<String>("soundKey") ?: "alarm"
+                    val customPath = call.argument<String>("customPath")
+                    playNativeAlarm(sound, vibrate, soundKey, customPath)
+                    result.success(true)
+                }
+                "previewAlarmSound" -> {
+                    val soundKey = call.argument<String>("soundKey") ?: "alarm"
+                    val customPath = call.argument<String>("customPath")
+                    playNativeAlarm(sound = true, vibrate = false, soundKey = soundKey, customPath = customPath)
                     result.success(true)
                 }
                 "stopAlarm" -> {
                     stopNativeAlarm()
+                    result.success(true)
+                }
+                "stopAlarmPreview" -> {
+                    stopNativeAlarm()
+                    result.success(true)
+                }
+                "pickDeviceAudio" -> {
+                    if (pendingAudioPickResult != null) {
+                        pendingAudioPickResult?.success(null)
+                        pendingAudioPickResult = null
+                    }
+                    pendingAudioPickResult = result
+                    try {
+                        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+                            addCategory(Intent.CATEGORY_OPENABLE)
+                            type = "audio/*"
+                            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("audio/*", "application/ogg"))
+                        }
+                        @Suppress("DEPRECATION")
+                        startActivityForResult(intent, 9043)
+                    } catch (_: Exception) {
+                        try {
+                            val fallback = Intent(Intent.ACTION_GET_CONTENT).apply {
+                                type = "audio/*"
+                                addCategory(Intent.CATEGORY_OPENABLE)
+                            }
+                            @Suppress("DEPRECATION")
+                            startActivityForResult(fallback, 9043)
+                        } catch (_: Exception) {
+                            pendingAudioPickResult = null
+                            result.success(null)
+                        }
+                    }
+                }
+                "deleteCustomAlarmSound" -> {
+                    val path = call.argument<String>("path") ?: ""
+                    if (path.isNotBlank()) {
+                        try {
+                            val f = File(path)
+                            if (f.exists() && f.isFile) f.delete()
+                        } catch (_: Exception) {}
+                    }
                     result.success(true)
                 }
                 "setSoundEnabled" -> {
@@ -2603,7 +2701,18 @@ open class MainActivity : FlutterActivity() {
                 .build()
 
             val loader = FlutterInjector.instance().flutterLoader()
-            val soundNames = listOf("click", "key", "tap", "success", "alert", "alarm")
+            val soundNames = listOf(
+                "click",
+                "key",
+                "tap",
+                "success",
+                "alert",
+                "alarm",
+                "alarm_chime",
+                "alarm_radar",
+                "alarm_zen",
+                "alarm_siren"
+            )
             val soundsDir = File(cacheDir, "tooler_sounds")
             if (!soundsDir.exists()) {
                 soundsDir.mkdirs()
@@ -2644,7 +2753,12 @@ open class MainActivity : FlutterActivity() {
         }
     }
 
-    private fun playNativeAlarm(sound: Boolean = true, vibrate: Boolean = true) {
+    private fun playNativeAlarm(
+        sound: Boolean = true,
+        vibrate: Boolean = true,
+        soundKey: String = "alarm",
+        customPath: String? = null
+    ) {
         stopNativeAlarm()
 
         // 1. HARDWARE VIBRATION (Continuous repeating alarm pulse)
@@ -2685,14 +2799,21 @@ open class MainActivity : FlutterActivity() {
                     .build()
 
                 val soundsDir = File(cacheDir, "tooler_sounds")
-                val cacheWav = File(soundsDir, "alarm.wav")
+                val cleanKey = soundKey.replace(Regex("""[^\w-]"""), "").ifEmpty { "alarm" }
+                val builtInWav = File(soundsDir, "$cleanKey.wav")
+                val customFile = if (!customPath.isNullOrBlank()) File(customPath) else null
 
                 val player = MediaPlayer()
                 player.setAudioAttributes(audioAttributes)
                 player.isLooping = true
 
-                if (cacheWav.exists() && cacheWav.length() > 0) {
-                    player.setDataSource(cacheWav.absolutePath)
+                if (customFile != null && customFile.exists() && customFile.length() > 0) {
+                    player.setDataSource(customFile.absolutePath)
+                    player.prepare()
+                    player.start()
+                    alarmMediaPlayer = player
+                } else if (soundKey != "system_alarm" && builtInWav.exists() && builtInWav.length() > 0) {
+                    player.setDataSource(builtInWav.absolutePath)
                     player.prepare()
                     player.start()
                     alarmMediaPlayer = player
@@ -2711,7 +2832,8 @@ open class MainActivity : FlutterActivity() {
             } catch (e: Exception) {
                 // High-priority SoundPool fallback on USAGE_ALARM stream
                 try {
-                    val idToPlay = if (alarmSoundId != 0) alarmSoundId else (soundMap["alarm"] ?: soundMap["alert"] ?: 0)
+                    val idToPlay = soundMap[soundKey]
+                        ?: if (alarmSoundId != 0) alarmSoundId else (soundMap["alarm"] ?: soundMap["alert"] ?: 0)
                     if (idToPlay != 0) {
                         activeAlarmStreamId = alarmSoundPool?.play(idToPlay, 1.0f, 1.0f, 2, -1, 1.0f)
                             ?: (soundPool?.play(idToPlay, 1.0f, 1.0f, 2, -1, 1.0f) ?: 0)

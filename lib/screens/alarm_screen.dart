@@ -15,20 +15,41 @@ import '../widgets_3d/tooler_character.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER ALARM & SLEEP CYCLES SCREEN
-/// Unique wake-up missions (Math, Shake to Wake, Memory Pattern, Smooth Slide),
-/// 90-minute REM sleep cycle calculator, Quick Power Naps, and 2D animated clock.
+/// - Clean single-header flow (reuses Tooler outer shell header cleanly)
+/// - Dedicated Add Alarm button right beneath the live analog/digital clock
+/// - Compact Wake-Up Missions, Sleep Cycle & Power Naps buttons -> Hover Pages
+/// - Interactive animated scroll-wheel time picker inside Hover Edit/Add modal
+/// - Multi-tone built-in sound selector + Device Audio file import & preview
+/// - Bidirectional swipe-to-delete + prominent Delete button with warning dialog
+/// - Auto-removes completed one-time ('Once') alarms while preserving repeats
 /// ---------------------------------------------------------------------------
 
 enum WakeMissionType {
-  slide('Smooth Slide', 'Gentle swipe to wake up peacefully'),
-  math('Math Challenge', 'Solve arithmetic to wake up your brain'),
-  shake('Shake to Wake', 'Physical motion accelerometer detection'),
-  memory('Mind Pattern', 'Memorize and repeat color tile sequence');
+  slide('Smooth Slide'),
+  math('Math Challenge'),
+  shake('Shake to Wake'),
+  memory('Mind Pattern');
 
   final String title;
-  final String description;
-  const WakeMissionType(this.title, this.description);
+  const WakeMissionType(this.title);
 }
+
+class BuiltInAlarmTone {
+  final String key;
+  final String title;
+  const BuiltInAlarmTone(this.key, this.title);
+}
+
+const List<BuiltInAlarmTone> kBuiltInAlarmTones = [
+  BuiltInAlarmTone('alarm', 'Classic Pulse'),
+  BuiltInAlarmTone('alarm_chime', 'Crystal Chimes'),
+  BuiltInAlarmTone('alarm_radar', 'Precision Radar'),
+  BuiltInAlarmTone('alarm_zen', 'Warm Zen Bowl'),
+  BuiltInAlarmTone('alarm_siren', 'Morning Siren'),
+  BuiltInAlarmTone('alert', 'Crisp Alert'),
+  BuiltInAlarmTone('success', 'Bright Triad'),
+  BuiltInAlarmTone('system_alarm', 'System Ringtone'),
+];
 
 class AlarmItem {
   final String id;
@@ -36,13 +57,17 @@ class AlarmItem {
   int minute; // 0..59
   String label;
   bool isEnabled;
-  List<int> repeatDays; // 1=Mon .. 7=Sun, empty = once
+  List<int> repeatDays; // 1=Mon .. 7=Sun, empty = Once
   WakeMissionType mission;
   int mathDifficulty; // 1=Easy, 2=Medium, 3=Hard
   int shakeTarget; // 15, 25, 40
-  bool sound; // Compulsory loud alarm sound toggle (default true)
-  bool vibrate; // Compulsory strong haptic vibration toggle (default true)
+  bool sound;
+  bool vibrate;
   int snoozeMinutes;
+  String soundKey;
+  String soundTitle;
+  String? customSoundPath;
+  int? targetEpochMs; // Exact scheduled epoch ms for one-time alarms
 
   AlarmItem({
     required this.id,
@@ -57,6 +82,10 @@ class AlarmItem {
     this.sound = true,
     this.vibrate = true,
     this.snoozeMinutes = 5,
+    this.soundKey = 'alarm',
+    this.soundTitle = 'Classic Pulse',
+    this.customSoundPath,
+    this.targetEpochMs,
   }) : repeatDays = repeatDays ?? [];
 
   Map<String, dynamic> toJson() => {
@@ -72,6 +101,10 @@ class AlarmItem {
         'sound': sound,
         'vibrate': vibrate,
         'snoozeMinutes': snoozeMinutes,
+        'soundKey': soundKey,
+        'soundTitle': soundTitle,
+        'customSoundPath': customSoundPath,
+        'targetEpochMs': targetEpochMs,
       };
 
   factory AlarmItem.fromJson(Map<String, dynamic> json) {
@@ -83,19 +116,34 @@ class AlarmItem {
       );
     } catch (_) {}
 
+    final sKey = (json['soundKey'] as String?) ?? 'alarm';
+    final sTitle = (json['soundTitle'] as String?) ??
+        kBuiltInAlarmTones
+            .firstWhere(
+              (t) => t.key == sKey,
+              orElse: () => kBuiltInAlarmTones.first,
+            )
+            .title;
+
     return AlarmItem(
       id: json['id'] ?? DateTime.now().millisecondsSinceEpoch.toString(),
       hour: json['hour'] ?? 7,
       minute: json['minute'] ?? 0,
       label: json['label'] ?? 'Alarm',
       isEnabled: json['isEnabled'] ?? true,
-      repeatDays: (json['repeatDays'] as List<dynamic>?)?.map((e) => e as int).toList() ?? [],
+      repeatDays:
+          (json['repeatDays'] as List<dynamic>?)?.map((e) => e as int).toList() ??
+              [],
       mission: mission,
       mathDifficulty: json['mathDifficulty'] ?? 1,
       shakeTarget: json['shakeTarget'] ?? 20,
       sound: json['sound'] ?? true,
       vibrate: json['vibrate'] ?? true,
       snoozeMinutes: json['snoozeMinutes'] ?? 5,
+      soundKey: sKey,
+      soundTitle: sTitle,
+      customSoundPath: json['customSoundPath'] as String?,
+      targetEpochMs: (json['targetEpochMs'] as num?)?.toInt(),
     );
   }
 
@@ -106,24 +154,26 @@ class AlarmItem {
 
   String get repeatSummary {
     if (repeatDays.isEmpty) return 'Once';
-    if (repeatDays.length == 7) return 'Every day';
+    if (repeatDays.length == 7) return 'Daily';
     if (repeatDays.length == 5 &&
         repeatDays.contains(1) &&
         repeatDays.contains(2) &&
         repeatDays.contains(3) &&
         repeatDays.contains(4) &&
         repeatDays.contains(5)) {
-      return 'Weekdays (Mon-Fri)';
+      return 'Weekdays';
     }
-    if (repeatDays.length == 2 && repeatDays.contains(6) && repeatDays.contains(7)) {
+    if (repeatDays.length == 2 &&
+        repeatDays.contains(6) &&
+        repeatDays.contains(7)) {
       return 'Weekends';
     }
     const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     return repeatDays.map((d) => dayNames[d - 1]).join(', ');
   }
 
-  DateTime nextTriggerDate() {
-    final now = DateTime.now();
+  DateTime nextTriggerDate([DateTime? reference]) {
+    final now = reference ?? DateTime.now();
     var target = DateTime(now.year, now.month, now.day, hour, minute, 0);
 
     if (repeatDays.isEmpty) {
@@ -133,14 +183,24 @@ class AlarmItem {
       return target;
     }
 
-    // Find next matching weekday
     for (int i = 0; i < 7; i++) {
-      final candidate = DateTime(now.year, now.month, now.day + i, hour, minute, 0);
+      final candidate =
+          DateTime(now.year, now.month, now.day + i, hour, minute, 0);
       if (candidate.isAfter(now) && repeatDays.contains(candidate.weekday)) {
         return candidate;
       }
     }
     return target.add(const Duration(days: 1));
+  }
+
+  /// Syncs [targetEpochMs] cleanly for one-time alarms so expired once-alarms
+  /// are reliably detected & removed even after app relaunches.
+  void refreshTargetEpoch([DateTime? reference]) {
+    if (repeatDays.isEmpty && isEnabled) {
+      targetEpochMs = nextTriggerDate(reference).millisecondsSinceEpoch;
+    } else if (repeatDays.isNotEmpty) {
+      targetEpochMs = null;
+    }
   }
 }
 
@@ -152,26 +212,18 @@ class AlarmScreen extends StatefulWidget {
   State<AlarmScreen> createState() => _AlarmScreenState();
 }
 
-class _AlarmScreenState extends State<AlarmScreen>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _clockController;
+class _AlarmScreenState extends State<AlarmScreen> {
   Timer? _secondTimer;
+  Timer? _alarmCheckTimer;
   DateTime _now = DateTime.now();
 
   List<AlarmItem> _alarms = [];
+  List<Map<String, String>> _customSounds = [];
   bool _isLoading = true;
-
-  // Background monitor for upcoming alarms
-  Timer? _alarmCheckTimer;
 
   @override
   void initState() {
     super.initState();
-    _clockController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 60),
-    )..repeat();
-
     _secondTimer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) {
         setState(() {
@@ -186,24 +238,26 @@ class _AlarmScreenState extends State<AlarmScreen>
 
   @override
   void dispose() {
-    _clockController.dispose();
     _secondTimer?.cancel();
     _alarmCheckTimer?.cancel();
+    SoundService().stopAlarmPreview();
     super.dispose();
   }
 
   Future<void> _loadAlarms() async {
     final saved = await StorageService().loadAlarms();
+    final custom = await StorageService().loadCustomAlarmSounds();
+    if (!mounted) return;
+
     if (saved.isNotEmpty) {
       _alarms = saved.map((e) => AlarmItem.fromJson(e)).toList();
     } else {
-      // Default initial alarms
       _alarms = [
         AlarmItem(
           id: 'default_1',
           hour: 7,
           minute: 0,
-          label: 'Morning Focus & Meditation',
+          label: 'Morning Focus',
           isEnabled: true,
           repeatDays: [1, 2, 3, 4, 5],
           mission: WakeMissionType.math,
@@ -221,10 +275,45 @@ class _AlarmScreenState extends State<AlarmScreen>
       ];
       await _persistAlarms();
     }
-    setState(() {
-      _isLoading = false;
-    });
+
+    _customSounds = custom;
+    await _purgeCompletedOneTimeAlarms(notify: false);
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
     _rescheduleAllNotifications();
+  }
+
+  /// Automatically removes any completed one-time ('Once') alarm whose target
+  /// trigger window has already passed, while keeping repeating alarms (ON/OFF).
+  Future<bool> _purgeCompletedOneTimeAlarms({bool notify = true}) async {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    final expired = _alarms.where((a) {
+      if (a.repeatDays.isNotEmpty || !a.isEnabled) return false;
+      if (a.targetEpochMs == null) return false;
+      return nowMs > a.targetEpochMs! + 60000;
+    }).toList();
+
+    if (expired.isEmpty) return false;
+
+    for (final a in expired) {
+      final notifId = (a.id.hashCode & 0x7FFFFFFF) % 1000 + 2000;
+      NotificationService().cancelAlarmNotification(notifId);
+    }
+
+    final expiredIds = expired.map((e) => e.id).toSet();
+    if (notify && mounted) {
+      setState(() {
+        _alarms.removeWhere((a) => expiredIds.contains(a.id));
+      });
+    } else {
+      _alarms.removeWhere((a) => expiredIds.contains(a.id));
+    }
+    await _persistAlarms();
+    return true;
   }
 
   Future<void> _persistAlarms() async {
@@ -238,8 +327,8 @@ class _AlarmScreenState extends State<AlarmScreen>
         final nextDate = alarm.nextTriggerDate();
         NotificationService().scheduleAlarmNotification(
           id: notifId,
-          title: "⏰ Alarm: ${alarm.label}",
-          body: "It's ${alarm.formattedTime}! Time to wake up and start your day.",
+          title: "Alarm: ${alarm.label}",
+          body: "${alarm.formattedTime} • ${alarm.mission.title}",
           scheduledDate: nextDate,
         );
       } else {
@@ -249,15 +338,17 @@ class _AlarmScreenState extends State<AlarmScreen>
   }
 
   void _startAlarmChecker() {
-    _alarmCheckTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+    _alarmCheckTimer = Timer.periodic(const Duration(seconds: 15), (_) async {
+      await _purgeCompletedOneTimeAlarms();
+      if (!mounted) return;
       final now = DateTime.now();
       for (final alarm in _alarms) {
         if (alarm.isEnabled &&
             alarm.hour == now.hour &&
             alarm.minute == now.minute &&
             now.second < 20) {
-          // If repeatDays is set, check today's weekday
-          if (alarm.repeatDays.isEmpty || alarm.repeatDays.contains(now.weekday)) {
+          if (alarm.repeatDays.isEmpty ||
+              alarm.repeatDays.contains(now.weekday)) {
             _triggerRingingAlarm(alarm);
             break;
           }
@@ -277,10 +368,12 @@ class _AlarmScreenState extends State<AlarmScreen>
         theme: widget.theme,
         alarm: alarm,
         onDismissed: () {
-          // Turn off if one-time alarm
+          // One-time ('Once') alarms automatically remove on completion!
           if (alarm.repeatDays.isEmpty) {
+            final notifId = (alarm.id.hashCode & 0x7FFFFFFF) % 1000 + 2000;
+            NotificationService().cancelAlarmNotification(notifId);
             setState(() {
-              alarm.isEnabled = false;
+              _alarms.removeWhere((a) => a.id == alarm.id);
             });
             _persistAlarms();
             _rescheduleAllNotifications();
@@ -303,34 +396,86 @@ class _AlarmScreenState extends State<AlarmScreen>
     final diff = next.nextTriggerDate().difference(_now);
     final hours = diff.inHours;
     final mins = diff.inMinutes % 60;
-    if (hours == 0 && mins == 0) return 'Ringing very soon!';
+    if (hours == 0 && mins == 0) return 'Ringing soon';
     if (hours == 0) return 'In $mins mins (${next.formattedTime})';
     return 'In ${hours}h ${mins}m (${next.formattedTime})';
   }
 
-  void _showAddEditSheet([AlarmItem? existing]) {
-    SoundService().playClick();
-    showModalBottomSheet(
+  Future<bool> _showDeleteWarningDialog(AlarmItem alarm) async {
+    SoundService().playTap();
+    final confirm = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _AddEditAlarmSheet(
-        theme: widget.theme,
-        existing: existing,
-        onSave: (alarm) {
-          setState(() {
-            if (existing != null) {
-              final idx = _alarms.indexWhere((a) => a.id == existing.id);
-              if (idx != -1) _alarms[idx] = alarm;
-            } else {
-              _alarms.add(alarm);
-            }
-          });
-          _persistAlarms();
-          _rescheduleAllNotifications();
-        },
+      builder: (ctx) => AlertDialog(
+        backgroundColor: widget.theme.cardBg,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEF4444).withValues(alpha: 0.14),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: Color(0xFFEF4444),
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text(
+              'Delete Alarm?',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+                color: widget.theme.text,
+              ),
+            ),
+          ],
+        ),
+        content: Text(
+          '${alarm.formattedTime} • ${alarm.label}\nThis alarm will be permanently removed.',
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: widget.theme.textSecondary,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: GoogleFonts.plusJakartaSans(
+                fontWeight: FontWeight.w700,
+                color: widget.theme.textSecondary,
+              ),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Delete',
+              style: GoogleFonts.plusJakartaSans(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
       ),
     );
+    return confirm == true;
+  }
+
+  Future<void> _confirmAndDeleteAlarm(AlarmItem alarm) async {
+    final confirmed = await _showDeleteWarningDialog(alarm);
+    if (confirmed && mounted) {
+      _deleteAlarm(alarm);
+    }
   }
 
   void _deleteAlarm(AlarmItem alarm) {
@@ -347,42 +492,513 @@ class _AlarmScreenState extends State<AlarmScreen>
     SoundService().playSpecialClick();
     setState(() {
       alarm.isEnabled = val;
+      if (val) {
+        alarm.refreshTargetEpoch(_now);
+      } else {
+        alarm.targetEpochMs = null;
+      }
     });
     _persistAlarms();
     _rescheduleAllNotifications();
   }
 
+  /// Launches floating spring-animated Hover Page Dialog.
+  Future<T?> _showHoverPageDialog<T>({
+    required WidgetBuilder builder,
+  }) {
+    return showGeneralDialog<T>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Close',
+      barrierColor: Colors.black.withValues(alpha: 0.62),
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (ctx, anim, secAnim) => Center(
+        child: Material(
+          color: Colors.transparent,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 440,
+                maxHeight: MediaQuery.of(ctx).size.height * 0.84,
+              ),
+              child: builder(ctx),
+            ),
+          ),
+        ),
+      ),
+      transitionBuilder: (ctx, anim, secAnim, child) {
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: Curves.easeOutBack,
+          reverseCurve: Curves.easeIn,
+        );
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.88, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  void _showAddEditHoverDialog([AlarmItem? existing]) {
+    SoundService().playClick();
+    _showHoverPageDialog<void>(
+      builder: (ctx) => _AddEditAlarmHoverCard(
+        theme: widget.theme,
+        existing: existing,
+        customSounds: _customSounds,
+        onCustomSoundsUpdated: (updated) {
+          setState(() => _customSounds = updated);
+          StorageService().saveCustomAlarmSounds(updated);
+        },
+        onSave: (alarm) {
+          alarm.refreshTargetEpoch(DateTime.now());
+          setState(() {
+            if (existing != null) {
+              final idx = _alarms.indexWhere((a) => a.id == existing.id);
+              if (idx != -1) _alarms[idx] = alarm;
+            } else {
+              _alarms.add(alarm);
+            }
+          });
+          _persistAlarms();
+          _rescheduleAllNotifications();
+        },
+        onDelete: existing == null
+            ? null
+            : () async {
+                final ok = await _showDeleteWarningDialog(existing);
+                if (ok && ctx.mounted && mounted) {
+                  Navigator.of(ctx).pop();
+                  _deleteAlarm(existing);
+                }
+              },
+      ),
+    );
+  }
+
+  void _showMissionsHoverPage() {
+    SoundService().playClick();
+    final theme = widget.theme;
+    _showHoverPageDialog<void>(
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.bg,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: theme.border, width: 1.3),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Wake-Up Missions',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: theme.text,
+                    ),
+                  ),
+                  _hoverCloseButton(ctx, theme),
+                ],
+              ),
+              const SizedBox(height: 16),
+              ...WakeMissionType.values.map((m) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: BouncyTap(
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      SoundService().playClick();
+                      final sample = AlarmItem(
+                        id: 'test_mission',
+                        hour: _now.hour,
+                        minute: _now.minute,
+                        label: m.title,
+                        mission: m,
+                        shakeTarget: 15,
+                      );
+                      _triggerRingingAlarm(sample);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 13),
+                      decoration: BoxDecoration(
+                        color: theme.cardBg,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: theme.border, width: 1.2),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: theme.lavenderBubble,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            alignment: Alignment.center,
+                            child: AlarmMissionSvgIcon(
+                              mission: m,
+                              size: 22,
+                              color: theme.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              m.title,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: theme.text,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 11, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: theme.primary.withValues(alpha: 0.14),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              'Test',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: theme.primary,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showSleepCyclesHoverPage() {
+    SoundService().playClick();
+    final theme = widget.theme;
+    final cycles = [
+      {'cycles': 4, 'h': 6, 'm': 0, 'badge': null},
+      {'cycles': 5, 'h': 7, 'm': 30, 'badge': 'Recommended'},
+      {'cycles': 6, 'h': 9, 'm': 0, 'badge': 'Weekend'},
+    ];
+
+    _showHoverPageDialog<void>(
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.bg,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: theme.border, width: 1.3),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Row(
+                      children: [
+                        AlarmMoonSvgIcon(size: 20, color: theme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Sleep Cycle Calculator',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: theme.text,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _hoverCloseButton(ctx, theme),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: cycles.map((c) {
+                  final h = c['h'] as int;
+                  final m = c['m'] as int;
+                  final wakeTime = _now.add(Duration(hours: h, minutes: m + 14));
+                  final badge = c['badge'] as String?;
+                  final isRec = badge == 'Recommended';
+
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: BouncyTap(
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          _setSleepCycleAlarm(
+                              h, m, 'Cycle Wakeup (${c['cycles']}h)');
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 14, horizontal: 6),
+                          decoration: BoxDecoration(
+                            color: isRec
+                                ? theme.primary.withValues(alpha: 0.14)
+                                : theme.cardBg,
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: isRec ? theme.primary : theme.border,
+                              width: isRec ? 1.5 : 1.1,
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              if (badge != null)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  margin: const EdgeInsets.only(bottom: 6),
+                                  decoration: BoxDecoration(
+                                    color: isRec
+                                        ? theme.primary
+                                        : theme.textSecondary,
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    badge,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 8.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                )
+                              else
+                                const SizedBox(height: 18),
+                              Text(
+                                DateFormat('hh:mm a').format(wakeTime),
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.text,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                '${h}h ${m}m',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: isRec
+                                      ? theme.primary
+                                      : theme.lavenderBubble,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Text(
+                                  'Set',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: isRec ? Colors.white : theme.text,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPowerNapsHoverPage() {
+    SoundService().playClick();
+    final theme = widget.theme;
+    final naps = [
+      {'mins': 15, 'title': 'Power Boost'},
+      {'mins': 25, 'title': 'Focus Rest'},
+      {'mins': 45, 'title': 'Recharge'},
+      {'mins': 90, 'title': 'Full REM'},
+    ];
+
+    _showHoverPageDialog<void>(
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: theme.bg,
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(color: theme.border, width: 1.3),
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Quick Power Naps',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: theme.text,
+                    ),
+                  ),
+                  _hoverCloseButton(ctx, theme),
+                ],
+              ),
+              const SizedBox(height: 16),
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.45,
+                children: naps.map((n) {
+                  final mins = n['mins'] as int;
+                  final title = n['title'] as String;
+                  return BouncyTap(
+                    onTap: () {
+                      Navigator.of(ctx).pop();
+                      _setPowerNapAlarm(mins, '$title Nap');
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: theme.cardBg,
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: theme.border, width: 1.2),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: theme.lavenderBubble,
+                                  shape: BoxShape.circle,
+                                ),
+                                alignment: Alignment.center,
+                                child: AlarmPowerNapSvgIcon(
+                                  napType: title,
+                                  size: 16,
+                                  color: theme.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                '${mins}m',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.text,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            title,
+                            style: GoogleFonts.plusJakartaSans(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w700,
+                              color: theme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _hoverCloseButton(BuildContext ctx, StationeryTheme theme) {
+    return BouncyTap(
+      onTap: () {
+        SoundService().playTap();
+        Navigator.of(ctx).pop();
+      },
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: theme.cardBg,
+          shape: BoxShape.circle,
+          border: Border.all(color: theme.border),
+        ),
+        child: Icon(Icons.close_rounded, size: 17, color: theme.textSecondary),
+      ),
+    );
+  }
+
   void _setSleepCycleAlarm(int hours, int minutes, String label) {
     SoundService().playSpecialClick();
     final now = DateTime.now();
-    // 14 min average sleep onset
     final wakeTime = now.add(Duration(hours: hours, minutes: minutes + 14));
     final newAlarm = AlarmItem(
-      id: 'cycle_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'cycle_${now.millisecondsSinceEpoch}',
       hour: wakeTime.hour,
       minute: wakeTime.minute,
       label: label,
       isEnabled: true,
       mission: WakeMissionType.math,
-    );
+    )..refreshTargetEpoch(now);
+
     setState(() {
       _alarms.add(newAlarm);
     });
     _persistAlarms();
     _rescheduleAllNotifications();
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '⏰ Set $label for ${newAlarm.formattedTime}',
-          style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
-        ),
-        backgroundColor: widget.theme.primary,
-        duration: const Duration(seconds: 3),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
+    _showQuickSnack('Set $label for ${newAlarm.formattedTime}');
   }
 
   void _setPowerNapAlarm(int minutes, String label) {
@@ -390,25 +1006,31 @@ class _AlarmScreenState extends State<AlarmScreen>
     final now = DateTime.now();
     final wakeTime = now.add(Duration(minutes: minutes));
     final newAlarm = AlarmItem(
-      id: 'nap_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'nap_${now.millisecondsSinceEpoch}',
       hour: wakeTime.hour,
       minute: wakeTime.minute,
       label: label,
       isEnabled: true,
       mission: WakeMissionType.shake,
       shakeTarget: 15,
-    );
+    )..refreshTargetEpoch(now);
+
     setState(() {
       _alarms.add(newAlarm);
     });
     _persistAlarms();
     _rescheduleAllNotifications();
+    _showQuickSnack('$label set for ${newAlarm.formattedTime}');
+  }
 
+  void _showQuickSnack(String message) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Activated $label (${minutes}m) at ${newAlarm.formattedTime}',
-          style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
+          message,
+          style: GoogleFonts.plusJakartaSans(
+              color: Colors.white, fontWeight: FontWeight.w600),
         ),
         backgroundColor: widget.theme.primary,
         duration: const Duration(seconds: 3),
@@ -432,167 +1054,51 @@ class _AlarmScreenState extends State<AlarmScreen>
     return Scaffold(
       backgroundColor: theme.bg,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Header Bar
-            _buildHeader(isDark),
-
-            // Scrollable Content
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 1. Live 2D Hybrid Analog/Digital Clock Canvas
-                    _buildLiveClockCard(isDark),
-
-                    const SizedBox(height: 20),
-
-                    // 2. Wake-up Missions Showcase (Interactive Try Buttons)
-                    _buildMissionsHeader(isDark),
-                    const SizedBox(height: 10),
-                    _buildMissionsHorizontalList(isDark),
-
-                    const SizedBox(height: 24),
-
-                    // 3. Smart Sleep Cycle Calculator (90m REM math)
-                    _buildSleepCyclesSection(isDark),
-
-                    const SizedBox(height: 24),
-
-                    // 4. Quick Power Naps
-                    _buildPowerNapSection(isDark),
-
-                    const SizedBox(height: 24),
-
-                    // 5. My Alarms Header & List
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Active Alarms (${_alarms.length})',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.3,
-                            color: theme.text,
-                          ),
-                        ),
-                        BouncyTap(
-                          onTap: () => _showAddEditSheet(),
-                          scaleFraction: 0.9,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: theme.primary,
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.add_rounded, size: 16, color: Colors.white),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Set Alarm',
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-
-                    if (_alarms.isEmpty)
-                      _buildEmptyState(isDark)
-                    else
-                      ..._alarms.map((alarm) => _buildAlarmCard(alarm, isDark)),
-
-                    const SizedBox(height: 40),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(bool isDark) {
-    final theme = widget.theme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              BouncyTap(
-                onTap: () {
-                  SoundService().playClick();
-                  Navigator.of(context).pop();
-                },
-                scaleFraction: 0.9,
-                child: Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: theme.cardBg,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: theme.border, width: 1.2),
-                  ),
-                  child: Icon(Icons.arrow_back_rounded, size: 18, color: theme.text),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              // 1. Live 2D Analog / Digital Clock Card (No duplicate inner header!)
+              _buildLiveClockCard(isDark),
+
+              const SizedBox(height: 12),
+
+              // 2. Separate Add Alarm Button right below the Time Clock section
+              _buildAddAlarmButton(theme),
+
+              const SizedBox(height: 14),
+
+              // 3. Compact Action Buttons for Wake-Up Missions, Sleep Cycle & Quick Power Naps
+              _buildFeatureHoverButtonsRow(theme),
+
+              const SizedBox(height: 20),
+
+              // 4. Active Alarms Header
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Alarm',
+                    'Active Alarms (${_alarms.length})',
                     style: GoogleFonts.plusJakartaSans(
-                      fontSize: 18,
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
+                      letterSpacing: -0.3,
                       color: theme.text,
-                    ),
-                  ),
-                  Text(
-                    'Missions, sleep cycles & wake',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                      color: theme.textSecondary,
                     ),
                   ),
                 ],
               ),
+              const SizedBox(height: 10),
+
+              if (_alarms.isEmpty)
+                _buildEmptyState(isDark)
+              else
+                ..._alarms.map((alarm) => _buildAlarmCard(alarm, isDark)),
             ],
           ),
-          BouncyTap(
-            onTap: () => _showAddEditSheet(),
-            scaleFraction: 0.9,
-            child: Container(
-              width: 38,
-              height: 38,
-              decoration: BoxDecoration(
-                color: theme.primary.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-                border: Border.all(color: theme.primary.withValues(alpha: 0.3), width: 1.2),
-              ),
-              child: Icon(Icons.add_alarm_rounded, size: 20, color: theme.primary),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -606,7 +1112,7 @@ class _AlarmScreenState extends State<AlarmScreen>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
       decoration: BoxDecoration(
         color: theme.cardBg,
         borderRadius: BorderRadius.circular(24),
@@ -624,10 +1130,9 @@ class _AlarmScreenState extends State<AlarmScreen>
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // 2D Analog Clock
               SizedBox(
-                width: 90,
-                height: 90,
+                width: 86,
+                height: 86,
                 child: CustomPaint(
                   painter: _AnalogClockPainter(
                     now: _now,
@@ -636,76 +1141,71 @@ class _AlarmScreenState extends State<AlarmScreen>
                   ),
                 ),
               ),
-              const SizedBox(width: 22),
-
-              // Digital Time Readout
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        timeStr,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 38,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1.5,
-                          height: 1.0,
-                          color: theme.text,
+              const SizedBox(width: 20),
+              Flexible(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
+                      children: [
+                        Text(
+                          timeStr,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 36,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -1.4,
+                            height: 1.0,
+                            color: theme.text,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        ':$secStr',
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: theme.primary,
+                        const SizedBox(width: 4),
+                        Text(
+                          ':$secStr',
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: theme.primary,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        amPm,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: theme.textSecondary,
+                        const SizedBox(width: 5),
+                        Text(
+                          amPm,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: theme.textSecondary,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dateStr,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: theme.textSecondary,
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 4),
+                    Text(
+                      dateStr,
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: theme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),
-
-          const SizedBox(height: 16),
-          // Next Alarm Countdown Pill
+          const SizedBox(height: 14),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
             decoration: BoxDecoration(
               color: theme.lavenderBubble,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(
-                  Icons.alarm_on_rounded,
-                  size: 15,
-                  color: theme.primary,
-                ),
+                Icon(Icons.alarm_on_rounded, size: 15, color: theme.primary),
                 const SizedBox(width: 6),
                 Text(
                   _timeUntilNextAlarm(),
@@ -723,564 +1223,401 @@ class _AlarmScreenState extends State<AlarmScreen>
     );
   }
 
-  Widget _buildMissionsHeader(bool isDark) {
-    final theme = widget.theme;
+  Widget _buildAddAlarmButton(StationeryTheme theme) {
+    return BouncyTap(
+      onTap: () => _showAddEditHoverDialog(),
+      scaleFraction: 0.96,
+      child: Container(
+        height: 48,
+        decoration: BoxDecoration(
+          color: theme.primary,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: theme.primary.withValues(alpha: 0.28),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.add_alarm_rounded, size: 20, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(
+              'Add Alarm',
+              style: GoogleFonts.plusJakartaSans(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
+  Widget _buildFeatureHoverButtonsRow(StationeryTheme theme) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Wake-Up Missions',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                color: theme.text,
-              ),
+        Expanded(
+          child: _featureButtonTile(
+            label: 'Wake-Up Missions',
+            iconWidget: AlarmMissionSvgIcon(
+              mission: WakeMissionType.math,
+              size: 18,
+              color: theme.primary,
             ),
-            Text(
-              'Interactive brain & motion wake-up challenges',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: theme.textSecondary,
-              ),
+            onTap: _showMissionsHoverPage,
+            theme: theme,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _featureButtonTile(
+            label: 'Sleep Cycle',
+            iconWidget: AlarmMoonSvgIcon(size: 18, color: theme.primary),
+            onTap: _showSleepCyclesHoverPage,
+            theme: theme,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _featureButtonTile(
+            label: 'Power Naps',
+            iconWidget: AlarmPowerNapSvgIcon(
+              napType: 'Power Boost',
+              size: 18,
+              color: theme.primary,
             ),
-          ],
+            onTap: _showPowerNapsHoverPage,
+            theme: theme,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildMissionsHorizontalList(bool isDark) {
-    final theme = widget.theme;
-
-    return SizedBox(
-      height: 104,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        physics: const BouncingScrollPhysics(),
-        itemCount: WakeMissionType.values.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (context, idx) {
-          final m = WakeMissionType.values[idx];
-          return BouncyTap(
-            onTap: () {
-              SoundService().playClick();
-              // Test this mission right away!
-              final sample = AlarmItem(
-                id: 'test_mission',
-                hour: _now.hour,
-                minute: _now.minute,
-                label: 'Test ${m.title}',
-                mission: m,
-                shakeTarget: 15,
-              );
-              _triggerRingingAlarm(sample);
-            },
-            scaleFraction: 0.94,
-            child: Container(
-              width: 148,
-              padding: const EdgeInsets.all(12),
+  Widget _featureButtonTile({
+    required String label,
+    required Widget iconWidget,
+    required VoidCallback onTap,
+    required StationeryTheme theme,
+  }) {
+    return BouncyTap(
+      onTap: onTap,
+      scaleFraction: 0.94,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+        decoration: BoxDecoration(
+          color: theme.cardBg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: theme.border, width: 1.2),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
               decoration: BoxDecoration(
-                color: theme.cardBg,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: theme.border, width: 1.2),
+                color: theme.lavenderBubble,
+                borderRadius: BorderRadius.circular(10),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: theme.lavenderBubble,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: AlarmMissionSvgIcon(
-                          mission: m,
-                          size: 20,
-                          color: theme.primary,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: theme.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(
-                          'Test',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: theme.primary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        m.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: theme.text,
-                        ),
-                      ),
-                      Text(
-                        m.description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w500,
-                          color: theme.textSecondary,
-                          height: 1.2,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              alignment: Alignment.center,
+              child: iconWidget,
             ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildSleepCyclesSection(bool isDark) {
-    final theme = widget.theme;
-
-    // Based on sleep science: 14 min average latency + 90 min per cycle
-    final cycles = [
-      {'cycles': 4, 'h': 6, 'm': 0, 'desc': '4 Cycles • Essential', 'badge': null},
-      {'cycles': 5, 'h': 7, 'm': 30, 'desc': '5 Cycles • Optimal', 'badge': 'Recommended'},
-      {'cycles': 6, 'h': 9, 'm': 0, 'desc': '6 Cycles • Deep Recovery', 'badge': 'Weekend'},
-    ];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: theme.border, width: 1.2),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: theme.lavenderBubble,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    alignment: Alignment.center,
-                    child: AlarmMoonSvgIcon(size: 18, color: theme.primary),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Sleep Cycle Calculator',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.3,
-                      color: theme.text,
-                    ),
-                  ),
-                ],
-              ),
-              Text(
-                '90m REM math',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: theme.primary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'If you go to sleep now, wake up at the end of a natural 90-minute sleep cycle to feel energetic with zero grogginess:',
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w500,
-              color: theme.textSecondary,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 14),
-
-          // 3 Cycle Options
-          Row(
-            children: cycles.map((c) {
-              final h = c['h'] as int;
-              final m = c['m'] as int;
-              final wakeTime = _now.add(Duration(hours: h, minutes: m + 14));
-              final isRec = c['badge'] == 'Recommended';
-
-              return Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4.0),
-                  child: BouncyTap(
-                    onTap: () => _setSleepCycleAlarm(h, m, 'Cycle Wakeup (${c['cycles']}h)'),
-                    scaleFraction: 0.94,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: isRec
-                            ? theme.primary.withValues(alpha: 0.12)
-                            : (isDark ? const Color(0xFF27272A) : const Color(0xFFF4F1F8)),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isRec ? theme.primary : theme.border,
-                          width: isRec ? 1.5 : 1.0,
-                        ),
-                      ),
-                      child: Column(
-                        children: [
-                          if (c['badge'] != null)
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              margin: const EdgeInsets.only(bottom: 4),
-                              decoration: BoxDecoration(
-                                color: isRec ? theme.primary : theme.textSecondary,
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                c['badge'] as String,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 8.5,
-                                  fontWeight: FontWeight.w800,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            )
-                          else
-                            const SizedBox(height: 14),
-                          Text(
-                            DateFormat('hh:mm a').format(wakeTime),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: theme.text,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${c['h']}h ${c['m']}m',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: theme.primary,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: isRec ? theme.primary : theme.textSecondary.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              'Set',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w800,
-                                color: isRec ? Colors.white : theme.text,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPowerNapSection(bool isDark) {
-    final theme = widget.theme;
-
-    final naps = [
-      {'mins': 15, 'title': 'Power Boost'},
-      {'mins': 25, 'title': 'Focus Rest'},
-      {'mins': 45, 'title': 'Recharge'},
-      {'mins': 90, 'title': 'Full REM'},
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
+            const SizedBox(height: 6),
             Text(
-              'Quick Power Naps',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                color: theme.text,
-              ),
-            ),
-            Text(
-              'One-tap alarm',
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: theme.textSecondary,
+                fontWeight: FontWeight.w700,
+                color: theme.text,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        Row(
-          children: naps.map((n) {
-            final mins = n['mins'] as int;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3.0),
-                child: BouncyTap(
-                  onTap: () => _setPowerNapAlarm(mins, '${n['title']} Nap'),
-                  scaleFraction: 0.93,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: theme.cardBg,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: theme.border, width: 1.2),
-                    ),
-                    child: Column(
-                      children: [
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: theme.lavenderBubble,
-                            shape: BoxShape.circle,
-                          ),
-                          alignment: Alignment.center,
-                          child: AlarmPowerNapSvgIcon(
-                            napType: n['title'] as String,
-                            size: 16,
-                            color: theme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${mins}m',
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: theme.text,
-                          ),
-                        ),
-                        Text(
-                          n['title'] as String,
-                          style: GoogleFonts.plusJakartaSans(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w600,
-                            color: theme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-      ],
+      ),
     );
   }
 
   Widget _buildAlarmCard(AlarmItem alarm, bool isDark) {
     final theme = widget.theme;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: alarm.isEnabled ? theme.primary.withValues(alpha: 0.4) : theme.border,
-          width: alarm.isEnabled ? 1.5 : 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Expanded(
-                child: GestureDetector(
-                  onTap: () => _showAddEditSheet(alarm),
-                  behavior: HitTestBehavior.opaque,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.baseline,
-                        textBaseline: TextBaseline.alphabetic,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Dismissible(
+          key: ValueKey(alarm.id),
+          direction: DismissDirection.horizontal,
+          movementDuration: const Duration(milliseconds: 280),
+          resizeDuration: const Duration(milliseconds: 240),
+          confirmDismiss: (_) => _showDeleteWarningDialog(alarm),
+          onDismissed: (_) => _deleteAlarm(alarm),
+          background: _buildSlideDeleteBg(Alignment.centerLeft),
+          secondaryBackground: _buildSlideDeleteBg(Alignment.centerRight),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+            decoration: BoxDecoration(
+              color: theme.cardBg,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
+                color: alarm.isEnabled
+                    ? theme.primary.withValues(alpha: 0.45)
+                    : theme.border,
+                width: alarm.isEnabled ? 1.5 : 1.2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: isDark ? 0.2 : 0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () => _showAddEditHoverDialog(alarm),
+                        behavior: HitTestBehavior.opaque,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  DateFormat('hh:mm').format(DateTime(
+                                      2026, 1, 1, alarm.hour, alarm.minute)),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 32,
+                                    fontWeight: FontWeight.w800,
+                                    letterSpacing: -1.0,
+                                    color: alarm.isEnabled
+                                        ? theme.text
+                                        : theme.textSecondary
+                                            .withValues(alpha: 0.55),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  DateFormat('a').format(DateTime(
+                                      2026, 1, 1, alarm.hour, alarm.minute)),
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: alarm.isEnabled
+                                        ? theme.primary
+                                        : theme.textSecondary
+                                            .withValues(alpha: 0.55),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              alarm.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: alarm.isEnabled
+                                    ? theme.text
+                                    : theme.textSecondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        BouncyTap(
+                          onTap: () {
+                            SoundService().playClick();
+                            _triggerRingingAlarm(alarm);
+                          },
+                          scaleFraction: 0.88,
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: theme.lavenderBubble,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(Icons.notifications_active_rounded,
+                                size: 18, color: theme.primary),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Switch.adaptive(
+                          value: alarm.isEnabled,
+                          onChanged: (val) => _toggleAlarm(alarm, val),
+                          activeThumbColor: theme.primary,
+                          activeTrackColor:
+                              theme.primary.withValues(alpha: 0.35),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 11),
+                const Divider(height: 1, thickness: 0.8),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    // Mission + Sound + Repeat Chips
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Text(
-                            DateFormat('hh:mm').format(DateTime(2026, 1, 1, alarm.hour, alarm.minute)),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 32,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -1.0,
-                              color: alarm.isEnabled ? theme.text : theme.textSecondary.withValues(alpha: 0.6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: theme.lavenderBubble,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                AlarmMissionSvgIcon(
+                                    mission: alarm.mission,
+                                    size: 13,
+                                    color: theme.primary),
+                                const SizedBox(width: 5),
+                                Text(
+                                  alarm.mission.title,
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 10.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: theme.primary,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          const SizedBox(width: 4),
-                          Text(
-                            DateFormat('a').format(DateTime(2026, 1, 1, alarm.hour, alarm.minute)),
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: alarm.isEnabled ? theme.primary : theme.textSecondary.withValues(alpha: 0.6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: theme.bg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: theme.border),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.music_note_rounded,
+                                    size: 12, color: theme.textSecondary),
+                                const SizedBox(width: 3),
+                                ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(maxWidth: 88),
+                                  child: Text(
+                                    alarm.soundTitle,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.textSecondary,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: theme.bg,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: theme.border),
+                            ),
+                            child: Text(
+                              alarm.repeatSummary,
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: theme.textSecondary,
+                              ),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        alarm.label,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: alarm.isEnabled ? theme.text : theme.textSecondary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // Test Ring Button & Switch Toggle
-              Row(
-                children: [
-                  BouncyTap(
-                    onTap: () {
-                      SoundService().playClick();
-                      _triggerRingingAlarm(alarm);
-                    },
-                    scaleFraction: 0.88,
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: theme.lavenderBubble,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Icon(Icons.notifications_active_rounded, size: 18, color: theme.primary),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Switch.adaptive(
-                    value: alarm.isEnabled,
-                    onChanged: (val) => _toggleAlarm(alarm, val),
-                    activeThumbColor: theme.primary,
-                    activeTrackColor: theme.primary.withValues(alpha: 0.35),
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 12),
-          const Divider(height: 1, thickness: 0.8),
-          const SizedBox(height: 10),
-
-          // Bottom Tags & Repeat Days
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              // Mission Badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: theme.lavenderBubble,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AlarmMissionSvgIcon(mission: alarm.mission, size: 13, color: theme.primary),
-                    const SizedBox(width: 5),
-                    Text(
-                      alarm.mission.title,
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: theme.primary,
+                    const SizedBox(width: 8),
+                    // Larger, clear Delete button with confirmation warning
+                    BouncyTap(
+                      onTap: () => _confirmAndDeleteAlarm(alarm),
+                      scaleFraction: 0.88,
+                      child: Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color:
+                                const Color(0xFFEF4444).withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.delete_outline_rounded,
+                          size: 21,
+                          color: Color(0xFFEF4444),
+                        ),
                       ),
                     ),
                   ],
                 ),
-              ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-              // Repeat Days Summary
-              Row(
-                children: [
-                  Text(
-                    alarm.repeatSummary,
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: theme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  BouncyTap(
-                    onTap: () => _deleteAlarm(alarm),
-                    scaleFraction: 0.88,
-                    child: Icon(
-                      Icons.delete_outline_rounded,
-                      size: 16,
-                      color: theme.textSecondary.withValues(alpha: 0.7),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+  Widget _buildSlideDeleteBg(Alignment alignment) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      alignment: alignment,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFEF4444), Color(0xFFDC2626)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.delete_forever_rounded, color: Colors.white, size: 26),
+          const SizedBox(width: 8),
+          Text(
+            'Delete',
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Colors.white,
+            ),
           ),
         ],
       ),
@@ -1292,7 +1629,7 @@ class _AlarmScreenState extends State<AlarmScreen>
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 34, horizontal: 20),
       decoration: BoxDecoration(
         color: theme.cardBg,
         borderRadius: BorderRadius.circular(22),
@@ -1302,26 +1639,16 @@ class _AlarmScreenState extends State<AlarmScreen>
         children: [
           ToolerCharacter.studying(
             theme: theme,
-            width: 110,
-            height: 90,
+            width: 100,
+            height: 82,
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           Text(
-            'No alarms configured',
+            'No alarms active',
             style: GoogleFonts.plusJakartaSans(
               fontSize: 15,
               fontWeight: FontWeight.w700,
               color: theme.text,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Tap "Set Alarm" or pick a 90m sleep cycle to wake up feeling fresh.',
-            textAlign: TextAlign.center,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: theme.textSecondary,
             ),
           ),
         ],
@@ -1349,20 +1676,17 @@ class _AnalogClockPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = size.width / 2;
 
-    // 1. Clock face background circle
     final bgPaint = Paint()
       ..color = isDark ? const Color(0xFF27272A) : const Color(0xFFF4F1F8)
       ..style = PaintingStyle.fill;
     canvas.drawCircle(center, radius, bgPaint);
 
-    // 2. Subtle outer ring
     final ringPaint = Paint()
       ..color = theme.border
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.6;
     canvas.drawCircle(center, radius, ringPaint);
 
-    // 3. Hour Tick Marks (12 ticks)
     final tickPaint = Paint()
       ..color = theme.textSecondary
       ..style = PaintingStyle.stroke
@@ -1379,8 +1703,8 @@ class _AnalogClockPainter extends CustomPainter {
       canvas.drawLine(Offset(innerX, innerY), Offset(outerX, outerY), tickPaint);
     }
 
-    // 4. Hour Hand
-    final hourAngle = ((now.hour % 12) + now.minute / 60.0) * 30 * math.pi / 180;
+    final hourAngle =
+        ((now.hour % 12) + now.minute / 60.0) * 30 * math.pi / 180;
     final hourHandPaint = Paint()
       ..color = theme.text
       ..style = PaintingStyle.stroke
@@ -1395,7 +1719,6 @@ class _AnalogClockPainter extends CustomPainter {
       hourHandPaint,
     );
 
-    // 5. Minute Hand
     final minAngle = (now.minute + now.second / 60.0) * 6 * math.pi / 180;
     final minHandPaint = Paint()
       ..color = theme.text
@@ -1411,8 +1734,8 @@ class _AnalogClockPainter extends CustomPainter {
       minHandPaint,
     );
 
-    // 6. Sweeping Second Hand
-    final secAngle = (now.second + now.millisecond / 1000.0) * 6 * math.pi / 180;
+    final secAngle =
+        (now.second + now.millisecond / 1000.0) * 6 * math.pi / 180;
     final secHandPaint = Paint()
       ..color = theme.primary
       ..style = PaintingStyle.stroke
@@ -1427,11 +1750,13 @@ class _AnalogClockPainter extends CustomPainter {
       secHandPaint,
     );
 
-    // 7. Center Pivot Dot
-    final pivotPaint = Paint()
-      ..color = theme.primary
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(center, 3.5, pivotPaint);
+    canvas.drawCircle(
+      center,
+      3.5,
+      Paint()
+        ..color = theme.primary
+        ..style = PaintingStyle.fill,
+    );
   }
 
   @override
@@ -1439,26 +1764,38 @@ class _AnalogClockPainter extends CustomPainter {
 }
 
 /// ---------------------------------------------------------------------------
-/// ADD / EDIT ALARM BOTTOM SHEET
+/// FLOATING HOVER ADD / EDIT ALARM PAGE
+/// Animated scroll-wheel time picker, multi-sound + device audio selector,
+/// zero verbose captions, and bottom Delete button with warning.
 /// ---------------------------------------------------------------------------
-class _AddEditAlarmSheet extends StatefulWidget {
+class _AddEditAlarmHoverCard extends StatefulWidget {
   final StationeryTheme theme;
   final AlarmItem? existing;
+  final List<Map<String, String>> customSounds;
+  final ValueChanged<List<Map<String, String>>> onCustomSoundsUpdated;
   final ValueChanged<AlarmItem> onSave;
+  final VoidCallback? onDelete;
 
-  const _AddEditAlarmSheet({
+  const _AddEditAlarmHoverCard({
     required this.theme,
     this.existing,
+    required this.customSounds,
+    required this.onCustomSoundsUpdated,
     required this.onSave,
+    this.onDelete,
   });
 
   @override
-  State<_AddEditAlarmSheet> createState() => _AddEditAlarmSheetState();
+  State<_AddEditAlarmHoverCard> createState() => _AddEditAlarmHoverCardState();
 }
 
-class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
-  late int _hour;
-  late int _minute;
+class _AddEditAlarmHoverCardState extends State<_AddEditAlarmHoverCard> {
+  late int _hour12; // 1..12
+  late int _minute; // 0..59
+  late bool _isPm;
+  late FixedExtentScrollController _hourController;
+  late FixedExtentScrollController _minuteController;
+
   late TextEditingController _labelController;
   late List<int> _repeatDays;
   late WakeMissionType _mission;
@@ -1466,35 +1803,148 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
   late int _shakeTarget;
   late bool _sound;
   late bool _vibrate;
+  late String _soundKey;
+  late String _soundTitle;
+  String? _customSoundPath;
+
+  late List<Map<String, String>> _localCustomSounds;
+  String? _previewingKey;
+  bool _showSoundTray = false;
+
+  int get _hour24 {
+    if (_isPm) {
+      return _hour12 == 12 ? 12 : _hour12 + 12;
+    } else {
+      return _hour12 == 12 ? 0 : _hour12;
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     final item = widget.existing;
-    _hour = item?.hour ?? 7;
+    final h24 = item?.hour ?? 7;
     _minute = item?.minute ?? 0;
-    _labelController = TextEditingController(text: item?.label ?? 'Morning Wakeup');
-    _repeatDays = List.from(item?.repeatDays ?? [1, 2, 3, 4, 5]);
+    _isPm = h24 >= 12;
+    _hour12 = (h24 % 12 == 0) ? 12 : (h24 % 12);
+
+    _hourController = FixedExtentScrollController(initialItem: _hour12 - 1);
+    _minuteController = FixedExtentScrollController(initialItem: _minute);
+
+    _labelController = TextEditingController(text: item?.label ?? 'Alarm');
+    _repeatDays = List.from(item?.repeatDays ?? <int>[]);
     _mission = item?.mission ?? WakeMissionType.math;
     _mathDifficulty = item?.mathDifficulty ?? 1;
     _shakeTarget = item?.shakeTarget ?? 20;
     _sound = item?.sound ?? true;
     _vibrate = item?.vibrate ?? true;
+    _soundKey = item?.soundKey ?? 'alarm';
+    _soundTitle = item?.soundTitle ?? 'Classic Pulse';
+    _customSoundPath = item?.customSoundPath;
+    _localCustomSounds = List<Map<String, String>>.from(widget.customSounds);
   }
 
   @override
   void dispose() {
+    SoundService().stopAlarmPreview();
+    _hourController.dispose();
+    _minuteController.dispose();
     _labelController.dispose();
     super.dispose();
   }
 
+  void _jumpToTime(int h24, int m) {
+    SoundService().playTap();
+    final newIsPm = h24 >= 12;
+    final newH12 = (h24 % 12 == 0) ? 12 : (h24 % 12);
+    setState(() {
+      _isPm = newIsPm;
+      _hour12 = newH12;
+      _minute = m;
+    });
+    if (_hourController.hasClients) {
+      final base = _hourController.selectedItem - (_hourController.selectedItem % 12);
+      _hourController.animateToItem(
+        base + (newH12 - 1),
+        duration: const Duration(milliseconds: 340),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    if (_minuteController.hasClients) {
+      final base = _minuteController.selectedItem - (_minuteController.selectedItem % 60);
+      _minuteController.animateToItem(
+        base + m,
+        duration: const Duration(milliseconds: 340),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  String _previewUntilRing() {
+    final probe = AlarmItem(
+      id: 'preview',
+      hour: _hour24,
+      minute: _minute,
+      repeatDays: _repeatDays,
+    );
+    final diff = probe.nextTriggerDate().difference(DateTime.now());
+    final h = diff.inHours;
+    final m = diff.inMinutes % 60;
+    if (h == 0 && m <= 1) return 'Rings within 1 min';
+    if (h == 0) return 'Rings in ${m}m';
+    return 'Rings in ${h}h ${m}m';
+  }
+
+  Future<void> _togglePreview(String key, String? customPath) async {
+    final previewId = customPath ?? key;
+    if (_previewingKey == previewId) {
+      await SoundService().stopAlarmPreview();
+      if (mounted) setState(() => _previewingKey = null);
+    } else {
+      setState(() => _previewingKey = previewId);
+      await SoundService().previewAlarmTone(
+        soundKey: key,
+        customPath: customPath,
+      );
+    }
+  }
+
+  Future<void> _pickDeviceAudioFile() async {
+    SoundService().playClick();
+    final picked = await SoundService().pickDeviceAudio();
+    if (picked == null || !mounted) return;
+
+    final path = picked['path'] ?? '';
+    final name = picked['name'] ?? 'Custom Audio';
+    if (path.isEmpty) return;
+
+    final updated = List<Map<String, String>>.from(_localCustomSounds)
+      ..removeWhere((e) => e['path'] == path)
+      ..insert(0, {'path': path, 'name': name});
+
+    setState(() {
+      _localCustomSounds = updated;
+      _sound = true;
+      _soundKey = 'custom';
+      _soundTitle = name;
+      _customSoundPath = path;
+      _previewingKey = path;
+    });
+    widget.onCustomSoundsUpdated(updated);
+    SoundService().previewAlarmTone(soundKey: 'custom', customPath: path);
+  }
+
   void _save() {
+    SoundService().stopAlarmPreview();
     SoundService().playSpecialClick();
     final item = AlarmItem(
-      id: widget.existing?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
-      hour: _hour,
+      id: widget.existing?.id ??
+          DateTime.now().millisecondsSinceEpoch.toString(),
+      hour: _hour24,
       minute: _minute,
-      label: _labelController.text.trim().isEmpty ? 'Alarm' : _labelController.text.trim(),
+      label: _labelController.text.trim().isEmpty
+          ? 'Alarm'
+          : _labelController.text.trim(),
       isEnabled: true,
       repeatDays: _repeatDays,
       mission: _mission,
@@ -1502,7 +1952,11 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
       shakeTarget: _shakeTarget,
       sound: _sound,
       vibrate: _vibrate,
-    );
+      soundKey: _soundKey,
+      soundTitle: _soundTitle,
+      customSoundPath: _soundKey == 'custom' ? _customSoundPath : null,
+    )..refreshTargetEpoch(DateTime.now());
+
     widget.onSave(item);
     Navigator.of(context).pop();
   }
@@ -1510,171 +1964,359 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = widget.theme;
+    final formattedPreview = DateFormat('hh:mm a')
+        .format(DateTime(2026, 1, 1, _hour24, _minute));
 
     return Container(
       padding: EdgeInsets.only(
-        top: 20,
-        left: 20,
-        right: 20,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        top: 18,
+        left: 18,
+        right: 18,
+        bottom: MediaQuery.of(context).viewInsets.bottom + 18,
       ),
       decoration: BoxDecoration(
         color: theme.bg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: theme.border, width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+        ],
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 44,
-                height: 4.5,
-                decoration: BoxDecoration(
-                  color: theme.border,
-                  borderRadius: BorderRadius.circular(10),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Sticky Top bar
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                widget.existing != null ? 'Edit Alarm' : 'New Alarm',
+                style: GoogleFonts.plusJakartaSans(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                  color: theme.text,
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  widget.existing != null ? 'Edit Alarm' : 'Set New Alarm',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                    color: theme.text,
-                  ),
-                ),
-                BouncyTap(
-                  onTap: _save,
-                  scaleFraction: 0.9,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: theme.primary,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Save',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Time Selector (Interactive Steppers)
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
-              decoration: BoxDecoration(
-                color: theme.cardBg,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: theme.border, width: 1.2),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
+              Row(
                 children: [
-                  // Hour Stepper
-                  _buildStepper(
-                    value: _hour,
-                    min: 0,
-                    max: 23,
-                    padZero: true,
-                    onChanged: (v) => setState(() => _hour = v),
-                    theme: theme,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      ':',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 34,
-                        fontWeight: FontWeight.w800,
+                  BouncyTap(
+                    onTap: _save,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
                         color: theme.primary,
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Text(
+                        'Save',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
-                  // Minute Stepper
-                  _buildStepper(
-                    value: _minute,
-                    min: 0,
-                    max: 59,
-                    padZero: true,
-                    onChanged: (v) => setState(() => _minute = v),
-                    theme: theme,
-                  ),
-                  const SizedBox(width: 14),
-                  // AM/PM Indicator
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: theme.lavenderBubble,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      _hour >= 12 ? 'PM' : 'AM',
-                      style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
-                        color: theme.primary,
+                  const SizedBox(width: 8),
+                  BouncyTap(
+                    onTap: () {
+                      SoundService().stopAlarmPreview();
+                      Navigator.of(context).pop();
+                    },
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(
+                        color: theme.cardBg,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: theme.border),
                       ),
+                      child: Icon(Icons.close_rounded,
+                          size: 17, color: theme.textSecondary),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 18),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Flexible(
+            child: SingleChildScrollView(
+              physics: const BouncingScrollPhysics(),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
 
-            // Label Input
+            // Animated Live Preview + Scroll-Wheel Drum Time Picker
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 14),
+              decoration: BoxDecoration(
+                color: theme.cardBg,
+                borderRadius: BorderRadius.circular(22),
+                border: Border.all(
+                  color: theme.primary.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 200),
+                        transitionBuilder: (child, anim) =>
+                            FadeTransition(opacity: anim, child: child),
+                        child: Text(
+                          formattedPreview,
+                          key: ValueKey(formattedPreview),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
+                            color: theme.primary,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: theme.lavenderBubble,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          _previewUntilRing(),
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: theme.text,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 132,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Central highlight bar
+                        Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: theme.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: theme.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            // Hour Scroll Wheel (1..12)
+                            SizedBox(
+                              width: 72,
+                              child: ListWheelScrollView.useDelegate(
+                                controller: _hourController,
+                                itemExtent: 42,
+                                perspective: 0.004,
+                                diameterRatio: 1.4,
+                                physics: const FixedExtentScrollPhysics(),
+                                onSelectedItemChanged: (idx) {
+                                  final h12 = (idx % 12) + 1;
+                                  if (_hour12 != h12) {
+                                    SoundService().playKey();
+                                    setState(() => _hour12 = h12);
+                                  }
+                                },
+                                childDelegate: ListWheelChildLoopingListDelegate(
+                                  children: List.generate(12, (i) {
+                                    final h = i + 1;
+                                    final active = h == _hour12;
+                                    return Center(
+                                      child: AnimatedDefaultTextStyle(
+                                        duration:
+                                            const Duration(milliseconds: 160),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: active ? 24 : 18,
+                                          fontWeight: active
+                                              ? FontWeight.w800
+                                              : FontWeight.w600,
+                                          color: active
+                                              ? theme.text
+                                              : theme.textSecondary
+                                                  .withValues(alpha: 0.55),
+                                        ),
+                                        child: Text(h.toString().padLeft(2, '0')),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                              ),
+                            ),
+                            Text(
+                              ':',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 26,
+                                fontWeight: FontWeight.w800,
+                                color: theme.primary,
+                              ),
+                            ),
+                            // Minute Scroll Wheel (00..59)
+                            SizedBox(
+                              width: 72,
+                              child: ListWheelScrollView.useDelegate(
+                                controller: _minuteController,
+                                itemExtent: 42,
+                                perspective: 0.004,
+                                diameterRatio: 1.4,
+                                physics: const FixedExtentScrollPhysics(),
+                                onSelectedItemChanged: (idx) {
+                                  final m = idx % 60;
+                                  if (_minute != m) {
+                                    SoundService().playKey();
+                                    setState(() => _minute = m);
+                                  }
+                                },
+                                childDelegate: ListWheelChildLoopingListDelegate(
+                                  children: List.generate(60, (m) {
+                                    final active = m == _minute;
+                                    return Center(
+                                      child: AnimatedDefaultTextStyle(
+                                        duration:
+                                            const Duration(milliseconds: 160),
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: active ? 24 : 18,
+                                          fontWeight: active
+                                              ? FontWeight.w800
+                                              : FontWeight.w600,
+                                          color: active
+                                              ? theme.text
+                                              : theme.textSecondary
+                                                  .withValues(alpha: 0.55),
+                                        ),
+                                        child: Text(m.toString().padLeft(2, '0')),
+                                      ),
+                                    );
+                                  }),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            // AM / PM Animated Segmented Column
+                            Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _amPmButton('AM', !_isPm, () {
+                                  SoundService().playTap();
+                                  setState(() => _isPm = false);
+                                }, theme),
+                                const SizedBox(height: 6),
+                                _amPmButton('PM', _isPm, () {
+                                  SoundService().playTap();
+                                  setState(() => _isPm = true);
+                                }, theme),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  // Quick-jump chips
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      _quickPresetChip('06:00 AM', () => _jumpToTime(6, 0), theme),
+                      _quickPresetChip('07:00 AM', () => _jumpToTime(7, 0), theme),
+                      _quickPresetChip('08:30 AM', () => _jumpToTime(8, 30), theme),
+                      _quickPresetChip('+15m', () {
+                        final n = DateTime.now().add(const Duration(minutes: 15));
+                        _jumpToTime(n.hour, n.minute);
+                      }, theme),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Clean Label Field (no bulky helper text)
             TextField(
               controller: _labelController,
               style: GoogleFonts.plusJakartaSans(
-                fontSize: 14,
+                fontSize: 13.5,
                 fontWeight: FontWeight.w600,
                 color: theme.text,
               ),
               decoration: InputDecoration(
-                labelText: 'Alarm Label',
-                labelStyle: GoogleFonts.plusJakartaSans(color: theme.textSecondary),
+                hintText: 'Alarm name',
+                hintStyle: GoogleFonts.plusJakartaSans(color: theme.textSecondary),
                 filled: true,
                 fillColor: theme.cardBg,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: theme.border),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: theme.border),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: theme.primary, width: 1.5),
                 ),
-                prefixIcon: Icon(Icons.label_outline_rounded, color: theme.primary, size: 20),
+                prefixIcon: Icon(Icons.label_outline_rounded,
+                    color: theme.primary, size: 19),
               ),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
-            // Repeat Days
-            Text(
-              'Repeat Days',
-              style: GoogleFonts.plusJakartaSans(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: theme.text,
-              ),
+            // Repeat Mode: Once vs Daily vs Custom Days
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Repeat',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: theme.text,
+                  ),
+                ),
+                Row(
+                  children: [
+                    _quickPresetChip(
+                      'Once',
+                      () => setState(() => _repeatDays.clear()),
+                      theme,
+                      selected: _repeatDays.isEmpty,
+                    ),
+                    const SizedBox(width: 6),
+                    _quickPresetChip(
+                      'Daily',
+                      () => setState(() => _repeatDays = [1, 2, 3, 4, 5, 6, 7]),
+                      theme,
+                      selected: _repeatDays.length == 7,
+                    ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             Row(
@@ -1697,9 +2339,10 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
                     });
                   },
                   scaleFraction: 0.88,
-                  child: Container(
-                    width: 38,
-                    height: 38,
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                       color: isSelected ? theme.primary : theme.cardBg,
                       shape: BoxShape.circle,
@@ -1712,7 +2355,7 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
                     child: Text(
                       dayLabels[i],
                       style: GoogleFonts.plusJakartaSans(
-                        fontSize: 13,
+                        fontSize: 12.5,
                         fontWeight: FontWeight.w800,
                         color: isSelected ? Colors.white : theme.text,
                       ),
@@ -1721,11 +2364,11 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
                 );
               }),
             ),
-            const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
-            // Mission Selection (Wake-up Challenges)
+            // Mission Chips (compact, no verbose descriptions!)
             Text(
-              'Wake-Up Mission (Dismiss Challenge)',
+              'Wake-Up Mission',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
@@ -1733,190 +2376,308 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
               ),
             ),
             const SizedBox(height: 8),
-            Column(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: WakeMissionType.values.map((m) {
-                final isSelected = _mission == m;
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: BouncyTap(
-                    onTap: () {
-                      SoundService().playTap();
-                      setState(() => _mission = m);
-                    },
-                    scaleFraction: 0.96,
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: isSelected ? theme.lavenderBubble : theme.cardBg,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: isSelected ? theme.primary : theme.border,
-                          width: isSelected ? 1.5 : 1.0,
+                final sel = _mission == m;
+                return BouncyTap(
+                  onTap: () {
+                    SoundService().playTap();
+                    setState(() => _mission = m);
+                  },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: sel ? theme.lavenderBubble : theme.cardBg,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: sel ? theme.primary : theme.border,
+                        width: sel ? 1.5 : 1.0,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AlarmMissionSvgIcon(
+                          mission: m,
+                          size: 16,
+                          color: sel ? theme.primary : theme.textSecondary,
                         ),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: isSelected ? theme.primary.withValues(alpha: 0.15) : theme.lavenderBubble,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            alignment: Alignment.center,
-                            child: AlarmMissionSvgIcon(
-                              mission: m,
-                              size: 20,
-                              color: isSelected ? theme.primary : theme.text,
-                            ),
+                        const SizedBox(width: 6),
+                        Text(
+                          m.title,
+                          style: GoogleFonts.plusJakartaSans(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: sel ? theme.primary : theme.text,
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  m.title,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                    color: theme.text,
-                                  ),
-                                ),
-                                Text(
-                                  m.description,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w500,
-                                    color: theme.textSecondary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (isSelected)
-                            Icon(Icons.check_circle_rounded, color: theme.primary, size: 20),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 );
               }).toList(),
             ),
-
-            // Additional Mission Options
             if (_mission == WakeMissionType.shake) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Shake Target: $_shakeTarget shakes',
-                      style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12, fontWeight: FontWeight.w600, color: theme.text)),
+                  Text(
+                    'Shakes: $_shakeTarget',
+                    style: GoogleFonts.plusJakartaSans(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: theme.textSecondary,
+                    ),
+                  ),
                   Row(
-                    children: [15, 25, 40].map((count) {
-                      final sel = _shakeTarget == count;
-                      return Padding(
-                        padding: const EdgeInsets.only(left: 6.0),
-                        child: BouncyTap(
-                          onTap: () {
-                            SoundService().playTap();
-                            setState(() => _shakeTarget = count);
-                          },
-                          scaleFraction: 0.9,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: sel ? theme.primary : theme.cardBg,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: sel ? theme.primary : theme.border),
-                            ),
-                            child: Text(
-                              '$count',
-                              style: GoogleFonts.plusJakartaSans(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: sel ? Colors.white : theme.text,
-                              ),
+                    children: [15, 25, 40]
+                        .map(
+                          (c) => Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: _quickPresetChip(
+                              '$c',
+                              () => setState(() => _shakeTarget = c),
+                              theme,
+                              selected: _shakeTarget == c,
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                        )
+                        .toList(),
                   ),
                 ],
               ),
             ],
-
             const SizedBox(height: 14),
 
-            // Compulsory Alarm Sound Toggle
-            Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              decoration: BoxDecoration(
-                color: theme.cardBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: theme.border, width: 1.0),
+            // Sound Effects + Device Audio Selector Card (caption-free!)
+            Material(
+              color: theme.cardBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.border, width: 1.0),
               ),
-              child: SwitchListTile.adaptive(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                secondary: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _sound ? const Color(0xFF10B981).withValues(alpha: 0.15) : theme.bg,
-                    shape: BoxShape.circle,
+              clipBehavior: Clip.antiAlias,
+              child: Column(
+                children: [
+                  SwitchListTile.adaptive(
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                    secondary: Icon(
+                      _sound
+                          ? Icons.volume_up_rounded
+                          : Icons.volume_off_rounded,
+                      color:
+                          _sound ? const Color(0xFF10B981) : theme.textSecondary,
+                      size: 20,
+                    ),
+                    title: Text(
+                      'Alarm Sound',
+                      style: GoogleFonts.plusJakartaSans(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w700,
+                        color: theme.text,
+                      ),
+                    ),
+                    value: _sound,
+                    onChanged: (v) {
+                      SoundService().playTap();
+                      setState(() => _sound = v);
+                    },
+                    activeThumbColor: const Color(0xFF10B981),
                   ),
-                  child: Icon(
-                    _sound ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-                    color: _sound ? const Color(0xFF10B981) : theme.textSecondary,
-                    size: 20,
-                  ),
-                ),
-                title: Text(
-                  'Alarm Sound',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w700,
-                    color: theme.text,
-                  ),
-                ),
-                subtitle: Text(
-                  'Loud audible wake-up ringtone (bypasses silent/vibrate mode)',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    color: theme.textSecondary,
-                  ),
-                ),
-                value: _sound,
-                onChanged: (v) {
-                  SoundService().playTap();
-                  setState(() => _sound = v);
-                },
-                activeThumbColor: const Color(0xFF10B981),
+                  if (_sound) ...[
+                    const Divider(height: 1),
+                    InkWell(
+                      onTap: () {
+                        SoundService().playTap();
+                        setState(() => _showSoundTray = !_showSoundTray);
+                      },
+                      borderRadius: const BorderRadius.vertical(
+                          bottom: Radius.circular(16)),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 11),
+                        child: Row(
+                          children: [
+                            Icon(Icons.library_music_rounded,
+                                size: 18, color: theme.primary),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _soundTitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.text,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              'Change',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 11.5,
+                                fontWeight: FontWeight.w800,
+                                color: theme.primary,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(
+                              _showSoundTray
+                                  ? Icons.keyboard_arrow_up_rounded
+                                  : Icons.keyboard_arrow_down_rounded,
+                              size: 18,
+                              color: theme.primary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    AnimatedSize(
+                      duration: const Duration(milliseconds: 240),
+                      curve: Curves.easeOutCubic,
+                      child: _showSoundTray
+                          ? Padding(
+                              padding:
+                                  const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  // Device Audio Importer Button
+                                  BouncyTap(
+                                    onTap: _pickDeviceAudioFile,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 10, horizontal: 12),
+                                      decoration: BoxDecoration(
+                                        color: theme.primary
+                                            .withValues(alpha: 0.14),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: theme.primary
+                                              .withValues(alpha: 0.45),
+                                        ),
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.audio_file_rounded,
+                                              size: 17, color: theme.primary),
+                                          const SizedBox(width: 7),
+                                          Text(
+                                            'Add Audio from Device',
+                                            style: GoogleFonts.plusJakartaSans(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              color: theme.primary,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+
+                                  // User-Added Device Audio Tracks
+                                  ..._localCustomSounds.map((cs) {
+                                    final path = cs['path'] ?? '';
+                                    final name = cs['name'] ?? 'Custom Audio';
+                                    final isSel = _soundKey == 'custom' &&
+                                        _customSoundPath == path;
+                                    final isPrev = _previewingKey == path;
+                                    return _toneTile(
+                                      title: name,
+                                      isCustom: true,
+                                      selected: isSel,
+                                      isPreviewing: isPrev,
+                                      onSelect: () {
+                                        setState(() {
+                                          _soundKey = 'custom';
+                                          _soundTitle = name;
+                                          _customSoundPath = path;
+                                        });
+                                        _togglePreview('custom', path);
+                                      },
+                                      onPreview: () =>
+                                          _togglePreview('custom', path),
+                                      onRemoveCustom: () async {
+                                        await SoundService()
+                                            .deleteCustomAlarmSound(path);
+                                        final updated = List<
+                                            Map<String, String>>.from(
+                                            _localCustomSounds)
+                                          ..removeWhere((e) => e['path'] == path);
+                                        setState(() {
+                                          _localCustomSounds = updated;
+                                          if (isSel) {
+                                            _soundKey = 'alarm';
+                                            _soundTitle = 'Classic Pulse';
+                                            _customSoundPath = null;
+                                          }
+                                        });
+                                        widget.onCustomSoundsUpdated(updated);
+                                      },
+                                      theme: theme,
+                                    );
+                                  }),
+
+                                  // Built-In Multi-Tone Sound Effects
+                                  ...kBuiltInAlarmTones.map((tone) {
+                                    final isSel = _soundKey == tone.key;
+                                    final isPrev = _previewingKey == tone.key;
+                                    return _toneTile(
+                                      title: tone.title,
+                                      isCustom: false,
+                                      selected: isSel,
+                                      isPreviewing: isPrev,
+                                      onSelect: () {
+                                        setState(() {
+                                          _soundKey = tone.key;
+                                          _soundTitle = tone.title;
+                                          _customSoundPath = null;
+                                        });
+                                        _togglePreview(tone.key, null);
+                                      },
+                                      onPreview: () =>
+                                          _togglePreview(tone.key, null),
+                                      theme: theme,
+                                    );
+                                  }),
+                                ],
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                    ),
+                  ],
+                ],
               ),
             ),
+            const SizedBox(height: 10),
 
-            // Compulsory Alarm Vibration Toggle
-            Container(
-              decoration: BoxDecoration(
-                color: theme.cardBg,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: theme.border, width: 1.0),
+            // Vibration Toggle (clean, caption-free!)
+            Material(
+              color: theme.cardBg,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(color: theme.border, width: 1.0),
               ),
+              clipBehavior: Clip.antiAlias,
               child: SwitchListTile.adaptive(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
-                secondary: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _vibrate ? theme.primary.withValues(alpha: 0.15) : theme.bg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _vibrate ? Icons.vibration_rounded : Icons.phone_android_rounded,
-                    color: _vibrate ? theme.primary : theme.textSecondary,
-                    size: 20,
-                  ),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                secondary: Icon(
+                  _vibrate
+                      ? Icons.vibration_rounded
+                      : Icons.phone_android_rounded,
+                  color: _vibrate ? theme.primary : theme.textSecondary,
+                  size: 20,
                 ),
                 title: Text(
                   'Vibration',
@@ -1924,13 +2685,6 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
                     fontSize: 13.5,
                     fontWeight: FontWeight.w700,
                     color: theme.text,
-                  ),
-                ),
-                subtitle: Text(
-                  'Continuous heavy haptic vibration pulse to wake you up',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 11,
-                    color: theme.textSecondary,
                   ),
                 ),
                 value: _vibrate,
@@ -1941,75 +2695,215 @@ class _AddEditAlarmSheetState extends State<_AddEditAlarmSheet> {
                 activeThumbColor: theme.primary,
               ),
             ),
+
+            // Bottom Delete Option when Editing
+            if (widget.onDelete != null) ...[
+              const SizedBox(height: 14),
+              BouncyTap(
+                onTap: widget.onDelete!,
+                child: Container(
+                  height: 46,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEF4444).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFEF4444).withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.delete_outline_rounded,
+                          color: Color(0xFFEF4444), size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Delete Alarm',
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w800,
+                          color: const Color(0xFFEF4444),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ],
+        ),
+      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _toneTile({
+    required String title,
+    required bool isCustom,
+    required bool selected,
+    required bool isPreviewing,
+    required VoidCallback onSelect,
+    required VoidCallback onPreview,
+    VoidCallback? onRemoveCustom,
+    required StationeryTheme theme,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 5),
+      decoration: BoxDecoration(
+        color: selected ? theme.lavenderBubble : theme.bg,
+        borderRadius: BorderRadius.circular(11),
+        border: Border.all(
+          color: selected ? theme.primary : theme.border,
+          width: selected ? 1.4 : 1.0,
+        ),
+      ),
+      child: InkWell(
+        onTap: onSelect,
+        borderRadius: BorderRadius.circular(11),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          child: Row(
+            children: [
+              Icon(
+                selected
+                    ? Icons.radio_button_checked_rounded
+                    : Icons.radio_button_off_rounded,
+                size: 18,
+                color: selected ? theme.primary : theme.textSecondary,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.plusJakartaSans(
+                          fontSize: 12,
+                          fontWeight:
+                              selected ? FontWeight.w800 : FontWeight.w600,
+                          color: theme.text,
+                        ),
+                      ),
+                    ),
+                    if (isCustom) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: theme.primary.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'DEVICE',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 8,
+                            fontWeight: FontWeight.w800,
+                            color: theme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              GestureDetector(
+                onTap: onPreview,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    isPreviewing
+                        ? Icons.stop_circle_rounded
+                        : Icons.play_circle_fill_rounded,
+                    size: 20,
+                    color: isPreviewing
+                        ? const Color(0xFFEF4444)
+                        : theme.primary,
+                  ),
+                ),
+              ),
+              if (onRemoveCustom != null)
+                GestureDetector(
+                  onTap: onRemoveCustom,
+                  child: const Padding(
+                    padding: EdgeInsets.only(left: 4),
+                    child: Icon(
+                      Icons.close_rounded,
+                      size: 16,
+                      color: Color(0xFFEF4444),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStepper({
-    required int value,
-    required int min,
-    required int max,
-    required ValueChanged<int> onChanged,
-    required StationeryTheme theme,
-    bool padZero = false,
-  }) {
-    final str = padZero ? value.toString().padLeft(2, '0') : value.toString();
+  Widget _amPmButton(
+      String label, bool active, VoidCallback onTap, StationeryTheme theme) {
+    return BouncyTap(
+      onTap: onTap,
+      scaleFraction: 0.9,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? theme.primary : theme.bg,
+          borderRadius: BorderRadius.circular(11),
+          border: Border.all(
+            color: active ? theme.primary : theme.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+            color: active ? Colors.white : theme.textSecondary,
+          ),
+        ),
+      ),
+    );
+  }
 
-    return Column(
-      children: [
-        BouncyTap(
-          onTap: () {
-            SoundService().playClick();
-            onChanged(value >= max ? min : value + 1);
-          },
-          scaleFraction: 0.85,
-          child: Container(
-            width: 36,
-            height: 32,
-            decoration: BoxDecoration(
-              color: theme.lavenderBubble,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.keyboard_arrow_up_rounded, color: theme.primary, size: 22),
+  Widget _quickPresetChip(
+    String text,
+    VoidCallback onTap,
+    StationeryTheme theme, {
+    bool selected = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? theme.primary : theme.bg,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: selected ? theme.primary : theme.border,
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6.0),
-          child: Text(
-            str,
-            style: GoogleFonts.plusJakartaSans(
-              fontSize: 34,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -1.0,
-              color: theme.text,
-            ),
+        child: Text(
+          text,
+          style: GoogleFonts.plusJakartaSans(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            color: selected ? Colors.white : theme.textSecondary,
           ),
         ),
-        BouncyTap(
-          onTap: () {
-            SoundService().playClick();
-            onChanged(value <= min ? max : value - 1);
-          },
-          scaleFraction: 0.85,
-          child: Container(
-            width: 36,
-            height: 32,
-            decoration: BoxDecoration(
-              color: theme.lavenderBubble,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.keyboard_arrow_down_rounded, color: theme.primary, size: 22),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
 /// ---------------------------------------------------------------------------
-/// ACTIVE RINGING ALARM MODAL (With Interactive Missions)
+/// ACTIVE RINGING ALARM MODAL (With Interactive Missions & Multi-Tone Sound)
 /// ---------------------------------------------------------------------------
 class _RingingAlarmModal extends StatefulWidget {
   final StationeryTheme theme;
@@ -2031,25 +2925,21 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
   late AnimationController _bellAnimController;
   Timer? _soundTimer;
 
-  // Math Mission State
   late int _mathA;
   late int _mathB;
   late int _mathAns;
   String _userMathInput = '';
 
-  // Shake Mission State
   int _currentShakes = 0;
   StreamSubscription<AccelerometerEvent>? _accelSub;
   DateTime _lastShakeTime = DateTime.now();
 
-  // Memory Pattern State
   List<int> _memorySequence = [];
   final List<int> _userMemoryTaps = [];
   int _highlightedTile = -1;
   bool _isPlayingSequence = false;
   int _memoryLevel = 1;
 
-  // Slide state
   double _slidePosition = 0.0;
 
   @override
@@ -2060,10 +2950,11 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
       duration: const Duration(milliseconds: 320),
     )..repeat(reverse: true);
 
-    // Continuous Loud Ringing Audio & Hardware Vibration
     SoundService().playAlarm(
       sound: widget.alarm.sound,
       vibrate: widget.alarm.vibrate,
+      soundKey: widget.alarm.soundKey,
+      customPath: widget.alarm.customSoundPath,
     );
 
     _initMission();
@@ -2102,17 +2993,17 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
   void _startShakeDetection() {
     try {
       _accelSub = accelerometerEventStream().listen((event) {
-        final g = math.sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+        final g = math
+            .sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
         final delta = (g - 9.8).abs();
         final now = DateTime.now();
 
-        if (delta > 11.0 && now.difference(_lastShakeTime).inMilliseconds > 220) {
+        if (delta > 11.0 &&
+            now.difference(_lastShakeTime).inMilliseconds > 220) {
           _lastShakeTime = now;
           HapticFeedback.heavyImpact();
           if (mounted) {
-            setState(() {
-              _currentShakes++;
-            });
+            setState(() => _currentShakes++);
             if (_currentShakes >= widget.alarm.shakeTarget) {
               _completeMission();
             }
@@ -2150,7 +3041,6 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
 
     final currentIdx = _userMemoryTaps.length - 1;
     if (_memorySequence[currentIdx] != tile) {
-      // Wrong tap
       HapticFeedback.vibrate();
       _userMemoryTaps.clear();
       _playMemorySequence();
@@ -2158,7 +3048,6 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     }
 
     if (_userMemoryTaps.length == _memorySequence.length) {
-      // Level passed!
       if (_memoryLevel >= 2) {
         _completeMission();
       } else {
@@ -2171,9 +3060,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
   void _handleMathDigit(String digit) {
     SoundService().playClick();
     if (_userMathInput.length < 5) {
-      setState(() {
-        _userMathInput += digit;
-      });
+      setState(() => _userMathInput += digit);
       if (int.tryParse(_userMathInput) == _mathAns) {
         _completeMission();
       }
@@ -2182,9 +3069,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
 
   void _handleMathClear() {
     SoundService().playClick();
-    setState(() {
-      _userMathInput = '';
-    });
+    setState(() => _userMathInput = '');
   }
 
   void _completeMission() {
@@ -2199,8 +3084,9 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Good Morning! Mission Complete. Alarm Dismissed.',
-          style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w700),
+          'Alarm Dismissed',
+          style: GoogleFonts.plusJakartaSans(
+              color: Colors.white, fontWeight: FontWeight.w700),
         ),
         backgroundColor: const Color(0xFF10B981),
         behavior: SnackBarBehavior.floating,
@@ -2215,12 +3101,11 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     SoundService().stopAlarm();
     SoundService().playClick();
 
-    // Schedule 5-minute snooze notification
     final snoozeDate = DateTime.now().add(const Duration(minutes: 5));
     NotificationService().scheduleAlarmNotification(
       id: 9999,
-      title: "Snooze Alarm: ${widget.alarm.label}",
-      body: "Wake up! Your 5-minute snooze is over.",
+      title: "Snooze: ${widget.alarm.label}",
+      body: "5-minute snooze complete",
       scheduledDate: snoozeDate,
     );
 
@@ -2229,8 +3114,9 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          'Snoozed for 5 minutes (rings at ${DateFormat('hh:mm a').format(snoozeDate)})',
-          style: GoogleFonts.plusJakartaSans(color: Colors.white, fontWeight: FontWeight.w600),
+          'Snoozed until ${DateFormat('hh:mm a').format(snoozeDate)}',
+          style: GoogleFonts.plusJakartaSans(
+              color: Colors.white, fontWeight: FontWeight.w600),
         ),
         backgroundColor: widget.theme.primary,
         behavior: SnackBarBehavior.floating,
@@ -2254,7 +3140,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     final isDark = theme.isDark;
 
     return Container(
-      height: MediaQuery.of(context).size.height * 0.94,
+      height: MediaQuery.of(context).size.height * 0.90,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       decoration: BoxDecoration(
         color: theme.bg,
@@ -2262,7 +3148,6 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
       ),
       child: Column(
         children: [
-          // Drag Notch
           Container(
             width: 46,
             height: 4.5,
@@ -2271,36 +3156,31 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
               borderRadius: BorderRadius.circular(10),
             ),
           ),
-          const SizedBox(height: 20),
-
-          // Animated 2D Ringing Bell
+          const SizedBox(height: 18),
           AnimatedBuilder(
             animation: _bellAnimController,
             builder: (context, child) {
-              final angle = math.sin(_bellAnimController.value * math.pi * 2) * 0.16;
-              return Transform.rotate(
-                angle: angle,
-                child: child,
-              );
+              final angle =
+                  math.sin(_bellAnimController.value * math.pi * 2) * 0.16;
+              return Transform.rotate(angle: angle, child: child);
             },
             child: Container(
-              width: 76,
-              height: 76,
+              width: 72,
+              height: 72,
               decoration: BoxDecoration(
                 color: theme.lavenderBubble,
                 shape: BoxShape.circle,
                 border: Border.all(color: theme.primary, width: 2.0),
               ),
-              child: Icon(Icons.notifications_active_rounded, size: 38, color: theme.primary),
+              child: Icon(Icons.notifications_active_rounded,
+                  size: 36, color: theme.primary),
             ),
           ),
-          const SizedBox(height: 12),
-
-          // Time & Alarm Label
+          const SizedBox(height: 10),
           Text(
             widget.alarm.formattedTime,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 40,
+              fontSize: 38,
               fontWeight: FontWeight.w800,
               letterSpacing: -1.5,
               color: theme.text,
@@ -2309,14 +3189,12 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
           Text(
             widget.alarm.label,
             style: GoogleFonts.plusJakartaSans(
-              fontSize: 16,
+              fontSize: 15,
               fontWeight: FontWeight.w600,
               color: theme.primary,
             ),
           ),
-          const SizedBox(height: 16),
-
-          // Interactive Mission View
+          const SizedBox(height: 14),
           Expanded(
             child: Container(
               width: double.infinity,
@@ -2329,10 +3207,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
               child: _buildMissionInterface(theme, isDark),
             ),
           ),
-
-          const SizedBox(height: 16),
-
-          // Snooze Button
+          const SizedBox(height: 14),
           BouncyTap(
             onTap: _snooze,
             scaleFraction: 0.94,
@@ -2348,10 +3223,11 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.snooze_rounded, color: theme.textSecondary, size: 18),
+                  Icon(Icons.snooze_rounded,
+                      color: theme.textSecondary, size: 18),
                   const SizedBox(width: 8),
                   Text(
-                    'Snooze for 5 minutes',
+                    'Snooze 5 min',
                     style: GoogleFonts.plusJakartaSans(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
@@ -2389,10 +3265,13 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                AlarmMissionSvgIcon(mission: WakeMissionType.math, size: 16, color: theme.primary),
+                AlarmMissionSvgIcon(
+                    mission: WakeMissionType.math,
+                    size: 16,
+                    color: theme.primary),
                 const SizedBox(width: 8),
                 Text(
-                  'Solve Arithmetic to Dismiss',
+                  'Math Challenge',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
@@ -2419,33 +3298,35 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                _userMathInput.isEmpty ? 'Tap answer below' : _userMathInput,
+                _userMathInput.isEmpty ? '?' : _userMathInput,
                 style: GoogleFonts.plusJakartaSans(
                   fontSize: 22,
                   fontWeight: FontWeight.w800,
-                  color: _userMathInput.isEmpty ? theme.textSecondary : theme.primary,
+                  color:
+                      _userMathInput.isEmpty ? theme.textSecondary : theme.primary,
                 ),
               ),
             ),
           ],
         ),
-
-        // Keypad Grid
         Column(
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: ['1', '2', '3'].map((d) => _buildKeypadBtn(d, theme)).toList(),
+              children:
+                  ['1', '2', '3'].map((d) => _buildKeypadBtn(d, theme)).toList(),
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: ['4', '5', '6'].map((d) => _buildKeypadBtn(d, theme)).toList(),
+              children:
+                  ['4', '5', '6'].map((d) => _buildKeypadBtn(d, theme)).toList(),
             ),
             const SizedBox(height: 8),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
-              children: ['7', '8', '9'].map((d) => _buildKeypadBtn(d, theme)).toList(),
+              children:
+                  ['7', '8', '9'].map((d) => _buildKeypadBtn(d, theme)).toList(),
             ),
             const SizedBox(height: 8),
             Row(
@@ -2462,7 +3343,8 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
     );
   }
 
-  Widget _buildKeypadBtn(String label, StationeryTheme theme, {bool isClear = false, bool isAction = false}) {
+  Widget _buildKeypadBtn(String label, StationeryTheme theme,
+      {bool isClear = false, bool isAction = false}) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6.0),
       child: BouncyTap(
@@ -2487,7 +3369,9 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
           decoration: BoxDecoration(
             color: isAction
                 ? theme.primary
-                : (isClear ? Colors.redAccent.withValues(alpha: 0.15) : theme.cardBg),
+                : (isClear
+                    ? Colors.redAccent.withValues(alpha: 0.15)
+                    : theme.cardBg),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
               color: isAction ? theme.primary : theme.border,
@@ -2519,10 +3403,11 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AlarmMissionSvgIcon(mission: WakeMissionType.shake, size: 20, color: theme.primary),
+            AlarmMissionSvgIcon(
+                mission: WakeMissionType.shake, size: 20, color: theme.primary),
             const SizedBox(width: 8),
             Text(
-              'Shake Your Phone!',
+              'Shake Phone',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -2531,14 +3416,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
             ),
           ],
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Physical motion wakes up your motor cortex',
-          style: GoogleFonts.plusJakartaSans(fontSize: 12, color: theme.textSecondary),
-        ),
-        const SizedBox(height: 24),
-
-        // Animated Radial Shake Progress
+        const SizedBox(height: 20),
         SizedBox(
           width: 140,
           height: 140,
@@ -2575,16 +3453,11 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
             ],
           ),
         ),
-
-        const SizedBox(height: 24),
-
-        // Fallback tap button for simulators or desk use
+        const SizedBox(height: 20),
         BouncyTap(
           onTap: () {
             HapticFeedback.heavyImpact();
-            setState(() {
-              _currentShakes++;
-            });
+            setState(() => _currentShakes++);
             if (_currentShakes >= widget.alarm.shakeTarget) {
               _completeMission();
             }
@@ -2602,7 +3475,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
                 Icon(Icons.touch_app_rounded, size: 16, color: theme.primary),
                 const SizedBox(width: 6),
                 Text(
-                  'Tap Shake (Desk Helper)',
+                  'Tap Shake',
                   style: GoogleFonts.plusJakartaSans(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
@@ -2619,10 +3492,10 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
 
   Widget _buildMemoryMission(StationeryTheme theme, bool isDark) {
     const tileColors = [
-      Color(0xFF8B5CF6), // Purple
-      Color(0xFF10B981), // Emerald
-      Color(0xFFF59E0B), // Amber
-      Color(0xFFEF4444), // Coral Red
+      Color(0xFF8B5CF6),
+      Color(0xFF10B981),
+      Color(0xFFF59E0B),
+      Color(0xFFEF4444),
     ];
 
     return Column(
@@ -2631,10 +3504,13 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AlarmMissionSvgIcon(mission: WakeMissionType.memory, size: 18, color: theme.primary),
+            AlarmMissionSvgIcon(
+                mission: WakeMissionType.memory,
+                size: 18,
+                color: theme.primary),
             const SizedBox(width: 8),
             Text(
-              'Memory Sequence (Level $_memoryLevel/2)',
+              'Mind Pattern ($_memoryLevel/2)',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
@@ -2645,16 +3521,14 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
         ),
         const SizedBox(height: 6),
         Text(
-          _isPlayingSequence ? 'Watch the sequence...' : 'Repeat the sequence in order!',
+          _isPlayingSequence ? 'Watch...' : 'Repeat!',
           style: GoogleFonts.plusJakartaSans(
             fontSize: 12,
             fontWeight: FontWeight.w600,
             color: _isPlayingSequence ? theme.primary : theme.textSecondary,
           ),
         ),
-        const SizedBox(height: 20),
-
-        // 2x2 Memory Pad Grid
+        const SizedBox(height: 18),
         SizedBox(
           width: 200,
           height: 200,
@@ -2673,7 +3547,9 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   decoration: BoxDecoration(
-                    color: isLit ? color : color.withValues(alpha: isDark ? 0.25 : 0.15),
+                    color: isLit
+                        ? color
+                        : color.withValues(alpha: isDark ? 0.25 : 0.15),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: isLit ? Colors.white : color,
@@ -2705,10 +3581,11 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            AlarmMissionSvgIcon(mission: WakeMissionType.slide, size: 20, color: theme.primary),
+            AlarmMissionSvgIcon(
+                mission: WakeMissionType.slide, size: 20, color: theme.primary),
             const SizedBox(width: 8),
             Text(
-              'Gentle Morning',
+              'Smooth Slide',
               style: GoogleFonts.plusJakartaSans(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -2717,14 +3594,7 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        Text(
-          'Slide all the way to dismiss alarm',
-          style: GoogleFonts.plusJakartaSans(fontSize: 12, color: theme.textSecondary),
-        ),
-        const SizedBox(height: 36),
-
-        // Slide Track
+        const SizedBox(height: 30),
         LayoutBuilder(
           builder: (context, constraints) {
             final trackWidth = constraints.maxWidth;
@@ -2736,7 +3606,8 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
               decoration: BoxDecoration(
                 color: theme.lavenderBubble,
                 borderRadius: BorderRadius.circular(32),
-                border: Border.all(color: theme.primary.withValues(alpha: 0.3), width: 1.5),
+                border: Border.all(
+                    color: theme.primary.withValues(alpha: 0.3), width: 1.5),
               ),
               child: Stack(
                 alignment: Alignment.centerLeft,
@@ -2756,7 +3627,9 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
                     child: GestureDetector(
                       onHorizontalDragUpdate: (details) {
                         setState(() {
-                          _slidePosition = (_slidePosition + details.delta.dx).clamp(0.0, maxSlide);
+                          _slidePosition =
+                              (_slidePosition + details.delta.dx)
+                                  .clamp(0.0, maxSlide);
                         });
                         if (_slidePosition >= maxSlide * 0.95) {
                           _completeMission();
@@ -2781,7 +3654,8 @@ class _RingingAlarmModalState extends State<_RingingAlarmModal>
                             ),
                           ],
                         ),
-                        child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 24),
+                        child: const Icon(Icons.arrow_forward_rounded,
+                            color: Colors.white, size: 24),
                       ),
                     ),
                   ),
@@ -2890,23 +3764,28 @@ class _SlideSunriseSvgPainter extends CustomPainter {
       ..color = color.withValues(alpha: 0.18)
       ..style = PaintingStyle.fill;
 
-    // Horizon line
     canvas.drawLine(
       Offset(size.width * 0.12, size.height * 0.70),
       Offset(size.width * 0.88, size.height * 0.70),
       paint,
     );
 
-    // Rising Sun Half Circle
     final sunCenter = Offset(size.width * 0.50, size.height * 0.70);
     final sunRadius = size.width * 0.26;
     final sunRect = Rect.fromCircle(center: sunCenter, radius: sunRadius);
-    final sunPath = Path()..arcTo(sunRect, math.pi, math.pi, false)..close();
+    final sunPath = Path()
+      ..arcTo(sunRect, math.pi, math.pi, false)
+      ..close();
     canvas.drawPath(sunPath, fillPaint);
     canvas.drawArc(sunRect, math.pi, math.pi, false, paint);
 
-    // Sun Rays
-    final rayAngles = [math.pi * 1.18, math.pi * 1.35, math.pi * 1.5, math.pi * 1.65, math.pi * 1.82];
+    final rayAngles = [
+      math.pi * 1.18,
+      math.pi * 1.35,
+      math.pi * 1.5,
+      math.pi * 1.65,
+      math.pi * 1.82
+    ];
     for (final angle in rayAngles) {
       final inner = Offset(
         sunCenter.dx + math.cos(angle) * (sunRadius + 2.5),
@@ -2919,14 +3798,12 @@ class _SlideSunriseSvgPainter extends CustomPainter {
       canvas.drawLine(inner, outer, paint..strokeWidth = 1.6);
     }
 
-    // Directional slide track arrow at the bottom
     final arrowTrackY = size.height * 0.88;
     canvas.drawLine(
       Offset(size.width * 0.22, arrowTrackY),
       Offset(size.width * 0.76, arrowTrackY),
       paint..strokeWidth = 1.8,
     );
-    // Arrow tip
     canvas.drawLine(
       Offset(size.width * 0.65, arrowTrackY - 3.2),
       Offset(size.width * 0.78, arrowTrackY),
@@ -2940,7 +3817,8 @@ class _SlideSunriseSvgPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SlideSunriseSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _SlideSunriseSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _MathMissionSvgPainter extends CustomPainter {
@@ -2960,25 +3838,25 @@ class _MathMissionSvgPainter extends CustomPainter {
       ..color = color
       ..style = PaintingStyle.fill;
 
-    // + in top-left
-    canvas.drawLine(Offset(size.width * 0.18, size.height * 0.30), Offset(size.width * 0.42, size.height * 0.30), stroke);
-    canvas.drawLine(Offset(size.width * 0.30, size.height * 0.18), Offset(size.width * 0.30, size.height * 0.42), stroke);
-
-    // - in top-right
-    canvas.drawLine(Offset(size.width * 0.60, size.height * 0.30), Offset(size.width * 0.84, size.height * 0.30), stroke);
-
-    // x in bottom-left
-    canvas.drawLine(Offset(size.width * 0.20, size.height * 0.62), Offset(size.width * 0.40, size.height * 0.82), stroke);
-    canvas.drawLine(Offset(size.width * 0.40, size.height * 0.62), Offset(size.width * 0.20, size.height * 0.82), stroke);
-
-    // division in bottom-right
-    canvas.drawLine(Offset(size.width * 0.60, size.height * 0.72), Offset(size.width * 0.84, size.height * 0.72), stroke);
+    canvas.drawLine(Offset(size.width * 0.18, size.height * 0.30),
+        Offset(size.width * 0.42, size.height * 0.30), stroke);
+    canvas.drawLine(Offset(size.width * 0.30, size.height * 0.18),
+        Offset(size.width * 0.30, size.height * 0.42), stroke);
+    canvas.drawLine(Offset(size.width * 0.60, size.height * 0.30),
+        Offset(size.width * 0.84, size.height * 0.30), stroke);
+    canvas.drawLine(Offset(size.width * 0.20, size.height * 0.62),
+        Offset(size.width * 0.40, size.height * 0.82), stroke);
+    canvas.drawLine(Offset(size.width * 0.40, size.height * 0.62),
+        Offset(size.width * 0.20, size.height * 0.82), stroke);
+    canvas.drawLine(Offset(size.width * 0.60, size.height * 0.72),
+        Offset(size.width * 0.84, size.height * 0.72), stroke);
     canvas.drawCircle(Offset(size.width * 0.72, size.height * 0.62), 1.5, dotPaint);
     canvas.drawCircle(Offset(size.width * 0.72, size.height * 0.82), 1.5, dotPaint);
   }
 
   @override
-  bool shouldRepaint(covariant _MathMissionSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _MathMissionSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _ShakePhoneSvgPainter extends CustomPainter {
@@ -2994,7 +3872,6 @@ class _ShakePhoneSvgPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    // Center Phone
     final phoneRect = RRect.fromRectAndRadius(
       Rect.fromCenter(
         center: Offset(size.width * 0.50, size.height * 0.50),
@@ -3005,34 +3882,33 @@ class _ShakePhoneSvgPainter extends CustomPainter {
     );
     canvas.drawRRect(phoneRect, stroke);
 
-    // Speaker / Notch top
     canvas.drawLine(
       Offset(size.width * 0.44, size.height * 0.22),
       Offset(size.width * 0.56, size.height * 0.22),
       stroke..strokeWidth = 1.4,
     );
-    // Home pill bottom
     canvas.drawLine(
       Offset(size.width * 0.44, size.height * 0.78),
       Offset(size.width * 0.56, size.height * 0.78),
       stroke..strokeWidth = 1.4,
     );
 
-    // Left Vibration Motion Waves
     final leftWave = Path()
       ..moveTo(size.width * 0.18, size.height * 0.32)
-      ..quadraticBezierTo(size.width * 0.08, size.height * 0.50, size.width * 0.18, size.height * 0.68);
+      ..quadraticBezierTo(
+          size.width * 0.08, size.height * 0.50, size.width * 0.18, size.height * 0.68);
     canvas.drawPath(leftWave, stroke..strokeWidth = 1.8);
 
-    // Right Vibration Motion Waves
     final rightWave = Path()
       ..moveTo(size.width * 0.82, size.height * 0.32)
-      ..quadraticBezierTo(size.width * 0.92, size.height * 0.50, size.width * 0.82, size.height * 0.68);
+      ..quadraticBezierTo(
+          size.width * 0.92, size.height * 0.50, size.width * 0.82, size.height * 0.68);
     canvas.drawPath(rightWave, stroke);
   }
 
   @override
-  bool shouldRepaint(covariant _ShakePhoneSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _ShakePhoneSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _MemoryGridSvgPainter extends CustomPainter {
@@ -3055,31 +3931,31 @@ class _MemoryGridSvgPainter extends CustomPainter {
     final tileH = size.height * 0.32;
     const r = Radius.circular(3.5);
 
-    // 4 tactile sequence quadrants
-    // Top-left
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.14, size.height * 0.14, tileW, tileH), r),
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(size.width * 0.14, size.height * 0.14, tileW, tileH), r),
       stroke,
     );
-    // Top-right (active highlighted memory tile)
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.54, size.height * 0.14, tileW, tileH), r),
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(size.width * 0.54, size.height * 0.14, tileW, tileH), r),
       fill,
     );
-    // Bottom-left
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.14, size.height * 0.54, tileW, tileH), r),
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(size.width * 0.14, size.height * 0.54, tileW, tileH), r),
       stroke,
     );
-    // Bottom-right
     canvas.drawRRect(
-      RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.54, size.height * 0.54, tileW, tileH), r),
+      RRect.fromRectAndRadius(
+          Rect.fromLTWH(size.width * 0.54, size.height * 0.54, tileW, tileH), r),
       stroke,
     );
   }
 
   @override
-  bool shouldRepaint(covariant _MemoryGridSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _MemoryGridSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _SleepMoonSvgPainter extends CustomPainter {
@@ -3099,7 +3975,6 @@ class _SleepMoonSvgPainter extends CustomPainter {
       ..color = color.withValues(alpha: 0.15)
       ..style = PaintingStyle.fill;
 
-    // Crescent Moon
     final moon = Path();
     moon.moveTo(size.width * 0.58, size.height * 0.14);
     moon.arcToPoint(
@@ -3115,10 +3990,11 @@ class _SleepMoonSvgPainter extends CustomPainter {
     canvas.drawPath(moon, fill);
     canvas.drawPath(moon, stroke);
 
-    // Orbiting Sleep Star Sparkles
     void drawSparkle(Offset center, double s) {
-      canvas.drawLine(Offset(center.dx - s, center.dy), Offset(center.dx + s, center.dy), stroke..strokeWidth = 1.4);
-      canvas.drawLine(Offset(center.dx, center.dy - s), Offset(center.dx, center.dy + s), stroke..strokeWidth = 1.4);
+      canvas.drawLine(Offset(center.dx - s, center.dy),
+          Offset(center.dx + s, center.dy), stroke..strokeWidth = 1.4);
+      canvas.drawLine(Offset(center.dx, center.dy - s),
+          Offset(center.dx, center.dy + s), stroke..strokeWidth = 1.4);
     }
 
     drawSparkle(Offset(size.width * 0.78, size.height * 0.28), 3.0);
@@ -3126,7 +4002,8 @@ class _SleepMoonSvgPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _SleepMoonSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _SleepMoonSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _LightningNapSvgPainter extends CustomPainter {
@@ -3160,7 +4037,8 @@ class _LightningNapSvgPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _LightningNapSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _LightningNapSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _ZenFocusNapSvgPainter extends CustomPainter {
@@ -3176,22 +4054,29 @@ class _ZenFocusNapSvgPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round;
 
     final center = Offset(size.width * 0.5, size.height * 0.5);
-    // Outer focus ring
     canvas.drawCircle(center, size.width * 0.36, stroke);
-    // Inner zen ring
     canvas.drawCircle(center, size.width * 0.18, stroke);
-    // Center calm focus dot
-    canvas.drawCircle(center, 2.0, Paint()..color = color..style = PaintingStyle.fill);
+    canvas.drawCircle(
+      center,
+      2.0,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
 
-    // Cross marks
-    canvas.drawLine(Offset(center.dx, size.height * 0.06), Offset(center.dx, size.height * 0.16), stroke..strokeWidth = 1.5);
-    canvas.drawLine(Offset(center.dx, size.height * 0.84), Offset(center.dx, size.height * 0.94), stroke);
-    canvas.drawLine(Offset(size.width * 0.06, center.dy), Offset(size.width * 0.16, center.dy), stroke);
-    canvas.drawLine(Offset(size.width * 0.84, center.dy), Offset(size.width * 0.94, center.dy), stroke);
+    canvas.drawLine(Offset(center.dx, size.height * 0.06),
+        Offset(center.dx, size.height * 0.16), stroke..strokeWidth = 1.5);
+    canvas.drawLine(Offset(center.dx, size.height * 0.84),
+        Offset(center.dx, size.height * 0.94), stroke);
+    canvas.drawLine(Offset(size.width * 0.06, center.dy),
+        Offset(size.width * 0.16, center.dy), stroke);
+    canvas.drawLine(Offset(size.width * 0.84, center.dy),
+        Offset(size.width * 0.94, center.dy), stroke);
   }
 
   @override
-  bool shouldRepaint(covariant _ZenFocusNapSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _ZenFocusNapSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _BatteryNapSvgPainter extends CustomPainter {
@@ -3207,35 +4092,38 @@ class _BatteryNapSvgPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    final fill = Paint()
-      ..color = color
-      ..style = PaintingStyle.fill;
-
-    // Battery Body
-    final body = RRect.fromRectAndRadius(
-      Rect.fromLTWH(size.width * 0.18, size.height * 0.22, size.width * 0.56, size.height * 0.56),
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.14, size.height * 0.28, size.width * 0.64,
+          size.height * 0.44),
       const Radius.circular(3.5),
     );
-    canvas.drawRRect(body, stroke);
+    canvas.drawRRect(bodyRect, stroke);
 
-    // Terminal Pin
-    final terminal = RRect.fromRectAndRadius(
-      Rect.fromLTWH(size.width * 0.74, size.height * 0.38, size.width * 0.09, size.height * 0.24),
-      const Radius.circular(1.5),
+    canvas.drawLine(
+      Offset(size.width * 0.84, size.height * 0.42),
+      Offset(size.width * 0.84, size.height * 0.58),
+      stroke..strokeWidth = 2.2,
     );
-    canvas.drawRRect(terminal, fill);
 
-    // Energy level bars
-    final barW = size.width * 0.10;
-    final barH = size.height * 0.36;
-    final barY = size.height * 0.32;
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.25, barY, barW, barH), const Radius.circular(1.5)), fill);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.40, barY, barW, barH), const Radius.circular(1.5)), fill);
-    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(size.width * 0.55, barY, barW, barH), const Radius.circular(1.5)), fill);
+    final bolt = Path()
+      ..moveTo(size.width * 0.48, size.height * 0.36)
+      ..lineTo(size.width * 0.38, size.height * 0.50)
+      ..lineTo(size.width * 0.47, size.height * 0.50)
+      ..lineTo(size.width * 0.44, size.height * 0.64)
+      ..lineTo(size.width * 0.55, size.height * 0.48)
+      ..lineTo(size.width * 0.47, size.height * 0.48)
+      ..close();
+    canvas.drawPath(
+      bolt,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.fill,
+    );
   }
 
   @override
-  bool shouldRepaint(covariant _BatteryNapSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _BatteryNapSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _RemWaveNapSvgPainter extends CustomPainter {
@@ -3247,24 +4135,20 @@ class _RemWaveNapSvgPainter extends CustomPainter {
     final stroke = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
+      ..strokeWidth = 1.8
+      ..strokeCap = StrokeCap.round;
 
-    // REM Sleep Brainwave Curve
-    final wave = Path()
-      ..moveTo(size.width * 0.10, size.height * 0.52)
-      ..lineTo(size.width * 0.24, size.height * 0.52)
-      ..lineTo(size.width * 0.34, size.height * 0.24)
-      ..lineTo(size.width * 0.48, size.height * 0.78)
-      ..lineTo(size.width * 0.60, size.height * 0.34)
-      ..lineTo(size.width * 0.72, size.height * 0.64)
-      ..lineTo(size.width * 0.80, size.height * 0.52)
-      ..lineTo(size.width * 0.90, size.height * 0.52);
-
-    canvas.drawPath(wave, stroke);
+    for (final yRatio in [0.34, 0.52, 0.70]) {
+      final y = size.height * yRatio;
+      final path = Path()
+        ..moveTo(size.width * 0.12, y)
+        ..quadraticBezierTo(size.width * 0.32, y - 5, size.width * 0.50, y)
+        ..quadraticBezierTo(size.width * 0.68, y + 5, size.width * 0.88, y);
+      canvas.drawPath(path, stroke);
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _RemWaveNapSvgPainter oldDelegate) => oldDelegate.color != color;
+  bool shouldRepaint(covariant _RemWaveNapSvgPainter oldDelegate) =>
+      oldDelegate.color != color;
 }

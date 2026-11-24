@@ -45,6 +45,7 @@ class StorageService {
   static const String keyStopwatchElapsedMs = 'tooler_stopwatch_elapsed_ms';
   static const String keyStopwatchLaps = 'tooler_stopwatch_laps';
   static const String keyAlarms = 'tooler_alarms';
+  static const String keyCustomAlarmSounds = 'tooler_custom_alarm_sounds';
 
   Future<bool> loadTamperProtection() async {
     final prefs = await SharedPreferences.getInstance();
@@ -419,6 +420,26 @@ class StorageService {
     final prefs = await SharedPreferences.getInstance();
     final jsonStr = jsonEncode(alarms);
     await prefs.setString(keyAlarms, jsonStr);
+  }
+
+  Future<List<Map<String, String>>> loadCustomAlarmSounds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final jsonStr = prefs.getString(keyCustomAlarmSounds);
+    if (jsonStr == null || jsonStr.isEmpty) return [];
+    try {
+      final List<dynamic> list = jsonDecode(jsonStr);
+      return list
+          .whereType<Map>()
+          .map((e) => e.map((k, v) => MapEntry(k.toString(), v.toString())))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  Future<void> saveCustomAlarmSounds(List<Map<String, String>> sounds) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(keyCustomAlarmSounds, jsonEncode(sounds));
   }
 
   Future<void> clearAllData() async {
