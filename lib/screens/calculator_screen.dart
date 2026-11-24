@@ -50,7 +50,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
   ProgWordSize _progWordSize = ProgWordSize.qword64;
   BigInt _progValue = BigInt.zero;
 
-  // Clock Mode on holding 'C' for at least 3 sec
+  // Clock Mode on holding 'C' for 2 seconds
   bool _isClockMode = false;
   String _clockHourMin = '';
   String _clockSec = '';
@@ -207,7 +207,7 @@ class _CalculatorScreenState extends State<CalculatorScreen>
     });
   }
 
-  // --- Real-Time Clock Mode on Holding 'C' for 3 seconds ---
+  // --- Real-Time Clock Mode on Holding 'C' for 2 seconds ---
   void _activateLiveClock() {
     SoundService().playSuccess();
     HapticFeedback.heavyImpact();
@@ -1230,31 +1230,10 @@ class _CalculatorScreenState extends State<CalculatorScreen>
                             ],
                           ),
                         ),
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              icon: Icon(
-                                _isClockMode ? Icons.calculate_rounded : Icons.access_time_rounded,
-                                color: _isClockMode ? widget.theme.primary : widget.theme.text,
-                                size: 22,
-                              ),
-                              tooltip: _isClockMode ? "Calculator" : "Digital Clock (Hold C)",
-                              onPressed: () {
-                                HapticFeedback.selectionClick();
-                                if (_isClockMode) {
-                                  _deactivateLiveClock();
-                                } else {
-                                  _activateLiveClock();
-                                }
-                              },
-                            ),
-                            IconButton(
-                              icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
-                              tooltip: "Tape History",
-                              onPressed: _showHistoryModal,
-                            ),
-                          ],
+                        IconButton(
+                          icon: Icon(Icons.history_rounded, color: widget.theme.text, size: 22),
+                          tooltip: "Tape History",
+                          onPressed: _showHistoryModal,
                         ),
                       ],
                     ),
@@ -2202,7 +2181,7 @@ class _AnimatedCalcButtonState extends State<_AnimatedCalcButton> with SingleTic
     _cancelHoldTimer();
     if (widget.onThreeSecondHold != null) {
       _pulseController.repeat(reverse: true);
-      _holdTimer = Timer(const Duration(milliseconds: 2200), () {
+      _holdTimer = Timer(const Duration(seconds: 2), () {
         if (mounted && _isPressed) {
           _didTriggerHold = true;
           _pulseController.stop();

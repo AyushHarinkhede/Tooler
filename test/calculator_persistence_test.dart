@@ -142,4 +142,34 @@ void main() {
     expect(savedProg?['expression'], 'FA');
     expect(find.text('BASE CONVERSIONS'), findsOneWidget);
   });
+
+  testWidgets(
+      'Direct clock icon is removed and holding C for 2 seconds activates live clock',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CalculatorScreen(theme: testTheme),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Direct clock button is removed, History button remains
+    expect(find.byIcon(Icons.access_time_rounded), findsNothing);
+    expect(find.byIcon(Icons.history_rounded), findsOneWidget);
+
+    // Press and hold 'C' for 2 seconds -> live clock activates
+    final cFinder = find.byKey(const ValueKey<String>('calc_key_C'));
+    final gesture = await tester.startGesture(tester.getCenter(cFinder));
+    await tester.pump(const Duration(milliseconds: 1500));
+    expect(find.text('AM').evaluate().isEmpty && find.text('PM').evaluate().isEmpty, isTrue);
+
+    await tester.pump(const Duration(milliseconds: 550));
+    await gesture.up();
+    await tester.pump();
+
+    expect(
+      find.text('AM').evaluate().isNotEmpty || find.text('PM').evaluate().isNotEmpty,
+      isTrue,
+    );
+  });
 }
