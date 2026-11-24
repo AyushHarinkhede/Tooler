@@ -49,7 +49,7 @@ class _WidgetSettingsScreenState extends State<WidgetSettingsScreen> {
     {'id': 'weather', 'title': 'Weather', 'iconType': 'weather'},
     {'id': 'games', 'title': 'Games', 'iconType': 'games'},
     {'id': 'steps', 'title': 'Step Counter', 'iconType': 'steps'},
-    {'id': 'recorder', 'title': 'Noise & Rec', 'iconType': 'recorder'},
+    {'id': 'recorder', 'title': 'NoiseCapture', 'iconType': 'recorder'},
     {'id': 'radio', 'title': 'FM Radio', 'iconType': 'radio'},
     {'id': 'power', 'title': 'Power', 'iconType': 'power'},
     {'id': 'speed_test', 'title': 'Speed Test', 'iconType': 'speed_test'},

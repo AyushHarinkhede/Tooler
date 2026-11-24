@@ -644,7 +644,7 @@ class _HomeScreenState extends State<HomeScreen> {
           {'name': 'High-Fidelity Audio Recorder', 'desc': 'Crystal clear voice and audio recording with pause, resume & instant playback'},
         ],
         'keywords': [
-          'noise meter', 'decibel meter', 'decibel', 'db', 'sound level', 'noise check',
+          'noisecapture', 'noise capture', 'noise meter', 'decibel meter', 'decibel', 'db', 'sound level', 'noise check',
           'sound meter', 'audio recorder', 'voice recorder', 'microphone', 'mic',
           'sound wave', 'waveform', 'harm level', 'safe level', 'hearing protection',
           'acoustic', 'loudness', 'volume meter', 'audio recording', 'voice memo',

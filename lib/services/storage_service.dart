@@ -306,20 +306,35 @@ class StorageService {
     await saveTheme(isDark, accent);
   }
 
+  Future<List<String>> _readNormalizedFavorites(SharedPreferences prefs) async {
+    final raw = prefs.getStringList(keyFavorites) ?? [];
+    bool changed = false;
+    final migrated = <String>[];
+    for (final title in raw) {
+      final normalized = title == 'Noise Meter & Recorder' ? 'NoiseCapture' : title;
+      if (normalized != title) changed = true;
+      if (!migrated.contains(normalized)) migrated.add(normalized);
+    }
+    if (changed) {
+      await prefs.setStringList(keyFavorites, migrated);
+    }
+    return migrated;
+  }
+
   Future<List<String>> loadFavorites() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getStringList(keyFavorites) ?? [];
+    return _readNormalizedFavorites(prefs);
   }
 
   Future<bool> isToolFavorite(String toolTitle) async {
     final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(keyFavorites) ?? [];
+    final list = await _readNormalizedFavorites(prefs);
     return list.contains(toolTitle);
   }
 
   Future<bool> toggleToolFavorite(String toolTitle) async {
     final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(keyFavorites) ?? [];
+    final list = await _readNormalizedFavorites(prefs);
     final bool isFav = list.contains(toolTitle);
     if (isFav) {
       list.remove(toolTitle);
