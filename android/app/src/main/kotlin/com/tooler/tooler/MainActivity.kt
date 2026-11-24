@@ -67,12 +67,15 @@ open class MainActivity : FlutterActivity() {
     private val FM_RADIO_CHANNEL = "com.tooler.tooler/fm_radio"
     private val WIDGET_CHANNEL = "com.tooler.tooler/widgets"
     private val NETWORK_SPEED_CHANNEL = "com.tooler.tooler/network_speed"
+    private val APP_UPDATER_CHANNEL = "com.tooler.tooler/app_updater"
+    private val APP_UPDATER_EVENTS_CHANNEL = "com.tooler.tooler/app_updater_events"
 
     private var fmSpeakerOverride = false
 
     private var securityEngine: ToolerSecurityEngine? = null
     private var browserDownloader: ToolerBrowserDownloader? = null
     private var browserPrivacyEngine: ToolerBrowserPrivacyEngine? = null
+    private var appUpdater: ToolerAppUpdater? = null
 
     // Home Screen Widget deep-link routing state
     protected var widgetMethodChannel: MethodChannel? = null
@@ -302,6 +305,24 @@ open class MainActivity : FlutterActivity() {
         super.onResume()
         enableTrueFullScreenEdgeToEdge()
         enableHighRefreshRate()
+        if (ToolerStepService.hasActivityPermission(this)) {
+            ToolerStepSyncJobService.schedule(this)
+            try {
+                val stepIntent = Intent(this, ToolerStepService::class.java).apply {
+                    action = ToolerStepService.ACTION_START_TRACKING
+                }
+                startService(stepIntent)
+            } catch (_: Throwable) {}
+        }
+    }
+
+    override fun onStop() {
+        // Release active foreground sensor listener when UI leaves screen;
+        // Hardware Step Counter co-processor + JobScheduler continue passively with zero FGS.
+        try {
+            stopService(Intent(this, ToolerStepService::class.java))
+        } catch (_: Throwable) {}
+        super.onStop()
     }
 
     /// Forces true edge-to-edge rendering into display cutout / punch-hole areas
@@ -1615,6 +1636,44 @@ open class MainActivity : FlutterActivity() {
                     val mode = call.argument<String>("mode") ?: "AUTO"
                     val success = setPreferredNetworkMode(mode)
                     result.success(success)
+                }
+                else -> result.notImplemented()
+            }
+        }
+
+        // In-App GitHub APK Self-Updater Channel
+        val updater = ToolerAppUpdater(applicationContext)
+        appUpdater = updater
+
+        EventChannel(flutterEngine.dartExecutor.binaryMessenger, APP_UPDATER_EVENTS_CHANNEL).setStreamHandler(
+            object : EventChannel.StreamHandler {
+                override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                    updater.progressSink = events
+                }
+
+                override fun onCancel(arguments: Any?) {
+                    updater.progressSink = null
+                }
+            }
+        )
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, APP_UPDATER_CHANNEL).setMethodCallHandler { call, result ->
+            when (call.method) {
+                "getCurrentVersionInfo" -> {
+                    result.success(updater.getCurrentVersionInfo())
+                }
+                "canInstallUnknownPackages" -> {
+                    result.success(updater.canInstallUnknownPackages())
+                }
+                "openInstallPermissionSettings" -> {
+                    result.success(updater.openInstallPermissionSettings())
+                }
+                "startUpdate" -> {
+                    updater.startUpdateFromGithub()
+                    result.success(true)
+                }
+                "launchPendingInstall" -> {
+                    result.success(updater.launchPendingInstall())
                 }
                 else -> result.notImplemented()
             }

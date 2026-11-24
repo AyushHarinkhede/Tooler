@@ -9,13 +9,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.content.pm.PackageManager
-import android.content.pm.ServiceInfo
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import androidx.core.content.ContextCompat
 import io.flutter.plugin.common.EventChannel
 import org.json.JSONArray
@@ -28,22 +29,18 @@ import kotlin.math.sqrt
 
 /**
  * ---------------------------------------------------------------------------
- * TOOLER STEP SERVICE (Ultra-Safe Hardware Pedometer Service)
+ * TOOLER STEP SERVICE (Hardware Sensor Hub + Foreground-Only Live Listener)
  * ---------------------------------------------------------------------------
- * - Direct Hardware Step Counter (Sensor.TYPE_STEP_COUNTER) with reboot recovery
- * - Hardware Step Detector (Sensor.TYPE_STEP_DETECTOR) with cadence debounce
- * - Accelerometer (Sensor.TYPE_ACCELEROMETER) safe fallback
- * - 0% Background battery drain: strictly hardware sensor driven (Zero GPS drain)
- * - Android 14 (API 34) Foreground Service Health compliance with full crash-safety
- * - Synchronized with Flutter SharedPreferences
+ * - Reads Android's always-on Hardware Step Counter (Sensor.TYPE_STEP_COUNTER)
+ *   without locking a 24/7 foreground service or appearing in Active Apps
+ * - While the app UI is visible in foreground, streams real-time step events
+ * - When the app moves to background, stops the active listener and relies on
+ *   the low-power hardware co-processor + JobScheduler periodic snapshot sync
  * ---------------------------------------------------------------------------
  */
 class ToolerStepService : Service(), SensorEventListener {
 
     companion object {
-        const val CHANNEL_ID = "tooler_step_counter_channel"
-        const val NOTIFICATION_ID = 5120
-
         const val ACTION_START_TRACKING = "com.tooler.tooler.ACTION_START_STEP_TRACKING"
         const val ACTION_STOP_TRACKING = "com.tooler.tooler.ACTION_STOP_STEP_TRACKING"
         const val ACTION_RESET_DATA = "com.tooler.tooler.ACTION_RESET_STEP_DATA"
@@ -58,6 +55,7 @@ class ToolerStepService : Service(), SensorEventListener {
         const val KEY_HISTORY = "flutter.tooler_steps_history_records_v2"
         const val KEY_INSTALLED_TIME = "flutter.tooler_steps_installed_time_v2"
         const val KEY_HARDWARE_BASELINE = "flutter.tooler_steps_hw_baseline_v2"
+        const val KEY_HAS_BASELINE = "flutter.tooler_steps_has_hw_baseline_v2"
         const val KEY_LAST_HARDWARE_VALUE = "flutter.tooler_steps_last_hw_val_v2"
         const val KEY_VEHICLE_MODE = "flutter.tooler_steps_vehicle_mode_v2"
 
@@ -76,9 +74,8 @@ class ToolerStepService : Service(), SensorEventListener {
         @Volatile var lastLatitude: Double = 0.0
         @Volatile var lastLongitude: Double = 0.0
 
-        // Active Event Sink for real-time Flutter push
         var eventSink: EventChannel.EventSink? = null
-        private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
+        private val mainHandler = Handler(Looper.getMainLooper())
         private var lastPushTimestamp = 0L
 
         fun pushLiveTelemetry(force: Boolean = false) {
@@ -108,6 +105,291 @@ class ToolerStepService : Service(), SensorEventListener {
                 } catch (_: Throwable) {}
             }
         }
+
+        fun hasActivityPermission(context: Context): Boolean {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContextCompat.checkSelfPermission(
+                    context,
+                    android.Manifest.permission.ACTIVITY_RECOGNITION
+                ) == PackageManager.PERMISSION_GRANTED
+            } else true
+        }
+
+        fun loadPersistedIntoMemory(context: Context) {
+            try {
+                val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                liveTodaySteps = p.getInt(KEY_TODAY_STEPS, 0)
+                liveActiveSeconds = p.getInt(KEY_ACTIVE_SECONDS, 0)
+                liveDistanceKm = String.format(Locale.US, "%.2f", (liveTodaySteps * 0.762) / 1000.0).toDoubleOrNull() ?: 0.0
+                recalculateSpeedStatic()
+            } catch (_: Throwable) {}
+        }
+
+        private fun recalculateSpeedStatic() {
+            if (liveActiveSeconds > 10 && liveDistanceKm > 0.01) {
+                val hours = liveActiveSeconds / 3600.0
+                if (hours > 0) {
+                    val rawSpeed = liveDistanceKm / hours
+                    liveSpeedKmh = String.format(Locale.US, "%.1f", rawSpeed.coerceIn(1.5, 12.0)).toDoubleOrNull() ?: 4.5
+                    return
+                }
+            }
+            liveSpeedKmh = if (isWalkingNow) 4.5 else 0.0
+        }
+
+        fun checkDayRolloverStatic(context: Context) {
+            val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val lastDateStr = p.getString(KEY_LAST_DATE, null)
+
+            if (lastDateStr != null && lastDateStr != todayStr) {
+                if (liveTodaySteps > 0) {
+                    try {
+                        val rawHist = p.getString(KEY_HISTORY, "[]") ?: "[]"
+                        val histArray = JSONArray(rawHist)
+
+                        val yesterdayObj = JSONObject().apply {
+                            put("date", "${lastDateStr}T00:00:00.000Z")
+                            put("steps", liveTodaySteps)
+                            put("distanceKm", liveDistanceKm)
+                            put("avgSpeedKmh", if (liveSpeedKmh > 0) liveSpeedKmh else 4.5)
+                            put("caloriesKcal", (liveTodaySteps * 0.042).toInt())
+                            put("activeMinutes", (liveActiveSeconds / 60))
+                        }
+
+                        val updatedArray = JSONArray()
+                        updatedArray.put(yesterdayObj)
+                        for (i in 0 until histArray.length()) {
+                            if (i < 365) updatedArray.put(histArray.getJSONObject(i))
+                        }
+                        p.edit().putString(KEY_HISTORY, updatedArray.toString()).apply()
+                    } catch (_: Throwable) {}
+                }
+
+                liveTodaySteps = 0
+                liveActiveSeconds = 0
+                liveDistanceKm = 0.0
+                p.edit()
+                    .putInt(KEY_TODAY_STEPS, 0)
+                    .putInt(KEY_ACTIVE_SECONDS, 0)
+                    .putString(KEY_TRAIL_POINTS, "[]")
+                    .putString(KEY_LAST_DATE, todayStr)
+                    .remove(KEY_HARDWARE_BASELINE)
+                    .putBoolean(KEY_HAS_BASELINE, false)
+                    .remove("flutter.tooler_step_goal_notif_date")
+                    .putInt("flutter.tooler_last_step_milestone_notified", 0)
+                    .apply()
+
+                pushLiveTelemetry(force = true)
+            } else if (lastDateStr == null) {
+                p.edit().putString(KEY_LAST_DATE, todayStr).apply()
+            }
+        }
+
+        fun processHardwareStepValue(context: Context, currentHwVal: Int) {
+            loadPersistedIntoMemory(context)
+            checkDayRolloverStatic(context)
+
+            val p = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val hasBaseline = p.getBoolean(KEY_HAS_BASELINE, false) || p.contains(KEY_HARDWARE_BASELINE)
+            val savedBaseline = p.getInt(KEY_HARDWARE_BASELINE, 0)
+            val lastHwVal = p.getInt(KEY_LAST_HARDWARE_VALUE, currentHwVal)
+
+            val newBaseline: Int
+            if (!hasBaseline || currentHwVal < lastHwVal) {
+                // Initial setup or post-reboot reset: preserve today's steps even if negative baseline is needed
+                newBaseline = currentHwVal - liveTodaySteps
+                p.edit()
+                    .putInt(KEY_HARDWARE_BASELINE, newBaseline)
+                    .putBoolean(KEY_HAS_BASELINE, true)
+                    .putInt(KEY_LAST_HARDWARE_VALUE, currentHwVal)
+                    .apply()
+            } else {
+                newBaseline = savedBaseline
+            }
+
+            val computedSteps = (currentHwVal - newBaseline).coerceAtLeast(0)
+            if (computedSteps > liveTodaySteps) {
+                val delta = computedSteps - liveTodaySteps
+                liveTodaySteps = computedSteps
+                liveActiveSeconds += (delta * 0.7).toInt().coerceAtLeast(1)
+                liveDistanceKm = String.format(Locale.US, "%.2f", (liveTodaySteps * 0.762) / 1000.0).toDoubleOrNull() ?: 0.0
+
+                isWalkingNow = true
+                recalculateSpeedStatic()
+                currentActivity = if (liveSpeedKmh > 7.0) "Running" else (if (liveSpeedKmh > 4.5) "Brisk Walk" else "Walking")
+
+                p.edit()
+                    .putInt(KEY_TODAY_STEPS, liveTodaySteps)
+                    .putInt(KEY_ACTIVE_SECONDS, liveActiveSeconds)
+                    .putInt(KEY_LAST_HARDWARE_VALUE, currentHwVal)
+                    .apply()
+
+                checkBackgroundStepMilestonesStatic(context, p)
+                ToolerStepWidgetProvider.updateAllWidgets(context)
+                pushLiveTelemetry()
+            } else if (currentHwVal != lastHwVal) {
+                p.edit().putInt(KEY_LAST_HARDWARE_VALUE, currentHwVal).apply()
+            }
+        }
+
+        /**
+         * Reads a single batched value from the device's always-on hardware step sensor
+         * without starting a foreground service, then immediately unregisters.
+         */
+        fun syncHardwareSnapshotOnce(context: Context, onComplete: (() -> Unit)? = null) {
+            val appCtx = context.applicationContext
+            if (!hasActivityPermission(appCtx)) {
+                onComplete?.invoke()
+                return
+            }
+
+            val sm = appCtx.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+            val stepSensor = sm?.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+            if (sm == null || stepSensor == null) {
+                onComplete?.invoke()
+                return
+            }
+
+            var finished = false
+            lateinit var listener: SensorEventListener
+            val timeoutRunnable = Runnable {
+                if (!finished) {
+                    finished = true
+                    try { sm.unregisterListener(listener) } catch (_: Throwable) {}
+                    onComplete?.invoke()
+                }
+            }
+
+            listener = object : SensorEventListener {
+                override fun onSensorChanged(event: SensorEvent?) {
+                    if (finished) return
+                    finished = true
+                    mainHandler.removeCallbacks(timeoutRunnable)
+                    try { sm.unregisterListener(this) } catch (_: Throwable) {}
+                    if (event != null && event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
+                        isHardwareSynced = true
+                        processHardwareStepValue(appCtx, event.values[0].toInt())
+                    }
+                    onComplete?.invoke()
+                }
+
+                override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
+            }
+
+            try {
+                val registered = sm.registerListener(listener, stepSensor, SensorManager.SENSOR_DELAY_NORMAL, 0)
+                if (!registered) {
+                    onComplete?.invoke()
+                    return
+                }
+                mainHandler.postDelayed(timeoutRunnable, 1200L)
+            } catch (_: Throwable) {
+                try { sm.unregisterListener(listener) } catch (_: Throwable) {}
+                onComplete?.invoke()
+            }
+        }
+
+        private fun checkBackgroundStepMilestonesStatic(context: Context, p: SharedPreferences) {
+            try {
+                val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                val goal = p.getInt(KEY_DAILY_GOAL, 10000)
+
+                val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val fitnessChannel = NotificationChannel(
+                        "tooler_fitness_channel",
+                        "Step Counter Goals & Milestones",
+                        NotificationManager.IMPORTANCE_HIGH
+                    ).apply {
+                        description = "Daily step goal completions, 1,000-step milestones & 6-hour progress checks"
+                        enableVibration(true)
+                    }
+                    nm.createNotificationChannel(fitnessChannel)
+                }
+
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                    ?: Intent(context, MainActivity::class.java)
+                val pi = PendingIntent.getActivity(
+                    context,
+                    4000,
+                    launchIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+
+                // 1. Goal Complete Check
+                if (liveTodaySteps >= goal && liveTodaySteps > 0) {
+                    val lastGoalDate = p.getString("flutter.tooler_step_goal_notif_date", null)
+                    if (lastGoalDate != todayStr) {
+                        p.edit().putString("flutter.tooler_step_goal_notif_date", todayStr).apply()
+                        val calories = (liveTodaySteps * 0.042).toInt()
+                        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            Notification.Builder(context, "tooler_fitness_channel")
+                        } else {
+                            @Suppress("DEPRECATION")
+                            Notification.Builder(context)
+                        }
+                        val notif = builder
+                            .setSmallIcon(R.drawable.ic_step_notification)
+                            .setContentTitle("🏆 Daily Step Goal Achieved! 🎉")
+                            .setContentText("Incredible effort! You hit your goal of $goal steps today ($liveDistanceKm km, $calories kcal burned). Keep up the great streak!")
+                            .setAutoCancel(true)
+                            .setContentIntent(pi)
+                            .build()
+                        nm.notify(4001, notif)
+                    }
+                }
+
+                // 2. 1,000 Step Milestone Check
+                val lastMilestone = p.getInt("flutter.tooler_last_step_milestone_notified", 0)
+                if (liveTodaySteps >= lastMilestone + 1000 && liveTodaySteps >= 1000) {
+                    val currentMilestone = (liveTodaySteps / 1000) * 1000
+                    if (currentMilestone > lastMilestone) {
+                        p.edit().putInt("flutter.tooler_last_step_milestone_notified", currentMilestone).apply()
+                        val calories = (liveTodaySteps * 0.042).toInt()
+                        val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            Notification.Builder(context, "tooler_fitness_channel")
+                        } else {
+                            @Suppress("DEPRECATION")
+                            Notification.Builder(context)
+                        }
+                        val notif = builder
+                            .setSmallIcon(R.drawable.ic_step_notification)
+                            .setContentTitle("👟 Step Milestone: $currentMilestone Steps!")
+                            .setContentText("You've covered $liveDistanceKm km and burned $calories kcal today.")
+                            .setAutoCancel(true)
+                            .setContentIntent(pi)
+                            .build()
+                        nm.notify(4002, notif)
+                    }
+                }
+
+                // 3. Every 6 Hours Periodic Check (8:00 AM to 10:00 PM)
+                val nowMs = System.currentTimeMillis()
+                val last6HrMs = p.getLong("flutter.tooler_last_step_6hr_notif_time", 0L)
+                val cal = java.util.Calendar.getInstance()
+                val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
+                if ((nowMs - last6HrMs >= 6 * 3600 * 1000L) && hour in 8..22 && liveTodaySteps > 0) {
+                    p.edit().putLong("flutter.tooler_last_step_6hr_notif_time", nowMs).apply()
+                    val calories = (liveTodaySteps * 0.042).toInt()
+                    val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        Notification.Builder(context, "tooler_fitness_channel")
+                    } else {
+                        @Suppress("DEPRECATION")
+                        Notification.Builder(context)
+                    }
+                    val notif = builder
+                        .setSmallIcon(R.drawable.ic_step_notification)
+                        .setContentTitle("🚶 6-Hour Step Progress")
+                        .setContentText("Active progress: $liveTodaySteps steps ($liveDistanceKm km · $calories kcal). Stay energized!")
+                        .setAutoCancel(true)
+                        .setContentIntent(pi)
+                        .build()
+                    nm.notify(4003, notif)
+                }
+            } catch (_: Throwable) {}
+        }
     }
 
     private var sensorManager: SensorManager? = null
@@ -118,7 +400,6 @@ class ToolerStepService : Service(), SensorEventListener {
     private var prefs: SharedPreferences? = null
     private var lastStepTimestamp: Long = 0L
 
-    // Step Detector Cadence & Debounce Buffer
     private val detectorTimestamps = ArrayList<Long>()
     private var isDetectorCadenceActive = false
     private val REQUIRED_COMMIT_STEPS = 5
@@ -126,7 +407,6 @@ class ToolerStepService : Service(), SensorEventListener {
     private val MAX_STEP_INTERVAL_MS = 1400L
     private val CADENCE_TIMEOUT_MS = 2200L
 
-    // Accelerometer fallback filter
     private var lastAccelStepMs = 0L
     private var isAccelPeakRising = false
 
@@ -139,9 +419,8 @@ class ToolerStepService : Service(), SensorEventListener {
             sensorManager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
 
             initInstallTimestamp()
-            loadPersistedState()
-            checkDayRollover()
-            createNotificationChannel()
+            loadPersistedIntoMemory(this)
+            checkDayRolloverStatic(this)
         } catch (_: Throwable) {}
     }
 
@@ -151,7 +430,8 @@ class ToolerStepService : Service(), SensorEventListener {
 
             when (action) {
                 ACTION_START_TRACKING -> {
-                    startForegroundTracking()
+                    startLiveForegroundOnlyTracking()
+                    ToolerStepSyncJobService.schedule(this)
                 }
                 ACTION_STOP_TRACKING -> {
                     stopTracking()
@@ -163,7 +443,7 @@ class ToolerStepService : Service(), SensorEventListener {
             }
         } catch (_: Throwable) {}
 
-        return START_STICKY
+        return START_NOT_STICKY
     }
 
     private fun initInstallTimestamp() {
@@ -178,59 +458,12 @@ class ToolerStepService : Service(), SensorEventListener {
         } catch (_: Throwable) {}
     }
 
-    private fun loadPersistedState() {
-        try {
-            val p = prefs ?: return
-            liveTodaySteps = p.getInt(KEY_TODAY_STEPS, 0)
-            liveActiveSeconds = p.getInt(KEY_ACTIVE_SECONDS, 0)
-            liveDistanceKm = String.format(Locale.US, "%.2f", (liveTodaySteps * 0.762) / 1000.0).toDoubleOrNull() ?: 0.0
-            recalculateSpeed()
-        } catch (_: Throwable) {}
-    }
-
-    private fun recalculateSpeed() {
-        if (liveActiveSeconds > 10 && liveDistanceKm > 0.01) {
-            val hours = liveActiveSeconds / 3600.0
-            if (hours > 0) {
-                val rawSpeed = liveDistanceKm / hours
-                liveSpeedKmh = String.format(Locale.US, "%.1f", rawSpeed.coerceIn(1.5, 12.0)).toDoubleOrNull() ?: 4.5
-                return
-            }
-        }
-        liveSpeedKmh = if (isWalkingNow) 4.5 else 0.0
-    }
-
-    private fun startForegroundTracking() {
+    private fun startLiveForegroundOnlyTracking() {
         isServiceRunning = true
-
         try {
             registerSensors()
         } catch (_: Throwable) {}
-
         pushLiveTelemetry(force = true)
-
-        val hasActivity = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
-        } else true
-
-        if (!hasActivity) {
-            return
-        }
-
-        try {
-            val notification = buildOngoingNotification(
-                "Tooler Step Counter Active",
-                "$liveTodaySteps steps today · ${String.format(Locale.US, "%.2f", liveDistanceKm)} km"
-            ) ?: return
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH)
-            } else {
-                startForeground(NOTIFICATION_ID, notification)
-            }
-        } catch (_: Throwable) {
-            // Never crash if foreground service cannot start - remain running safely as background service
-        }
     }
 
     private fun stopTracking() {
@@ -238,26 +471,20 @@ class ToolerStepService : Service(), SensorEventListener {
         try {
             sensorManager?.unregisterListener(this)
         } catch (_: Throwable) {}
-        try {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } catch (_: Throwable) {}
     }
 
     private fun registerSensors() {
         val sm = sensorManager ?: return
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val hasPerm = ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
-                if (!hasPerm) {
-                    isHardwareSynced = false
-                    return
-                }
+            if (!hasActivityPermission(this)) {
+                isHardwareSynced = false
+                return
             }
 
-            // 1. Hardware Step Counter (Priority #1)
+            // 1. Hardware Step Counter (Priority #1 — runs in hardware co-processor)
             stepCounterSensor = sm.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
             if (stepCounterSensor != null) {
-                val registered = sm.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_UI)
+                val registered = sm.registerListener(this, stepCounterSensor, SensorManager.SENSOR_DELAY_NORMAL)
                 if (registered) {
                     isHardwareSynced = true
                     return
@@ -267,17 +494,17 @@ class ToolerStepService : Service(), SensorEventListener {
             // 2. Hardware Step Detector (Priority #2)
             stepDetectorSensor = sm.getDefaultSensor(Sensor.TYPE_STEP_DETECTOR)
             if (stepDetectorSensor != null) {
-                val registered = sm.registerListener(this, stepDetectorSensor, SensorManager.SENSOR_DELAY_UI)
+                val registered = sm.registerListener(this, stepDetectorSensor, SensorManager.SENSOR_DELAY_NORMAL)
                 if (registered) {
                     isHardwareSynced = true
                     return
                 }
             }
 
-            // 3. Accelerometer (Fallback on older hardware)
+            // 3. Accelerometer (Fallback only while UI is open in foreground)
             accelSensor = sm.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
             if (accelSensor != null) {
-                val registered = sm.registerListener(this, accelSensor, SensorManager.SENSOR_DELAY_UI)
+                val registered = sm.registerListener(this, accelSensor, SensorManager.SENSOR_DELAY_NORMAL)
                 isHardwareSynced = registered
             } else {
                 isHardwareSynced = false
@@ -292,12 +519,13 @@ class ToolerStepService : Service(), SensorEventListener {
         val now = System.currentTimeMillis()
 
         try {
-            checkDayRollover()
+            checkDayRolloverStatic(this)
 
             when (event.sensor.type) {
                 Sensor.TYPE_STEP_COUNTER -> {
                     val currentHwVal = event.values[0].toInt()
-                    handleHardwareStepCounter(currentHwVal)
+                    lastStepTimestamp = now
+                    processHardwareStepValue(this, currentHwVal)
                 }
                 Sensor.TYPE_STEP_DETECTOR -> {
                     if (event.values[0] == 1.0f) {
@@ -305,7 +533,6 @@ class ToolerStepService : Service(), SensorEventListener {
                     }
                 }
                 Sensor.TYPE_ACCELEROMETER -> {
-                    // Only process accelerometer if hardware step counter & detector are absent
                     if (stepCounterSensor == null && stepDetectorSensor == null) {
                         handleAccelerometerFallback(event.values[0], event.values[1], event.values[2], now)
                     }
@@ -315,47 +542,6 @@ class ToolerStepService : Service(), SensorEventListener {
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}
-
-    private fun handleHardwareStepCounter(currentHwVal: Int) {
-        val p = prefs ?: return
-        val savedBaseline = p.getInt(KEY_HARDWARE_BASELINE, -1)
-        val lastHwVal = p.getInt(KEY_LAST_HARDWARE_VALUE, currentHwVal)
-
-        val newBaseline: Int
-        if (savedBaseline == -1 || currentHwVal < lastHwVal) {
-            // Initial baseline or phone reboot reset
-            newBaseline = (currentHwVal - liveTodaySteps).coerceAtLeast(0)
-            p.edit()
-                .putInt(KEY_HARDWARE_BASELINE, newBaseline)
-                .putInt(KEY_LAST_HARDWARE_VALUE, currentHwVal)
-                .apply()
-        } else {
-            newBaseline = savedBaseline
-        }
-
-        val computedSteps = (currentHwVal - newBaseline).coerceAtLeast(0)
-        if (computedSteps > liveTodaySteps) {
-            val delta = computedSteps - liveTodaySteps
-            liveTodaySteps = computedSteps
-            liveActiveSeconds += (delta * 0.7).toInt().coerceAtLeast(1)
-            liveDistanceKm = String.format(Locale.US, "%.2f", (liveTodaySteps * 0.762) / 1000.0).toDoubleOrNull() ?: 0.0
-
-            isWalkingNow = true
-            recalculateSpeed()
-            currentActivity = if (liveSpeedKmh > 7.0) "Running" else (if (liveSpeedKmh > 4.5) "Brisk Walk" else "Walking")
-            lastStepTimestamp = System.currentTimeMillis()
-
-            p.edit()
-                .putInt(KEY_TODAY_STEPS, liveTodaySteps)
-                .putInt(KEY_ACTIVE_SECONDS, liveActiveSeconds)
-                .putInt(KEY_LAST_HARDWARE_VALUE, currentHwVal)
-                .apply()
-
-            updateNotification()
-            checkBackgroundStepMilestones()
-            pushLiveTelemetry()
-        }
-    }
 
     private fun handleStepDetectorEvent(now: Long) {
         if (detectorTimestamps.isNotEmpty() && (now - detectorTimestamps.last()) > CADENCE_TIMEOUT_MS) {
@@ -386,8 +572,8 @@ class ToolerStepService : Service(), SensorEventListener {
 
     private fun handleAccelerometerFallback(x: Float, y: Float, z: Float, now: Long) {
         val mag = sqrt((x * x + y * y + z * z).toDouble())
-        val minMag = 11.2 // Heel-strike acceleration threshold (m/s² with gravity)
-        val minInterval = 280L // ~3.5 steps/sec max
+        val minMag = 11.2
+        val minInterval = 280L
         val maxInterval = 1400L
 
         if (mag > minMag && !isAccelPeakRising && (now - lastAccelStepMs > minInterval)) {
@@ -408,176 +594,25 @@ class ToolerStepService : Service(), SensorEventListener {
         liveActiveSeconds += count
         liveDistanceKm = String.format(Locale.US, "%.2f", (liveTodaySteps * 0.762) / 1000.0).toDoubleOrNull() ?: 0.0
         isWalkingNow = true
-        recalculateSpeed()
+        recalculateSpeedStatic()
         currentActivity = if (liveSpeedKmh > 7.0) "Running" else (if (liveSpeedKmh > 4.5) "Brisk Walk" else "Walking")
         lastStepTimestamp = System.currentTimeMillis()
 
-        prefs?.edit()
-            ?.putInt(KEY_TODAY_STEPS, liveTodaySteps)
-            ?.putInt(KEY_ACTIVE_SECONDS, liveActiveSeconds)
-            ?.apply()
+        val p = prefs ?: getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        p.edit()
+            .putInt(KEY_TODAY_STEPS, liveTodaySteps)
+            .putInt(KEY_ACTIVE_SECONDS, liveActiveSeconds)
+            .apply()
 
         if (liveTodaySteps % 5 == 0 || count > 1) {
-            updateNotification()
-            checkBackgroundStepMilestones()
+            checkBackgroundStepMilestonesStatic(this, p)
             ToolerStepWidgetProvider.updateAllWidgets(this)
         }
         pushLiveTelemetry()
     }
 
-    private fun checkBackgroundStepMilestones() {
-        try {
-            val p = prefs ?: return
-            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            val goal = p.getInt(KEY_DAILY_GOAL, 10000)
-
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val fitnessChannel = NotificationChannel(
-                    "tooler_fitness_channel",
-                    "Step Counter Goals & Milestones",
-                    NotificationManager.IMPORTANCE_HIGH
-                ).apply {
-                    description = "Daily step goal completions, 1,000-step milestones & 6-hour progress checks"
-                    enableVibration(true)
-                }
-                nm.createNotificationChannel(fitnessChannel)
-            }
-
-            val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
-                ?: Intent(this, MainActivity::class.java)
-            val pi = PendingIntent.getActivity(
-                this,
-                4000,
-                launchIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-            // 1. Goal Complete Check (Strictly once per day upon crossing goal)
-            if (liveTodaySteps >= goal && liveTodaySteps > 0) {
-                val lastGoalDate = p.getString("flutter.tooler_step_goal_notif_date", null)
-                if (lastGoalDate != todayStr) {
-                    p.edit().putString("flutter.tooler_step_goal_notif_date", todayStr).apply()
-                    val calories = (liveTodaySteps * 0.042).toInt()
-                    val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        Notification.Builder(this, "tooler_fitness_channel")
-                    } else {
-                        @Suppress("DEPRECATION")
-                        Notification.Builder(this)
-                    }
-                    val notif = builder
-                        .setSmallIcon(R.drawable.ic_step_notification)
-                        .setContentTitle("🏆 Daily Step Goal Achieved! 🎉")
-                        .setContentText("Incredible effort! You hit your goal of $goal steps today ($liveDistanceKm km, $calories kcal burned). Keep up the great streak!")
-                        .setAutoCancel(true)
-                        .setContentIntent(pi)
-                        .build()
-                    nm.notify(4001, notif)
-                }
-            }
-
-            // 2. 1,000 Step Milestone Check (har 1,000 cover karne par)
-            val lastMilestone = p.getInt("flutter.tooler_last_step_milestone_notified", 0)
-            if (liveTodaySteps >= lastMilestone + 1000 && liveTodaySteps >= 1000) {
-                val currentMilestone = (liveTodaySteps / 1000) * 1000
-                if (currentMilestone > lastMilestone) {
-                    p.edit().putInt("flutter.tooler_last_step_milestone_notified", currentMilestone).apply()
-                    val calories = (liveTodaySteps * 0.042).toInt()
-                    val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                        Notification.Builder(this, "tooler_fitness_channel")
-                    } else {
-                        @Suppress("DEPRECATION")
-                        Notification.Builder(this)
-                    }
-                    val notif = builder
-                        .setSmallIcon(R.drawable.ic_step_notification)
-                        .setContentTitle("👟 Step Milestone: $currentMilestone Steps!")
-                        .setContentText("You've covered $liveDistanceKm km and burned $calories kcal today.")
-                        .setAutoCancel(true)
-                        .setContentIntent(pi)
-                        .build()
-                    nm.notify(4002, notif)
-                }
-            }
-
-            // 3. Every 6 Hours Periodic Check (daytime 8:00 AM to 10:00 PM)
-            val nowMs = System.currentTimeMillis()
-            val last6HrMs = p.getLong("flutter.tooler_last_step_6hr_notif_time", 0L)
-            val cal = java.util.Calendar.getInstance()
-            val hour = cal.get(java.util.Calendar.HOUR_OF_DAY)
-            if ((nowMs - last6HrMs >= 6 * 3600 * 1000L) && hour in 8..22 && liveTodaySteps > 0) {
-                p.edit().putLong("flutter.tooler_last_step_6hr_notif_time", nowMs).apply()
-                val calories = (liveTodaySteps * 0.042).toInt()
-                val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    Notification.Builder(this, "tooler_fitness_channel")
-                } else {
-                    @Suppress("DEPRECATION")
-                    Notification.Builder(this)
-                }
-                val notif = builder
-                    .setSmallIcon(R.drawable.ic_step_notification)
-                    .setContentTitle("🚶 6-Hour Step Progress")
-                    .setContentText("Active progress: $liveTodaySteps steps ($liveDistanceKm km · $calories kcal). Stay energized!")
-                    .setAutoCancel(true)
-                    .setContentIntent(pi)
-                    .build()
-                nm.notify(4003, notif)
-            }
-        } catch (_: Throwable) {}
-    }
-
-    private fun checkDayRollover() {
-        val p = prefs ?: return
-        val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-        val lastDateStr = p.getString(KEY_LAST_DATE, null)
-
-        if (lastDateStr != null && lastDateStr != todayStr) {
-            if (liveTodaySteps > 0) {
-                try {
-                    val rawHist = p.getString(KEY_HISTORY, "[]") ?: "[]"
-                    val histArray = JSONArray(rawHist)
-
-                    val yesterdayObj = JSONObject().apply {
-                        put("date", "${lastDateStr}T00:00:00.000Z")
-                        put("steps", liveTodaySteps)
-                        put("distanceKm", liveDistanceKm)
-                        put("avgSpeedKmh", if (liveSpeedKmh > 0) liveSpeedKmh else 4.5)
-                        put("caloriesKcal", (liveTodaySteps * 0.042).toInt())
-                        put("activeMinutes", (liveActiveSeconds / 60))
-                    }
-
-                    val updatedArray = JSONArray()
-                    updatedArray.put(yesterdayObj)
-                    for (i in 0 until histArray.length()) {
-                        if (i < 365) updatedArray.put(histArray.getJSONObject(i))
-                    }
-                    p.edit().putString(KEY_HISTORY, updatedArray.toString()).apply()
-                } catch (_: Throwable) {}
-            }
-
-            liveTodaySteps = 0
-            liveActiveSeconds = 0
-            liveDistanceKm = 0.0
-            p.edit()
-                .putInt(KEY_TODAY_STEPS, 0)
-                .putInt(KEY_ACTIVE_SECONDS, 0)
-                .putString(KEY_TRAIL_POINTS, "[]")
-                .putString(KEY_LAST_DATE, todayStr)
-                .remove(KEY_HARDWARE_BASELINE)
-                .remove("flutter.tooler_step_goal_notif_date")
-                .putInt("flutter.tooler_last_step_milestone_notified", 0)
-                .apply()
-
-            updateNotification()
-            pushLiveTelemetry(force = true)
-        } else if (lastDateStr == null) {
-            p.edit().putString(KEY_LAST_DATE, todayStr).apply()
-        }
-    }
-
     private fun resetAllData() {
-        val p = prefs ?: return
+        val p = prefs ?: getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         liveTodaySteps = 0
         liveActiveSeconds = 0
         liveDistanceKm = 0.0
@@ -587,69 +622,10 @@ class ToolerStepService : Service(), SensorEventListener {
             .putString(KEY_TRAIL_POINTS, "[]")
             .putString(KEY_HISTORY, "[]")
             .remove(KEY_HARDWARE_BASELINE)
+            .putBoolean(KEY_HAS_BASELINE, false)
             .remove(KEY_LAST_HARDWARE_VALUE)
             .apply()
-        updateNotification()
         pushLiveTelemetry(force = true)
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            try {
-                val name = "Pedometer & Step Tracker"
-                val desc = "Hardware step counter active tracking"
-                val importance = NotificationManager.IMPORTANCE_LOW
-                val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                    description = desc
-                    setShowBadge(false)
-                    enableLights(false)
-                    enableVibration(false)
-                }
-                val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-                nm?.createNotificationChannel(channel)
-            } catch (_: Throwable) {}
-        }
-    }
-
-    private fun buildOngoingNotification(title: String, text: String): Notification? {
-        return try {
-            val launchIntent = packageManager.getLaunchIntentForPackage(packageName) ?: Intent(this, MainActivity::class.java)
-            val pendingIntent = PendingIntent.getActivity(
-                this,
-                0,
-                launchIntent,
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-            )
-
-            val builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Notification.Builder(this, CHANNEL_ID)
-            } else {
-                @Suppress("DEPRECATION")
-                Notification.Builder(this)
-            }
-
-            builder.setSmallIcon(android.R.drawable.ic_menu_directions)
-                .setContentTitle(title)
-                .setContentText(text)
-                .setOngoing(true)
-                .setAutoCancel(false)
-                .setContentIntent(pendingIntent)
-                .build()
-        } catch (_: Throwable) {
-            null
-        }
-    }
-
-    private fun updateNotification() {
-        if (!isServiceRunning) return
-        try {
-            val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager
-            val notif = buildOngoingNotification(
-                "Tooler Step Counter Active",
-                "$liveTodaySteps steps today · ${String.format(Locale.US, "%.2f", liveDistanceKm)} km"
-            ) ?: return
-            nm?.notify(NOTIFICATION_ID, notif)
-        } catch (_: Throwable) {}
     }
 
     override fun onDestroy() {

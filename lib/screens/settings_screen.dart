@@ -8,6 +8,7 @@ import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../services/widget_service.dart';
+import '../services/app_update_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_character.dart';
@@ -38,7 +39,9 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
+  final AppUpdateService _updateService = AppUpdateService();
   late bool _isDark;
   late ToolerAccent _accent;
   late bool _useMaterialYou;
@@ -51,6 +54,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _updateService.ensureListening();
     _isDark = widget.theme.isDark;
     _accent = widget.theme.accentPalette;
     _useMaterialYou = widget.theme.useMaterialYou;
@@ -60,6 +65,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _loadMaterialYouPalette();
     _loadNotificationPref();
     _loadTamperPref();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _updateService.status == AppUpdateStatus.needsPermission) {
+      _checkAndResumePendingInstall();
+    }
+  }
+
+  Future<void> _checkAndResumePendingInstall() async {
+    final allowed = await _updateService.canInstallUnknownPackages();
+    if (allowed) {
+      await _updateService.launchPendingInstall();
+    }
   }
 
   Future<void> _loadMaterialYouPalette() async {
@@ -501,6 +527,410 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _showUpdateWarningHoverPage() {
+    SoundService().playClick();
+    HapticFeedback.lightImpact();
+    showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: 'Dismiss',
+      barrierColor: Colors.black.withValues(alpha: 0.60),
+      transitionDuration: const Duration(milliseconds: 280),
+      pageBuilder: (ctx, anim, secAnim) {
+        final theme = _currentTheme;
+        final isDark = theme.isDark;
+        const warnAmber = Color(0xFFF59E0B);
+
+        return Center(
+          child: Material(
+            color: Colors.transparent,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1A1A20) : Colors.white,
+                    borderRadius: BorderRadius.circular(26),
+                    border: Border.all(
+                      color: warnAmber.withValues(alpha: 0.45),
+                      width: 1.4,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: isDark ? 0.55 : 0.22),
+                        blurRadius: 28,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: warnAmber.withValues(alpha: 0.16),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: warnAmber.withValues(alpha: 0.4),
+                                width: 1.1,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.warning_amber_rounded,
+                              color: warnAmber,
+                              size: 24,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              'Update App Warning',
+                              style: GoogleFonts.plusJakartaSans(
+                                fontSize: 17.5,
+                                fontWeight: FontWeight.w800,
+                                color: theme.text,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            onPressed: () {
+                              SoundService().playClick();
+                              Navigator.pop(ctx);
+                            },
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: theme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _buildUpdateWarningRow(
+                        theme,
+                        icon: Icons.cloud_download_rounded,
+                        text:
+                            'Downloads the latest Tooler.apk directly from github.com/AyushHarinkhede/Tooler.',
+                      ),
+                      const SizedBox(height: 10),
+                      _buildUpdateWarningRow(
+                        theme,
+                        icon: Icons.cleaning_services_rounded,
+                        text:
+                            'Removes older Tooler.apk files saved by the app on your device and replaces them with the new package.',
+                      ),
+                      const SizedBox(height: 10),
+                      _buildUpdateWarningRow(
+                        theme,
+                        icon: Icons.install_mobile_rounded,
+                        text:
+                            'Opens Android\'s system Package Installer so the update installs cleanly over the current app.',
+                      ),
+                      const SizedBox(height: 10),
+                      _buildUpdateWarningRow(
+                        theme,
+                        icon: Icons.shield_outlined,
+                        text:
+                            'Allow "Install unknown apps" if asked. Google Play Protect cannot be disabled by an app; tap "Install anyway" if prompted.',
+                      ),
+                      const SizedBox(height: 18),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () {
+                                SoundService().playClick();
+                                Navigator.pop(ctx);
+                              },
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                side: BorderSide(color: theme.border, width: 1.2),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                              child: Text(
+                                'Cancel',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton.icon(
+                              onPressed: () {
+                                SoundService().playSpecialClick();
+                                HapticFeedback.mediumImpact();
+                                Navigator.pop(ctx);
+                                _updateService.startUpdate();
+                              },
+                              icon: const Icon(
+                                Icons.system_update_rounded,
+                                size: 18,
+                              ),
+                              label: Text(
+                                'Download & Update',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 13.5,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: theme.primary,
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      transitionBuilder: (ctx, anim, secAnim, child) {
+        final curved = CurvedAnimation(
+          parent: anim,
+          curve: Curves.easeOutBack,
+          reverseCurve: Curves.easeIn,
+        );
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.88, end: 1.0).animate(curved),
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildUpdateWarningRow(
+    StationeryTheme theme, {
+    required IconData icon,
+    required String text,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 1.5),
+          child: Icon(icon, size: 17, color: theme.primary),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: GoogleFonts.plusJakartaSans(
+              fontSize: 12.5,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+              color: theme.textSecondary,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUpdateAppCard(StationeryTheme theme) {
+    return _buildSectionCard(
+      title: 'Update App',
+      child: AnimatedBuilder(
+        animation: _updateService,
+        builder: (context, _) {
+          final status = _updateService.status;
+          final isBusy = _updateService.isBusy;
+          final percent = _updateService.percent;
+          final bytesText = _updateService.formatBytesProgress();
+
+          final bool isReadyToInstall = status == AppUpdateStatus.ready ||
+              status == AppUpdateStatus.installing ||
+              status == AppUpdateStatus.needsPermission;
+          final bool isError = status == AppUpdateStatus.error;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BouncyTap(
+                onTap: () {
+                  if (isBusy) return;
+                  if (isReadyToInstall) {
+                    SoundService().playClick();
+                    _updateService.launchPendingInstall();
+                  } else {
+                    _showUpdateWarningHoverPage();
+                  }
+                },
+                scaleFraction: isBusy ? 1.0 : 0.97,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: isError
+                          ? Colors.red.withValues(alpha: 0.12)
+                          : theme.primary.withValues(
+                              alpha: isBusy ? 0.14 : 1.0,
+                            ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isError
+                            ? Colors.red.withValues(alpha: 0.5)
+                            : theme.primary,
+                        width: 1.3,
+                      ),
+                    ),
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        if (isBusy)
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: FractionallySizedBox(
+                              widthFactor: _updateService.progress.clamp(0.04, 1.0),
+                              heightFactor: 1.0,
+                              child: Container(
+                                color: theme.primary.withValues(alpha: 0.85),
+                              ),
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (isBusy) ...[
+                                SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.3,
+                                    value: status == AppUpdateStatus.downloading
+                                        ? _updateService.progress.clamp(0.05, 1.0)
+                                        : null,
+                                    color: Colors.white,
+                                    backgroundColor:
+                                        Colors.white.withValues(alpha: 0.25),
+                                  ),
+                                ),
+                                const SizedBox(width: 9),
+                                Icon(
+                                  status == AppUpdateStatus.replacing
+                                      ? Icons.cleaning_services_rounded
+                                      : Icons.downloading_rounded,
+                                  size: 19,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 9),
+                                Flexible(
+                                  child: Text(
+                                    bytesText.isNotEmpty
+                                        ? '$percent%  •  $bytesText'
+                                        : '$percent%',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 13.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ] else if (isReadyToInstall) ...[
+                                const Icon(
+                                  Icons.install_mobile_rounded,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  status == AppUpdateStatus.needsPermission
+                                      ? 'Allow & Install'
+                                      : 'Install Update',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ] else if (isError) ...[
+                                const Icon(
+                                  Icons.refresh_rounded,
+                                  size: 20,
+                                  color: Colors.red,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Update',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.red,
+                                  ),
+                                ),
+                              ] else ...[
+                                const Icon(
+                                  Icons.system_update_rounded,
+                                  size: 20,
+                                  color: Colors.white,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Update',
+                                  style: GoogleFonts.plusJakartaSans(
+                                    fontSize: 14.5,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if ((isError || status == AppUpdateStatus.needsPermission) &&
+                  _updateService.message.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _updateService.message,
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w600,
+                    color: isError ? Colors.red : theme.primary,
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   void _confirmClearData() {
     SoundService().playClick();
     showDialog(
@@ -603,43 +1033,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 38,
-                        height: 38,
-                        decoration: BoxDecoration(
-                          color: theme.lavenderCard,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          _isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
-                          size: 20,
-                          color: theme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Dark Mode',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                              color: theme.text,
-                            ),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: theme.lavenderCard,
+                            shape: BoxShape.circle,
                           ),
-                          Text(
-                            _isDark ? 'Midnight Obsidian' : 'Clean Pure White',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              color: theme.textSecondary,
-                            ),
+                          child: Icon(
+                            _isDark ? Icons.dark_mode_rounded : Icons.light_mode_rounded,
+                            size: 20,
+                            color: theme.primary,
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Dark Mode',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.text,
+                                ),
+                              ),
+                              Text(
+                                _isDark ? 'Midnight Obsidian' : 'Clean Pure White',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 12,
+                                  color: theme.textSecondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   Switch.adaptive(
                     value: _isDark,
@@ -900,19 +1336,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.volume_up_outlined, size: 20, color: theme.textSecondary),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Sound Click on Tap',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: theme.text,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(Icons.volume_up_outlined, size: 20, color: theme.textSecondary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Sound Click on Tap',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.text,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       Switch.adaptive(
                         value: _soundOn,
@@ -931,19 +1373,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Icon(Icons.vibration_rounded, size: 20, color: theme.textSecondary),
-                          const SizedBox(width: 12),
-                          Text(
-                            'Haptic Vibration on Tap',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                              color: theme.text,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Icon(Icons.vibration_rounded, size: 20, color: theme.textSecondary),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Haptic Vibration on Tap',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: theme.text,
+                                ),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                       Switch.adaptive(
                         value: _hapticsOn,
@@ -1095,31 +1543,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.person_pin_rounded, size: 20, color: theme.primary),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'About Developer',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: theme.text,
-                                    ),
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(Icons.person_pin_rounded, size: 20, color: theme.primary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'About Developer',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: theme.text,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Ayush Harinkhede',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: GoogleFonts.plusJakartaSans(
+                                          fontSize: 12,
+                                          color: theme.textSecondary,
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  Text(
-                                    'Ayush Harinkhede',
-                                    style: GoogleFonts.plusJakartaSans(
-                                      fontSize: 12,
-                                      color: theme.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
+                                ),
+                              ],
+                            ),
                           ),
                           Icon(Icons.chevron_right_rounded, size: 20, color: theme.textSecondary),
                         ],
@@ -1135,19 +1591,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.feedback_outlined, size: 20, color: theme.primary),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Send Feedback',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.text,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(Icons.feedback_outlined, size: 20, color: theme.primary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Send Feedback',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.text,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           Icon(Icons.open_in_new_rounded, size: 18, color: theme.textSecondary),
                         ],
@@ -1160,7 +1622,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 18),
 
-            // 5. Legal & Policies Card
+            // 5.5 Update App Card (Directly before Legal & Privacy, zero caption)
+            _buildUpdateAppCard(theme),
+
+            const SizedBox(height: 18),
+
+            // 6. Legal & Policies Card
             _buildSectionCard(
               title: 'Legal & Privacy',
               child: Column(
@@ -1173,19 +1640,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.gavel_outlined, size: 20, color: theme.textSecondary),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Terms & Conditions',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.text,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(Icons.gavel_outlined, size: 20, color: theme.textSecondary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Terms & Conditions',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.text,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           Icon(Icons.chevron_right_rounded, size: 20, color: theme.textSecondary),
                         ],
@@ -1201,19 +1674,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(Icons.privacy_tip_outlined, size: 20, color: theme.textSecondary),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Privacy Policy',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: theme.text,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                Icon(Icons.privacy_tip_outlined, size: 20, color: theme.textSecondary),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Privacy Policy',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.text,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           Icon(Icons.chevron_right_rounded, size: 20, color: theme.textSecondary),
                         ],
@@ -1229,19 +1708,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
-                              const SizedBox(width: 12),
-                              Text(
-                                'Clear Local Saved Data',
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.red,
+                          Expanded(
+                            child: Row(
+                              children: [
+                                const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.red),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    'Clear Local Saved Data',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.red,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                           const Icon(Icons.chevron_right_rounded, size: 20, color: Colors.red),
                         ],

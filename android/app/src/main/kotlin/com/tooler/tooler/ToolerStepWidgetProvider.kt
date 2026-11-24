@@ -17,8 +17,19 @@ class ToolerStepWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        ToolerStepSyncJobService.schedule(context)
         for (appWidgetId in appWidgetIds) {
             updateWidget(context, appWidgetManager, appWidgetId)
+        }
+        val pending = goAsync()
+        ToolerStepService.syncHardwareSnapshotOnce(context) {
+            try {
+                for (appWidgetId in appWidgetIds) {
+                    updateWidget(context, appWidgetManager, appWidgetId)
+                }
+            } finally {
+                try { pending.finish() } catch (_: Throwable) {}
+            }
         }
     }
 

@@ -3,13 +3,11 @@ package com.tooler.tooler
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
 
 /**
- * Boot & Package Replaced Receiver for Tooler Step Counter
- * Automatically restarts ToolerStepService when the device reboots
- * ensuring zero step loss across phone restarts with minimal battery usage.
+ * Boot & Package Replaced Receiver for Tooler Hardware Step Sync
+ * Schedules JobScheduler hardware sensor hub sync across reboots without
+ * launching any 24/7 foreground service.
  */
 class ToolerStepBootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
@@ -22,23 +20,11 @@ class ToolerStepBootReceiver : BroadcastReceiver() {
             action == "com.htc.intent.action.QUICKBOOT_POWERON"
         ) {
             try {
-                val hasActivity = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    context.checkSelfPermission(android.Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
-                } else true
-
-                // Only auto-resume if activity recognition is granted
-                if (hasActivity) {
-                    val serviceIntent = Intent(context, ToolerStepService::class.java).apply {
-                        this.action = ToolerStepService.ACTION_START_TRACKING
-                    }
-                    try {
-                        context.startService(serviceIntent)
-                    } catch (_: Throwable) {
-                        try {
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                context.startForegroundService(serviceIntent)
-                            }
-                        } catch (_: Throwable) {}
+                if (ToolerStepService.hasActivityPermission(context)) {
+                    ToolerStepSyncJobService.schedule(context)
+                    val pendingResult = goAsync()
+                    ToolerStepService.syncHardwareSnapshotOnce(context) {
+                        try { pendingResult.finish() } catch (_: Throwable) {}
                     }
                 }
             } catch (_: Throwable) {}
