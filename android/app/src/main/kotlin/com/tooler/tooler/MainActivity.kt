@@ -102,6 +102,11 @@ open class MainActivity : FlutterActivity() {
     private var lastTrailRecordTime: Long = 0L
     private var lastTrailRecordSteps: Int = -1
 
+    // Pending MediaStore scoped trash deletion state (Android 11+ Recycle Bin confirmation)
+    private var pendingTrashDeleteResult: MethodChannel.Result? = null
+    private var pendingTrashBaseData: Map<String, Any>? = null
+    private var pendingTrashPromptItems: List<Map<String, Any>> = emptyList()
+
     // Session peak charging brick wattage tracker (survives CV/Float taper until unplugged)
     private var sessionPeakBrickWatts: Int = 0
     private var wasChargingSession: Boolean = false
@@ -203,6 +208,44 @@ open class MainActivity : FlutterActivity() {
                         ToolerStepService.pushLiveTelemetry(force = true)
                     }
                 } catch (_: Throwable) {}
+            }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == 9042) {
+            val resCallback = pendingTrashDeleteResult
+            val base = pendingTrashBaseData ?: emptyMap()
+            val promptItems = pendingTrashPromptItems
+            pendingTrashDeleteResult = null
+            pendingTrashBaseData = null
+            pendingTrashPromptItems = emptyList()
+
+            if (resCallback != null) {
+                if (resultCode == android.app.Activity.RESULT_OK) {
+                    val prevDeleted = (base["deletedCount"] as? Int) ?: 0
+                    val prevFreed = (base["freedBytes"] as? Long) ?: 0L
+                    val prevIds = ((base["deletedIds"] as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()).toMutableList()
+                    var addCount = 0
+                    var addBytes = 0L
+                    for (item in promptItems) {
+                        val uriStr = item["mediaUri"]?.toString() ?: ""
+                        if (uriStr.isNotBlank()) {
+                            addCount++
+                            addBytes += (item["sizeBytes"] as? Number)?.toLong() ?: 0L
+                            item["id"]?.toString()?.let { prevIds.add(it) }
+                        }
+                    }
+                    val merged = HashMap<String, Any>(base)
+                    merged["deletedCount"] = prevDeleted + addCount
+                    merged["freedBytes"] = prevFreed + addBytes
+                    merged["deletedIds"] = prevIds.distinct()
+                    merged["failedIds"] = emptyList<String>()
+                    resCallback.success(merged)
+                } else {
+                    resCallback.success(base)
+                }
             }
         }
     }
@@ -458,6 +501,153 @@ open class MainActivity : FlutterActivity() {
                             runOnUiThread { result.success(data) }
                         } catch (e: Exception) {
                             runOnUiThread { result.error("ERROR", e.message, null) }
+                        }
+                    }
+                }
+                "cleanMasterSweep" -> {
+                    val junkPaths = call.argument<List<String>>("junkPaths") ?: emptyList()
+                    val fishyPaths = call.argument<List<String>>("fishyPaths") ?: emptyList()
+                    val bgPackages = call.argument<List<String>>("bgPackages") ?: emptyList()
+                    val clearNotifications = call.argument<Boolean>("clearNotifications") ?: true
+                    val resolvedFingerprints = call.argument<List<String>>("resolvedFingerprints") ?: emptyList()
+                    thread(isDaemon = true) {
+                        try {
+                            val data = secEngine.cleanMasterSweep(
+                                junkPaths = junkPaths,
+                                fishyPaths = fishyPaths,
+                                bgPackages = bgPackages,
+                                clearNotifications = clearNotifications,
+                                resolvedFingerprints = resolvedFingerprints
+                            )
+                            runOnUiThread {
+                                enableHighRefreshRate()
+                                window.decorView.invalidate()
+                                result.success(data)
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("ERROR", e.message, null) }
+                        }
+                    }
+                }
+                "killBackgroundApps" -> {
+                    val packages = call.argument<List<String>>("packages") ?: emptyList()
+                    thread(isDaemon = true) {
+                        try {
+                            val data = secEngine.killBackgroundApps(packages)
+                            runOnUiThread { result.success(data) }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("ERROR", e.message, null) }
+                        }
+                    }
+                }
+                "clearAllNotifications" -> {
+                    thread(isDaemon = true) {
+                        try {
+                            val data = ToolerNotificationListenerService.clearAllClearableNotifications(applicationContext)
+                            runOnUiThread { result.success(data) }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("ERROR", e.message, null) }
+                        }
+                    }
+                }
+                "cleanRecycleBin" -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val rawItems = (call.argument<List<Map<String, Any>>>("items")) ?: emptyList()
+                    thread(isDaemon = true) {
+                        try {
+                            val data = secEngine.cleanRecycleBin(rawItems)
+                            @Suppress("UNCHECKED_CAST")
+                            val promptUris = (data["pendingPromptUris"] as? List<String>) ?: emptyList()
+                            if (promptUris.isNotEmpty() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                runOnUiThread {
+                                    try {
+                                        val uris = promptUris.map { Uri.parse(it) }
+                                        val pendingIntent = MediaStore.createDeleteRequest(contentResolver, uris)
+                                        pendingTrashDeleteResult = result
+                                        pendingTrashBaseData = data
+                                        pendingTrashPromptItems = rawItems.filter {
+                                            (it["mediaUri"]?.toString() ?: "") in promptUris
+                                        }
+                                        startIntentSenderForResult(
+                                            pendingIntent.intentSender,
+                                            9042,
+                                            null,
+                                            0,
+                                            0,
+                                            0
+                                        )
+                                    } catch (_: Exception) {
+                                        pendingTrashDeleteResult = null
+                                        result.success(data)
+                                    }
+                                }
+                            } else {
+                                runOnUiThread { result.success(data) }
+                            }
+                        } catch (e: Exception) {
+                            runOnUiThread { result.error("ERROR", e.message, null) }
+                        }
+                    }
+                }
+                "markResolvedFingerprints" -> {
+                    val fps = call.argument<List<String>>("fingerprints") ?: emptyList()
+                    secEngine.markFingerprintsResolved(fps)
+                    result.success(true)
+                }
+                "refreshScreenDisplay" -> {
+                    enableHighRefreshRate()
+                    window.decorView.invalidate()
+                    val hz = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        display?.mode?.refreshRate ?: 60f
+                    } else {
+                        60f
+                    }
+                    result.success(mapOf("refreshed" to true, "refreshRateHz" to hz.toDouble()))
+                }
+                "requestUsageAccess" -> {
+                    try {
+                        val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                            data = Uri.parse("package:$packageName")
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        startActivity(intent)
+                        result.success(true)
+                    } catch (_: Exception) {
+                        try {
+                            startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            })
+                            result.success(true)
+                        } catch (_: Exception) {
+                            result.success(false)
+                        }
+                    }
+                }
+                "requestNotificationAccess" -> {
+                    try {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                            val detailIntent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).apply {
+                                putExtra(
+                                    Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+                                    ComponentName(this@MainActivity, ToolerNotificationListenerService::class.java).flattenToString()
+                                )
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            }
+                            startActivity(detailIntent)
+                        } else {
+                            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            })
+                        }
+                        result.success(true)
+                    } catch (_: Exception) {
+                        try {
+                            startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS).apply {
+                                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            })
+                            result.success(true)
+                        } catch (_: Exception) {
+                            result.success(false)
                         }
                     }
                 }

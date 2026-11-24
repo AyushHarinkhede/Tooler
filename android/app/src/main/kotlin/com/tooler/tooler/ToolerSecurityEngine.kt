@@ -2,25 +2,36 @@ package com.tooler.tooler
 
 import android.Manifest
 import android.app.ActivityManager
+import android.app.AppOpsManager
 import android.app.KeyguardManager
+import android.app.usage.StorageStatsManager
+import android.app.usage.UsageEvents
+import android.app.usage.UsageStatsManager
+import android.content.ContentUris
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
 import android.os.StatFs
+import android.os.storage.StorageManager
+import android.provider.MediaStore
 import android.provider.Settings
 import android.system.Os
+import android.view.inputmethod.InputMethodManager
 import io.flutter.plugin.common.EventChannel
 import java.io.File
 import java.io.FileInputStream
 import java.security.MessageDigest
 import java.text.SimpleDateFormat
-import java.util.Date
 import java.util.Locale
 import java.util.PriorityQueue
 import java.util.concurrent.atomic.AtomicBoolean
@@ -28,9 +39,10 @@ import kotlin.concurrent.thread
 import kotlin.math.abs
 
 /**
- * TOOLER REAL NATIVE SECURITY & STORAGE AUDIT ENGINE
- * ---------------------------------------------------
- * 100% genuine Android hardware, OS, installed app, and filesystem inspection.
+ * TOOLER REAL NATIVE SECURITY, PROCESS, NOTIFICATION, TRASH & STORAGE ENGINE
+ * ---------------------------------------------------------------------------
+ * 100% genuine Android hardware, OS, UsageStats, ActivityManager, NotificationListener,
+ * MediaStore IS_TRASHED, installed app, and filesystem inspection & cleanup.
  * Zero fake counters, zero synthetic delays without real work, zero random values.
  */
 class ToolerSecurityEngine(private val context: Context) {
@@ -38,6 +50,10 @@ class ToolerSecurityEngine(private val context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val isScanning = AtomicBoolean(false)
     private val cancelRequested = AtomicBoolean(false)
+
+    private val prefs by lazy {
+        context.getSharedPreferences(PREFS_CLEANED_REGISTRY, Context.MODE_PRIVATE)
+    }
 
     @Volatile
     var eventSink: EventChannel.EventSink? = null
@@ -61,13 +77,98 @@ class ToolerSecurityEngine(private val context: Context) {
         }
     }
 
+    fun hasUsageAccess(): Boolean {
+        return try {
+            val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as? AppOpsManager ?: return false
+            val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                appOps.unsafeCheckOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    Process.myUid(),
+                    context.packageName
+                )
+            } else {
+                @Suppress("DEPRECATION")
+                appOps.checkOpNoThrow(
+                    AppOpsManager.OPSTR_GET_USAGE_STATS,
+                    Process.myUid(),
+                    context.packageName
+                )
+            }
+            if (mode == AppOpsManager.MODE_DEFAULT) {
+                context.checkCallingOrSelfPermission("android.permission.PACKAGE_USAGE_STATS") ==
+                    PackageManager.PERMISSION_GRANTED
+            } else {
+                mode == AppOpsManager.MODE_ALLOWED
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    fun hasNotificationAccess(): Boolean {
+        return ToolerNotificationListenerService.isListenerEnabled(context)
+    }
+
+    private fun getCleanedFingerprints(): MutableSet<String> {
+        return try {
+            (prefs.getStringSet(KEY_CLEANED_FINGERPRINTS, emptySet()) ?: emptySet()).toMutableSet()
+        } catch (_: Exception) {
+            HashSet()
+        }
+    }
+
+    fun markFingerprintsResolved(fingerprints: List<String>) {
+        if (fingerprints.isEmpty()) return
+        try {
+            val existing = getCleanedFingerprints()
+            existing.addAll(fingerprints.filter { it.isNotBlank() })
+            // Keep bounded to most recent 2500 fingerprints
+            val bounded = if (existing.size > 2500) {
+                existing.toList().takeLast(2500).toSet()
+            } else {
+                existing
+            }
+            prefs.edit().putStringSet(KEY_CLEANED_FINGERPRINTS, bounded).apply()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun getKilledPackageTimestamps(): MutableMap<String, Long> {
+        val result = HashMap<String, Long>()
+        try {
+            val raw = prefs.getStringSet(KEY_KILLED_BG_TIMESTAMPS, emptySet()) ?: emptySet()
+            for (entry in raw) {
+                val sep = entry.lastIndexOf('|')
+                if (sep > 0) {
+                    val pkg = entry.substring(0, sep)
+                    val ts = entry.substring(sep + 1).toLongOrNull() ?: continue
+                    result[pkg] = ts
+                }
+            }
+        } catch (_: Exception) {
+        }
+        return result
+    }
+
+    private fun recordKilledPackages(packages: List<String>, timestampMs: Long) {
+        if (packages.isEmpty()) return
+        try {
+            val map = getKilledPackageTimestamps()
+            for (pkg in packages) {
+                if (pkg.isNotBlank()) map[pkg] = timestampMs
+            }
+            val encoded = map.entries.map { "${it.key}|${it.value}" }.toSet()
+            prefs.edit().putStringSet(KEY_KILLED_BG_TIMESTAMPS, encoded).apply()
+        } catch (_: Exception) {
+        }
+    }
+
     /**
-     * Collects genuine real-time hardware, OS, memory, storage & security status.
+     * Collects genuine real-time hardware, OS, memory, storage & permission authority status.
      */
     fun getSecurityInfo(): Map<String, Any> {
         val data = HashMap<String, Any>()
 
-        // 1. OS, Kernel & Security Patch
         val androidVersion = Build.VERSION.RELEASE ?: "Unknown"
         val sdkInt = Build.VERSION.SDK_INT
         val securityPatch = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -87,16 +188,14 @@ class ToolerSecurityEngine(private val context: Context) {
         data["device"] = "${Build.MANUFACTURER.uppercase()} • ${Build.MODEL.uppercase()}"
         data["abi"] = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64-v8a"
         data["hasAllFilesAccess"] = hasAllFilesAccess()
+        data["hasUsageAccess"] = hasUsageAccess()
+        data["hasNotificationAccess"] = hasNotificationAccess()
 
-        // 2. Root / Su / Magisk & Build Integrity
         val rootFindings = detectRootArtifacts()
         data["isRooted"] = rootFindings.isNotEmpty()
         data["rootFindings"] = rootFindings
-
-        // 3. SELinux status
         data["selinuxState"] = readSelinuxStatus()
 
-        // 4. Developer Options & USB Debugging (ADB)
         var isDevMode = false
         var isAdbEnabled = false
         try {
@@ -115,7 +214,6 @@ class ToolerSecurityEngine(private val context: Context) {
         data["isDevMode"] = isDevMode
         data["isAdbEnabled"] = isAdbEnabled
 
-        // 5. Device Lock Screen / Encryption Protection
         val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager
         val isDeviceSecure = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             keyguard?.isDeviceSecure ?: false
@@ -124,7 +222,6 @@ class ToolerSecurityEngine(private val context: Context) {
         }
         data["isDeviceSecure"] = isDeviceSecure
 
-        // 6. Active Network / Proxy / VPN inspection
         val proxyHost = System.getProperty("http.proxyHost") ?: ""
         val proxyPort = System.getProperty("http.proxyPort") ?: ""
         val hasHttpProxy = proxyHost.isNotBlank()
@@ -150,7 +247,6 @@ class ToolerSecurityEngine(private val context: Context) {
         data["isVpnActive"] = isVpnActive
         data["networkType"] = networkType
 
-        // 7. Real RAM Telemetry
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val mi = ActivityManager.MemoryInfo()
         am.getMemoryInfo(mi)
@@ -165,7 +261,6 @@ class ToolerSecurityEngine(private val context: Context) {
         data["ramUsagePercent"] = ramUsagePercent
         data["isLowMemory"] = mi.lowMemory
 
-        // 8. Real Internal Storage Telemetry (StatFs)
         try {
             val stat = StatFs(Environment.getDataDirectory().path)
             val totalBytes = stat.blockCountLong * stat.blockSizeLong
@@ -180,7 +275,6 @@ class ToolerSecurityEngine(private val context: Context) {
             data["usedStorageBytes"] = 0L
         }
 
-        // 9. Real App Cache Size (exact, zero artificial minimums)
         var appCacheBytes = 0L
         var appCacheFiles = 0
         fun measureDir(dir: File?) {
@@ -205,10 +299,6 @@ class ToolerSecurityEngine(private val context: Context) {
         cancelRequested.set(true)
     }
 
-    /**
-     * Launches the full multi-stage real hardware + app + storage deep scan on a background thread.
-     * Streams live audit entries to [eventSink] while scanning.
-     */
     fun startDeepScan(): Boolean {
         if (!isScanning.compareAndSet(false, true)) return false
         cancelRequested.set(false)
@@ -229,16 +319,22 @@ class ToolerSecurityEngine(private val context: Context) {
         val scanStartedMs = System.currentTimeMillis()
         var lastUiEmitMs = 0L
 
+        val cleanedRegistry = getCleanedFingerprints()
+        val killedBgMap = getKilledPackageTimestamps()
+
         val systemWarnings = ArrayList<Map<String, Any>>()
         val suspiciousApps = ArrayList<Map<String, Any>>()
         val fishyFiles = ArrayList<Map<String, Any>>()
         val junkFiles = ArrayList<Map<String, Any>>()
+        val backgroundApps = ArrayList<Map<String, Any>>()
+        val activeNotifications = ArrayList<Map<String, Any>>()
+        val trashFiles = ArrayList<Map<String, Any>>()
+        val seenTrashPaths = HashSet<String>()
 
-        // Priority queues for bounded memory (top 25 largest & top 30 unopened files)
-        val maxLargest = 25
+        val maxLargest = 35
         val largestPq = PriorityQueue<FileEntry>(maxLargest + 1, compareBy { it.sizeBytes })
 
-        val maxUnopened = 30
+        val maxUnopened = 40
         val unopenedPq = PriorityQueue<UnopenedEntry>(maxUnopened + 1, compareBy { it.sizeBytes })
 
         var totalAppsScanned = 0
@@ -246,6 +342,7 @@ class ToolerSecurityEngine(private val context: Context) {
         var totalDirsScanned = 0
         var totalJunkBytes = 0L
         var totalFishyBytes = 0L
+        var totalTrashBytes = 0L
 
         fun emitProgress(
             progress: Double,
@@ -269,135 +366,150 @@ class ToolerSecurityEngine(private val context: Context) {
                     "appsScanned" to totalAppsScanned,
                     "filesScanned" to totalFilesScanned,
                     "issuesCount" to (systemWarnings.size + suspiciousApps.size + fishyFiles.size),
-                    "junkBytes" to totalJunkBytes
+                    "junkBytes" to totalJunkBytes,
+                    "bgAppsCount" to backgroundApps.size,
+                    "notifCount" to activeNotifications.size,
+                    "trashCount" to trashFiles.size
                 )
             )
         }
 
         // =========================================================================
-        // STAGE 1: REAL HARDWARE, KERNEL, OS & NETWORK INTEGRITY AUDIT (0% -> 18%)
+        // STAGE 1: REAL HARDWARE, KERNEL, OS & NETWORK INTEGRITY AUDIT (0% -> 14%)
         // =========================================================================
         val sysInfo = getSecurityInfo()
-        emitProgress(0.04, "HARDWARE & KERNEL", "Auditing SELinux, bootloader & root paths", "Kernel", force = true)
-        Thread.sleep(90)
+        emitProgress(0.03, "HARDWARE & KERNEL", "Auditing SELinux, bootloader & root paths", "Kernel", force = true)
+        Thread.sleep(60)
+
+        fun maybeAddWarning(
+            id: String,
+            sigValue: String,
+            title: String,
+            severity: String,
+            category: String,
+            detail: String,
+            actionType: String
+        ) {
+            val fp = "sys:$id:$sigValue"
+            if (fp in cleanedRegistry) return
+            systemWarnings.add(
+                mapOf(
+                    "id" to id,
+                    "fingerprint" to fp,
+                    "title" to title,
+                    "severity" to severity,
+                    "category" to category,
+                    "detail" to detail,
+                    "actionType" to actionType
+                )
+            )
+        }
 
         val isRooted = sysInfo["isRooted"] as? Boolean ?: false
         @Suppress("UNCHECKED_CAST")
         val rootArtifacts = sysInfo["rootFindings"] as? List<String> ?: emptyList()
         if (isRooted) {
-            systemWarnings.add(
-                mapOf(
-                    "id" to "root_detected",
-                    "title" to "Root / Superuser Artifacts Detected",
-                    "severity" to "HIGH",
-                    "category" to "Kernel Integrity",
-                    "detail" to "Found: ${rootArtifacts.joinToString(", ")}. Root privilege weakens app sandboxing.",
-                    "actionType" to "info"
-                )
+            maybeAddWarning(
+                "root_detected",
+                rootArtifacts.joinToString(","),
+                "Root / Superuser Artifacts Detected",
+                "HIGH",
+                "Kernel Integrity",
+                "Found: ${rootArtifacts.joinToString(", ")}. Root privilege weakens app sandboxing.",
+                "info"
             )
-            emitProgress(0.06, "HARDWARE & KERNEL", "ALERT: Root artifacts found (${rootArtifacts.firstOrNull()})", "Kernel", "high", force = true)
+            emitProgress(0.05, "HARDWARE & KERNEL", "ALERT: Root artifacts found", "Kernel", "high", force = true)
         } else {
-            emitProgress(0.06, "HARDWARE & KERNEL", "Verified: Zero SU/Magisk binaries in system paths", "Kernel", "ok", force = true)
+            emitProgress(0.05, "HARDWARE & KERNEL", "Verified: Zero SU/Magisk binaries in system paths", "Kernel", "ok", force = true)
         }
-        Thread.sleep(80)
+        Thread.sleep(50)
 
         val selinux = sysInfo["selinuxState"] as? String ?: "Enforcing"
         if (selinux.contains("Permissive", ignoreCase = true)) {
-            systemWarnings.add(
-                mapOf(
-                    "id" to "selinux_permissive",
-                    "title" to "SELinux Running in Permissive Mode",
-                    "severity" to "HIGH",
-                    "category" to "Kernel Policy",
-                    "detail" to "Mandatory access control is not actively blocking policy violations.",
-                    "actionType" to "info"
-                )
+            maybeAddWarning(
+                "selinux_permissive",
+                selinux,
+                "SELinux Running in Permissive Mode",
+                "HIGH",
+                "Kernel Policy",
+                "Mandatory access control is not actively blocking policy violations.",
+                "info"
             )
-            emitProgress(0.08, "HARDWARE & KERNEL", "ALERT: SELinux is Permissive", "SELinux", "high", force = true)
+            emitProgress(0.07, "HARDWARE & KERNEL", "ALERT: SELinux is Permissive", "SELinux", "high", force = true)
         } else {
-            emitProgress(0.08, "HARDWARE & KERNEL", "SELinux Policy: $selinux", "SELinux", "ok", force = true)
+            emitProgress(0.07, "HARDWARE & KERNEL", "SELinux Policy: $selinux", "SELinux", "ok", force = true)
         }
-        Thread.sleep(70)
 
         if (cancelRequested.get()) return
 
         val isAdbEnabled = sysInfo["isAdbEnabled"] as? Boolean ?: false
         if (isAdbEnabled) {
-            systemWarnings.add(
-                mapOf(
-                    "id" to "adb_enabled",
-                    "title" to "USB Debugging (ADB) is Active",
-                    "severity" to "MEDIUM",
-                    "category" to "System Port",
-                    "detail" to "ADB allows external shell & APK installation over USB. Disable when not developing.",
-                    "actionType" to "open_dev_settings"
-                )
+            maybeAddWarning(
+                "adb_enabled",
+                "1",
+                "USB Debugging (ADB) is Active",
+                "MEDIUM",
+                "System Port",
+                "ADB allows external shell & APK installation over USB. Disable when not developing.",
+                "open_dev_settings"
             )
-            emitProgress(0.11, "HARDWARE & KERNEL", "WARN: USB ADB Debugging port is open", "Port", "medium", force = true)
+            emitProgress(0.09, "HARDWARE & KERNEL", "WARN: USB ADB Debugging port is open", "Port", "medium", force = true)
         } else {
-            emitProgress(0.11, "HARDWARE & KERNEL", "USB ADB Debugging port closed", "Port", "ok", force = true)
+            emitProgress(0.09, "HARDWARE & KERNEL", "USB ADB Debugging port closed", "Port", "ok", force = true)
         }
-        Thread.sleep(70)
 
         val isDeviceSecure = sysInfo["isDeviceSecure"] as? Boolean ?: true
         if (!isDeviceSecure) {
-            systemWarnings.add(
-                mapOf(
-                    "id" to "no_lockscreen",
-                    "title" to "No Screen Lock / Biometric Protection",
-                    "severity" to "HIGH",
-                    "category" to "Encryption",
-                    "detail" to "Device lacks PIN, pattern, password, or biometric lock screen protection.",
-                    "actionType" to "open_security_settings"
-                )
+            maybeAddWarning(
+                "no_lockscreen",
+                "unlocked",
+                "No Screen Lock / Biometric Protection",
+                "HIGH",
+                "Encryption",
+                "Device lacks PIN, pattern, password, or biometric lock screen protection.",
+                "open_security_settings"
             )
-            emitProgress(0.14, "HARDWARE & KERNEL", "ALERT: Device lock screen is not secured", "Lock", "high", force = true)
+            emitProgress(0.11, "HARDWARE & KERNEL", "ALERT: Device lock screen is not secured", "Lock", "high", force = true)
         } else {
-            emitProgress(0.14, "HARDWARE & KERNEL", "Hardware Keyguard & credential lock verified", "Lock", "ok", force = true)
+            emitProgress(0.11, "HARDWARE & KERNEL", "Hardware Keyguard & credential lock verified", "Lock", "ok", force = true)
         }
-        Thread.sleep(70)
 
         val hasProxy = sysInfo["hasHttpProxy"] as? Boolean ?: false
         if (hasProxy) {
             val proxyAddr = sysInfo["proxyAddress"] as? String ?: ""
-            systemWarnings.add(
-                mapOf(
-                    "id" to "http_proxy",
-                    "title" to "Active HTTP Network Proxy Detected",
-                    "severity" to "MEDIUM",
-                    "category" to "Network",
-                    "detail" to "Traffic is routing through proxy $proxyAddr. Verify this is intentional to prevent MITM.",
-                    "actionType" to "open_wifi_settings"
-                )
+            maybeAddWarning(
+                "http_proxy",
+                proxyAddr,
+                "Active HTTP Network Proxy Detected",
+                "MEDIUM",
+                "Network",
+                "Traffic is routing through proxy $proxyAddr. Verify this is intentional to prevent MITM.",
+                "open_wifi_settings"
             )
-            emitProgress(0.16, "HARDWARE & KERNEL", "WARN: HTTP Proxy active ($proxyAddr)", "Network", "medium", force = true)
-        } else {
-            val netType = sysInfo["networkType"] as? String ?: "Connected"
-            emitProgress(0.16, "HARDWARE & KERNEL", "Network ($netType): Zero rogue HTTP proxy detected", "Network", "ok", force = true)
+            emitProgress(0.13, "HARDWARE & KERNEL", "WARN: HTTP Proxy active ($proxyAddr)", "Network", "medium", force = true)
         }
 
         val patchOutdated = sysInfo["securityPatchOutdated"] as? Boolean ?: false
         val patchStr = sysInfo["securityPatch"] as? String ?: "Unknown"
         if (patchOutdated) {
-            systemWarnings.add(
-                mapOf(
-                    "id" to "old_security_patch",
-                    "title" to "Android Security Patch is Over 6 Months Old",
-                    "severity" to "LOW",
-                    "category" to "Firmware",
-                    "detail" to "Current patch level is $patchStr. Check System Updates for latest CVE fixes.",
-                    "actionType" to "open_security_settings"
-                )
+            maybeAddWarning(
+                "old_security_patch",
+                patchStr,
+                "Android Security Patch is Over 6 Months Old",
+                "LOW",
+                "Firmware",
+                "Current patch level is $patchStr. Check System Updates for latest CVE fixes.",
+                "open_security_settings"
             )
         }
-        emitProgress(0.18, "HARDWARE & KERNEL", "Firmware Patch $patchStr audited", "Firmware", if (patchOutdated) "medium" else "ok", force = true)
+        emitProgress(0.14, "HARDWARE & KERNEL", "Firmware Patch $patchStr audited", "Firmware", if (patchOutdated) "medium" else "ok", force = true)
 
         if (cancelRequested.get()) return
 
         // =========================================================================
-        // STAGE 2: REAL INSTALLED APPS MALWARE / SPYWARE / SIDELOAD AUDIT (18% -> 46%)
+        // STAGE 2: INSTALLED APPS MALWARE / SPYWARE / SIDELOAD AUDIT (14% -> 34%)
         // =========================================================================
-        emitProgress(0.19, "APP & MALWARE AUDIT", "Querying PackageManager installed binaries...", "Apps", force = true)
+        emitProgress(0.15, "APP & MALWARE AUDIT", "Querying PackageManager installed binaries...", "Apps", force = true)
         val pm = context.packageManager
         val allPackages = try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -418,14 +530,14 @@ class ToolerSecurityEngine(private val context: Context) {
         }
 
         val trustedInstallers = setOf(
-            "com.android.vending",                  // Google Play Store
-            "com.sec.android.app.samsungapps",      // Samsung Galaxy Store
-            "com.xiaomi.mipicks",                   // GetApps
-            "com.huawei.appmarket",                 // Huawei AppGallery
-            "com.amazon.venezia",                   // Amazon Appstore
-            "com.heytap.market",                    // OPPO/OnePlus App Market
-            "com.vivo.appstore",                    // Vivo V-Appstore
-            "com.motorola.ccc.ota"                  // Motorola OTA
+            "com.android.vending",
+            "com.sec.android.app.samsungapps",
+            "com.xiaomi.mipicks",
+            "com.huawei.appmarket",
+            "com.amazon.venezia",
+            "com.heytap.market",
+            "com.vivo.appstore",
+            "com.motorola.ccc.ota"
         )
 
         val totalUserPkgs = userPackages.size.coerceAtLeast(1)
@@ -439,6 +551,12 @@ class ToolerSecurityEngine(private val context: Context) {
                 appInfo?.loadLabel(pm)?.toString()?.trim().takeIf { !it.isNullOrEmpty() } ?: pkgName
             } catch (_: Exception) {
                 pkgName
+            }
+            val verCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                pkg.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                pkg.versionCode.toLong()
             }
 
             val permissions = pkg.requestedPermissions?.toSet() ?: emptySet()
@@ -468,6 +586,11 @@ class ToolerSecurityEngine(private val context: Context) {
             val hasContacts = permissions.contains("android.permission.READ_CONTACTS")
             val hasFineLoc = permissions.contains("android.permission.ACCESS_FINE_LOCATION")
             val hasAllFiles = permissions.contains("android.permission.MANAGE_EXTERNAL_STORAGE")
+            val hasHiddenLauncher = try {
+                pm.getLaunchIntentForPackage(pkgName) == null
+            } catch (_: Exception) {
+                false
+            }
 
             if (hasReadSms && hasInternet && isSideloaded) {
                 riskPoints += 5
@@ -497,6 +620,11 @@ class ToolerSecurityEngine(private val context: Context) {
                 reasons.add("Sideloaded app can silently prompt APK installs (dropper risk)")
             }
 
+            if (hasHiddenLauncher && isSideloaded && hasInternet && (hasOverlay || hasReadSms || hasInstallPkgs)) {
+                riskPoints += 3
+                reasons.add("Stealth sideloaded package without launcher icon holds sensitive access")
+            }
+
             if (hasMic && hasCallLog && hasFineLoc && hasInternet) {
                 riskPoints += 3
                 reasons.add("Surveillance combo: Mic + Call Log + Precise GPS + Network")
@@ -522,15 +650,17 @@ class ToolerSecurityEngine(private val context: Context) {
                 reasons.add("Installed outside Play Store with elevated permissions")
             }
 
-            val progress = 0.19 + ((index + 1).toDouble() / totalUserPkgs) * 0.27
+            val progress = 0.15 + ((index + 1).toDouble() / totalUserPkgs) * 0.19
             val isFlagged = riskPoints >= 3
+            val appFingerprint = "app:$pkgName:$verCode:$riskPoints"
 
-            if (isFlagged) {
+            if (isFlagged && appFingerprint !in cleanedRegistry) {
                 val severity = if (riskPoints >= 5) "HIGH" else "MEDIUM"
                 suspiciousApps.add(
                     mapOf(
                         "name" to appName,
                         "packageName" to pkgName,
+                        "fingerprint" to appFingerprint,
                         "severity" to severity,
                         "riskScore" to riskPoints,
                         "installer" to (installer ?: "Unknown / Sideloaded"),
@@ -558,11 +688,54 @@ class ToolerSecurityEngine(private val context: Context) {
             }
         }
 
+        if (cancelRequested.get()) return
+
         // =========================================================================
-        // STAGE 3: REAL STORAGE DEEP CRAWL (46% -> 92%)
-        // Scans Cache/Junk, Fishy/Malware/Corrupt Files, Largest Files, Unopened Files
+        // STAGE 3: ACTIVE BACKGROUND APPS, RAM CACHED APPS & NOTIFICATIONS (34% -> 46%)
         // =========================================================================
-        emitProgress(0.47, "DEEP STORAGE SCAN", "Indexing storage partitions & file headers...", "Storage", force = true)
+        emitProgress(0.36, "ACTIVE BG & RAM AUDIT", "Scanning active background services & RAM processes...", "Memory", force = true)
+        val detectedBgApps = scanActiveBackgroundApps(userPackages, killedBgMap)
+        backgroundApps.addAll(detectedBgApps)
+        emitProgress(
+            0.40,
+            "ACTIVE BG & RAM AUDIT",
+            if (backgroundApps.isNotEmpty()) {
+                "Detected ${backgroundApps.size} active/cached background apps in RAM"
+            } else {
+                "Zero idle background clutter in RAM"
+            },
+            "Memory",
+            if (backgroundApps.isNotEmpty()) "medium" else "ok",
+            force = true
+        )
+
+        emitProgress(0.42, "NOTIFICATION AUDIT", "Inspecting active device notification shade...", "Notify", force = true)
+        val allNotifs = ToolerNotificationListenerService.getActiveNotificationList(context)
+        val clearableNotifs = allNotifs.filter { it["isClearable"] == true }
+        activeNotifications.addAll(clearableNotifs)
+        emitProgress(
+            0.45,
+            "NOTIFICATION AUDIT",
+            if (activeNotifications.isNotEmpty()) {
+                "Found ${activeNotifications.size} clearable shade notifications"
+            } else {
+                "Notification shade clean"
+            },
+            "Notify",
+            if (activeNotifications.isNotEmpty()) "info" else "ok",
+            force = true
+        )
+
+        if (cancelRequested.get()) return
+
+        // =========================================================================
+        // STAGE 4: REAL STORAGE DEEP CRAWL + MEDIASTORE & FS RECYCLE BIN (46% -> 90%)
+        // =========================================================================
+        emitProgress(0.47, "RECYCLE BIN AUDIT", "Checking MediaStore & filesystem Trash/Recycle Bin...", "Trash", force = true)
+        scanMediaStoreTrash(trashFiles, seenTrashPaths)
+        totalTrashBytes = trashFiles.fold(0L) { acc, m -> acc + ((m["sizeBytes"] as? Long) ?: 0L) }
+
+        emitProgress(0.49, "DEEP STORAGE SCAN", "Indexing storage partitions, junk & file headers...", "Storage", force = true)
 
         val rootsToScan = ArrayList<Pair<File, Boolean>>() // (dir, isCacheRoot)
         context.cacheDir?.let { if (it.exists()) rootsToScan.add(it to true) }
@@ -574,7 +747,6 @@ class ToolerSecurityEngine(private val context: Context) {
             if (fullAccess) {
                 rootsToScan.add(extStorage to false)
             } else {
-                // Even without All Files Access, probe accessible public user folders
                 listOf(
                     Environment.DIRECTORY_DOWNLOADS,
                     Environment.DIRECTORY_DOCUMENTS,
@@ -597,7 +769,7 @@ class ToolerSecurityEngine(private val context: Context) {
 
         val junkExtensions = setOf(
             "tmp", "temp", "log", "bak", "old", "cache", "dmp", "chk",
-            "crdownload", "part", "thumb", "thumbdata"
+            "crdownload", "part", "thumb", "thumbdata", "exo"
         )
         val executableExtensions = setOf(
             "apk", "xapk", "apks", "dex", "jar", "exe", "bat", "cmd",
@@ -614,15 +786,27 @@ class ToolerSecurityEngine(private val context: Context) {
             RegexOption.IGNORE_CASE
         )
 
+        val trashDirNames = setOf(
+            ".trash", "trash", ".recycle.bin", ".recycle", "recyclebin",
+            ".trashbin", ".safetrash", "recycle_bin"
+        )
+        val cacheDirNames = setOf(
+            ".thumbnails", "thumbnails", ".cache", "code_cache",
+            "shader_cache", "gpucache", "unityshadercache", ".thumbs"
+        )
+
         val maxFilesCap = 45000
         val maxDepth = 10
         val visitedCanonical = HashSet<String>()
 
-        fun walkDirectory(dir: File, isCacheRoot: Boolean, depth: Int) {
+        fun isTrashDirectoryName(dirLower: String): Boolean {
+            return dirLower in trashDirNames || dirLower.startsWith(".trash-")
+        }
+
+        fun walkDirectory(dir: File, isCacheRoot: Boolean, inTrashContext: Boolean, depth: Int) {
             if (cancelRequested.get() || depth > maxDepth || totalFilesScanned >= maxFilesCap) return
             if (!dir.exists() || !dir.canRead()) return
 
-            // Skip Android/obb and restricted Android/data system dirs to avoid slow permission errors
             val absPath = dir.absolutePath
             if (absPath.contains("/Android/obb") ||
                 (absPath.contains("/Android/data") && !absPath.contains(context.packageName))
@@ -639,8 +823,10 @@ class ToolerSecurityEngine(private val context: Context) {
 
             totalDirsScanned++
             val dirLower = dir.name.lowercase(Locale.ROOT)
-            val isThumbDir = dirLower == ".thumbnails" || dirLower == "thumbnails" || dirLower == ".cache"
-            val inCacheContext = isCacheRoot || isThumbDir
+            val isTrashDir = inTrashContext || isTrashDirectoryName(dirLower)
+            val isThumbOrCacheDir = dirLower in cacheDirNames ||
+                (absPath.contains("/.Shared", ignoreCase = true) && !isTrashDir)
+            val inCacheContext = isCacheRoot || isThumbOrCacheDir
 
             val children = try {
                 dir.listFiles()
@@ -649,14 +835,14 @@ class ToolerSecurityEngine(private val context: Context) {
             } ?: return
 
             val shortFolder = absPath.removePrefix(extStorage?.absolutePath ?: "").ifEmpty { dir.name }
-            val progressEstimate = 0.48 + ((totalFilesScanned.toDouble() / 12000.0).coerceAtMost(1.0) * 0.42)
-            emitProgress(progressEstimate, "DEEP STORAGE SCAN", shortFolder, "Folder")
+            val progressEstimate = 0.50 + ((totalFilesScanned.toDouble() / 12000.0).coerceAtMost(1.0) * 0.39)
+            emitProgress(progressEstimate, "DEEP STORAGE SCAN", shortFolder, if (isTrashDir) "Trash" else "Folder")
 
             for (file in children) {
                 if (cancelRequested.get() || totalFilesScanned >= maxFilesCap) return
 
                 if (file.isDirectory) {
-                    walkDirectory(file, inCacheContext, depth + 1)
+                    walkDirectory(file, inCacheContext, isTrashDir, depth + 1)
                     continue
                 }
 
@@ -672,45 +858,78 @@ class ToolerSecurityEngine(private val context: Context) {
                 val parentName = file.parentFile?.name ?: "Storage"
 
                 // -----------------------------------------------------------------
+                // TRASH / RECYCLE BIN FILES (Always handled in separate Recycle Bin)
+                // -----------------------------------------------------------------
+                val isTrashedFile = isTrashDir || lowerName.startsWith(".trashed-")
+                if (isTrashedFile) {
+                    if (seenTrashPaths.add(path)) {
+                        totalTrashBytes += sizeBytes
+                        trashFiles.add(
+                            mapOf(
+                                "id" to path,
+                                "name" to name.replace(Regex("^\\.trashed-\\d+-"), ""),
+                                "rawName" to name,
+                                "path" to path,
+                                "mediaUri" to "",
+                                "sizeBytes" to sizeBytes,
+                                "source" to if (lowerName.startsWith(".trashed-")) "Media Trash" else "Recycle Folder",
+                                "folder" to parentName,
+                                "lastModifiedMs" to modMs
+                            )
+                        )
+                        emitProgress(progressEstimate, "RECYCLE BIN AUDIT", "Trash: $name", "Trash", "info")
+                    }
+                    continue
+                }
+
+                // -----------------------------------------------------------------
                 // A. CHECK SUSPICIOUS / FISHY / MALWARE / SPOOFED / CORRUPT FILES
                 // -----------------------------------------------------------------
                 var flaggedAsFishy = false
+                val fileFp = "file:$path:$sizeBytes:$modMs"
 
-                // 1) Double-extension disguise trap (e.g. invoice.pdf.apk, photo.jpg.exe)
+                fun addFishyIfNew(severity: String, threatType: String, detail: String, forceLog: Boolean = false) {
+                    flaggedAsFishy = true
+                    if (fileFp in cleanedRegistry) return
+                    totalFishyBytes += sizeBytes
+                    if (fishyFiles.size < 80) {
+                        fishyFiles.add(
+                            mapOf(
+                                "name" to name,
+                                "path" to path,
+                                "fingerprint" to fileFp,
+                                "sizeBytes" to sizeBytes,
+                                "severity" to severity,
+                                "threatType" to threatType,
+                                "detail" to detail
+                            )
+                        )
+                    }
+                    emitProgress(
+                        progressEstimate,
+                        "THREAT DETECTOR",
+                        "FLAGGED [$severity]: $name",
+                        "Threat",
+                        if (severity == "HIGH") "high" else "medium",
+                        force = forceLog
+                    )
+                }
+
                 if (doubleExtTrapRegex.containsMatchIn(lowerName)) {
-                    flaggedAsFishy = true
-                    totalFishyBytes += sizeBytes
-                    fishyFiles.add(
-                        mapOf(
-                            "name" to name,
-                            "path" to path,
-                            "sizeBytes" to sizeBytes,
-                            "severity" to "HIGH",
-                            "threatType" to "Double-Extension Spoof Threat",
-                            "detail" to "Disguised executable mimicking a safe document/media file."
-                        )
+                    addFishyIfNew(
+                        "HIGH",
+                        "Double-Extension Spoof Threat",
+                        "Disguised executable mimicking a safe document/media file.",
+                        forceLog = true
                     )
-                    emitProgress(progressEstimate, "THREAT DETECTOR", "ALERT: Spoofed file $name", "Threat", "high", force = true)
-                }
-                // 2) Hidden executable/script dotfile
-                else if (name.startsWith(".") && ext in executableExtensions) {
-                    flaggedAsFishy = true
-                    totalFishyBytes += sizeBytes
-                    fishyFiles.add(
-                        mapOf(
-                            "name" to name,
-                            "path" to path,
-                            "sizeBytes" to sizeBytes,
-                            "severity" to "HIGH",
-                            "threatType" to "Hidden Executable / Script",
-                            "detail" to "Hidden file starting with '.' carries executable extension .$ext."
-                        )
+                } else if (name.startsWith(".") && ext in executableExtensions) {
+                    addFishyIfNew(
+                        "HIGH",
+                        "Hidden Executable / Script",
+                        "Hidden file starting with '.' carries executable extension .$ext.",
+                        forceLog = true
                     )
-                    emitProgress(progressEstimate, "THREAT DETECTOR", "ALERT: Hidden executable $name", "Threat", "high", force = true)
-                }
-                // 3) Stray executable, shell script, Windows binary, or unverified APK installer
-                else if (ext in executableExtensions && !inCacheContext) {
-                    // Ignore Tooler's own known APK if present in workspace-style folders? Still flag with clear label
+                } else if (ext in executableExtensions && !inCacheContext) {
                     val isApk = ext == "apk" || ext == "xapk" || ext == "apks"
                     val sev = if (isApk) "MEDIUM" else "HIGH"
                     val label = if (isApk) "Stray APK Installer Package" else "Suspicious Executable / Script (.$ext)"
@@ -719,56 +938,14 @@ class ToolerSecurityEngine(private val context: Context) {
                     } else {
                         "Executable/script binary (.$ext) found in $parentName."
                     }
-                    flaggedAsFishy = true
-                    totalFishyBytes += sizeBytes
-                    if (fishyFiles.size < 60) {
-                        fishyFiles.add(
-                            mapOf(
-                                "name" to name,
-                                "path" to path,
-                                "sizeBytes" to sizeBytes,
-                                "severity" to sev,
-                                "threatType" to label,
-                                "detail" to detail
-                            )
-                        )
-                    }
-                    emitProgress(progressEstimate, "THREAT DETECTOR", "FLAGGED: $name", "Threat", if (sev == "HIGH") "high" else "medium")
-                }
-                // 4) Real Magic-Byte Header Spoof / Corrupted Document Check (.pdf / .docx / .zip)
-                else if (ext in docExtensionsToVerify && !inCacheContext) {
+                    addFishyIfNew(sev, label, detail)
+                } else if (ext in docExtensionsToVerify && !inCacheContext) {
                     if (sizeBytes == 0L) {
-                        flaggedAsFishy = true
-                        if (fishyFiles.size < 60) {
-                            fishyFiles.add(
-                                mapOf(
-                                    "name" to name,
-                                    "path" to path,
-                                    "sizeBytes" to 0L,
-                                    "severity" to "LOW",
-                                    "threatType" to "Corrupted 0-Byte Document",
-                                    "detail" to "Broken empty .$ext document in $parentName."
-                                )
-                            )
-                        }
+                        addFishyIfNew("LOW", "Corrupted 0-Byte Document", "Broken empty .$ext document in $parentName.")
                     } else if (sizeBytes in 16L..(25L * 1024L * 1024L)) {
                         val headerIssue = inspectDocumentMagicHeader(file, ext)
                         if (headerIssue != null) {
-                            flaggedAsFishy = true
-                            totalFishyBytes += sizeBytes
-                            if (fishyFiles.size < 60) {
-                                fishyFiles.add(
-                                    mapOf(
-                                        "name" to name,
-                                        "path" to path,
-                                        "sizeBytes" to sizeBytes,
-                                        "severity" to headerIssue.first,
-                                        "threatType" to headerIssue.second,
-                                        "detail" to headerIssue.third
-                                    )
-                                )
-                            }
-                            emitProgress(progressEstimate, "HEADER INSPECTOR", "WARN: ${headerIssue.second} ($name)", "Threat", "medium", force = true)
+                            addFishyIfNew(headerIssue.first, headerIssue.second, headerIssue.third, forceLog = true)
                         }
                     }
                 }
@@ -783,21 +960,23 @@ class ToolerSecurityEngine(private val context: Context) {
                     lowerName.startsWith("cache_") ||
                     lowerName.startsWith(".thumbdata")
 
+                val junkFp = "junk:$path:$sizeBytes:$modMs"
                 val isJunk = !flaggedAsFishy && (inCacheContext || isNamedJunk || isZeroByte)
-                if (isJunk) {
+                if (isJunk && junkFp !in cleanedRegistry) {
                     val junkCat = when {
                         isCacheRoot -> "App Cache"
-                        isThumbDir || lowerName.startsWith(".thumbdata") -> "Thumbnail Cache"
+                        isThumbOrCacheDir || lowerName.startsWith(".thumbdata") -> "Thumbnail Cache"
                         isZeroByte -> "Zero-Byte Orphan"
                         ext == "log" || ext == "dmp" -> "System / App Log"
                         else -> "Temp & Residual Junk"
                     }
                     totalJunkBytes += sizeBytes
-                    if (junkFiles.size < 180) {
+                    if (junkFiles.size < 400) {
                         junkFiles.add(
                             mapOf(
                                 "name" to name,
                                 "path" to path,
+                                "fingerprint" to junkFp,
                                 "sizeBytes" to sizeBytes,
                                 "category" to junkCat,
                                 "folder" to parentName
@@ -807,9 +986,9 @@ class ToolerSecurityEngine(private val context: Context) {
                 }
 
                 // -----------------------------------------------------------------
-                // C. TRACK LARGEST STORAGE FILES (DISPLAY ONLY — NEVER AUTO-DELETED)
+                // C. TRACK LARGEST STORAGE FILES (Now user-selectable & deletable!)
                 // -----------------------------------------------------------------
-                if (!inCacheContext && sizeBytes >= 1024L * 1024L) { // >= 1 MB
+                if (!inCacheContext && sizeBytes >= 1024L * 1024L) {
                     val entry = FileEntry(
                         name = name,
                         path = path,
@@ -838,7 +1017,6 @@ class ToolerSecurityEngine(private val context: Context) {
                             val mtimeSec = st.st_mtime
                             val diffSec = abs(atimeSec - mtimeSec)
 
-                            // Never opened: POSIX access time still matches initial write/download time
                             val neverOpened = atimeSec <= mtimeSec || diffSec <= 5L
                             val longUntouched = ageMs >= sixtyDaysMs && (nowMs - (atimeSec * 1000L)) >= sixtyDaysMs
 
@@ -873,16 +1051,15 @@ class ToolerSecurityEngine(private val context: Context) {
 
         for ((root, isCache) in rootsToScan) {
             if (cancelRequested.get()) return
-            walkDirectory(root, isCache, 0)
+            walkDirectory(root, isCache, inTrashContext = false, depth = 0)
         }
 
         // =========================================================================
-        // STAGE 4: FINALIZE SORTED REAL REPORT & COMPUTE REAL SECURITY SCORE
+        // STAGE 5: FINALIZE SORTED REAL REPORT & COMPUTE REAL SECURITY SCORE (90% -> 100%)
         // =========================================================================
-        emitProgress(0.95, "FINALIZING REPORT", "Computing integrity score & ranking storage analytics...", "Report", force = true)
-        Thread.sleep(100)
+        emitProgress(0.95, "FINALIZING REPORT", "Computing integrity score & cleaning readiness...", "Report", force = true)
+        Thread.sleep(60)
 
-        // Sort largest files descending
         val largestList = largestPq.toList()
             .sortedByDescending { it.sizeBytes }
             .map {
@@ -896,7 +1073,6 @@ class ToolerSecurityEngine(private val context: Context) {
                 )
             }
 
-        // Sort unopened files: Never Opened first, then largest size
         val unopenedList = unopenedPq.toList()
             .sortedWith(compareByDescending<UnopenedEntry> { it.neverOpened }.thenByDescending { it.sizeBytes })
             .map {
@@ -914,10 +1090,9 @@ class ToolerSecurityEngine(private val context: Context) {
                 )
             }
 
-        // Sort junk largest first
         junkFiles.sortByDescending { (it["sizeBytes"] as? Long) ?: 0L }
+        trashFiles.sortByDescending { (it["sizeBytes"] as? Long) ?: 0L }
 
-        // Sort fishy HIGH -> MEDIUM -> LOW
         fun sevRank(s: String?): Int = when (s) {
             "HIGH" -> 3
             "MEDIUM" -> 2
@@ -926,7 +1101,6 @@ class ToolerSecurityEngine(private val context: Context) {
         fishyFiles.sortByDescending { sevRank(it["severity"] as? String) }
         suspiciousApps.sortByDescending { (it["riskScore"] as? Int) ?: 0 }
 
-        // Compute genuine Security Health Score (0 - 100)
         var score = 100
         for (w in systemWarnings) {
             score -= when (w["severity"]) {
@@ -950,6 +1124,9 @@ class ToolerSecurityEngine(private val context: Context) {
         } else if (totalJunkBytes > 25L * 1024L * 1024L) {
             score -= 3
         }
+        if (backgroundApps.count { it["isForegroundService"] == true } >= 3) {
+            score -= 3
+        }
         score = score.coerceIn(12, 100)
 
         val refreshedInfo = getSecurityInfo()
@@ -964,17 +1141,541 @@ class ToolerSecurityEngine(private val context: Context) {
                 "filesScanned" to totalFilesScanned,
                 "dirsScanned" to totalDirsScanned,
                 "hasAllFilesAccess" to fullAccess,
+                "hasUsageAccess" to hasUsageAccess(),
+                "hasNotificationAccess" to hasNotificationAccess(),
                 "totalJunkBytes" to totalJunkBytes,
                 "totalFishyBytes" to totalFishyBytes,
+                "totalTrashBytes" to totalTrashBytes,
                 "systemInfo" to refreshedInfo,
                 "systemWarnings" to systemWarnings,
                 "suspiciousApps" to suspiciousApps,
                 "fishyFiles" to fishyFiles,
                 "junkFiles" to junkFiles,
                 "largestFiles" to largestList,
-                "unopenedFiles" to unopenedList
+                "unopenedFiles" to unopenedList,
+                "backgroundApps" to backgroundApps,
+                "activeNotifications" to activeNotifications,
+                "trashFiles" to trashFiles
             )
         )
+    }
+
+    /**
+     * Queries Android 11+ MediaStore IS_TRASHED entries safely so Recycle Bin photos/videos/docs
+     * from Gallery/Files by Google are genuinely discovered & cleanable.
+     */
+    private fun scanMediaStoreTrash(
+        trashOut: MutableList<Map<String, Any>>,
+        seenPaths: MutableSet<String>
+    ) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+        try {
+            val collection = MediaStore.Files.getContentUri("external")
+            val projection = arrayOf(
+                MediaStore.Files.FileColumns._ID,
+                MediaStore.Files.FileColumns.DISPLAY_NAME,
+                MediaStore.Files.FileColumns.SIZE,
+                MediaStore.Files.FileColumns.DATA,
+                MediaStore.Files.FileColumns.DATE_MODIFIED
+            )
+            val queryArgs = Bundle().apply {
+                putInt(MediaStore.QUERY_ARG_MATCH_TRASHED, MediaStore.MATCH_ONLY)
+            }
+            context.contentResolver.query(collection, projection, queryArgs, null)?.use { cursor ->
+                val idIdx = cursor.getColumnIndex(MediaStore.Files.FileColumns._ID)
+                val nameIdx = cursor.getColumnIndex(MediaStore.Files.FileColumns.DISPLAY_NAME)
+                val sizeIdx = cursor.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
+                val dataIdx = cursor.getColumnIndex(MediaStore.Files.FileColumns.DATA)
+                val modIdx = cursor.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
+
+                while (cursor.moveToNext()) {
+                    val id = if (idIdx >= 0) cursor.getLong(idIdx) else continue
+                    val rawPath = if (dataIdx >= 0) cursor.getString(dataIdx) ?: "" else ""
+                    val rawName = if (nameIdx >= 0) cursor.getString(nameIdx) ?: "Trashed File" else "Trashed File"
+                    val sizeBytes = if (sizeIdx >= 0) cursor.getLong(sizeIdx).coerceAtLeast(0L) else 0L
+                    val modMs = if (modIdx >= 0) cursor.getLong(modIdx) * 1000L else 0L
+                    val uriStr = ContentUris.withAppendedId(collection, id).toString()
+
+                    val uniqueKey = rawPath.ifEmpty { uriStr }
+                    if (!seenPaths.add(uniqueKey)) continue
+
+                    val cleanName = rawName.replace(Regex("^\\.trashed-\\d+-"), "")
+                    trashOut.add(
+                        mapOf(
+                            "id" to uniqueKey,
+                            "name" to cleanName,
+                            "rawName" to rawName,
+                            "path" to rawPath,
+                            "mediaUri" to uriStr,
+                            "sizeBytes" to sizeBytes,
+                            "source" to "MediaStore Recycle Bin",
+                            "folder" to (File(rawPath).parentFile?.name ?: "Recycle Bin"),
+                            "lastModifiedMs" to modMs
+                        )
+                    )
+                }
+            }
+        } catch (_: Exception) {
+        }
+    }
+
+    /**
+     * Identifies genuine active background apps (foreground services like Android's "Active apps" menu
+     * + recently resident cached background processes in RAM) using UsageStatsManager,
+     * ActivityManager, NotificationListener, and StorageStatsManager.
+     */
+    private fun scanActiveBackgroundApps(
+        userPackages: List<android.content.pm.PackageInfo>,
+        killedBgMap: Map<String, Long>
+    ): List<Map<String, Any>> {
+        val pm = context.packageManager
+        val protectedPkgs = HashSet<String>().apply {
+            add(context.packageName)
+            add("android")
+            add("com.android.systemui")
+            add("com.android.settings")
+            add("com.android.phone")
+            add("com.android.providers.settings")
+            add("com.google.android.gms")
+            add("com.google.android.gsf")
+            add("com.android.vending")
+        }
+
+        // Never kill active launcher or enabled keyboards
+        try {
+            val homeIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+            val resolvedHome = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                pm.resolveActivity(homeIntent, PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()))
+            } else {
+                @Suppress("DEPRECATION")
+                pm.resolveActivity(homeIntent, PackageManager.MATCH_DEFAULT_ONLY)
+            }
+            resolvedHome?.activityInfo?.packageName?.let { protectedPkgs.add(it) }
+        } catch (_: Exception) {
+        }
+        try {
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+            imm?.enabledInputMethodList?.forEach { imi ->
+                protectedPkgs.add(imi.packageName)
+            }
+        } catch (_: Exception) {
+        }
+
+        val now = System.currentTimeMillis()
+        val fgsStartedAt = HashMap<String, Long>()
+        val lastActiveAt = HashMap<String, Long>()
+        val runningMemMb = HashMap<String, Int>()
+        val runningPids = HashMap<String, Int>()
+
+        // 1. Live notifications highlight active background apps
+        val ongoingNotifPkgs = HashSet<String>()
+        val activeNotifs = ToolerNotificationListenerService.getActiveNotificationList(context)
+        for (n in activeNotifs) {
+            val pkg = n["packageName"] as? String ?: continue
+            if (pkg !in protectedPkgs && n["isClearable"] == false) {
+                ongoingNotifPkgs.add(pkg)
+            }
+        }
+
+        // 2. UsageStatsManager (12h window -> exact ForegroundService Start/Stop + Recent Active/Cached)
+        if (hasUsageAccess()) {
+            try {
+                val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager
+                val events = usm?.queryEvents(now - 12L * 60L * 60L * 1000L, now)
+                if (events != null) {
+                    val ev = UsageEvents.Event()
+                    while (events.hasNextEvent()) {
+                        events.getNextEvent(ev)
+                        val pkg = ev.packageName ?: continue
+                        if (pkg in protectedPkgs) continue
+
+                        val ts = ev.timeStamp
+                        when {
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                                ev.eventType == UsageEvents.Event.FOREGROUND_SERVICE_START -> {
+                                fgsStartedAt[pkg] = ts
+                                lastActiveAt[pkg] = ts
+                            }
+                            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                                ev.eventType == UsageEvents.Event.FOREGROUND_SERVICE_STOP -> {
+                                fgsStartedAt.remove(pkg)
+                                lastActiveAt[pkg] = ts
+                            }
+                            ev.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
+                                ev.eventType == UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                                val prev = lastActiveAt[pkg] ?: 0L
+                                if (ts > prev) lastActiveAt[pkg] = ts
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {
+            }
+        }
+
+        // 3. ActivityManager live visible running processes + PSS memory measurement
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? ActivityManager
+        try {
+            val procs = am?.runningAppProcesses ?: emptyList()
+            for (p in procs) {
+                val pssMb = try {
+                    val memInfos = am?.getProcessMemoryInfo(intArrayOf(p.pid))
+                    val totalKb = memInfos?.firstOrNull()?.totalPss ?: 0
+                    (totalKb / 1024).coerceAtLeast(0)
+                } catch (_: Exception) {
+                    0
+                }
+                for (pkg in (p.pkgList ?: emptyArray())) {
+                    if (pkg in protectedPkgs) continue
+                    runningPids[pkg] = p.pid
+                    if (pssMb > 0) runningMemMb[pkg] = (runningMemMb[pkg] ?: 0) + pssMb
+                    lastActiveAt[pkg] = now
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                        p.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE
+                    ) {
+                        fgsStartedAt.putIfAbsent(pkg, now)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+
+        // Include non-system user packages + OEM active background services like Smart Connect even if preinstalled
+        val candidatePkgMap = HashMap<String, ApplicationInfo>()
+        for (pkg in userPackages) {
+            val ai = pkg.applicationInfo ?: continue
+            if (pkg.packageName !in protectedPkgs) {
+                candidatePkgMap[pkg.packageName] = ai
+            }
+        }
+        for (pkg in (fgsStartedAt.keys + runningPids.keys + ongoingNotifPkgs)) {
+            if (pkg in protectedPkgs || candidatePkgMap.containsKey(pkg)) continue
+            try {
+                candidatePkgMap[pkg] = pm.getApplicationInfo(pkg, 0)
+            } catch (_: Exception) {
+            }
+        }
+
+        val ssm = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && hasUsageAccess()) {
+            context.getSystemService(Context.STORAGE_STATS_SERVICE) as? StorageStatsManager
+        } else null
+
+        val result = ArrayList<Map<String, Any>>()
+        val recentCutoffMs = now - (6L * 60L * 60L * 1000L)
+
+        for ((pkg, ai) in candidatePkgMap) {
+            val fgsStart = fgsStartedAt[pkg]
+            val lastSeen = lastActiveAt[pkg] ?: 0L
+            val hasRunningPid = runningPids.containsKey(pkg)
+            val isOngoingNotif = pkg in ongoingNotifPkgs
+            val isFgsActive = fgsStart != null || isOngoingNotif
+            val isRecentCached = lastSeen >= recentCutoffMs || hasRunningPid
+
+            if (!isFgsActive && !isRecentCached) continue
+
+            // Respect previously killed timestamp: only resurface if genuine new activity started AFTER kill!
+            val prevKillMs = killedBgMap[pkg] ?: 0L
+            if (!isFgsActive && !hasRunningPid && prevKillMs > 0L && lastSeen <= prevKillMs) {
+                continue
+            }
+            if (isFgsActive && prevKillMs > 0L && !hasRunningPid && (fgsStart ?: 0L) <= prevKillMs && !isOngoingNotif) {
+                // Skip stale FGS if no longer live and predates user's stop action
+                continue
+            }
+
+            val appName = try {
+                ai.loadLabel(pm).toString().trim().ifEmpty { pkg }
+            } catch (_: Exception) {
+                pkg
+            }
+
+            var cacheBytes = 0L
+            if (ssm != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    val stats = ssm.queryStatsForPackage(
+                        StorageManager.UUID_DEFAULT,
+                        pkg,
+                        Process.myUserHandle()
+                    )
+                    cacheBytes = stats.cacheBytes
+                } catch (_: Exception) {
+                }
+            }
+
+            val statusLabel = when {
+                isFgsActive -> "Active Service"
+                hasRunningPid -> "Running in RAM"
+                else -> "Cached in RAM"
+            }
+
+            result.add(
+                mapOf(
+                    "packageName" to pkg,
+                    "appName" to appName,
+                    "isForegroundService" to isFgsActive,
+                    "hasRunningProcess" to hasRunningPid,
+                    "statusLabel" to statusLabel,
+                    "lastActiveMs" to (fgsStart ?: lastSeen),
+                    "estimatedRamMb" to (runningMemMb[pkg] ?: 0),
+                    "cacheBytes" to cacheBytes,
+                    "canKillSilently" to !isFgsActive
+                )
+            )
+        }
+
+        // Active foreground services first, then most recently active
+        result.sortWith(
+            compareByDescending<Map<String, Any>> { it["isForegroundService"] == true }
+                .thenByDescending { (it["estimatedRamMb"] as? Int) ?: 0 }
+                .thenByDescending { (it["lastActiveMs"] as? Long) ?: 0L }
+        )
+        return result.take(35)
+    }
+
+    /**
+     * Kills cached/background processes via ActivityManager and measures real RAM delta +
+     * identifies any OS-protected active foreground-service apps so UI can direct-link Stop.
+     */
+    fun killBackgroundApps(packages: List<String>): Map<String, Any> {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val beforeMi = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(beforeMi)
+        val beforeRamMb = (beforeMi.availMem / (1024L * 1024L)).toInt()
+
+        val now = System.currentTimeMillis()
+        val killedList = ArrayList<String>()
+        val protectedFgs = ArrayList<String>()
+
+        for (pkg in packages.distinct()) {
+            if (pkg.isBlank() || pkg == context.packageName) continue
+            try {
+                am.killBackgroundProcesses(pkg)
+                killedList.add(pkg)
+            } catch (_: Exception) {
+            }
+        }
+        recordKilledPackages(killedList, now)
+
+        System.runFinalization()
+        System.gc()
+        try {
+            Thread.sleep(100)
+        } catch (_: Exception) {
+        }
+
+        // Check if any targeted packages still hold an ongoing non-clearable notification / visible FGS
+        val ongoingAfter = ToolerNotificationListenerService.getActiveNotificationList(context)
+            .filter { it["isClearable"] == false }
+            .mapNotNull { it["packageName"] as? String }
+            .toSet()
+
+        try {
+            val afterProcs = am.runningAppProcesses ?: emptyList()
+            for (p in afterProcs) {
+                val isFgs = Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+                    p.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND_SERVICE
+                if (isFgs) {
+                    p.pkgList?.forEach { pkg ->
+                        if (pkg in killedList && pkg !in protectedFgs) protectedFgs.add(pkg)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+        }
+        for (pkg in ongoingAfter) {
+            if (pkg in killedList && pkg !in protectedFgs) protectedFgs.add(pkg)
+        }
+
+        val afterMi = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(afterMi)
+        val afterRamMb = (afterMi.availMem / (1024L * 1024L)).toInt()
+        val ramFreedMb = (afterRamMb - beforeRamMb).coerceAtLeast(0)
+
+        return mapOf(
+            "killedCount" to killedList.size,
+            "killedPackages" to killedList,
+            "protectedFgsPackages" to protectedFgs,
+            "beforeRamMb" to beforeRamMb,
+            "afterRamMb" to afterRamMb,
+            "ramFreedMb" to ramFreedMb
+        )
+    }
+
+    /**
+     * Master Single-Tap Deep Clean & Finish sweep:
+     * 1) Deletes all discovered Junk + Fishy files (and clears app own disposable caches)
+     * 2) Kills all cached/background app processes & reclaims RAM
+     * 3) Dismisses all clearable notifications via NotificationListenerService
+     * 4) Persists resolved fingerprints so cleaned items don't keep popping up repeatedly
+     */
+    fun cleanMasterSweep(
+        junkPaths: List<String>,
+        fishyPaths: List<String>,
+        bgPackages: List<String>,
+        clearNotifications: Boolean,
+        resolvedFingerprints: List<String>
+    ): Map<String, Any> {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val beforeMi = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(beforeMi)
+        val beforeRamMb = (beforeMi.availMem / (1024L * 1024L)).toInt()
+
+        val junkRes = deleteSelectedFiles(junkPaths)
+        val fishyRes = deleteSelectedFiles(fishyPaths)
+
+        // Also clear Tooler's own internal & external disposable cache directories
+        var ownCacheFreedBytes = 0L
+        fun clearDirContents(dir: File?) {
+            if (dir == null || !dir.exists()) return
+            dir.listFiles()?.forEach { child ->
+                try {
+                    if (child.isDirectory) {
+                        clearDirContents(child)
+                        child.delete()
+                    } else {
+                        val len = child.length()
+                        if (child.delete()) ownCacheFreedBytes += len
+                    }
+                } catch (_: Exception) {
+                }
+            }
+        }
+        clearDirContents(context.cacheDir)
+        clearDirContents(context.externalCacheDir)
+
+        val bgRes = killBackgroundApps(bgPackages)
+        val notifRes = if (clearNotifications) {
+            ToolerNotificationListenerService.clearAllClearableNotifications(context)
+        } else {
+            mapOf("clearedCount" to 0, "listenerConnected" to false, "listenerEnabled" to hasNotificationAccess())
+        }
+
+        // Persist resolved fingerprints so these cleaned items are never surfaced redundantly
+        markFingerprintsResolved(resolvedFingerprints)
+
+        val afterMi = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(afterMi)
+        val afterRamMb = (afterMi.availMem / (1024L * 1024L)).toInt()
+
+        val deletedJunkCount = (junkRes["deletedCount"] as? Int) ?: 0
+        val deletedFishyCount = (fishyRes["deletedCount"] as? Int) ?: 0
+        val totalStorageFreedBytes = ((junkRes["freedBytes"] as? Long) ?: 0L) +
+            ((fishyRes["freedBytes"] as? Long) ?: 0L) +
+            ownCacheFreedBytes
+
+        var availStorageBytes = 0L
+        try {
+            val stat = StatFs(Environment.getDataDirectory().path)
+            availStorageBytes = stat.availableBlocksLong * stat.blockSizeLong
+        } catch (_: Exception) {
+        }
+
+        return mapOf(
+            "deletedJunkCount" to deletedJunkCount,
+            "deletedFishyCount" to deletedFishyCount,
+            "deletedJunkPaths" to (junkRes["deletedPaths"] ?: emptyList<String>()),
+            "deletedFishyPaths" to (fishyRes["deletedPaths"] ?: emptyList<String>()),
+            "freedBytes" to totalStorageFreedBytes,
+            "killedBgCount" to ((bgRes["killedCount"] as? Int) ?: 0),
+            "killedPackages" to (bgRes["killedPackages"] ?: emptyList<String>()),
+            "protectedFgsPackages" to (bgRes["protectedFgsPackages"] ?: emptyList<String>()),
+            "ramFreedMb" to (afterRamMb - beforeRamMb).coerceAtLeast(0),
+            "availRamMb" to afterRamMb,
+            "availStorageBytes" to availStorageBytes,
+            "notificationsCleared" to ((notifRes["clearedCount"] as? Int) ?: 0),
+            "notificationListenerConnected" to (notifRes["listenerConnected"] == true),
+            "hasNotificationAccess" to hasNotificationAccess()
+        )
+    }
+
+    /**
+     * Permanently empties Trash / Recycle Bin entries across storage & Android MediaStore.
+     */
+    fun cleanRecycleBin(items: List<Map<String, Any>>): Map<String, Any> {
+        var deletedCount = 0
+        var freedBytes = 0L
+        val deletedIds = ArrayList<String>()
+        val failedIds = ArrayList<String>()
+        val pendingPromptUris = ArrayList<String>()
+
+        for (item in items) {
+            val id = item["id"]?.toString() ?: ""
+            val path = item["path"]?.toString() ?: ""
+            val uriStr = item["mediaUri"]?.toString() ?: ""
+            val expectedBytes = (item["sizeBytes"] as? Number)?.toLong() ?: 0L
+
+            var deletedThis = false
+            var actualBytes = expectedBytes
+
+            if (path.isNotBlank()) {
+                try {
+                    val f = File(path)
+                    if (f.exists() && f.isFile) {
+                        actualBytes = f.length()
+                        if (f.delete()) {
+                            deletedThis = true
+                            // Clean orphaned MediaStore entry if present
+                            purgeMediaStorePath(path)
+                        }
+                    } else if (!f.exists() && uriStr.isBlank()) {
+                        deletedThis = true
+                    }
+                } catch (_: Exception) {
+                }
+            }
+
+            if (uriStr.isNotBlank()) {
+                try {
+                    val uri = Uri.parse(uriStr)
+                    val rows = context.contentResolver.delete(uri, null, null)
+                    if (rows > 0) deletedThis = true
+                } catch (_: SecurityException) {
+                    if (!deletedThis && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        pendingPromptUris.add(uriStr)
+                    }
+                } catch (_: Exception) {
+                }
+            }
+
+            if (deletedThis) {
+                deletedCount++
+                freedBytes += actualBytes
+                if (id.isNotBlank()) deletedIds.add(id)
+            } else {
+                if (id.isNotBlank()) failedIds.add(id)
+            }
+        }
+
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val mi = ActivityManager.MemoryInfo()
+        am.getMemoryInfo(mi)
+        var availStorageBytes = 0L
+        try {
+            val stat = StatFs(Environment.getDataDirectory().path)
+            availStorageBytes = stat.availableBlocksLong * stat.blockSizeLong
+        } catch (_: Exception) {
+        }
+
+        return mapOf(
+            "deletedCount" to deletedCount,
+            "freedBytes" to freedBytes,
+            "deletedIds" to deletedIds,
+            "failedIds" to failedIds,
+            "pendingPromptUris" to pendingPromptUris,
+            "availRamMb" to (mi.availMem / (1024L * 1024L)).toInt(),
+            "availStorageBytes" to availStorageBytes
+        )
+    }
+
+    private fun purgeMediaStorePath(path: String) {
+        try {
+            context.contentResolver.delete(
+                MediaStore.Files.getContentUri("external"),
+                "${MediaStore.MediaColumns.DATA}=?",
+                arrayOf(path)
+            )
+        } catch (_: Exception) {
+        }
     }
 
     /**
@@ -989,7 +1690,6 @@ class ToolerSecurityEngine(private val context: Context) {
         }
         if (bytesRead < 4) return null
 
-        // Check if file actually contains an executable binary header!
         val isElf = header[0] == 0x7F.toByte() && header[1] == 'E'.code.toByte() &&
             header[2] == 'L'.code.toByte() && header[3] == 'F'.code.toByte()
         val isDex = header[0] == 'd'.code.toByte() && header[1] == 'e'.code.toByte() &&
@@ -1011,7 +1711,6 @@ class ToolerSecurityEngine(private val context: Context) {
             )
         }
 
-        // Check PDF magic header (%PDF)
         if (ext == "pdf") {
             val isPdf = header[0] == '%'.code.toByte() && header[1] == 'P'.code.toByte() &&
                 header[2] == 'D'.code.toByte() && header[3] == 'F'.code.toByte()
@@ -1027,7 +1726,7 @@ class ToolerSecurityEngine(private val context: Context) {
     }
 
     /**
-     * Deletes exact user-selected file paths and returns 100% real deleted count & bytes freed.
+     * Deletes exact user-selected file paths permanently and cleans MediaStore index rows.
      */
     fun deleteSelectedFiles(paths: List<String>): Map<String, Any> {
         var deletedCount = 0
@@ -1044,6 +1743,7 @@ class ToolerSecurityEngine(private val context: Context) {
                         deletedCount++
                         freedBytes += len
                         deletedPaths.add(p)
+                        purgeMediaStorePath(p)
                     } else {
                         failedPaths.add(p)
                     }
@@ -1053,24 +1753,27 @@ class ToolerSecurityEngine(private val context: Context) {
             }
         }
 
-        // Also run GC to refresh real RAM metrics
         System.gc()
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val mi = ActivityManager.MemoryInfo()
         am.getMemoryInfo(mi)
+        var availStorageBytes = 0L
+        try {
+            val stat = StatFs(Environment.getDataDirectory().path)
+            availStorageBytes = stat.availableBlocksLong * stat.blockSizeLong
+        } catch (_: Exception) {
+        }
 
         return mapOf(
             "deletedCount" to deletedCount,
             "freedBytes" to freedBytes,
             "deletedPaths" to deletedPaths,
             "failedPaths" to failedPaths,
-            "availRamMb" to (mi.availMem / (1024L * 1024L)).toInt()
+            "availRamMb" to (mi.availMem / (1024L * 1024L)).toInt(),
+            "availStorageBytes" to availStorageBytes
         )
     }
 
-    /**
-     * Computes real SHA-256 cryptographic hash + metadata for inspecting any suspicious/large/unopened file.
-     */
     fun inspectFileDetails(path: String): Map<String, Any> {
         val f = File(path)
         if (!f.exists() || !f.isFile) {
@@ -1154,7 +1857,6 @@ class ToolerSecurityEngine(private val context: Context) {
                 val v = f.readText().trim()
                 if (v == "1") "Enforcing" else "Permissive (Weakened)"
             } else {
-                // On modern Android, untrusted apps cannot read /sys/fs/selinux/enforce specifically because SELinux is Enforcing
                 "Enforcing (Kernel Protected)"
             }
         } catch (_: Exception) {
@@ -1207,4 +1909,10 @@ class ToolerSecurityEngine(private val context: Context) {
         val statusLabel: String,
         val neverOpened: Boolean
     )
+
+    companion object {
+        private const val PREFS_CLEANED_REGISTRY = "tooler_security_cleaned_registry"
+        private const val KEY_CLEANED_FINGERPRINTS = "cleaned_fingerprints"
+        private const val KEY_KILLED_BG_TIMESTAMPS = "killed_bg_timestamps"
+    }
 }
