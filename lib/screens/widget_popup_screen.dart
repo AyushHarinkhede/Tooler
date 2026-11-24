@@ -125,7 +125,7 @@ class _WidgetPopupScreenState extends State<WidgetPopupScreen>
         );
       case 'recorder':
         return _PopupToolMeta(
-          title: 'Noise Meter & Recorder',
+          title: 'NoiseCapture',
           subtitle: 'Decibel Meter, Voice Recorder & Monitor',
           tag: 'Audio',
           child: SoundRecorderScreen(theme: t),

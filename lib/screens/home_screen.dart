@@ -631,7 +631,7 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       {
         'id': 'recorder',
-        'title': 'Noise Meter & Recorder',
+        'title': 'NoiseCapture',
         'subtitle': 'Live dB gauge, noise safety & audio capture',
         'category': 'Time & Tasks',
         'tag': 'Acoustic dB',
