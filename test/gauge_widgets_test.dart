@@ -175,6 +175,13 @@ void main() {
       // Before scan completes, Security Risk Detection & Recycle Bin must stay hidden
       expect(find.textContaining('SECURITY RISK DETECTION'), findsNothing);
       expect(find.text('RECYCLE BIN & TRASH CLEANER'), findsNothing);
+
+      // Waves must stay OFF while idle (appear strictly during scan & finish)
+      final idleWavePaint = tester.widget<CustomPaint>(
+        find.byKey(const ValueKey('security_border_waves')),
+      );
+      final idlePainter = idleWavePaint.painter as SecurityBorderWavePainter;
+      expect(idlePainter.waveEnergy, 0.0);
     }
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -208,8 +215,24 @@ void main() {
           };
         }
         if (call.method == 'startDeepScan') {
+          const codec = StandardMethodCodec();
           scheduleMicrotask(() {
-            const codec = StandardMethodCodec();
+            tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+              eventChannelName,
+              codec.encodeSuccessEnvelope({
+                'type': 'progress',
+                'progress': 0.54,
+                'stage': 'DEEP STORAGE SCAN',
+                'target': '/Android/media',
+                'category': 'Folder',
+                'severity': 'info',
+                'appsScanned': 24,
+                'filesScanned': 900,
+              }),
+              (_) {},
+            );
+          });
+          Future.delayed(const Duration(milliseconds: 400), () {
             final payload = codec.encodeSuccessEnvelope({
               'type': 'complete',
               'securityScore': 82,
@@ -362,7 +385,19 @@ void main() {
     // Tap START REAL DEEP SCAN
     await tester.tap(find.text('START REAL DEEP SCAN'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 50));
+    await tester.pump(const Duration(milliseconds: 250));
+
+    // During Scan: multi-color border waves must be active (isFinishMode == false)
+    final scanWavePaint = tester.widget<CustomPaint>(
+      find.byKey(const ValueKey('security_border_waves')),
+    );
+    final scanPainter = scanWavePaint.painter as SecurityBorderWavePainter;
+    expect(scanPainter.waveEnergy, greaterThan(0.3));
+    expect(scanPainter.isFinishMode, isFalse);
+
+    // Advance past mocked scan completion + LIVE SCAN AUDIT AnimatedSize collapse
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump(const Duration(milliseconds: 350));
 
     // After scan completes:
     // 1) Ready to Clean & Finish appears
@@ -383,14 +418,25 @@ void main() {
       200,
       scrollable: mainScrollable,
     );
+    await Scrollable.ensureVisible(
+      tester.element(find.text('Largest')),
+      alignment: 0.2,
+    );
+    await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('Largest'));
     await tester.pump(const Duration(milliseconds: 220));
     expect(find.text('SELECT ALL'), findsWidgets);
+    await Scrollable.ensureVisible(
+      tester.element(find.text('SELECT ALL').first),
+      alignment: 0.3,
+    );
+    await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(find.text('SELECT ALL').first);
     await tester.pump();
     expect(find.textContaining('DELETE 1 SELECTED'), findsOneWidget);
 
-    // 5) Tap CLEAN & FINISH (4) (1-click sweep) -> shows sweet NOTHING ELSE TO CLEAN card
+    // Wait for finish red wave pulse while tapping CLEAN & FINISH (4)
+    // 5) Tap CLEAN & FINISH (4) (1-click sweep) -> red waves active + sweet NOTHING ELSE TO CLEAN card
     await tester.scrollUntilVisible(
       find.text('CLEAN & FINISH (4)'),
       -300,
@@ -399,6 +445,13 @@ void main() {
     await tester.tap(find.text('CLEAN & FINISH (4)'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 250));
+
+    final finishWavePaint = tester.widget<CustomPaint>(
+      find.byKey(const ValueKey('security_border_waves')),
+    );
+    final finishPainter = finishWavePaint.painter as SecurityBorderWavePainter;
+    expect(finishPainter.waveEnergy, greaterThan(0.3));
+    expect(finishPainter.isFinishMode, isTrue);
 
     expect(find.text('NOTHING ELSE TO CLEAN'), findsOneWidget);
     expect(methodCalls.any((c) => c.method == 'cleanMasterSweep'), isTrue);
@@ -491,5 +544,84 @@ void main() {
     // Midpoint at 257° (50% of 0.90 * 260°) MUST stay saturated, never muddy grey
     final midPx = pixelAtAngle(257.0);
     expect(HSVColor.fromColor(midPx).saturation, greaterThan(0.50));
+  });
+
+  test('SecurityBorderWavePainter paints zero at idle, multi-color inside+outside border during scan, and red inside+outside border during finish', () async {
+    const double width = 360.0;
+    const double height = 304.0;
+    const double cx = width / 2.0;
+    const double cy = height / 2.0;
+    // Gauge ring radius = 264/2 - 18 = 114.0
+
+    Future<ByteData> renderWaves({
+      required double waveEnergy,
+      required bool isFinishMode,
+    }) async {
+      final recorder = ui.PictureRecorder();
+      final canvas = Canvas(recorder);
+      final painter = SecurityBorderWavePainter(
+        wavePhase: 1.25,
+        waveEnergy: waveEnergy,
+        isScanning: !isFinishMode && waveEnergy > 0,
+        isFinishMode: isFinishMode,
+        gaugeSize: 264.0,
+        theme: darkTheme,
+        statusColor: isFinishMode ? const Color(0xFFF43F5E) : const Color(0xFF06B6D4),
+      );
+      painter.paint(canvas, const Size(width, height));
+      final picture = recorder.endRecording();
+      final img = await picture.toImage(width.toInt(), height.toInt());
+      return (await img.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+    }
+
+    (int outsideCount, int insideCount, int strongRedCount, int nonRedColorCount)
+        inspectAnnuli(ByteData bd) {
+      int outC = 0;
+      int inC = 0;
+      int redC = 0;
+      int nonRedC = 0;
+      for (int y = 0; y < height.toInt(); y += 2) {
+        for (int x = 0; x < width.toInt(); x += 2) {
+          final off = (y * width.toInt() + x) * 4;
+          final a = bd.getUint8(off + 3);
+          if (a < 30) continue;
+          final r = bd.getUint8(off);
+          final g = bd.getUint8(off + 1);
+          final b = bd.getUint8(off + 2);
+          final dx = x - cx;
+          final dy = y - cy;
+          final dist = math.sqrt(dx * dx + dy * dy);
+          if (dist >= 122.0 && dist <= 148.0) outC++;
+          if (dist >= 68.0 && dist <= 106.0) inC++;
+          if (r > g + 35 && r > b + 35) {
+            redC++;
+          } else if ((g > r + 15 || b > r + 15) && a > 60) {
+            nonRedC++;
+          }
+        }
+      }
+      return (outC, inC, redC, nonRedC);
+    }
+
+    // 1. Idle -> zero waves drawn
+    final idleBd = await renderWaves(waveEnergy: 0.0, isFinishMode: false);
+    final idleStats = inspectAnnuli(idleBd);
+    expect(idleStats.$1, 0);
+    expect(idleStats.$2, 0);
+
+    // 2. Active Scan -> Multi-color waves extending both outside and inside border (r=114)
+    final scanBd = await renderWaves(waveEnergy: 1.0, isFinishMode: false);
+    final scanStats = inspectAnnuli(scanBd);
+    expect(scanStats.$1, greaterThan(20)); // outside border
+    expect(scanStats.$2, greaterThan(20)); // inside border
+    expect(scanStats.$4, greaterThan(10)); // includes cyan/green/blue/purple multi-colors
+
+    // 3. Finish -> Red waves extending both outside and inside border (r=114), zero cyan/blue/green
+    final finishBd = await renderWaves(waveEnergy: 1.0, isFinishMode: true);
+    final finishStats = inspectAnnuli(finishBd);
+    expect(finishStats.$1, greaterThan(20)); // outside border
+    expect(finishStats.$2, greaterThan(20)); // inside border
+    expect(finishStats.$3, greaterThan(50)); // strong red
+    expect(finishStats.$4, 0);               // strictly red spectrum
   });
 }

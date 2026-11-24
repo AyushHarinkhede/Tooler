@@ -61,10 +61,12 @@ class _SecurityScreenState extends State<SecurityScreen>
   Duration _lastWaveElapsed = Duration.zero;
   final ValueNotifier<int> _waveFrameNotifier = ValueNotifier<int>(0);
   double _wavePhase = 0.0;
-  double _waveEnergy = 0.58;
+  double _waveEnergy = 0.0;
+  bool _isFinishWaveRed = false;
 
   late final AnimationController _sweetAnimController;
   late final AnimationController _screenRefreshController;
+  late final AnimationController _finishWaveController;
 
   _ScanState _scanState = _ScanState.idle;
   double _scanProgress = 0.0;
@@ -151,6 +153,11 @@ class _SecurityScreenState extends State<SecurityScreen>
       duration: const Duration(milliseconds: 950),
     );
 
+    _finishWaveController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2400),
+    );
+
     _waveTicker = createTicker((elapsed) {
       if (!mounted) return;
       double dt = 0.016;
@@ -160,15 +167,29 @@ class _SecurityScreenState extends State<SecurityScreen>
       }
       _lastWaveElapsed = elapsed;
 
-      final bool isScanning =
-          _scanState == _ScanState.scanning || _isMasterCleaning;
-      final double targetEnergy = isScanning ? 1.0 : 0.58;
-      final double factor = 1.0 - math.exp(-4.5 * dt);
-      _waveEnergy += (targetEnergy - _waveEnergy) * factor;
+      final bool isScanActive = _scanState == _ScanState.scanning;
+      final bool isFinishActive =
+          _isMasterCleaning || _finishWaveController.isAnimating;
+      final bool wavesActive = isScanActive || isFinishActive;
 
-      final double angularSpeed = 1.35 + (_waveEnergy * 1.95);
-      _wavePhase = (_wavePhase + angularSpeed * dt) % (math.pi * 200.0);
-      _waveFrameNotifier.value++;
+      // Only show waves when scan starts (multi-color) or during finish (red)
+      final double targetEnergy = wavesActive ? 1.0 : 0.0;
+      final double rate = wavesActive ? 7.5 : 5.2;
+      final double factor = 1.0 - math.exp(-rate * dt);
+      _waveEnergy += (targetEnergy - _waveEnergy) * factor;
+      if (!wavesActive && _waveEnergy < 0.004) {
+        _waveEnergy = 0.0;
+      }
+      if (wavesActive) {
+        _isFinishWaveRed = isFinishActive;
+      }
+
+      if (_waveEnergy > 0.0) {
+        final double angularSpeed =
+            isFinishActive ? 3.8 : (2.8 + _waveEnergy * 0.9);
+        _wavePhase = (_wavePhase + angularSpeed * dt) % (math.pi * 200.0);
+        _waveFrameNotifier.value++;
+      }
     })..start();
 
     WidgetsBinding.instance.addObserver(this);
@@ -183,6 +204,7 @@ class _SecurityScreenState extends State<SecurityScreen>
     _waveFrameNotifier.dispose();
     _sweetAnimController.dispose();
     _screenRefreshController.dispose();
+    _finishWaveController.dispose();
     _eventSub?.cancel();
     if (_scanState == _ScanState.scanning) {
       _methodChannel.invokeMethod('cancelScan');
@@ -398,10 +420,13 @@ class _SecurityScreenState extends State<SecurityScreen>
     }
 
     SoundService().playClick();
+    _finishWaveController.stop();
+    _finishWaveController.reset();
     setState(() {
       _scanState = _ScanState.scanning;
       _scanProgress = 0.02;
       _currentStage = 'INITIALIZING';
+      _isFinishWaveRed = false;
       _liveAppsScanned = 0;
       _liveFilesScanned = 0;
       _liveIssuesCount = 0;
@@ -451,9 +476,13 @@ class _SecurityScreenState extends State<SecurityScreen>
   Future<void> _runMasterCleanAndFinish() async {
     if (_isMasterCleaning) return;
     SoundService().playClick();
-    setState(() => _isMasterCleaning = true);
+    setState(() {
+      _isMasterCleaning = true;
+      _isFinishWaveRed = true;
+    });
 
-    // Real Flutter image & shader frame buffer purge + animated screen sweep
+    // Trigger Red Finish Border Waves + Image/Frame Purge + Screen Refresh Sweep
+    _finishWaveController.forward(from: 0.0);
     PaintingBinding.instance.imageCache.clear();
     PaintingBinding.instance.imageCache.clearLiveImages();
     _screenRefreshController.forward(from: 0.0);
@@ -580,7 +609,11 @@ class _SecurityScreenState extends State<SecurityScreen>
     if (confirm != true) return;
 
     SoundService().playClick();
-    setState(() => _isTrashCleaning = true);
+    setState(() {
+      _isTrashCleaning = true;
+      _isFinishWaveRed = true;
+    });
+    _finishWaveController.forward(from: 0.0);
     try {
       final res = await _methodChannel.invokeMethod<Map<dynamic, dynamic>>(
         'cleanRecycleBin',
@@ -1324,11 +1357,16 @@ class _SecurityScreenState extends State<SecurityScreen>
   }
 
   // ===========================================================================
-  // 1. UNBOXED HERO RADIAL GAUGE + AURORA WAVES
+  // 1. UNBOXED HERO RADIAL GAUGE + CIRCLE-BORDER RADIATING / CONTRACTING WAVES
   // ===========================================================================
   Widget _buildSecurityRadialBarCard(StationeryTheme theme, bool isScanning) {
+    final bool isFinishActive =
+        _isMasterCleaning || _finishWaveController.isAnimating;
+
     Color statusColor;
-    if (isScanning || _isMasterCleaning) {
+    if (isFinishActive) {
+      statusColor = const Color(0xFFF43F5E);
+    } else if (isScanning) {
       statusColor = const Color(0xFF06B6D4);
     } else if (_scannerMode == HoloScannerMode.threat) {
       statusColor = const Color(0xFFF43F5E);
@@ -1348,8 +1386,8 @@ class _SecurityScreenState extends State<SecurityScreen>
 
     final String statusBadge = isScanning
         ? 'SCANNING'
-        : (_isMasterCleaning
-            ? 'CLEANING'
+        : (isFinishActive
+            ? 'FINISHING'
             : (_scannerMode == HoloScannerMode.threat
                 ? 'THREATS FOUND'
                 : (_scannerMode == HoloScannerMode.warning
@@ -1363,7 +1401,7 @@ class _SecurityScreenState extends State<SecurityScreen>
       scaleFraction: 0.98,
       child: SizedBox(
         width: double.infinity,
-        height: 280,
+        height: 304,
         child: Stack(
           alignment: Alignment.center,
           children: [
@@ -1373,10 +1411,13 @@ class _SecurityScreenState extends State<SecurityScreen>
                   valueListenable: _waveFrameNotifier,
                   builder: (context, _, __) {
                     return CustomPaint(
-                      painter: _SecurityMultiColorWavePainter(
+                      key: const ValueKey('security_border_waves'),
+                      painter: SecurityBorderWavePainter(
                         wavePhase: _wavePhase,
                         waveEnergy: _waveEnergy,
-                        isScanning: isScanning || _isMasterCleaning,
+                        isScanning: isScanning,
+                        isFinishMode: _isFinishWaveRed,
+                        gaugeSize: 264.0,
                         theme: theme,
                         statusColor: statusColor,
                       ),
@@ -4283,210 +4324,246 @@ class _ScreenRefreshSweepPainter extends CustomPainter {
       oldDelegate.progress != progress;
 }
 
-/// Multi-Color Flowing Aurora Wave Painter for Security Scanner.
-class _SecurityMultiColorWavePainter extends CustomPainter {
+/// Circle-Border Radial & Contracting Wave Painter for Security Scanner.
+/// Emits harmonic waves surging outward AND inward directly from the circular
+/// gauge border — active strictly during Deep Scan (multi-color) and Finish (red).
+class SecurityBorderWavePainter extends CustomPainter {
   final double wavePhase;
   final double waveEnergy;
   final bool isScanning;
+  final bool isFinishMode;
+  final double gaugeSize;
   final StationeryTheme theme;
   final Color statusColor;
 
-  const _SecurityMultiColorWavePainter({
+  const SecurityBorderWavePainter({
     required this.wavePhase,
     required this.waveEnergy,
     required this.isScanning,
+    required this.isFinishMode,
+    required this.gaugeSize,
     required this.theme,
     required this.statusColor,
   });
 
-  List<Color> _uiSpectrum() => [
-        theme.primary,
-        const Color(0xFF06B6D4),
-        const Color(0xFFA855F7),
-        const Color(0xFF10B981),
-        const Color(0xFFF59E0B),
-        const Color(0xFF0EA5E9),
-        const Color(0xFFFB7185),
+  List<Color> _activePalette() {
+    if (isFinishMode) {
+      return const [
+        Color(0xFFEF4444), // Red
+        Color(0xFFF43F5E), // Crimson Rose
+        Color(0xFFDC2626), // Deep Red
+        Color(0xFFFB7185), // Bright Coral Red
+        Color(0xFFE11D48), // Ruby Red
+        Color(0xFFEF4444),
       ];
+    }
+    return [
+      theme.primary,
+      const Color(0xFF06B6D4), // Cyan
+      const Color(0xFFA855F7), // Lilac Violet
+      const Color(0xFF10B981), // Emerald
+      const Color(0xFFF59E0B), // Warm Amber
+      const Color(0xFF0EA5E9), // Sky Blue
+      const Color(0xFFFB7185), // Blush Rose
+      theme.primary,
+    ];
+  }
 
-  double _strandY(
-    int i,
-    double t,
-    double centerY,
-    double width,
-    double env,
-  ) {
-    const double twoPi = math.pi * 2.0;
-    final double spread = (i - 2.5) * 14.0 * (0.45 + 0.55 * env);
-    final double crossTilt =
-        (i.isEven ? 1.0 : -1.0) * (16.0 + (i % 3) * 8.0) * (t - 0.5) * env;
-    final double f1 = 1.35 + (i % 3) * 0.52;
-    final double f2 = 2.65 + (i % 2) * 0.90;
-    final double dir = i.isEven ? 1.0 : -1.0;
-    final double phase1 = wavePhase * dir * (0.85 + i * 0.14) + i * 1.12;
-    final double phase2 = wavePhase * -dir * 0.65 + i * 2.05;
-    final double amp =
-        (19.0 + (i % 3) * 8.0) * (0.64 + 0.54 * waveEnergy) * env;
-
-    return centerY +
-        spread +
-        crossTilt +
-        math.sin(t * twoPi * f1 + phase1) * amp +
-        math.cos(t * twoPi * f2 + phase2) * (amp * 0.42);
+  List<Color> _rotatedPalette(List<Color> base, int shift) {
+    final core = base.sublist(0, base.length - 1);
+    final rotated = List<Color>.generate(
+      core.length,
+      (idx) => core[(idx + shift) % core.length],
+    );
+    rotated.add(rotated.first);
+    return rotated;
   }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final double centerY = size.height / 2;
-    final List<Color> uiColors = _uiSpectrum();
-    final Rect bounds = Offset.zero & size;
-    const int segs = 72;
-    const int strandCount = 6;
+    if (waveEnergy <= 0.004) return;
+
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double borderR = (gaugeSize / 2.0) - 18.0; // Exact ring border radius
+    final double maxRadius = (size.height / 2.0) - 4.0;
+    final List<Color> palette = _activePalette();
     final bool isDark = theme.isDark;
+    const double twoPi = math.pi * 2.0;
+    const int segs = 144;
+    const int strandCount = 4;
 
-    final List<List<Offset>> strands = List.generate(strandCount, (i) {
-      return List.generate(segs + 1, (s) {
-        final double t = s / segs;
-        final double env = math.pow(math.sin(t * math.pi), 0.72).toDouble();
-        final double x = t * size.width;
-        final double y = _strandY(i, t, centerY, size.width, env);
-        return Offset(x, y);
-      });
-    });
+    // 1. Bidirectional Border Pulse Ripples (2 expanding outward, 2 pulling inward)
+    const int pulseCount = 4;
+    for (int p = 0; p < pulseCount; p++) {
+      final bool isOutward = p.isEven;
+      final double t = ((wavePhase * 0.22) + (p / pulseCount)) % 1.0;
+      final double fade = math.sin(t * math.pi).clamp(0.0, 1.0) * waveEnergy;
+      if (fade <= 0.01) continue;
 
-    for (int i = 0; i < 3; i++) {
-      final List<Offset> topPts = strands[i];
-      final List<Offset> botPts = strands[i + 3];
-      final Path ribbonPath = Path()..moveTo(topPts.first.dx, topPts.first.dy);
-      for (int s = 1; s < topPts.length; s++) {
-        ribbonPath.lineTo(topPts[s].dx, topPts[s].dy);
+      final double travel = t * (isOutward ? 32.0 : 34.0) * waveEnergy;
+      final double baseR = isOutward ? (borderR + travel) : (borderR - travel);
+      final double clampedBaseR = baseR.clamp(56.0, maxRadius - 4.0);
+
+      final Path ripple = Path();
+      final double rippleAmp = (3.5 + (p % 2) * 1.5) * (1.0 - t * 0.45);
+      for (int s = 0; s <= 96; s++) {
+        final double theta = (s / 96) * twoPi;
+        final double wobble =
+            math.sin(theta * (6 + p) + wavePhase * (isOutward ? 1.5 : -1.5)) *
+                rippleAmp;
+        final double r = (clampedBaseR + wobble).clamp(52.0, maxRadius);
+        final Offset pt = Offset(
+          center.dx + r * math.cos(theta),
+          center.dy + r * math.sin(theta),
+        );
+        if (s == 0) {
+          ripple.moveTo(pt.dx, pt.dy);
+        } else {
+          ripple.lineTo(pt.dx, pt.dy);
+        }
       }
-      for (int s = botPts.length - 1; s >= 0; s--) {
-        ribbonPath.lineTo(botPts[s].dx, botPts[s].dy);
-      }
-      ribbonPath.close();
+      ripple.close();
 
-      final Color c0 = uiColors[i % uiColors.length];
-      final Color c1 = uiColors[(i + 2) % uiColors.length];
-      final Color c2 = uiColors[(i + 4) % uiColors.length];
-      final double ribbonAlpha =
-          (isDark ? 0.11 : 0.09) * (0.72 + 0.45 * waveEnergy);
+      final List<Color> ringColors = _rotatedPalette(palette, p)
+          .map((c) => c.withValues(alpha: (isDark ? 0.42 : 0.34) * fade))
+          .toList();
 
-      final Paint ribbonPaint = Paint()
-        ..shader = LinearGradient(
-          colors: [
-            Colors.transparent,
-            c0.withValues(alpha: ribbonAlpha),
-            c1.withValues(alpha: ribbonAlpha * 1.15),
-            c2.withValues(alpha: ribbonAlpha),
-            Colors.transparent,
-          ],
-          stops: const [0.0, 0.16, 0.50, 0.84, 1.0],
-        ).createShader(bounds)
-        ..style = PaintingStyle.fill;
+      final Rect shaderBounds =
+          Rect.fromCircle(center: center, radius: borderR + 36.0);
 
-      canvas.drawPath(ribbonPath, ribbonPaint);
+      canvas.drawPath(
+        ripple,
+        Paint()
+          ..shader = SweepGradient(
+            colors: ringColors,
+            transform: GradientRotation(wavePhase * (isOutward ? 0.35 : -0.35)),
+          ).createShader(shaderBounds)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.6 - (t * 1.1)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+      );
     }
 
+    // 2. Undulating Closed Circle-Border Waves (crossing outside <-> inside border)
+    final Rect shaderBounds =
+        Rect.fromCircle(center: center, radius: borderR + 36.0);
+
     for (int i = 0; i < strandCount; i++) {
-      final List<Offset> pts = strands[i];
-      final Path path = Path()..moveTo(pts.first.dx, pts.first.dy);
-      for (int s = 1; s < pts.length; s++) {
-        path.lineTo(pts[s].dx, pts[s].dy);
+      final Path path = Path();
+      final double dir1 = i.isEven ? 1.0 : -1.0;
+      final double dir2 = i.isEven ? -0.78 : 0.85;
+      final double amp = (17.0 + (i % 2) * 7.0) * waveEnergy;
+      final double surge =
+          math.sin(wavePhase * 1.45 + i * 1.25) * 10.5 * waveEnergy;
+
+      for (int s = 0; s <= segs; s++) {
+        final double theta = (s / segs) * twoPi;
+        final double w1 =
+            math.sin(theta * (5 + i) + wavePhase * dir1 * (0.95 + i * 0.12));
+        final double w2 =
+            math.cos(theta * (8 - i) + wavePhase * dir2 + i * 1.4);
+        final double delta = (w1 * 0.62 + w2 * 0.38) * amp + surge;
+        final double r = (borderR + delta).clamp(58.0, maxRadius);
+        final Offset pt = Offset(
+          center.dx + r * math.cos(theta),
+          center.dy + r * math.sin(theta),
+        );
+        if (s == 0) {
+          path.moveTo(pt.dx, pt.dy);
+        } else {
+          path.lineTo(pt.dx, pt.dy);
+        }
       }
+      path.close();
 
-      final Color c0 = uiColors[i % uiColors.length];
-      final Color c1 = uiColors[(i + 2) % uiColors.length];
-      final Color c2 = uiColors[(i + 4) % uiColors.length];
-      final Color c3 = uiColors[(i + 6) % uiColors.length];
+      final double bloomAlpha = (isDark ? 0.34 : 0.25) * waveEnergy;
+      final double coreAlpha = (isDark ? 0.72 : 0.62) * waveEnergy;
+      final List<Color> strandPalette = _rotatedPalette(palette, i * 2);
 
-      final double bloomAlpha =
-          (isDark ? 0.30 : 0.22) * (0.68 + 0.48 * waveEnergy);
-      final double coreAlpha =
-          (isDark ? 0.64 : 0.56) * (0.70 + 0.42 * waveEnergy);
-
-      final Shader bloomShader = LinearGradient(
-        colors: [
-          Colors.transparent,
-          c0.withValues(alpha: bloomAlpha),
-          c1.withValues(alpha: bloomAlpha),
-          c2.withValues(alpha: bloomAlpha),
-          c3.withValues(alpha: bloomAlpha),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.12, 0.38, 0.62, 0.88, 1.0],
-      ).createShader(bounds);
+      final Shader bloomShader = SweepGradient(
+        colors: strandPalette
+            .map((c) => c.withValues(alpha: bloomAlpha))
+            .toList(),
+        transform: GradientRotation(wavePhase * 0.25 * dir1),
+      ).createShader(shaderBounds);
 
       canvas.drawPath(
         path,
         Paint()
           ..shader = bloomShader
           ..style = PaintingStyle.stroke
-          ..strokeWidth = isScanning ? 6.2 : 4.6
-          ..strokeCap = StrokeCap.round
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0),
+          ..strokeWidth = 6.0
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.5),
       );
 
-      final Shader coreShader = LinearGradient(
-        colors: [
-          Colors.transparent,
-          c0.withValues(alpha: coreAlpha),
-          c1.withValues(alpha: coreAlpha),
-          c2.withValues(alpha: coreAlpha),
-          c3.withValues(alpha: coreAlpha),
-          Colors.transparent,
-        ],
-        stops: const [0.0, 0.12, 0.38, 0.62, 0.88, 1.0],
-      ).createShader(bounds);
+      final Shader coreShader = SweepGradient(
+        colors:
+            strandPalette.map((c) => c.withValues(alpha: coreAlpha)).toList(),
+        transform: GradientRotation(wavePhase * 0.25 * dir1),
+      ).createShader(shaderBounds);
 
       canvas.drawPath(
         path,
         Paint()
           ..shader = coreShader
           ..style = PaintingStyle.stroke
-          ..strokeWidth = (i < 3 ? 2.0 : 1.45) + (isScanning ? 0.45 : 0.0)
-          ..strokeCap = StrokeCap.round,
+          ..strokeWidth = i < 2 ? 2.1 : 1.5,
       );
     }
 
-    const int moteCount = 12;
+    // 3. Crest Energy Motes orbiting across outer & inner wave peaks
+    const int moteCount = 10;
     for (int k = 0; k < moteCount; k++) {
       final int strandIdx = k % strandCount;
-      final double speed = 0.042 + (k % 3) * 0.014;
-      final double t = ((wavePhase * speed) + (k / moteCount)) % 1.0;
-      final double fade = math.sin(t * math.pi).clamp(0.0, 1.0);
-      final double env = math.pow(fade, 0.72).toDouble();
-      final double x = t * size.width;
-      final double y = _strandY(strandIdx, t, centerY, size.width, env);
-      final Offset pos = Offset(x, y);
+      final double dir1 = strandIdx.isEven ? 1.0 : -1.0;
+      final double dir2 = strandIdx.isEven ? -0.78 : 0.85;
+      final double amp = (17.0 + (strandIdx % 2) * 7.0) * waveEnergy;
+      final double surge =
+          math.sin(wavePhase * 1.45 + strandIdx * 1.25) * 10.5 * waveEnergy;
 
-      final Color moteColor =
-          k == 0 && isScanning ? statusColor : uiColors[k % uiColors.length];
-      final double alpha = fade * (0.48 + 0.42 * waveEnergy);
-      final double r = 1.6 + (k % 3) * 0.55;
+      final double theta =
+          ((wavePhase * (0.28 + (k % 3) * 0.08) * dir1) +
+                  (k * twoPi / moteCount)) %
+              twoPi;
+      final double w1 = math.sin(
+          theta * (5 + strandIdx) + wavePhase * dir1 * (0.95 + strandIdx * 0.12));
+      final double w2 =
+          math.cos(theta * (8 - strandIdx) + wavePhase * dir2 + strandIdx * 1.4);
+      final double r =
+          (borderR + ((w1 * 0.62 + w2 * 0.38) * amp + surge)).clamp(58.0, maxRadius);
+      final Offset pos = Offset(
+        center.dx + r * math.cos(theta),
+        center.dy + r * math.sin(theta),
+      );
+
+      final Color moteColor = palette[k % (palette.length - 1)];
+      final double mAlpha = (0.55 + 0.35 * math.sin(wavePhase * 2 + k)) * waveEnergy;
+      final double dotR = 1.7 + (k % 2) * 0.6;
 
       canvas.drawCircle(
         pos,
-        r * 2.5,
+        dotR * 2.5,
         Paint()
-          ..color = moteColor.withValues(alpha: alpha * 0.45)
+          ..color = moteColor.withValues(alpha: mAlpha * 0.45)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5),
       );
       canvas.drawCircle(
         pos,
-        r,
+        dotR,
         Paint()
           ..color = Color.lerp(moteColor, Colors.white, isDark ? 0.35 : 0.15)!
-              .withValues(alpha: alpha),
+              .withValues(alpha: mAlpha),
       );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SecurityMultiColorWavePainter oldDelegate) =>
+  bool shouldRepaint(covariant SecurityBorderWavePainter oldDelegate) =>
       oldDelegate.wavePhase != wavePhase ||
       (oldDelegate.waveEnergy - waveEnergy).abs() > 0.002 ||
       oldDelegate.isScanning != isScanning ||
+      oldDelegate.isFinishMode != isFinishMode ||
+      oldDelegate.gaugeSize != gaugeSize ||
       oldDelegate.statusColor != statusColor ||
       oldDelegate.theme.isDark != theme.isDark ||
       oldDelegate.theme.primary != theme.primary;
