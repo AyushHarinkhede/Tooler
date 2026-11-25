@@ -30,16 +30,13 @@ class StepCounterScreen extends StatefulWidget {
   State<StepCounterScreen> createState() => _StepCounterScreenState();
 }
 
-class _StepCounterScreenState extends State<StepCounterScreen>
-    with TickerProviderStateMixin {
+class _StepCounterScreenState extends State<StepCounterScreen> {
   final PedometerSensorService _pedometer = PedometerSensorService();
   StreamSubscription<int>? _stepSub;
 
   // Selected history range: '7D', '1M', '3M', '6M', '1Y'
   String _activeRange = '7D';
   int? _selectedBarIndex;
-
-  late final AnimationController _pulseController;
 
   @override
   void initState() {
@@ -49,17 +46,11 @@ class _StepCounterScreenState extends State<StepCounterScreen>
     _stepSub = _pedometer.stepStream.listen((_) {
       if (mounted) setState(() {});
     });
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
     _stepSub?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -149,88 +140,36 @@ class _StepCounterScreenState extends State<StepCounterScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // 1. TOP PILLS ROW (Independent on hover page)
-          Row(
-            children: [
-              if (isWalking) ...[
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: const Color(0xFF10B981).withValues(alpha: 0.38),
-                    ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      AnimatedBuilder(
-                        animation: _pulseController,
-                        builder: (_, __) {
-                          return Container(
-                            width: 7,
-                            height: 7,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF10B981),
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: const Color(0xFF10B981).withValues(
-                                      alpha: _pulseController.value * 0.7),
-                                  blurRadius: 6,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                      const SizedBox(width: 5),
-                      Text(
-                        'WALKING LIVE',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.w800,
-                          color: const Color(0xFF10B981),
-                        ),
-                      ),
-                    ],
-                  ),
+          // 1. TOP GOAL CHIP (Independent on hover page)
+          Align(
+            alignment: Alignment.centerRight,
+            child: BouncyTap(
+              onTap: _showGoalPickerDialog,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: theme.cardBg,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: theme.border, width: 1.2),
                 ),
-              ],
-              const Spacer(),
-
-              // Edit Daily Goal Chip
-              BouncyTap(
-                onTap: _showGoalPickerDialog,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: theme.cardBg,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: theme.border, width: 1.2),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.flag_rounded, size: 13, color: theme.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Goal: ${NumberFormat.compact().format(goal)}',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w800,
-                          color: theme.text,
-                        ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.flag_rounded, size: 13, color: theme.primary),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Goal: ${NumberFormat.compact().format(goal)}',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                        color: theme.text,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
 
           const SizedBox(height: 6),

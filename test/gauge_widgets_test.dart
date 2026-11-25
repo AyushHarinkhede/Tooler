@@ -103,6 +103,7 @@ void main() {
     final gauge = tester.widget<SmoothRadialGauge>(gaugeFinder);
     expect(gauge.size, 260.0);
     expect(gauge.smoothDamping, isTrue);
+    expect(find.text('WALKING LIVE'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
