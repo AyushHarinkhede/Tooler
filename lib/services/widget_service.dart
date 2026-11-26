@@ -204,6 +204,35 @@ class WidgetService {
     }
   }
 
+  Future<MaterialYouPalette> getMaterialYouPalette({required bool isDark}) async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final dynamic raw = await _channel.invokeMethod('getMaterialYouTheme', {
+          'isDark': isDark,
+        });
+        if (raw is Map) {
+          return MaterialYouPalette(
+            bg: Color((raw['bg'] as num).toInt()),
+            cardBg: Color((raw['cardBg'] as num).toInt()),
+            border: Color((raw['border'] as num).toInt()),
+            text: Color((raw['text'] as num).toInt()),
+            textSecondary: Color((raw['textSecondary'] as num).toInt()),
+            primary: Color((raw['primary'] as num).toInt()),
+            primaryDark: Color((raw['primaryDark'] as num).toInt()),
+            secondary: Color((raw['secondary'] as num).toInt()),
+            accent: Color((raw['accent'] as num).toInt()),
+            swatch: Color((raw['swatch'] as num).toInt()),
+            lavenderCard: Color((raw['lavenderCard'] as num).toInt()),
+            lavenderBubble: Color((raw['lavenderBubble'] as num).toInt()),
+            characterBg: Color((raw['characterBg'] as num).toInt()),
+            isNativeSupported: raw['isNativeSupported'] == true,
+          );
+        }
+      } catch (_) {}
+    }
+    return MaterialYouPalette.fallback(isDark: isDark);
+  }
+
   Future<WidgetSystemColors> getSystemColors(StationeryTheme fallback) async {
     if (!kIsWeb && Platform.isAndroid) {
       try {

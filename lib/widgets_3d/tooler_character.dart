@@ -173,7 +173,9 @@ class _ToolerCharacterState extends State<ToolerCharacter> with SingleTickerProv
     super.didUpdateWidget(oldWidget);
     if (oldWidget.pose != widget.pose ||
         oldWidget.theme.mode != widget.theme.mode ||
-        oldWidget.theme.isDark != widget.theme.isDark) {
+        oldWidget.theme.isDark != widget.theme.isDark ||
+        oldWidget.theme.useMaterialYou != widget.theme.useMaterialYou ||
+        oldWidget.theme.primary != widget.theme.primary) {
       _loadSvg();
     }
   }

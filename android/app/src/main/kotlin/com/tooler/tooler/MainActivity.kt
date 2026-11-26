@@ -922,6 +922,10 @@ open class MainActivity : FlutterActivity() {
                         )
                     )
                 }
+                "getMaterialYouTheme" -> {
+                    val isDark = call.argument<Boolean>("isDark") ?: false
+                    result.success(ToolerWidgetRenderer.getMaterialYouAppPalette(this, isDark))
+                }
                 "closePopup" -> {
                     result.success(true)
                     finish()

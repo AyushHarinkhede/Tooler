@@ -25,6 +25,7 @@ class StorageService {
   static const String keyThemeMode = 'tooler_theme_mode';
   static const String keyIsDarkMode = 'tooler_is_dark_mode';
   static const String keyAccentColor = 'tooler_accent_color';
+  static const String keyUseMaterialYou = 'tooler_use_material_you';
   static const String keySoundEnabled = 'tooler_sound_enabled';
   static const String keyHapticsEnabled = 'tooler_haptics_enabled';
   static const String keyFavorites = 'tooler_favorites_list';
@@ -198,10 +199,27 @@ class StorageService {
     await prefs.setString(keyCalcHistoryChecksum, checksum);
   }
 
+  Future<bool> loadUseMaterialYou() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (prefs.containsKey(keyUseMaterialYou)) {
+      return prefs.getBool(keyUseMaterialYou) ?? false;
+    }
+    // Fresh installs default to Android's system Material You palette;
+    // existing installs with a previously saved custom accent keep it.
+    return !prefs.containsKey(keyAccentColor);
+  }
+
+  Future<void> saveUseMaterialYou(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(keyUseMaterialYou, enabled);
+  }
+
   Future<StationeryTheme> loadTheme() async {
     final prefs = await SharedPreferences.getInstance();
     final isDark = prefs.getBool(keyIsDarkMode) ?? false;
     final accentName = prefs.getString(keyAccentColor) ?? 'lilac';
+    final useMaterialYou = await loadUseMaterialYou();
+
     ToolerAccent accent = ToolerAccent.lilac;
     for (final a in ToolerAccent.values) {
       if (a.name == accentName) {
@@ -209,13 +227,32 @@ class StorageService {
         break;
       }
     }
-    return StationeryTheme.custom(isDark: isDark, accent: accent);
+
+    MaterialYouPalette? materialYouPalette;
+    if (useMaterialYou) {
+      materialYouPalette =
+          await WidgetService().getMaterialYouPalette(isDark: isDark);
+    }
+
+    return StationeryTheme.custom(
+      isDark: isDark,
+      accent: accent,
+      useMaterialYou: useMaterialYou,
+      materialYouPalette: materialYouPalette,
+    );
   }
 
-  Future<void> saveTheme(bool isDark, ToolerAccent accent) async {
+  Future<void> saveTheme(
+    bool isDark,
+    ToolerAccent accent, {
+    bool? useMaterialYou,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(keyIsDarkMode, isDark);
     await prefs.setString(keyAccentColor, accent.name);
+    if (useMaterialYou != null) {
+      await prefs.setBool(keyUseMaterialYou, useMaterialYou);
+    }
   }
 
   Future<StationeryThemeMode> loadThemeMode() async {

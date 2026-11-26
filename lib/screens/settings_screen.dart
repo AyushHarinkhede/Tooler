@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,7 +11,6 @@ import '../services/widget_service.dart';
 import '../widgets_3d/tooler_logo.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/tooler_character.dart';
-import '../widgets_3d/tooler_hover_sheet.dart';
 import 'widget_settings_screen.dart';
 
 /// ---------------------------------------------------------------------------
@@ -41,6 +41,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late bool _isDark;
   late ToolerAccent _accent;
+  late bool _useMaterialYou;
+  MaterialYouPalette? _materialYouPalette;
   late bool _soundOn;
   late bool _hapticsOn;
   bool _notificationsOn = true;
@@ -51,10 +53,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     _isDark = widget.theme.isDark;
     _accent = widget.theme.accentPalette;
+    _useMaterialYou = widget.theme.useMaterialYou;
+    _materialYouPalette = widget.theme.materialYouPalette;
     _soundOn = SoundService().soundEnabled;
     _hapticsOn = SoundService().hapticsEnabled;
+    _loadMaterialYouPalette();
     _loadNotificationPref();
     _loadTamperPref();
+  }
+
+  Future<void> _loadMaterialYouPalette() async {
+    final palette = await WidgetService().getMaterialYouPalette(isDark: _isDark);
+    if (mounted) {
+      setState(() => _materialYouPalette = palette);
+    }
   }
 
   void _loadNotificationPref() async {
@@ -77,55 +89,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await StorageService().saveTamperProtection(val);
   }
 
+  StationeryThemeMode _resolveThemeMode() {
+    if (_isDark) return StationeryThemeMode.blueprintChalkboard;
+    if (!_useMaterialYou && _accent == ToolerAccent.rose) {
+      return StationeryThemeMode.neonHighlighter;
+    }
+    return StationeryThemeMode.classicDoodle;
+  }
+
   void _onToggleDarkMode(bool val) async {
     SoundService().playClick();
     setState(() => _isDark = val);
-    await StorageService().saveTheme(_isDark, _accent);
+    final sysPalette = await WidgetService().getMaterialYouPalette(isDark: _isDark);
+    if (!mounted) return;
+    setState(() => _materialYouPalette = sysPalette);
+    await StorageService().saveTheme(
+      _isDark,
+      _accent,
+      useMaterialYou: _useMaterialYou,
+    );
     final updatedTheme = await StorageService().loadTheme();
     await WidgetService().syncToNative(updatedTheme);
-    final nextMode = _isDark
-        ? StationeryThemeMode.blueprintChalkboard
-        : (_accent == ToolerAccent.rose
-            ? StationeryThemeMode.neonHighlighter
-            : StationeryThemeMode.classicDoodle);
-    widget.onThemeChanged(nextMode);
+    widget.onThemeChanged(_resolveThemeMode());
   }
 
   StationeryTheme get _currentTheme => StationeryTheme.custom(
         isDark: _isDark,
         accent: _accent,
+        useMaterialYou: _useMaterialYou,
+        materialYouPalette: _materialYouPalette,
       );
+
+  void _onToggleMaterialYou(bool val) async {
+    SoundService().playClick();
+    HapticFeedback.selectionClick();
+    setState(() => _useMaterialYou = val);
+    if (val) {
+      final sysPalette =
+          await WidgetService().getMaterialYouPalette(isDark: _isDark);
+      if (mounted) {
+        setState(() => _materialYouPalette = sysPalette);
+      }
+    }
+    await StorageService().saveTheme(
+      _isDark,
+      _accent,
+      useMaterialYou: val,
+    );
+    final updatedTheme = await StorageService().loadTheme();
+    await WidgetService().syncToNative(updatedTheme);
+    widget.onThemeChanged(_resolveThemeMode());
+  }
 
   void _onSelectAccent(ToolerAccent accent) async {
     SoundService().playClick();
-    setState(() => _accent = accent);
-    await StorageService().saveTheme(_isDark, _accent);
+    setState(() {
+      _accent = accent;
+      _useMaterialYou = false;
+    });
+    await StorageService().saveTheme(
+      _isDark,
+      _accent,
+      useMaterialYou: false,
+    );
     final updatedTheme = await StorageService().loadTheme();
     await WidgetService().syncToNative(updatedTheme);
-    final nextMode = _isDark
-        ? StationeryThemeMode.blueprintChalkboard
-        : (accent == ToolerAccent.rose
-            ? StationeryThemeMode.neonHighlighter
-            : StationeryThemeMode.classicDoodle);
-    widget.onThemeChanged(nextMode);
-  }
-
-  void _openColorPaletteHoverSheet() {
-    SoundService().playClick();
-    ToolerHoverSheet.show(
-      context: context,
-      title: 'Color Palette',
-      subtitle: 'Select accent color for buttons, badges & cards',
-      tag: '${ToolerAccent.values.length} Themes',
-      theme: _currentTheme,
-      child: _ColorPaletteHoverContent(
-        initialAccent: _accent,
-        isDark: _isDark,
-        onAccentChanged: (newAccent) {
-          _onSelectAccent(newAccent);
-        },
-      ),
-    );
+    widget.onThemeChanged(_resolveThemeMode());
   }
 
   void _onToggleNotifications(bool val) async {
@@ -166,7 +195,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        final theme = widget.theme;
+        final theme = _currentTheme;
         return AlertDialog(
           backgroundColor: theme.cardBg,
           shape: RoundedRectangleBorder(
@@ -257,7 +286,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        final theme = widget.theme;
+        final theme = _currentTheme;
         return AlertDialog(
           backgroundColor: theme.cardBg,
           shape: RoundedRectangleBorder(
@@ -376,7 +405,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        final theme = widget.theme;
+        final theme = _currentTheme;
         return AlertDialog(
           backgroundColor: theme.cardBg,
           shape: RoundedRectangleBorder(
@@ -477,7 +506,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) {
-        final theme = widget.theme;
+        final theme = _currentTheme;
         return AlertDialog(
           backgroundColor: theme.cardBg,
           shape: RoundedRectangleBorder(
@@ -623,201 +652,168 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             const SizedBox(height: 18),
 
-            // 2. Color Accent Palette (Tap to open Color Palette Hover Page)
+            // 2. Color Accent Palette (Material You system toggle + animated gliding palette carousel)
             _buildSectionCard(
               title: 'Color Palette',
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Select accent color for buttons, badges, icons & cards',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 12,
-                      color: theme.textSecondary,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
+              child: Builder(
+                builder: (context) {
+                  final Color previewSwatch = _useMaterialYou
+                      ? theme.accentColorDot
+                      : _accent.swatchColor;
+                  final Color swatchContrast =
+                      previewSwatch.computeLuminance() > 0.55
+                          ? const Color(0xFF18181B)
+                          : Colors.white;
+                  final String activeLabel = _useMaterialYou
+                      ? 'Material You'
+                      : _accent.displayName;
 
-                  // Active Palette Showcase Card (Tap to open full Hover Page!)
-                  BouncyTap(
-                    onTap: _openColorPaletteHoverSheet,
-                    scaleFraction: 0.96,
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: theme.lavenderCard,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: theme.primary.withValues(alpha: 0.35),
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: theme.primary.withValues(alpha: 0.08),
-                            blurRadius: 10,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                      ),
-                      child: Row(
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Material You vs Custom Palette Switch Toggle
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // Glowing circular color swatch
-                          Container(
-                            width: 38,
-                            height: 38,
-                            decoration: BoxDecoration(
-                              color: _accent.swatchColor,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: _accent.swatchColor.withValues(alpha: 0.45),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 3),
+                          Row(
+                            children: [
+                              AnimatedContainer(
+                                duration: const Duration(milliseconds: 240),
+                                width: 36,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: theme.lavenderCard,
+                                  shape: BoxShape.circle,
                                 ),
-                              ],
-                              border: Border.all(color: Colors.white, width: 2.2),
-                            ),
-                            child: const Center(
-                              child: Icon(
-                                Icons.check_rounded,
-                                size: 20,
-                                color: Colors.white,
+                                child: Icon(
+                                  _useMaterialYou
+                                      ? Icons.auto_awesome_rounded
+                                      : Icons.palette_outlined,
+                                  size: 18,
+                                  color: theme.primary,
+                                ),
                               ),
-                            ),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Material You',
+                                style: GoogleFonts.plusJakartaSans(
+                                  fontSize: 14.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: theme.text,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      _accent.displayName,
-                                      style: GoogleFonts.plusJakartaSans(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800,
-                                        color: theme.text,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: theme.primary.withValues(alpha: 0.15),
-                                        borderRadius: BorderRadius.circular(6),
-                                      ),
-                                      child: Text(
-                                        'ACTIVE',
-                                        style: GoogleFonts.jetBrainsMono(
-                                          fontSize: 9.5,
-                                          fontWeight: FontWeight.w900,
-                                          color: theme.primary,
-                                          letterSpacing: 0.5,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                const SizedBox(height: 3),
-                                Text(
-                                  _accent.description,
-                                  style: GoogleFonts.plusJakartaSans(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: theme.textSecondary,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: theme.primary,
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.palette_outlined,
-                                  size: 14,
-                                  color: Colors.white,
-                                ),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Explore',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
+                          Switch.adaptive(
+                            key: const ValueKey('material_you_switch'),
+                            value: _useMaterialYou,
+                            activeTrackColor: theme.primary,
+                            onChanged: _onToggleMaterialYou,
                           ),
                         ],
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 12),
+                      const SizedBox(height: 12),
 
-                  // Horizontal Quick-Access Color Swatches Row
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    physics: const BouncingScrollPhysics(),
-                    child: Row(
-                      children: ToolerAccent.values.map((accent) {
-                        final isSelected = _accent == accent;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 9),
-                          child: BouncyTap(
-                            onTap: () => _onSelectAccent(accent),
-                            scaleFraction: 0.88,
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.all(2.5),
+                      // Clean Active Color Banner (no captions, no ACTIVE badge, no Explore button)
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 13),
+                        decoration: BoxDecoration(
+                          color: theme.lavenderCard,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: theme.primary.withValues(alpha: 0.35),
+                            width: 1.5,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: theme.primary.withValues(alpha: 0.08),
+                              blurRadius: 10,
+                              offset: const Offset(0, 3),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 260),
+                              curve: Curves.easeOutCubic,
+                              width: 38,
+                              height: 38,
                               decoration: BoxDecoration(
+                                color: previewSwatch,
                                 shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: isSelected ? theme.primary : Colors.transparent,
-                                  width: 2,
-                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: previewSwatch.withValues(alpha: 0.45),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 3),
+                                  ),
+                                ],
+                                border:
+                                    Border.all(color: Colors.white, width: 2.2),
                               ),
-                              child: Container(
-                                width: 28,
-                                height: 28,
-                                decoration: BoxDecoration(
-                                  color: accent.swatchColor,
-                                  shape: BoxShape.circle,
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: accent.swatchColor.withValues(alpha: 0.35),
-                                      blurRadius: 4,
-                                      offset: const Offset(0, 2),
-                                    ),
-                                  ],
+                              child: Center(
+                                child: Icon(
+                                  _useMaterialYou
+                                      ? Icons.auto_awesome_rounded
+                                      : Icons.check_rounded,
+                                  size: _useMaterialYou ? 18 : 20,
+                                  color: swatchContrast,
                                 ),
-                                child: isSelected
-                                    ? const Icon(
-                                        Icons.check_rounded,
-                                        size: 16,
-                                        color: Colors.white,
-                                      )
-                                    : null,
                               ),
                             ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 220),
+                                switchInCurve: Curves.easeOutCubic,
+                                switchOutCurve: Curves.easeInCubic,
+                                transitionBuilder: (child, anim) =>
+                                    SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0.10, 0),
+                                    end: Offset.zero,
+                                  ).animate(anim),
+                                  child:
+                                      FadeTransition(opacity: anim, child: child),
+                                ),
+                                child: Align(
+                                  key: ValueKey<String>(activeLabel),
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    activeLabel,
+                                    style: GoogleFonts.plusJakartaSans(
+                                      fontSize: 15.5,
+                                      fontWeight: FontWeight.w800,
+                                      color: theme.text,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // Smooth Gliding Animated Color Dots Carousel
+                      _AnimatedColorPaletteSlider(
+                        accents: ToolerAccent.values,
+                        selectedAccent: _accent,
+                        isMaterialYouActive: _useMaterialYou,
+                        theme: theme,
+                        onAccentSelected: _onSelectAccent,
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
 
@@ -1303,632 +1299,275 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 /// ---------------------------------------------------------------------------
-/// DEDICATED THEME COLOR PALETTE HOVER SHEET
+/// ANIMATED GLIDING COLOR PALETTE CAROUSEL
+/// - Scroll-driven curved scale, floating arc lift, and horizontal convergence
+/// - Supports smooth touch/mouse slide-to-select & tap-to-glide centering
 /// ---------------------------------------------------------------------------
-class _ColorPaletteHoverContent extends StatefulWidget {
-  final ToolerAccent initialAccent;
-  final bool isDark;
-  final ValueChanged<ToolerAccent> onAccentChanged;
+class _AnimatedColorPaletteSlider extends StatefulWidget {
+  final List<ToolerAccent> accents;
+  final ToolerAccent selectedAccent;
+  final bool isMaterialYouActive;
+  final StationeryTheme theme;
+  final ValueChanged<ToolerAccent> onAccentSelected;
 
-  const _ColorPaletteHoverContent({
-    required this.initialAccent,
-    required this.isDark,
-    required this.onAccentChanged,
+  const _AnimatedColorPaletteSlider({
+    required this.accents,
+    required this.selectedAccent,
+    required this.isMaterialYouActive,
+    required this.theme,
+    required this.onAccentSelected,
   });
 
   @override
-  State<_ColorPaletteHoverContent> createState() =>
-      _ColorPaletteHoverContentState();
+  State<_AnimatedColorPaletteSlider> createState() =>
+      _AnimatedColorPaletteSliderState();
 }
 
-class _ColorPaletteHoverContentState extends State<_ColorPaletteHoverContent> {
-  late ToolerAccent _selectedAccent;
-  String _activeFilter = 'All';
-
-  final List<String> _filters = [
-    'All',
-    'Popular',
-    'Vibrant',
-    'Pastel',
-    'Cool',
-    'Warm',
-  ];
+class _AnimatedColorPaletteSliderState
+    extends State<_AnimatedColorPaletteSlider> {
+  late PageController _pageController;
+  int? _programmaticTargetPage;
 
   @override
   void initState() {
     super.initState();
-    _selectedAccent = widget.initialAccent;
+    final initialIdx = widget.accents
+        .indexOf(widget.selectedAccent)
+        .clamp(0, widget.accents.length - 1);
+    _pageController = PageController(
+      initialPage: initialIdx,
+      viewportFraction: 0.20,
+    );
   }
 
-  List<ToolerAccent> get _filteredAccents {
-    if (_activeFilter == 'All') return ToolerAccent.values;
-    return ToolerAccent.values.where((accent) {
-      switch (_activeFilter) {
-        case 'Popular':
-          return [
-            ToolerAccent.lilac,
-            ToolerAccent.sky,
-            ToolerAccent.indigo,
-            ToolerAccent.emerald,
-            ToolerAccent.amber,
-          ].contains(accent);
-        case 'Vibrant':
-          return [
-            ToolerAccent.indigo,
-            ToolerAccent.coral,
-            ToolerAccent.cyan,
-            ToolerAccent.berry,
-            ToolerAccent.lemon,
-            ToolerAccent.crimson,
-          ].contains(accent);
-        case 'Pastel':
-          return [
-            ToolerAccent.lilac,
-            ToolerAccent.rose,
-            ToolerAccent.mint,
-            ToolerAccent.sky,
-            ToolerAccent.amber,
-          ].contains(accent);
-        case 'Cool':
-          return [
-            ToolerAccent.sky,
-            ToolerAccent.cyan,
-            ToolerAccent.indigo,
-            ToolerAccent.mint,
-            ToolerAccent.emerald,
-            ToolerAccent.slate,
-          ].contains(accent);
-        case 'Warm':
-          return [
-            ToolerAccent.rose,
-            ToolerAccent.coral,
-            ToolerAccent.amber,
-            ToolerAccent.crimson,
-            ToolerAccent.berry,
-            ToolerAccent.lemon,
-          ].contains(accent);
-        default:
-          return true;
+  @override
+  void didUpdateWidget(covariant _AnimatedColorPaletteSlider oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedAccent != widget.selectedAccent &&
+        _programmaticTargetPage == null &&
+        _pageController.hasClients) {
+      final target = widget.accents.indexOf(widget.selectedAccent);
+      final current = _pageController.page?.round();
+      if (target != -1 && current != target) {
+        _animateToIndex(target);
       }
-    }).toList();
+    }
   }
 
-  void _selectAccent(ToolerAccent accent) {
-    if (_selectedAccent == accent) return;
-    SoundService().playTap();
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _animateToIndex(int index) async {
+    _programmaticTargetPage = index;
+    try {
+      await _pageController.animateToPage(
+        index,
+        duration: const Duration(milliseconds: 420),
+        curve: Curves.easeOutCubic,
+      );
+    } finally {
+      if (mounted && _programmaticTargetPage == index) {
+        _programmaticTargetPage = null;
+      }
+    }
+  }
+
+  void _handleDotTap(int index) {
+    final accent = widget.accents[index];
     HapticFeedback.selectionClick();
-    setState(() {
-      _selectedAccent = accent;
-    });
-    widget.onAccentChanged(accent);
+    widget.onAccentSelected(accent);
+    _animateToIndex(index);
+  }
+
+  void _handlePageChanged(int index) {
+    if (_programmaticTargetPage != null) {
+      if (index == _programmaticTargetPage) {
+        _programmaticTargetPage = null;
+      }
+      return;
+    }
+    final accent = widget.accents[index];
+    if (accent != widget.selectedAccent || widget.isMaterialYouActive) {
+      HapticFeedback.selectionClick();
+      widget.onAccentSelected(accent);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final activeTheme = StationeryTheme.custom(
-      isDark: widget.isDark,
-      accent: _selectedAccent,
-    );
-
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(18, 10, 18, 30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // 1. Live Active Theme Showcase Banner
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: activeTheme.lavenderCard,
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: activeTheme.primary.withValues(alpha: 0.4),
-                width: 1.5,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 70,
+          child: ShaderMask(
+            shaderCallback: (Rect bounds) {
+              return const LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [
+                  Colors.transparent,
+                  Colors.black,
+                  Colors.black,
+                  Colors.transparent,
+                ],
+                stops: [0.0, 0.08, 0.92, 1.0],
+              ).createShader(bounds);
+            },
+            blendMode: BlendMode.dstIn,
+            child: ScrollConfiguration(
+              behavior: const MaterialScrollBehavior().copyWith(
+                dragDevices: {
+                  PointerDeviceKind.touch,
+                  PointerDeviceKind.mouse,
+                  PointerDeviceKind.trackpad,
+                },
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: activeTheme.primary.withValues(alpha: 0.1),
-                  blurRadius: 16,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    // Glowing aura circle with swatch
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        color: _selectedAccent.swatchColor,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: _selectedAccent.swatchColor
-                                .withValues(alpha: 0.5),
-                            blurRadius: 12,
-                            offset: const Offset(0, 3),
-                          ),
-                        ],
-                        border: Border.all(color: Colors.white, width: 2.5),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.check_rounded,
-                          size: 22,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Text(
-                                _selectedAccent.displayName,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.3,
-                                  color: activeTheme.text,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 7, vertical: 2.5),
-                                decoration: BoxDecoration(
-                                  color: activeTheme.primary
-                                      .withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                    color: activeTheme.primary
-                                        .withValues(alpha: 0.3),
-                                    width: 0.8,
-                                  ),
-                                ),
-                                child: Text(
-                                  'CURRENTLY SELECTED',
-                                  style: GoogleFonts.jetBrainsMono(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                    color: activeTheme.primary,
-                                    letterSpacing: 0.4,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            _selectedAccent.description,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w500,
-                              color: activeTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                // Divider
-                Container(
-                  height: 1,
-                  color: activeTheme.primary.withValues(alpha: 0.15),
-                ),
-                const SizedBox(height: 12),
+              child: PageView.builder(
+                key: const ValueKey('color_palette_slider'),
+                controller: _pageController,
+                physics: const BouncingScrollPhysics(),
+                onPageChanged: _handlePageChanged,
+                itemCount: widget.accents.length,
+                itemBuilder: (context, index) {
+                  final accent = widget.accents[index];
+                  return AnimatedBuilder(
+                    animation: _pageController,
+                    builder: (context, _) {
+                      double currentPage = widget.accents
+                          .indexOf(widget.selectedAccent)
+                          .clamp(0, widget.accents.length - 1)
+                          .toDouble();
+                      if (_pageController.hasClients &&
+                          _pageController.position.haveDimensions) {
+                        currentPage = _pageController.page ??
+                            _pageController.initialPage.toDouble();
+                      }
 
-                // Live UI Simulation Preview Strip
-                Text(
-                  'LIVE UI ELEMENT PREVIEW',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.6,
-                    color: activeTheme.textSecondary,
-                  ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    // Filled Primary Button Preview
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: activeTheme.primary,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: activeTheme.primary.withValues(alpha: 0.35),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.touch_app_rounded,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 5),
-                          Text(
-                            'Accent Button',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                      final double delta = index - currentPage;
+                      final double absDelta = delta.abs();
+                      final double focus =
+                          (1.0 - (absDelta / 2.3)).clamp(0.0, 1.0);
+                      final double smoothFocus =
+                          Curves.easeOutCubic.transform(focus);
 
-                    // Tinted Chip Badge Preview
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: activeTheme.lavenderBubble,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: activeTheme.primary.withValues(alpha: 0.4),
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.auto_awesome_rounded,
-                            size: 13,
-                            color: activeTheme.primary,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Active Pill Badge',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11.5,
-                              fontWeight: FontWeight.w700,
-                              color: activeTheme.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                      // Smooth scroll-driven scale, floating arc lift & glide drift
+                      final double scale = 0.78 + (0.42 * smoothFocus);
+                      final double arcOffsetY = -6.5 * smoothFocus;
+                      final double glideOffsetX =
+                          -delta * (1.0 - smoothFocus) * 3.0;
+                      final double opacity = widget.isMaterialYouActive
+                          ? (0.45 + 0.27 * smoothFocus)
+                          : (0.58 + 0.42 * smoothFocus);
 
-                    // Slider / Switch preview dot
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: activeTheme.cardBg,
-                        borderRadius: BorderRadius.circular(10),
-                        border:
-                            Border.all(color: activeTheme.border, width: 1.0),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 10,
-                            height: 10,
-                            decoration: BoxDecoration(
-                              color: activeTheme.primary,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            'Live Accent',
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: activeTheme.text,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+                      final bool isSelected = !widget.isMaterialYouActive &&
+                          widget.selectedAccent == accent;
+                      final Color dotColor = accent.swatchColor;
+                      final Color checkColor =
+                          dotColor.computeLuminance() > 0.55
+                              ? const Color(0xFF18181B)
+                              : Colors.white;
 
-          const SizedBox(height: 18),
-
-          // 2. Filter Tabs
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Available Colors (${ToolerAccent.values.length})',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800,
-                  color: activeTheme.text,
-                ),
-              ),
-              Text(
-                'Tap to apply instantly',
-                style: GoogleFonts.plusJakartaSans(
-                  fontSize: 11.5,
-                  color: activeTheme.textSecondary,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-
-          // Category filter pills
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            child: Row(
-              children: _filters.map((filter) {
-                final isFilterActive = _activeFilter == filter;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: BouncyTap(
-                    onTap: () {
-                      SoundService().playTap();
-                      setState(() {
-                        _activeFilter = filter;
-                      });
-                    },
-                    scaleFraction: 0.94,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: isFilterActive
-                            ? activeTheme.primary
-                            : activeTheme.cardBg,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isFilterActive
-                              ? activeTheme.primary
-                              : activeTheme.border,
-                          width: 1.0,
-                        ),
-                      ),
-                      child: Text(
-                        filter,
-                        style: GoogleFonts.plusJakartaSans(
-                          fontSize: 12,
-                          fontWeight: isFilterActive
-                              ? FontWeight.w700
-                              : FontWeight.w600,
-                          color: isFilterActive
-                              ? Colors.white
-                              : activeTheme.textSecondary,
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // 3. Grid of Color Palettes
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.15,
-            ),
-            itemCount: _filteredAccents.length,
-            itemBuilder: (context, index) {
-              final accent = _filteredAccents[index];
-              final isSelected = _selectedAccent == accent;
-
-              return BouncyTap(
-                onTap: () => _selectAccent(accent),
-                scaleFraction: 0.94,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutBack,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? activeTheme.lavenderCard
-                        : activeTheme.cardBg,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(
-                      color: isSelected ? accent.swatchColor : activeTheme.border,
-                      width: isSelected ? 2.0 : 1.2,
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: isSelected
-                            ? accent.swatchColor.withValues(alpha: 0.22)
-                            : Colors.black.withValues(alpha: 0.03),
-                        blurRadius: isSelected ? 12 : 6,
-                        offset: const Offset(0, 3),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Top Row: Swatch Circle + Status/Tag
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          // Color Swatch Circle
-                          AnimatedScale(
-                            scale: isSelected ? 1.15 : 1.0,
-                            duration: const Duration(milliseconds: 220),
-                            curve: Curves.easeOutBack,
-                            child: Container(
-                              width: 26,
-                              height: 26,
-                              decoration: BoxDecoration(
-                                color: accent.swatchColor,
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: accent.swatchColor
-                                        .withValues(alpha: 0.45),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 1.5,
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Active Badge or Tag
-                          if (isSelected)
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 3),
-                              decoration: BoxDecoration(
-                                color: accent.swatchColor,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.check_rounded,
-                                    size: 11,
-                                    color: Colors.white,
-                                  ),
-                                  SizedBox(width: 3),
-                                  Text(
-                                    'ACTIVE',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.w900,
-                                      color: Colors.white,
-                                      letterSpacing: 0.3,
+                      return Transform.translate(
+                        offset: Offset(glideOffsetX, arcOffsetY),
+                        child: Transform.scale(
+                          scale: scale,
+                          child: Opacity(
+                            opacity: opacity.clamp(0.0, 1.0),
+                            child: Center(
+                              child: BouncyTap(
+                                onTap: () => _handleDotTap(index),
+                                scaleFraction: 0.86,
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOutCubic,
+                                  padding: EdgeInsets.all(isSelected ? 3.0 : 2.0),
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: isSelected
+                                          ? widget.theme.primary
+                                          : Colors.transparent,
+                                      width: 2.2,
                                     ),
                                   ),
-                                ],
-                              ),
-                            )
-                          else
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: activeTheme.border.withValues(alpha: 0.5),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Text(
-                                accent.tag,
-                                style: GoogleFonts.plusJakartaSans(
-                                  fontSize: 9.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: activeTheme.textSecondary,
+                                  child: Container(
+                                    width: 32,
+                                    height: 32,
+                                    decoration: BoxDecoration(
+                                      color: dotColor,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : Colors.white
+                                                .withValues(alpha: 0.55),
+                                        width: isSelected ? 1.8 : 1.0,
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: dotColor.withValues(
+                                            alpha: isSelected
+                                                ? 0.50
+                                                : (0.18 + 0.18 * smoothFocus),
+                                          ),
+                                          blurRadius: isSelected
+                                              ? 10
+                                              : (3 + 5 * smoothFocus),
+                                          offset: Offset(
+                                              0, 2 + 1.5 * smoothFocus),
+                                        ),
+                                      ],
+                                    ),
+                                    child: AnimatedOpacity(
+                                      opacity: isSelected ? 1.0 : 0.0,
+                                      duration:
+                                          const Duration(milliseconds: 160),
+                                      child: AnimatedScale(
+                                        scale: isSelected ? 1.0 : 0.4,
+                                        duration:
+                                            const Duration(milliseconds: 200),
+                                        curve: Curves.easeOutBack,
+                                        child: Icon(
+                                          Icons.check_rounded,
+                                          size: 16,
+                                          color: checkColor,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ),
-                        ],
-                      ),
-
-                      // Bottom Info: Name & Short Description
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            accent.displayName,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 13.5,
-                              fontWeight: isSelected
-                                  ? FontWeight.w800
-                                  : FontWeight.w700,
-                              color: activeTheme.text,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            accent.description,
-                            style: GoogleFonts.plusJakartaSans(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              color: activeTheme.textSecondary,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-
-          const SizedBox(height: 22),
-
-          // Done / Dismiss Button
-          BouncyTap(
-            onTap: () {
-              SoundService().playClick();
-              Navigator.pop(context);
-            },
-            scaleFraction: 0.96,
-            child: Container(
-              width: double.infinity,
-              height: 48,
-              decoration: BoxDecoration(
-                color: activeTheme.primary,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: activeTheme.primary.withValues(alpha: 0.35),
-                    blurRadius: 12,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  'Apply & Close',
-                  style: GoogleFonts.plusJakartaSans(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                  ),
-                ),
+                        ),
+                      );
+                    },
+                  );
+                },
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(height: 2),
+        Center(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+            width: widget.isMaterialYouActive ? 14 : 26,
+            height: 3.5,
+            decoration: BoxDecoration(
+              color: widget.theme.primary.withValues(
+                alpha: widget.isMaterialYouActive ? 0.22 : 0.65,
+              ),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

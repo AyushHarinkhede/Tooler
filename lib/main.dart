@@ -65,18 +65,46 @@ class ToolerApp extends StatefulWidget {
   State<ToolerApp> createState() => _ToolerAppState();
 }
 
-class _ToolerAppState extends State<ToolerApp> {
+class _ToolerAppState extends State<ToolerApp> with WidgetsBindingObserver {
   late StationeryTheme _currentTheme;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _currentTheme = widget.initialTheme ??
         StationeryTheme(widget.initialThemeMode ?? StationeryThemeMode.classicDoodle);
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _currentTheme.useMaterialYou) {
+      _refreshSystemMaterialYou();
+    }
+  }
+
+  Future<void> _refreshSystemMaterialYou() async {
+    final refreshed = await StorageService().loadTheme();
+    if (!mounted) return;
+    if (refreshed.primary.toARGB32() != _currentTheme.primary.toARGB32() ||
+        refreshed.bg.toARGB32() != _currentTheme.bg.toARGB32() ||
+        refreshed.useMaterialYou != _currentTheme.useMaterialYou) {
+      _applySystemUiStyle(refreshed.isDark);
+      setState(() {
+        _currentTheme = refreshed;
+      });
+    }
+  }
+
   void _onThemeChanged(StationeryThemeMode mode) async {
     final theme = await StorageService().loadTheme();
+    if (!mounted) return;
     _applySystemUiStyle(theme.isDark);
     setState(() {
       _currentTheme = theme;

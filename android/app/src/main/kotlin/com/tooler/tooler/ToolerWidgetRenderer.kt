@@ -95,6 +95,111 @@ object ToolerWidgetRenderer {
         return fallbackSystemPalette(isNight)
     }
 
+    fun getMaterialYouAppPalette(context: Context, isDark: Boolean): Map<String, Any> {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                if (isDark) {
+                    val n1000 = context.getColor(android.R.color.system_neutral1_1000)
+                    val n900 = context.getColor(android.R.color.system_neutral1_900)
+                    val n100 = context.getColor(android.R.color.system_neutral1_100)
+                    val n2_400 = context.getColor(android.R.color.system_neutral2_400)
+                    val n2_800 = context.getColor(android.R.color.system_neutral2_800)
+                    val a1_400 = context.getColor(android.R.color.system_accent1_400)
+                    val a1_300 = context.getColor(android.R.color.system_accent1_300)
+                    val a1_200 = context.getColor(android.R.color.system_accent1_200)
+                    val a1_100 = context.getColor(android.R.color.system_accent1_100)
+                    val a2_800 = context.getColor(android.R.color.system_accent2_800)
+                    val a2_300 = context.getColor(android.R.color.system_accent2_300)
+
+                    val primary = blendArgb(a1_400, a1_300, 0.35f)
+                    val bg = blendArgb(n1000, n900, 0.42f)
+                    val tintedCard = blendArgb(n900, a2_800, 0.35f)
+                    val bubble = Color.argb(
+                        52,
+                        Color.red(primary),
+                        Color.green(primary),
+                        Color.blue(primary)
+                    )
+                    return mapOf(
+                        "bg" to bg,
+                        "cardBg" to n900,
+                        "border" to n2_800,
+                        "text" to n100,
+                        "textSecondary" to n2_400,
+                        "primary" to primary,
+                        "primaryDark" to a1_200,
+                        "secondary" to a2_300,
+                        "accent" to a1_100,
+                        "swatch" to primary,
+                        "lavenderCard" to tintedCard,
+                        "lavenderBubble" to bubble,
+                        "characterBg" to tintedCard,
+                        "isNativeSupported" to true
+                    )
+                } else {
+                    val n1_10 = context.getColor(android.R.color.system_neutral1_10)
+                    val n1_50 = context.getColor(android.R.color.system_neutral1_50)
+                    val n1_0 = context.getColor(android.R.color.system_neutral1_0)
+                    val n1_900 = context.getColor(android.R.color.system_neutral1_900)
+                    val n2_600 = context.getColor(android.R.color.system_neutral2_600)
+                    val n2_200 = context.getColor(android.R.color.system_neutral2_200)
+                    val a1_700 = context.getColor(android.R.color.system_accent1_700)
+                    val a1_600 = context.getColor(android.R.color.system_accent1_600)
+                    val a1_300 = context.getColor(android.R.color.system_accent1_300)
+                    val a1_100 = context.getColor(android.R.color.system_accent1_100)
+                    val a1_50 = context.getColor(android.R.color.system_accent1_50)
+                    val a2_400 = context.getColor(android.R.color.system_accent2_400)
+
+                    val bg = blendArgb(n1_10, n1_50, 0.35f)
+                    return mapOf(
+                        "bg" to bg,
+                        "cardBg" to n1_0,
+                        "border" to n2_200,
+                        "text" to n1_900,
+                        "textSecondary" to n2_600,
+                        "primary" to a1_600,
+                        "primaryDark" to a1_700,
+                        "secondary" to a2_400,
+                        "accent" to a1_300,
+                        "swatch" to a1_600,
+                        "lavenderCard" to a1_50,
+                        "lavenderBubble" to a1_100,
+                        "characterBg" to a1_50,
+                        "isNativeSupported" to true
+                    )
+                }
+            } catch (_: Exception) {}
+        }
+
+        val fallback = fallbackSystemPalette(isDark)
+        return mapOf(
+            "bg" to if (isDark) Color.parseColor("#0B0A0E") else Color.parseColor("#FAF8FC"),
+            "cardBg" to fallback.cardBg,
+            "border" to fallback.border,
+            "text" to fallback.ink,
+            "textSecondary" to if (isDark) Color.parseColor("#A8A2B4") else Color.parseColor("#6B6478"),
+            "primary" to fallback.primary,
+            "primaryDark" to if (isDark) Color.parseColor("#D0BCFF") else Color.parseColor("#4F378B"),
+            "secondary" to if (isDark) Color.parseColor("#CCC2DC") else Color.parseColor("#7D5260"),
+            "accent" to if (isDark) Color.parseColor("#EADDFF") else Color.parseColor("#9A82DB"),
+            "swatch" to fallback.primary,
+            "lavenderCard" to if (isDark) Color.parseColor("#241F2E") else Color.parseColor("#F5F0FF"),
+            "lavenderBubble" to fallback.bubbleBg,
+            "characterBg" to if (isDark) Color.parseColor("#241F2E") else Color.parseColor("#F5F0FF"),
+            "isNativeSupported" to false
+        )
+    }
+
+    private fun blendArgb(from: Int, to: Int, ratio: Float): Int {
+        val t = ratio.coerceIn(0f, 1f)
+        val inv = 1f - t
+        val a = (Color.alpha(from) * inv + Color.alpha(to) * t).toInt().coerceIn(0, 255)
+        val r = (Color.red(from) * inv + Color.red(to) * t).toInt().coerceIn(0, 255)
+        val g = (Color.green(from) * inv + Color.green(to) * t).toInt().coerceIn(0, 255)
+        val b = (Color.blue(from) * inv + Color.blue(to) * t).toInt().coerceIn(0, 255)
+        return Color.argb(a, r, g, b)
+    }
+
     private fun fallbackSystemPalette(isNight: Boolean): WidgetPalette {
         return if (isNight) {
             WidgetPalette(

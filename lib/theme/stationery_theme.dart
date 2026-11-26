@@ -21,6 +21,83 @@ enum ToolerAccent {
   berry, // Berry Orchid (#D946EF, #FAE8FF)
   lemon, // Neon Lime (#84CC16, #ECFCCB)
   slate, // Nordic Slate (#64748B, #F1F5F9)
+  brown, // Mocha Brown (#8D5B4C, #F1E3DC)
+  yellow, // Sunburst Yellow (#FACC15, #FEF9C3)
+  maroon, // Royal Maroon (#9B1B30, #FCE2E7)
+  darkBlue, // Midnight Blue (#1E40AF, #DBEAFE)
+  terracotta, // Terracotta Rust (#C2593F, #FCE2DA)
+  olive, // Olive Moss (#6B7E32, #ECF2D0)
+}
+
+class MaterialYouPalette {
+  final Color bg;
+  final Color cardBg;
+  final Color border;
+  final Color text;
+  final Color textSecondary;
+  final Color primary;
+  final Color primaryDark;
+  final Color secondary;
+  final Color accent;
+  final Color swatch;
+  final Color lavenderCard;
+  final Color lavenderBubble;
+  final Color characterBg;
+  final bool isNativeSupported;
+
+  const MaterialYouPalette({
+    required this.bg,
+    required this.cardBg,
+    required this.border,
+    required this.text,
+    required this.textSecondary,
+    required this.primary,
+    required this.primaryDark,
+    required this.secondary,
+    required this.accent,
+    required this.swatch,
+    required this.lavenderCard,
+    required this.lavenderBubble,
+    required this.characterBg,
+    this.isNativeSupported = false,
+  });
+
+  factory MaterialYouPalette.fallback({required bool isDark}) {
+    if (isDark) {
+      return const MaterialYouPalette(
+        bg: Color(0xFF0B0A0E),
+        cardBg: Color(0xFF1C1B1F),
+        border: Color(0xFF3B3845),
+        text: Color(0xFFF4EFF4),
+        textSecondary: Color(0xFFA8A2B4),
+        primary: Color(0xFF9F86E5),
+        primaryDark: Color(0xFFD0BCFF),
+        secondary: Color(0xFFCCC2DC),
+        accent: Color(0xFFEADDFF),
+        swatch: Color(0xFF9F86E5),
+        lavenderCard: Color(0xFF241F2E),
+        lavenderBubble: Color(0xFF2E2C36),
+        characterBg: Color(0xFF241F2E),
+        isNativeSupported: false,
+      );
+    }
+    return const MaterialYouPalette(
+      bg: Color(0xFFFAF8FC),
+      cardBg: Color(0xFFFFFFFF),
+      border: Color(0xFFE3DCE8),
+      text: Color(0xFF1C1B1F),
+      textSecondary: Color(0xFF6B6478),
+      primary: Color(0xFF6750A4),
+      primaryDark: Color(0xFF4F378B),
+      secondary: Color(0xFF7D5260),
+      accent: Color(0xFF9A82DB),
+      swatch: Color(0xFF6750A4),
+      lavenderCard: Color(0xFFF5F0FF),
+      lavenderBubble: Color(0xFFEDE7F6),
+      characterBg: Color(0xFFF5F0FF),
+      isNativeSupported: false,
+    );
+  }
 }
 
 extension ToolerAccentInfo on ToolerAccent {
@@ -52,6 +129,18 @@ extension ToolerAccentInfo on ToolerAccent {
         return 'Neon Lime';
       case ToolerAccent.slate:
         return 'Nordic Slate';
+      case ToolerAccent.brown:
+        return 'Mocha Brown';
+      case ToolerAccent.yellow:
+        return 'Sunburst Yellow';
+      case ToolerAccent.maroon:
+        return 'Royal Maroon';
+      case ToolerAccent.darkBlue:
+        return 'Midnight Blue';
+      case ToolerAccent.terracotta:
+        return 'Terracotta Rust';
+      case ToolerAccent.olive:
+        return 'Olive Moss';
     }
   }
 
@@ -83,6 +172,18 @@ extension ToolerAccentInfo on ToolerAccent {
         return 'Zesty modern citrus lime';
       case ToolerAccent.slate:
         return 'Minimalist Scandinavian steel';
+      case ToolerAccent.brown:
+        return 'Rich warm roasted espresso';
+      case ToolerAccent.yellow:
+        return 'Radiant sunlit golden yellow';
+      case ToolerAccent.maroon:
+        return 'Deep royal burgundy wine';
+      case ToolerAccent.darkBlue:
+        return 'Classic deep midnight sapphire';
+      case ToolerAccent.terracotta:
+        return 'Warm earthy baked clay rust';
+      case ToolerAccent.olive:
+        return 'Organic muted botanical moss';
     }
   }
 
@@ -114,6 +215,18 @@ extension ToolerAccentInfo on ToolerAccent {
         return const Color(0xFF84CC16);
       case ToolerAccent.slate:
         return const Color(0xFF64748B);
+      case ToolerAccent.brown:
+        return const Color(0xFF8D5B4C);
+      case ToolerAccent.yellow:
+        return const Color(0xFFFACC15);
+      case ToolerAccent.maroon:
+        return const Color(0xFF9B1B30);
+      case ToolerAccent.darkBlue:
+        return const Color(0xFF1E40AF);
+      case ToolerAccent.terracotta:
+        return const Color(0xFFC2593F);
+      case ToolerAccent.olive:
+        return const Color(0xFF6B7E32);
     }
   }
 
@@ -145,6 +258,18 @@ extension ToolerAccentInfo on ToolerAccent {
         return 'Citrus';
       case ToolerAccent.slate:
         return 'Minimal';
+      case ToolerAccent.brown:
+        return 'Earthy';
+      case ToolerAccent.yellow:
+        return 'Bright';
+      case ToolerAccent.maroon:
+        return 'Royal';
+      case ToolerAccent.darkBlue:
+        return 'Deep';
+      case ToolerAccent.terracotta:
+        return 'Clay';
+      case ToolerAccent.olive:
+        return 'Moss';
     }
   }
 }
@@ -153,11 +278,15 @@ class StationeryTheme {
   final bool isDark;
   final ToolerAccent accentPalette;
   final StationeryThemeMode mode;
+  final bool useMaterialYou;
+  final MaterialYouPalette? materialYouPalette;
 
   StationeryTheme(
     this.mode, {
     bool? isDark,
     ToolerAccent? accentPalette,
+    this.useMaterialYou = false,
+    this.materialYouPalette,
   })  : isDark = isDark ?? (mode == StationeryThemeMode.blueprintChalkboard),
         accentPalette = accentPalette ??
             (mode == StationeryThemeMode.neonHighlighter
@@ -168,6 +297,8 @@ class StationeryTheme {
     required this.isDark,
     ToolerAccent? accentPalette,
     ToolerAccent? accent,
+    this.useMaterialYou = false,
+    this.materialYouPalette,
   })  : accentPalette = accentPalette ?? accent ?? ToolerAccent.lilac,
         mode = isDark
             ? StationeryThemeMode.blueprintChalkboard
@@ -175,15 +306,32 @@ class StationeryTheme {
                 ? StationeryThemeMode.neonHighlighter
                 : StationeryThemeMode.classicDoodle);
 
+  MaterialYouPalette get _resolvedMaterialYou =>
+      materialYouPalette ?? MaterialYouPalette.fallback(isDark: isDark);
+
+  String get activeColorName =>
+      useMaterialYou ? 'Material You' : accentPalette.displayName;
+
   // Surface & Canvas Backgrounds
-  Color get bg => isDark ? const Color(0xFF09090B) : const Color(0xFFFAFAFC);
-  Color get cardBg => isDark ? const Color(0xFF18181B) : const Color(0xFFFFFFFF);
-  Color get border => isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7);
-  Color get text => isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B);
-  Color get textSecondary => isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A);
+  Color get bg => useMaterialYou
+      ? _resolvedMaterialYou.bg
+      : (isDark ? const Color(0xFF09090B) : const Color(0xFFFAFAFC));
+  Color get cardBg => useMaterialYou
+      ? _resolvedMaterialYou.cardBg
+      : (isDark ? const Color(0xFF18181B) : const Color(0xFFFFFFFF));
+  Color get border => useMaterialYou
+      ? _resolvedMaterialYou.border
+      : (isDark ? const Color(0xFF27272A) : const Color(0xFFE4E4E7));
+  Color get text => useMaterialYou
+      ? _resolvedMaterialYou.text
+      : (isDark ? const Color(0xFFF4F4F5) : const Color(0xFF18181B));
+  Color get textSecondary => useMaterialYou
+      ? _resolvedMaterialYou.textSecondary
+      : (isDark ? const Color(0xFFA1A1AA) : const Color(0xFF71717A));
 
   // Dynamic Primary Accent
   Color get primary {
+    if (useMaterialYou) return _resolvedMaterialYou.primary;
     if (isDark) {
       switch (accentPalette) {
         case ToolerAccent.lilac:
@@ -212,6 +360,18 @@ class StationeryTheme {
           return const Color(0xFFA3E635);
         case ToolerAccent.slate:
           return const Color(0xFF94A3B8);
+        case ToolerAccent.brown:
+          return const Color(0xFFC08A72);
+        case ToolerAccent.yellow:
+          return const Color(0xFFFACC15);
+        case ToolerAccent.maroon:
+          return const Color(0xFFC94A60);
+        case ToolerAccent.darkBlue:
+          return const Color(0xFF4B7BEC);
+        case ToolerAccent.terracotta:
+          return const Color(0xFFE07A5F);
+        case ToolerAccent.olive:
+          return const Color(0xFF9AB04F);
       }
     } else {
       switch (accentPalette) {
@@ -241,11 +401,24 @@ class StationeryTheme {
           return const Color(0xFF65A30D);
         case ToolerAccent.slate:
           return const Color(0xFF475569);
+        case ToolerAccent.brown:
+          return const Color(0xFF794A3A);
+        case ToolerAccent.yellow:
+          return const Color(0xFFEAB308);
+        case ToolerAccent.maroon:
+          return const Color(0xFF881337);
+        case ToolerAccent.darkBlue:
+          return const Color(0xFF1E3A8A);
+        case ToolerAccent.terracotta:
+          return const Color(0xFFB54930);
+        case ToolerAccent.olive:
+          return const Color(0xFF556624);
       }
     }
   }
 
   Color get primaryDark {
+    if (useMaterialYou) return _resolvedMaterialYou.primaryDark;
     switch (accentPalette) {
       case ToolerAccent.lilac:
         return const Color(0xFF7C3AED);
@@ -273,10 +446,23 @@ class StationeryTheme {
         return const Color(0xFF4D7C0F);
       case ToolerAccent.slate:
         return const Color(0xFF334155);
+      case ToolerAccent.brown:
+        return const Color(0xFF523024);
+      case ToolerAccent.yellow:
+        return const Color(0xFFA16207);
+      case ToolerAccent.maroon:
+        return const Color(0xFF5E0B24);
+      case ToolerAccent.darkBlue:
+        return const Color(0xFF172554);
+      case ToolerAccent.terracotta:
+        return const Color(0xFF7C2D1B);
+      case ToolerAccent.olive:
+        return const Color(0xFF3A4716);
     }
   }
 
   Color get secondary {
+    if (useMaterialYou) return _resolvedMaterialYou.secondary;
     switch (accentPalette) {
       case ToolerAccent.lilac:
         return const Color(0xFFB388FF);
@@ -304,10 +490,23 @@ class StationeryTheme {
         return const Color(0xFFBEF264);
       case ToolerAccent.slate:
         return const Color(0xFFCBD5E1);
+      case ToolerAccent.brown:
+        return const Color(0xFFD6A896);
+      case ToolerAccent.yellow:
+        return const Color(0xFFFDE047);
+      case ToolerAccent.maroon:
+        return const Color(0xFFE57A8D);
+      case ToolerAccent.darkBlue:
+        return const Color(0xFF6B93F5);
+      case ToolerAccent.terracotta:
+        return const Color(0xFFF0A28E);
+      case ToolerAccent.olive:
+        return const Color(0xFFB7C975);
     }
   }
 
   Color get accent {
+    if (useMaterialYou) return _resolvedMaterialYou.accent;
     if (isDark) {
       switch (accentPalette) {
         case ToolerAccent.lilac:
@@ -336,6 +535,18 @@ class StationeryTheme {
           return const Color(0xFFD9F99D);
         case ToolerAccent.slate:
           return const Color(0xFFE2E8F0);
+        case ToolerAccent.brown:
+          return const Color(0xFFEDD6CC);
+        case ToolerAccent.yellow:
+          return const Color(0xFFFEF08A);
+        case ToolerAccent.maroon:
+          return const Color(0xFFF7C3CD);
+        case ToolerAccent.darkBlue:
+          return const Color(0xFFBFDBFE);
+        case ToolerAccent.terracotta:
+          return const Color(0xFFFBD5CB);
+        case ToolerAccent.olive:
+          return const Color(0xFFE3ECB8);
       }
     } else {
       switch (accentPalette) {
@@ -365,16 +576,30 @@ class StationeryTheme {
           return const Color(0xFFA3E635);
         case ToolerAccent.slate:
           return const Color(0xFF94A3B8);
+        case ToolerAccent.brown:
+          return const Color(0xFFA87360);
+        case ToolerAccent.yellow:
+          return const Color(0xFFFDE047);
+        case ToolerAccent.maroon:
+          return const Color(0xFFAD2846);
+        case ToolerAccent.darkBlue:
+          return const Color(0xFF2563EB);
+        case ToolerAccent.terracotta:
+          return const Color(0xFFD66A4E);
+        case ToolerAccent.olive:
+          return const Color(0xFF7D913B);
       }
     }
   }
 
   Color get accentColorDot {
+    if (useMaterialYou) return _resolvedMaterialYou.swatch;
     return accentPalette.swatchColor;
   }
 
   // Soft Tinted Hero & Card Background
   Color get lavenderCard {
+    if (useMaterialYou) return _resolvedMaterialYou.lavenderCard;
     if (isDark) return const Color(0xFF1E1E24);
     switch (accentPalette) {
       case ToolerAccent.lilac:
@@ -403,11 +628,24 @@ class StationeryTheme {
         return const Color(0xFFF7FEE7);
       case ToolerAccent.slate:
         return const Color(0xFFF8FAFC);
+      case ToolerAccent.brown:
+        return const Color(0xFFFAF5F2);
+      case ToolerAccent.yellow:
+        return const Color(0xFFFEFCE8);
+      case ToolerAccent.maroon:
+        return const Color(0xFFFDF2F4);
+      case ToolerAccent.darkBlue:
+        return const Color(0xFFEFF6FF);
+      case ToolerAccent.terracotta:
+        return const Color(0xFFFEF5F2);
+      case ToolerAccent.olive:
+        return const Color(0xFFF8FAEE);
     }
   }
 
   // 2D Backdrop Bubble Accent
   Color get lavenderBubble {
+    if (useMaterialYou) return _resolvedMaterialYou.lavenderBubble;
     if (isDark) return primary.withValues(alpha: 0.18);
     switch (accentPalette) {
       case ToolerAccent.lilac:
@@ -436,11 +674,24 @@ class StationeryTheme {
         return const Color(0xFFECFCCB);
       case ToolerAccent.slate:
         return const Color(0xFFF1F5F9);
+      case ToolerAccent.brown:
+        return const Color(0xFFF1E3DC);
+      case ToolerAccent.yellow:
+        return const Color(0xFFFEF9C3);
+      case ToolerAccent.maroon:
+        return const Color(0xFFFCE2E7);
+      case ToolerAccent.darkBlue:
+        return const Color(0xFFDBEAFE);
+      case ToolerAccent.terracotta:
+        return const Color(0xFFFCE2DA);
+      case ToolerAccent.olive:
+        return const Color(0xFFECF2D0);
     }
   }
 
   /// Background tint for character backdrops across all themes (Light pastel, Dark surface)
   Color get characterBg {
+    if (useMaterialYou) return _resolvedMaterialYou.characterBg;
     if (isDark) return const Color(0xFF1E1E24);
     switch (accentPalette) {
       case ToolerAccent.lilac:
@@ -469,6 +720,18 @@ class StationeryTheme {
         return const Color(0xFFF7FEE7);
       case ToolerAccent.slate:
         return const Color(0xFFF8FAFC);
+      case ToolerAccent.brown:
+        return const Color(0xFFFAF5F2);
+      case ToolerAccent.yellow:
+        return const Color(0xFFFEFCE8);
+      case ToolerAccent.maroon:
+        return const Color(0xFFFDF2F4);
+      case ToolerAccent.darkBlue:
+        return const Color(0xFFEFF6FF);
+      case ToolerAccent.terracotta:
+        return const Color(0xFFFEF5F2);
+      case ToolerAccent.olive:
+        return const Color(0xFFF8FAEE);
     }
   }
 
