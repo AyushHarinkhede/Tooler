@@ -8,6 +8,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../services/network_speed_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/smooth_radial_gauge.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER HARDWARE SPEED TEST & RADIO TELEMETRY SCREEN
@@ -301,7 +302,7 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
   }
 
   // ===========================================================================
-  // 1. HERO CIRCULAR RADIAL SPEEDOMETER CARD (NOISE METER ARCHITECTURE)
+  // 1. HERO INDEPENDENT RADIAL SPEEDOMETER (NOISE METER ARCHITECTURE)
   // ===========================================================================
   Widget _buildRadialSpeedometerCard(StationeryTheme theme) {
     final isTesting = _stage == SpeedTestStage.pinging ||
@@ -337,179 +338,161 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         break;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-      decoration: BoxDecoration(
-        color: theme.cardBg,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: isTesting ? stageColor.withValues(alpha: 0.55) : theme.border,
-          width: 1.4,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: (isTesting ? stageColor : Colors.black)
-                .withValues(alpha: theme.isDark ? 0.20 : 0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Circular Radial Gauge (identical architecture to Noise Meter)
-          SizedBox(
-            width: 215,
-            height: 215,
-            child: Stack(
-              alignment: Alignment.center,
+    final double speedProgress =
+        speedToFraction(_displaySpeedMbps, 1000.0).clamp(0.0, 1.0);
+    final double peakProgress =
+        speedToFraction(_peakHoldSpeedMbps, 1000.0).clamp(0.0, 1.0);
+
+    return Column(
+      children: [
+        const SizedBox(height: 6),
+        // Independent Larger Floating Radial Speedometer (Zero Container / Zero Border)
+        Center(
+          child: SmoothRadialGauge(
+            size: 264,
+            progress: speedProgress,
+            externalPeakProgress: peakProgress,
+            gaugeColor: stageColor,
+            primaryColor: theme.primary,
+            trackColor: theme.border.withValues(
+              alpha: theme.isDark ? 0.45 : 0.65,
+            ),
+            smoothDamping: false,
+            center: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                CustomPaint(
-                  size: const Size(215, 215),
-                  painter: _RadialSpeedometerGaugePainter(
-                    speedMbps: _displaySpeedMbps,
-                    peakHoldMbps: _peakHoldSpeedMbps,
-                    maxSpeedMbps: 1000.0,
-                    gaugeColor: stageColor,
-                    primaryColor: theme.primary,
-                    trackColor: theme.border.withValues(alpha: 0.45),
+                Text(
+                  _displaySpeedMbps.toStringAsFixed(1),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 48,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -1.5,
+                    color: theme.text,
                   ),
                 ),
-
-                // Center Large Digital Speed Readout & Subtitle
-                Column(
+                Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      _displaySpeedMbps.toStringAsFixed(1),
+                      'Mbps',
                       style: GoogleFonts.jetBrainsMono(
-                        fontSize: 44,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -1.5,
-                        color: theme.text,
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.8,
+                        color: stageColor,
                       ),
                     ),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Mbps',
+                    if (isTesting) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2.5),
+                        decoration: BoxDecoration(
+                          color: stageColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          stageText,
                           style: GoogleFonts.jetBrainsMono(
-                            fontSize: 13.5,
+                            fontSize: 9,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: 0.8,
                             color: stageColor,
                           ),
                         ),
-                        if (isTesting) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: stageColor.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              stageText,
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 8.5,
-                                fontWeight: FontWeight.w800,
-                                color: stageColor,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+                      ),
+                    ],
                   ],
                 ),
               ],
             ),
           ),
+        ),
 
-          const SizedBox(height: 14),
+        const SizedBox(height: 10),
 
-          // Latency Metrics Grid (Ping, Jitter, Download, Upload)
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        // Latency Metrics Grid (Ping, Jitter, Download, Upload)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          decoration: BoxDecoration(
+            color: theme.cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color:
+                  isTesting ? stageColor.withValues(alpha: 0.45) : theme.border,
+              width: 1.2,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildMetricCol('PING', '$_pingMs ms', Icons.network_ping_rounded,
+                  const Color(0xFFF59E0B), theme),
+              _buildMetricDivider(theme),
+              _buildMetricCol('JITTER', '$_jitterMs ms',
+                  Icons.compare_arrows_rounded, const Color(0xFF3B82F6), theme),
+              _buildMetricDivider(theme),
+              _buildMetricCol(
+                'DOWNLOAD',
+                '${_downloadMbps.toStringAsFixed(1)} M',
+                Icons.arrow_downward_rounded,
+                const Color(0xFF10B981),
+                theme,
+              ),
+              _buildMetricDivider(theme),
+              _buildMetricCol(
+                'UPLOAD',
+                '${_uploadMbps.toStringAsFixed(1)} M',
+                Icons.arrow_upward_rounded,
+                const Color(0xFF8B5CF6),
+                theme,
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Primary Speed Test Trigger Action (Clean UI Theme Color)
+        BouncyTap(
+          onTap: isTesting ? _stopSpeedTest : _startSpeedTest,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
             decoration: BoxDecoration(
-              color: theme.bg,
+              color: isTesting ? const Color(0xFFEF4444) : theme.primary,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: theme.border),
+              boxShadow: [
+                BoxShadow(
+                  color: (isTesting ? const Color(0xFFEF4444) : theme.primary)
+                      .withValues(alpha: 0.30),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
             ),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _buildMetricCol('PING', '$_pingMs ms', Icons.network_ping_rounded,
-                    const Color(0xFFF59E0B), theme),
-                _buildMetricDivider(theme),
-                _buildMetricCol('JITTER', '$_jitterMs ms',
-                    Icons.compare_arrows_rounded, const Color(0xFF3B82F6), theme),
-                _buildMetricDivider(theme),
-                _buildMetricCol(
-                  'DOWNLOAD',
-                  '${_downloadMbps.toStringAsFixed(1)} M',
-                  Icons.arrow_downward_rounded,
-                  const Color(0xFF10B981),
-                  theme,
+                Icon(
+                  isTesting ? Icons.stop_rounded : Icons.speed_rounded,
+                  color: Colors.white,
+                  size: 19,
                 ),
-                _buildMetricDivider(theme),
-                _buildMetricCol(
-                  'UPLOAD',
-                  '${_uploadMbps.toStringAsFixed(1)} M',
-                  Icons.arrow_upward_rounded,
-                  const Color(0xFF8B5CF6),
-                  theme,
+                const SizedBox(width: 8),
+                Text(
+                  isTesting ? 'STOP TEST' : 'START SPEED TEST',
+                  style: GoogleFonts.plusJakartaSans(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.6,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(height: 14),
-
-          // Primary Speed Test Trigger Action (Clean UI Theme Color)
-          BouncyTap(
-            onTap: isTesting ? _stopSpeedTest : _startSpeedTest,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              decoration: BoxDecoration(
-                color: isTesting ? const Color(0xFFEF4444) : theme.primary,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: (isTesting ? const Color(0xFFEF4444) : theme.primary)
-                        .withValues(alpha: 0.30),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    isTesting ? Icons.stop_rounded : Icons.speed_rounded,
-                    color: Colors.white,
-                    size: 19,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    isTesting ? 'STOP TEST' : 'START SPEED TEST',
-                    style: GoogleFonts.plusJakartaSans(
-                      fontSize: 14.5,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 0.6,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1088,151 +1071,5 @@ class _SpeedTestScreenState extends State<SpeedTestScreen>
         ],
       ),
     );
-  }
-}
-
-// =============================================================================
-// SILKY SMOOTH RADIAL SPEEDOMETER GAUGE PAINTER (ZERO-JITTER ARCHITECTURE)
-// Sweeps from 140° to 400° (260° sweep) with ambient glow, tip orb & peak hold
-// =============================================================================
-class _RadialSpeedometerGaugePainter extends CustomPainter {
-  final double speedMbps;
-  final double peakHoldMbps;
-  final double maxSpeedMbps;
-  final Color gaugeColor;
-  final Color primaryColor;
-  final Color trackColor;
-
-  _RadialSpeedometerGaugePainter({
-    required this.speedMbps,
-    required this.peakHoldMbps,
-    required this.maxSpeedMbps,
-    required this.gaugeColor,
-    required this.primaryColor,
-    required this.trackColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = (size.width / 2) - 18;
-    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
-
-    // Sweep from bottom-left (140°) to bottom-right (400° -> 260° sweep)
-    const double startAngle = 140.0 * math.pi / 180.0;
-    const double totalSweep = 260.0 * math.pi / 180.0;
-
-    final double progress =
-        _SpeedTestScreenState.speedToFraction(speedMbps, maxSpeedMbps)
-            .clamp(0.0, 1.0);
-    final double activeSweep = totalSweep * progress;
-    final double peakProgress =
-        _SpeedTestScreenState.speedToFraction(peakHoldMbps, maxSpeedMbps)
-            .clamp(0.0, 1.0);
-
-    // 1. Subtle Inner Micro-Tick Scale (25 smooth ticks)
-    const int tickCount = 24;
-    for (int i = 0; i <= tickCount; i++) {
-      final double frac = i / tickCount;
-      final double ang = startAngle + (totalSweep * frac);
-      final bool isMajor = i % 6 == 0;
-      final bool isLit = frac <= progress;
-      final double innerR = radius - (isMajor ? 16.5 : 14.0);
-      final double outerR = radius - 10.5;
-      final Paint tickPaint = Paint()
-        ..color = isLit
-            ? gaugeColor.withValues(alpha: isMajor ? 0.75 : 0.40)
-            : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
-        ..strokeWidth = isMajor ? 2.0 : 1.2
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawLine(
-        Offset(center.dx + innerR * math.cos(ang),
-            center.dy + innerR * math.sin(ang)),
-        Offset(center.dx + outerR * math.cos(ang),
-            center.dy + outerR * math.sin(ang)),
-        tickPaint,
-      );
-    }
-
-    // 2. Smooth Recessed Background Track Arc
-    final Paint trackPaint = Paint()
-      ..color = trackColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
-
-    // 3. Soft Ambient Glow Under Active Arc
-    if (activeSweep > 0.01) {
-      final Paint glowPaint = Paint()
-        ..color = gaugeColor.withValues(alpha: 0.28)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 18.0
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
-      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
-
-      // 4. Silky SweepGradient Active Speed Arc
-      final Shader arcShader = SweepGradient(
-        startAngle: 0.0,
-        endAngle: totalSweep,
-        colors: [
-          primaryColor,
-          Color.lerp(primaryColor, gaugeColor, 0.55)!,
-          gaugeColor,
-        ],
-        stops: const [0.0, 0.62, 1.0],
-        transform: const GradientRotation(startAngle),
-      ).createShader(arcRect);
-
-      final Paint activePaint = Paint()
-        ..shader = arcShader
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12.5
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
-
-      // 5. Crisp Luminous Leading Tip Orb
-      final double tipAngle = startAngle + activeSweep;
-      final Offset tipCenter = Offset(
-        center.dx + radius * math.cos(tipAngle),
-        center.dy + radius * math.sin(tipAngle),
-      );
-      canvas.drawCircle(
-        tipCenter,
-        7.5,
-        Paint()
-          ..color = gaugeColor.withValues(alpha: 0.35)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
-      );
-      canvas.drawCircle(
-        tipCenter,
-        4.2,
-        Paint()..color = Colors.white.withValues(alpha: 0.95),
-      );
-    }
-
-    // 6. Floating Peak-Hold Indicator Marker Dot
-    if (peakProgress > progress + 0.025) {
-      final double peakAngle = startAngle + (totalSweep * peakProgress);
-      final Offset peakPos = Offset(
-        center.dx + radius * math.cos(peakAngle),
-        center.dy + radius * math.sin(peakAngle),
-      );
-      canvas.drawCircle(
-        peakPos,
-        3.6,
-        Paint()..color = gaugeColor.withValues(alpha: 0.85),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _RadialSpeedometerGaugePainter oldDelegate) {
-    return (oldDelegate.speedMbps - speedMbps).abs() > 0.01 ||
-        (oldDelegate.peakHoldMbps - peakHoldMbps).abs() > 0.01 ||
-        oldDelegate.gaugeColor != gaugeColor ||
-        oldDelegate.primaryColor != primaryColor;
   }
 }

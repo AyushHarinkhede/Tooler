@@ -2146,15 +2146,20 @@ class _CelestialSkySvgPainter extends CustomPainter {
     pBot.quadraticBezierTo(cx - 56 + breezeShift, cy + 16, cx - 36 + breezeShift, cy + 22);
     canvas.drawPath(pBot, breezePaint);
 
-    // 3. Celestial Body: SUN or MOON (Positioned nicely behind top-right of the cloud)
-    final celestialCenter = Offset(cx + 34, cy - 14);
+    // 3. Isolated layer for Celestial Body + main cloud gap cutout
+    final floatOffset = math.sin(animProgress * math.pi * 2) * 3.5;
+    final mainCloudCenter = Offset(cx - 8 + floatOffset, cy + 8);
+    final mainCloudPath = _buildUnifiedCloudPath(mainCloudCenter, 1.0);
+
+    canvas.saveLayer(Offset.zero & size, Paint());
+    final celestialCenter = Offset(cx + 17, cy - 11.5);
     if (weather.isDay) {
       _paintSvgSun(canvas, celestialCenter);
     } else {
       _paintSvgMoon(canvas, celestialCenter);
     }
 
-    // 4. Secondary Cloud (if overcast / cloudy)
+    // Secondary Cloud (if overcast / cloudy)
     if (weather.isCloudy) {
       final backCloudOffset = math.sin(animProgress * math.pi * 2) * 4.0;
       _paintSoftCloud(
@@ -2165,96 +2170,114 @@ class _CelestialSkySvgPainter extends CustomPainter {
       );
     }
 
-    // 5. Main Foreground Soft Cloud (in UI theme color with organic soft curves)
-    final floatOffset = math.sin(animProgress * math.pi * 2) * 3.5;
+    // Cleanly carve out the foreground cloud + subtle halo gap from the sun/back cloud layer
+    final clearFill = Paint()
+      ..blendMode = BlendMode.clear
+      ..style = PaintingStyle.fill;
+    final clearHalo = Paint()
+      ..blendMode = BlendMode.clear
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5.0
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(mainCloudPath, clearFill);
+    canvas.drawPath(mainCloudPath, clearHalo);
+    canvas.restore();
+
+    // 4. Main Foreground Unified SVG Cloud (crisp thin contour matching UI theme)
     _paintSoftCloud(
       canvas,
-      Offset(cx - 8 + floatOffset, cy + 8),
+      mainCloudCenter,
       1.0,
       isSecondary: false,
+      precomputedPath: mainCloudPath,
     );
 
-    // 6. Rain Droplets (if rain or thunder)
+    // 5. Light Delicate Rain Droplets (if rain or thunder)
     if (weather.isRain || weather.isThunder) {
-      _paintSvgRain(canvas, cx - 8 + floatOffset, cy + 8);
+      _paintSvgRain(canvas, mainCloudCenter.dx, mainCloudCenter.dy);
     }
 
-    // 7. Thunder Lightning (if thunderstorm)
+    // 6. Thunder Lightning (if thunderstorm)
     if (weather.isThunder) {
-      _paintSvgThunder(canvas, cx - 8 + floatOffset, cy + 8);
+      _paintSvgThunder(canvas, mainCloudCenter.dx, mainCloudCenter.dy);
     }
   }
 
-  void _paintSoftCloud(Canvas canvas, Offset center, double scale, {required bool isSecondary}) {
+  Path _buildUnifiedCloudPath(Offset center, double scale) {
+    // Same crisp 3-lobe continuous cubic-Bezier silhouette centered around `center`
+    // Spans ~76x44 at scale 1.0 (origin offset: dx = -30*u, dy = -32*u on 64x64 basis)
+    final u = 1.95 * scale;
+    final ox = center.dx - (30.0 * u);
+    final oy = center.dy - (32.0 * u);
+    return Path()
+      ..moveTo(ox + 16.5 * u, oy + 43.0 * u)
+      ..lineTo(ox + 42.0 * u, oy + 43.0 * u)
+      ..cubicTo(ox + 45.75 * u, oy + 43.0 * u, ox + 48.8 * u, oy + 39.95 * u, ox + 48.8 * u, oy + 36.2 * u)
+      ..cubicTo(ox + 48.8 * u, oy + 32.45 * u, ox + 45.75 * u, oy + 29.4 * u, ox + 42.0 * u, oy + 29.4 * u)
+      ..cubicTo(ox + 39.4 * u, oy + 29.4 * u, ox + 37.1 * u, oy + 30.6 * u, ox + 36.0 * u, oy + 32.2 * u)
+      ..cubicTo(ox + 35.4 * u, oy + 25.3 * u, ox + 31.3 * u, oy + 20.6 * u, ox + 26.2 * u, oy + 20.6 * u)
+      ..cubicTo(ox + 20.9 * u, oy + 20.6 * u, ox + 16.8 * u, oy + 25.1 * u, ox + 16.6 * u, oy + 31.2 * u)
+      ..cubicTo(ox + 13.3 * u, oy + 31.2 * u, ox + 10.8 * u, oy + 33.7 * u, ox + 10.8 * u, oy + 37.0 * u)
+      ..cubicTo(ox + 10.8 * u, oy + 40.3 * u, ox + 13.5 * u, oy + 43.0 * u, ox + 16.5 * u, oy + 43.0 * u)
+      ..close();
+  }
+
+  void _paintSoftCloud(
+    Canvas canvas,
+    Offset center,
+    double scale, {
+    required bool isSecondary,
+    Path? precomputedPath,
+  }) {
+    final path = precomputedPath ?? _buildUnifiedCloudPath(center, scale);
+
     final cloudFill = Paint()
       ..color = isSecondary
-          ? (isDark ? const Color(0xFF262630) : theme.lavenderBubble.withValues(alpha: 0.6))
-          : (isDark ? const Color(0xFF24242A) : theme.lavenderBubble.withValues(alpha: 0.95))
+          ? (isDark ? const Color(0xFF23232C) : theme.lavenderBubble).withValues(alpha: 0.45)
+          : (isDark ? const Color(0xFF22222A) : theme.lavenderBubble).withValues(alpha: 0.62)
       ..style = PaintingStyle.fill;
 
     final cloudStroke = Paint()
       ..color = isSecondary
-          ? theme.border.withValues(alpha: 0.5)
-          : (isDark ? const Color(0xFFE4E4E7) : theme.text)
+          ? (isDark ? const Color(0xFFF4F4F5) : theme.text).withValues(alpha: 0.42)
+          : (isDark ? const Color(0xFFF4F4F5) : theme.text)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6
+      ..strokeWidth = isSecondary ? 1.3 : 1.65
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
-
-    // Organic soft cloud path with smooth overlapping puffs
-    final path = Path();
-    final baseRect = RRect.fromRectAndRadius(
-      Rect.fromCenter(
-        center: Offset(center.dx, center.dy + 8 * scale),
-        width: 74 * scale,
-        height: 28 * scale,
-      ),
-      Radius.circular(14 * scale),
-    );
-    path.addRRect(baseRect);
-
-    path.addOval(Rect.fromCircle(
-      center: Offset(center.dx - 18 * scale, center.dy + 2 * scale),
-      radius: 17 * scale,
-    ));
-    path.addOval(Rect.fromCircle(
-      center: Offset(center.dx + 5 * scale, center.dy - 6 * scale),
-      radius: 22 * scale,
-    ));
-    path.addOval(Rect.fromCircle(
-      center: Offset(center.dx + 25 * scale, center.dy + 3 * scale),
-      radius: 15 * scale,
-    ));
 
     canvas.drawPath(path, cloudFill);
     canvas.drawPath(path, cloudStroke);
   }
 
   void _paintSvgSun(Canvas canvas, Offset center) {
-    const r = 16.0;
+    const r = 15.0;
+    final sunCol = isDark ? const Color(0xFFFEF08A) : accentColor;
 
-    // Rotating solar rays in crisp stroke
+    // Crisp rotating solar rays in thin line-art stroke
     final rayPaint = Paint()
-      ..color = isDark ? const Color(0xFFFEF08A) : accentColor
-      ..strokeWidth = 1.8
+      ..color = sunCol
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round;
 
     final rot = animProgress * math.pi * 2;
     for (int i = 0; i < 8; i++) {
       final angle = rot + (i * (math.pi / 4));
-      final p1 = Offset(center.dx + math.cos(angle) * (r * 1.25), center.dy + math.sin(angle) * (r * 1.25));
-      final p2 = Offset(center.dx + math.cos(angle) * (r * 1.75), center.dy + math.sin(angle) * (r * 1.75));
+      final p1 = Offset(center.dx + math.cos(angle) * (r * 1.28), center.dy + math.sin(angle) * (r * 1.28));
+      final p2 = Offset(center.dx + math.cos(angle) * (r * 1.66), center.dy + math.sin(angle) * (r * 1.66));
       canvas.drawLine(p1, p2, rayPaint);
     }
 
-    // Clean sun disc with soft tint and crisp outline in theme color
+    // Soft translucent UI-themed sun disc + crisp thin outline
     final sunFill = Paint()
-      ..color = (isDark ? const Color(0xFFFBBF24) : accentColor).withValues(alpha: 0.22)
+      ..color = sunCol.withValues(alpha: isDark ? 0.22 : 0.16)
       ..style = PaintingStyle.fill;
     final sunStroke = Paint()
-      ..color = isDark ? const Color(0xFFFEF08A) : accentColor
+      ..color = sunCol
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8;
+      ..strokeWidth = 1.65;
 
     canvas.drawCircle(center, r, sunFill);
     canvas.drawCircle(center, r, sunStroke);
@@ -2317,15 +2340,15 @@ class _CelestialSkySvgPainter extends CustomPainter {
 
   void _paintSvgRain(Canvas canvas, double cloudX, double cloudY) {
     final rainPaint = Paint()
-      ..color = const Color(0xFF38BDF8)
-      ..strokeWidth = 2.0
+      ..color = accentColor
+      ..strokeWidth = 1.65
       ..strokeCap = StrokeCap.round;
 
-    for (int i = 0; i < 5; i++) {
-      final x = (cloudX - 22) + (i * 11);
-      final dropProg = (animProgress * 3.5 + (i * 0.22)) % 1.0;
-      final yStart = (cloudY + 22) + (dropProg * 24.0);
-      canvas.drawLine(Offset(x, yStart), Offset(x - 2, yStart + 8), rainPaint);
+    for (int i = 0; i < 4; i++) {
+      final x = (cloudX - 18) + (i * 12);
+      final dropProg = (animProgress * 3.5 + (i * 0.25)) % 1.0;
+      final yStart = (cloudY + 25) + (dropProg * 14.0);
+      canvas.drawLine(Offset(x, yStart), Offset(x - 2.4, yStart + 7.5), rainPaint);
     }
   }
 

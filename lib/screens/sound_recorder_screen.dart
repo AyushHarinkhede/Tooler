@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
+import '../widgets_3d/smooth_radial_gauge.dart';
 
 class VoiceRecordingItem {
   final String id;
@@ -1501,113 +1502,98 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
     );
   }
 
-  // --- 1. CIRCULAR DECIBEL GAUGE ---
+  // --- 1. CIRCULAR DECIBEL GAUGE (INDEPENDENT FLOATING ON HOVER PAGE) ---
   Widget _buildCircularDecibelGauge(
     Color safetyColor,
     String safetyStatus,
     double avgDb,
   ) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 20),
-      decoration: BoxDecoration(
-        color: widget.theme.cardBg,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: safetyColor.withValues(alpha: 0.6),
-          width: 2.0,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: safetyColor.withValues(alpha: 0.2),
-            offset: const Offset(0, 6),
-            blurRadius: 16,
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          // Circular Radial Gauge
-          SizedBox(
-            width: 210,
-            height: 210,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                // Custom Painter for Silky Smooth Radial Bar Gauge
-                CustomPaint(
-                  size: const Size(210, 210),
-                  painter: _RadialDecibelBarPainter(
-                    decibel: _displayDb,
-                    peakHoldDb: _peakHoldDb,
-                    gaugeColor: safetyColor,
-                    primaryColor: widget.theme.primary,
-                    trackColor: widget.theme.border.withValues(alpha: 0.45),
-                  ),
-                ),
+    final double dbProgress = ((_displayDb - 30.0) / 80.0).clamp(0.0, 1.0);
+    final double peakProgress = ((_peakHoldDb - 30.0) / 80.0).clamp(0.0, 1.0);
 
-                // Center Large Decibel Number & Safety Badge
-                Column(
+    return Column(
+      children: [
+        const SizedBox(height: 4),
+        // Independent Larger Floating Radial Gauge (Zero Container / Zero Border)
+        Center(
+          child: SmoothRadialGauge(
+            size: 264,
+            progress: dbProgress,
+            externalPeakProgress: peakProgress,
+            gaugeColor: safetyColor,
+            primaryColor: widget.theme.primary,
+            trackColor: widget.theme.border.withValues(
+              alpha: widget.theme.isDark ? 0.45 : 0.65,
+            ),
+            smoothDamping: false,
+            center: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        Text(
-                          _displayDb.toStringAsFixed(0),
-                          style: widget.theme.fontDisplay(
-                            fontSize: 54,
-                            fontWeight: FontWeight.w900,
-                            color: safetyColor,
-                          ),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          "dB",
-                          style: widget.theme.fontMono(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: widget.theme.textSecondary,
-                          ),
-                        ),
-                      ],
+                    Text(
+                      _displayDb.toStringAsFixed(0),
+                      style: widget.theme.fontDisplay(
+                        fontSize: 60,
+                        fontWeight: FontWeight.w900,
+                        color: safetyColor,
+                      ),
                     ),
-                    const SizedBox(height: 4),
-                    // Safety Badge Pill
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 3,
-                      ),
-                      decoration: BoxDecoration(
-                        color: safetyColor.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: safetyColor.withValues(alpha: 0.5),
-                          width: 1,
-                        ),
-                      ),
-                      child: Text(
-                        safetyStatus,
-                        style: widget.theme.fontMono(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.bold,
-                          color: safetyColor,
-                        ),
+                    const SizedBox(width: 4),
+                    Text(
+                      "dB",
+                      style: widget.theme.fontMono(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: widget.theme.textSecondary,
                       ),
                     ),
                   ],
                 ),
+                const SizedBox(height: 5),
+                // Safety Badge Pill
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: safetyColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: safetyColor.withValues(alpha: 0.5),
+                      width: 1,
+                    ),
+                  ),
+                  child: Text(
+                    safetyStatus,
+                    style: widget.theme.fontMono(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: safetyColor,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
+        ),
 
-          const SizedBox(height: 16),
+        const SizedBox(height: 10),
 
-          // Min / Avg / Max Telemetry Row
-          Row(
+        // Min / Avg / Peak Telemetry Strip
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: widget.theme.cardBg,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: widget.theme.border, width: 1.2),
+          ),
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildDbStatBadge("MIN", "${_minDb.toStringAsFixed(0)} dB"),
@@ -1620,14 +1606,20 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
               Container(width: 1.2, height: 26, color: widget.theme.border),
               _buildDbStatBadge("PEAK", "${_maxDb.toStringAsFixed(0)} dB"),
               IconButton(
-                icon: Icon(Icons.refresh_rounded, color: widget.theme.primary, size: 20),
+                constraints: const BoxConstraints(),
+                padding: const EdgeInsets.all(6),
+                icon: Icon(
+                  Icons.refresh_rounded,
+                  color: widget.theme.primary,
+                  size: 20,
+                ),
                 tooltip: "Reset dB Stats",
                 onPressed: _resetDecibelStats,
               ),
             ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -2860,143 +2852,5 @@ class _SoundRecorderScreenState extends State<SoundRecorderScreen>
         ),
       ),
     );
-  }
-}
-
-// =============================================================================
-// SILKY SMOOTH RADIAL DECIBEL BAR PAINTER (ZERO-JITTER STUDIO SPL GAUGE)
-// Fills smoothly from 30 dB (0%) to 110 dB (100%) with gradient glow & peak dot
-// =============================================================================
-class _RadialDecibelBarPainter extends CustomPainter {
-  final double decibel;
-  final double peakHoldDb;
-  final Color gaugeColor;
-  final Color primaryColor;
-  final Color trackColor;
-
-  _RadialDecibelBarPainter({
-    required this.decibel,
-    required this.peakHoldDb,
-    required this.gaugeColor,
-    required this.primaryColor,
-    required this.trackColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = (size.width / 2) - 18;
-    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
-
-    // Sweep from bottom-left (140°) to bottom-right (400° -> 260° sweep)
-    const double startAngle = 140.0 * math.pi / 180.0;
-    const double totalSweep = 260.0 * math.pi / 180.0;
-
-    final double progress = ((decibel - 30.0) / 80.0).clamp(0.0, 1.0);
-    final double activeSweep = totalSweep * progress;
-    final double peakProgress = ((peakHoldDb - 30.0) / 80.0).clamp(0.0, 1.0);
-
-    // 1. Subtle Inner Micro-Tick Scale Dots (30..110 dB, 25 smooth ticks)
-    const int tickCount = 24;
-    for (int i = 0; i <= tickCount; i++) {
-      final double frac = i / tickCount;
-      final double ang = startAngle + (totalSweep * frac);
-      final bool isMajor = i % 6 == 0;
-      final bool isLit = frac <= progress;
-      final double innerR = radius - (isMajor ? 16.5 : 14.0);
-      final double outerR = radius - 10.5;
-      final Paint tickPaint = Paint()
-        ..color = isLit
-            ? gaugeColor.withValues(alpha: isMajor ? 0.72 : 0.40)
-            : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
-        ..strokeWidth = isMajor ? 2.0 : 1.2
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawLine(
-        Offset(center.dx + innerR * math.cos(ang), center.dy + innerR * math.sin(ang)),
-        Offset(center.dx + outerR * math.cos(ang), center.dy + outerR * math.sin(ang)),
-        tickPaint,
-      );
-    }
-
-    // 2. Smooth Recessed Background Track Arc
-    final Paint trackPaint = Paint()
-      ..color = trackColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
-
-    // 3. Soft Ambient Glow Under Active Arc
-    if (activeSweep > 0.01) {
-      final Paint glowPaint = Paint()
-        ..color = gaugeColor.withValues(alpha: 0.28)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 18.0
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
-      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
-
-      // 4. Silky SweepGradient Active Decibel Arc
-      final Shader arcShader = SweepGradient(
-        startAngle: 0.0,
-        endAngle: totalSweep,
-        colors: [
-          primaryColor,
-          Color.lerp(primaryColor, gaugeColor, 0.55)!,
-          gaugeColor,
-        ],
-        stops: const [0.0, 0.62, 1.0],
-        transform: const GradientRotation(startAngle),
-      ).createShader(arcRect);
-
-      final Paint activePaint = Paint()
-        ..shader = arcShader
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12.5
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
-
-      // 5. Crisp Luminous Leading Tip Orb
-      final double tipAngle = startAngle + activeSweep;
-      final Offset tipCenter = Offset(
-        center.dx + radius * math.cos(tipAngle),
-        center.dy + radius * math.sin(tipAngle),
-      );
-      canvas.drawCircle(
-        tipCenter,
-        7.5,
-        Paint()
-          ..color = gaugeColor.withValues(alpha: 0.35)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
-      );
-      canvas.drawCircle(
-        tipCenter,
-        4.2,
-        Paint()..color = Colors.white.withValues(alpha: 0.95),
-      );
-    }
-
-    // 6. Floating Peak-Hold Indicator Marker Dot (smoothly tracks recent peak)
-    if (peakProgress > progress + 0.025) {
-      final double peakAngle = startAngle + (totalSweep * peakProgress);
-      final Offset peakPos = Offset(
-        center.dx + radius * math.cos(peakAngle),
-        center.dy + radius * math.sin(peakAngle),
-      );
-      canvas.drawCircle(
-        peakPos,
-        3.6,
-        Paint()..color = gaugeColor.withValues(alpha: 0.85),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _RadialDecibelBarPainter oldDelegate) {
-    return (oldDelegate.decibel - decibel).abs() > 0.01 ||
-        (oldDelegate.peakHoldDb - peakHoldDb).abs() > 0.01 ||
-        oldDelegate.gaugeColor != gaugeColor ||
-        oldDelegate.primaryColor != primaryColor;
   }
 }

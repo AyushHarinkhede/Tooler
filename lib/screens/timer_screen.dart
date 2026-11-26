@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import '../theme/stationery_theme.dart';
 import '../theme/notebook_painter.dart';
 import '../services/sound_service.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
+import '../widgets_3d/smooth_radial_gauge.dart';
 import '../widgets_3d/tooler_character.dart';
 
 class TimerScreen extends StatefulWidget {
@@ -18,18 +20,41 @@ class TimerScreen extends StatefulWidget {
 }
 
 class _TimerScreenState extends State<TimerScreen>
-    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   int _initialSeconds = 300; // 5 min default
   int _currentSeconds = 300;
   Timer? _timer;
   bool _isRunning = false;
   late AnimationController _pulseController;
+  Ticker? _countdownTicker;
+  int? _runningTargetEpochMs;
+  final ValueNotifier<double> _targetProgressNotifier =
+      ValueNotifier<double>(1.0);
 
   // Custom manual time inputs
   int _customHours = 0;
   int _customMinutes = 5;
   int _customSeconds = 0;
   bool _showCustomInput = false;
+
+  void _syncStaticTargetProgress() {
+    _targetProgressNotifier.value = _initialSeconds > 0
+        ? (_currentSeconds / _initialSeconds).clamp(0.0, 1.0)
+        : 0.0;
+  }
+
+  void _startSmoothCountdownTicker(int targetEpochMs) {
+    _runningTargetEpochMs = targetEpochMs;
+    if (!(_countdownTicker?.isActive ?? false)) {
+      _countdownTicker?.start();
+    }
+  }
+
+  void _stopSmoothCountdownTicker() {
+    _runningTargetEpochMs = null;
+    _countdownTicker?.stop();
+    _syncStaticTargetProgress();
+  }
 
   @override
   void initState() {
@@ -39,6 +64,21 @@ class _TimerScreenState extends State<TimerScreen>
       vsync: this,
       duration: const Duration(milliseconds: 900),
     )..repeat(reverse: true);
+    _syncStaticTargetProgress();
+    _countdownTicker = createTicker((_) {
+      if (!mounted ||
+          !_isRunning ||
+          _runningTargetEpochMs == null ||
+          _initialSeconds <= 0) {
+        return;
+      }
+      final double remSec = ((_runningTargetEpochMs! -
+                  DateTime.now().millisecondsSinceEpoch) /
+              1000.0)
+          .clamp(0.0, _initialSeconds.toDouble());
+      _targetProgressNotifier.value =
+          (remSec / _initialSeconds).clamp(0.0, 1.0);
+    });
     _restoreTimerState();
   }
 
@@ -97,6 +137,7 @@ class _TimerScreenState extends State<TimerScreen>
           _currentSeconds = 0;
           _isRunning = false;
         });
+        _stopSmoothCountdownTicker();
         await StorageService().clearTimerState();
         _onTimerFinished(wasBackground: true);
       } else {
@@ -114,6 +155,7 @@ class _TimerScreenState extends State<TimerScreen>
         _currentSeconds = remainingSec;
         _isRunning = false;
       });
+      _syncStaticTargetProgress();
     }
   }
 
@@ -123,6 +165,7 @@ class _TimerScreenState extends State<TimerScreen>
 
     // Schedule real-time exact AlarmManager notification so it rings even if app is closed or killed in RAM
     final targetEpoch = DateTime.now().millisecondsSinceEpoch + (_currentSeconds * 1000);
+    _startSmoothCountdownTicker(targetEpoch);
     NotificationService().scheduleTimerNotification(
       secondsRemaining: _currentSeconds,
       label: _formatTimerDisplay(_initialSeconds),
@@ -156,6 +199,7 @@ class _TimerScreenState extends State<TimerScreen>
     setState(() => _isRunning = true);
 
     final targetEpoch = DateTime.now().millisecondsSinceEpoch + (_currentSeconds * 1000);
+    _startSmoothCountdownTicker(targetEpoch);
     StorageService().saveTimerState(
       isRunning: true,
       initialSeconds: _initialSeconds,
@@ -186,6 +230,7 @@ class _TimerScreenState extends State<TimerScreen>
     SoundService().playClick();
     _timer?.cancel();
     setState(() => _isRunning = false);
+    _stopSmoothCountdownTicker();
     StorageService().saveTimerState(
       isRunning: false,
       initialSeconds: _initialSeconds,
@@ -205,6 +250,7 @@ class _TimerScreenState extends State<TimerScreen>
       _isRunning = false;
       _currentSeconds = _initialSeconds;
     });
+    _stopSmoothCountdownTicker();
   }
 
   void _setPreset(int totalSec) {
@@ -221,6 +267,7 @@ class _TimerScreenState extends State<TimerScreen>
       _customMinutes = (totalSec % 3600) ~/ 60;
       _customSeconds = totalSec % 60;
     });
+    _stopSmoothCountdownTicker();
   }
 
   /// Direct quick-add time to running or paused timer
@@ -232,6 +279,7 @@ class _TimerScreenState extends State<TimerScreen>
     });
     if (_isRunning) {
       final targetEpoch = DateTime.now().millisecondsSinceEpoch + (_currentSeconds * 1000);
+      _startSmoothCountdownTicker(targetEpoch);
       StorageService().saveTimerState(
         isRunning: true,
         initialSeconds: _initialSeconds,
@@ -243,6 +291,8 @@ class _TimerScreenState extends State<TimerScreen>
         label: _formatTimerDisplay(_initialSeconds),
         completionTime: DateTime.fromMillisecondsSinceEpoch(targetEpoch),
       );
+    } else {
+      _syncStaticTargetProgress();
     }
   }
 
@@ -260,12 +310,14 @@ class _TimerScreenState extends State<TimerScreen>
       _currentSeconds = total;
       _showCustomInput = false;
     });
+    _stopSmoothCountdownTicker();
   }
 
   /// Alarm chime sound sequence & background notification when countdown completes
   void _onTimerFinished({bool wasBackground = false}) {
     _timer?.cancel();
     setState(() => _isRunning = false);
+    _stopSmoothCountdownTicker();
     StorageService().clearTimerState();
     NotificationService().cancelTimerNotification();
 
@@ -390,6 +442,8 @@ class _TimerScreenState extends State<TimerScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _countdownTicker?.dispose();
+    _targetProgressNotifier.dispose();
     _pulseController.dispose();
     SoundService().stopTimerAlarm();
     super.dispose();
@@ -424,11 +478,11 @@ class _TimerScreenState extends State<TimerScreen>
                 children: [
                   const SizedBox(height: 8),
 
-                  // Best Way: Circular Countdown Progress Instrument
+                  // Best Way: Independent Silky Smooth Circular Countdown Progress Instrument
                   Center(
                     child: SizedBox(
-                      width: 260,
-                      height: 260,
+                      width: 264,
+                      height: 264,
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
@@ -438,8 +492,8 @@ class _TimerScreenState extends State<TimerScreen>
                               animation: _pulseController,
                               builder: (context, child) {
                                 return Container(
-                                  width: 250 + (_pulseController.value * 12),
-                                  height: 250 + (_pulseController.value * 12),
+                                  width: 254 + (_pulseController.value * 12),
+                                  height: 254 + (_pulseController.value * 12),
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
                                     border: Border.all(
@@ -451,62 +505,64 @@ class _TimerScreenState extends State<TimerScreen>
                               },
                             ),
 
-                          // Noise-Meter Style Silky Smooth Radial Bar Gauge
-                          CustomPaint(
-                            size: const Size(260, 260),
-                            painter: _TimerRadialBarPainter(
-                              progress: progress,
-                              gaugeColor: progressColor,
-                              primaryColor: widget.theme.primary,
-                              trackColor: widget.theme.border.withValues(alpha: 0.35),
+                          // Noise-Meter Grade Silky Smooth Radial Bar Gauge & Pointer
+                          SmoothRadialGauge(
+                            size: 264,
+                            progress: progress,
+                            progressListenable: _targetProgressNotifier,
+                            gaugeColor: progressColor,
+                            primaryColor: widget.theme.primary,
+                            trackColor: widget.theme.border.withValues(
+                              alpha: widget.theme.isDark ? 0.45 : 0.65,
                             ),
-                          ),
-
-                          // Inside Time & Percent Info
-                          Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              // State badge
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: _isRunning
-                                      ? progressColor.withValues(alpha: 0.15)
-                                      : widget.theme.border.withValues(alpha: 0.15),
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Text(
-                                  _isRunning ? "RUNNING" : (_currentSeconds == 0 ? "FINISHED" : "PAUSED"),
-                                  style: widget.theme.fontMono(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: _isRunning ? progressColor : widget.theme.textSecondary,
+                            smoothDamping: true,
+                            enableAutoPeakHold: true,
+                            endBenchmarkColor: progressColor,
+                            center: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // State badge
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: _isRunning
+                                        ? progressColor.withValues(alpha: 0.15)
+                                        : widget.theme.border.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(10),
+                                  ),
+                                  child: Text(
+                                    _isRunning ? "RUNNING" : (_currentSeconds == 0 ? "FINISHED" : "PAUSED"),
+                                    style: widget.theme.fontMono(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: _isRunning ? progressColor : widget.theme.textSecondary,
+                                    ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 6),
+                                const SizedBox(height: 6),
 
-                              // Big crisp digital digits with spring pop
-                              AnimatedTextPop(
-                                text: _formatTimerDisplay(_currentSeconds),
-                                style: widget.theme.fontMono(
-                                  fontSize: 44,
-                                  fontWeight: FontWeight.w800,
-                                  color: widget.theme.text,
+                                // Big crisp digital digits with spring pop
+                                AnimatedTextPop(
+                                  text: _formatTimerDisplay(_currentSeconds),
+                                  style: widget.theme.fontMono(
+                                    fontSize: 44,
+                                    fontWeight: FontWeight.w800,
+                                    color: widget.theme.text,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(height: 4),
+                                const SizedBox(height: 4),
 
-                              // Percent remaining pill
-                              Text(
-                                "$percentRemaining% remaining",
-                                style: widget.theme.fontMono(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: widget.theme.textSecondary,
+                                // Percent remaining pill
+                                Text(
+                                  "$percentRemaining% remaining",
+                                  style: widget.theme.fontMono(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: widget.theme.textSecondary,
+                                  ),
                                 ),
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -907,132 +963,4 @@ class _TimerScreenState extends State<TimerScreen>
       ),
     );
   }
-}
-
-/// Silky Smooth Radial Bar Countdown Instrument (Noise Meter Style)
-class _TimerRadialBarPainter extends CustomPainter {
-  final double progress;
-  final Color gaugeColor;
-  final Color primaryColor;
-  final Color trackColor;
-
-  _TimerRadialBarPainter({
-    required this.progress,
-    required this.gaugeColor,
-    required this.primaryColor,
-    required this.trackColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = (size.width / 2) - 18;
-    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
-
-    // 260° sweep from bottom-left (140°) to bottom-right (400°)
-    const double startAngle = 140.0 * math.pi / 180.0;
-    const double totalSweep = 260.0 * math.pi / 180.0;
-
-    final double clampedProgress = progress.clamp(0.0, 1.0);
-    final double activeSweep = totalSweep * clampedProgress;
-
-    // 1. Subtle Inner Micro-Tick Scale Dots (24 precision ticks that light up)
-    const int tickCount = 24;
-    for (int i = 0; i <= tickCount; i++) {
-      final double frac = i / tickCount;
-      final double ang = startAngle + (totalSweep * frac);
-      final bool isMajor = i % 6 == 0;
-      final bool isLit = frac <= clampedProgress;
-      final double innerR = radius - (isMajor ? 16.5 : 14.0);
-      final double outerR = radius - 10.5;
-      final Paint tickPaint = Paint()
-        ..color = isLit
-            ? gaugeColor.withValues(alpha: isMajor ? 0.75 : 0.45)
-            : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
-        ..strokeWidth = isMajor ? 2.0 : 1.2
-        ..strokeCap = StrokeCap.round;
-
-      canvas.drawLine(
-        Offset(center.dx + innerR * math.cos(ang), center.dy + innerR * math.sin(ang)),
-        Offset(center.dx + outerR * math.cos(ang), center.dy + outerR * math.sin(ang)),
-        tickPaint,
-      );
-    }
-
-    // 2. Smooth Recessed Background Track Arc
-    final Paint trackPaint = Paint()
-      ..color = trackColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
-
-    // 3. Soft Ambient Glow Under Active Arc
-    if (activeSweep > 0.01) {
-      final Paint glowPaint = Paint()
-        ..color = gaugeColor.withValues(alpha: 0.28)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 18.0
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
-      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
-
-      // 4. Silky SweepGradient Active Arc
-      final Shader arcShader = SweepGradient(
-        startAngle: 0.0,
-        endAngle: totalSweep,
-        colors: [
-          primaryColor,
-          Color.lerp(primaryColor, gaugeColor, 0.55)!,
-          gaugeColor,
-        ],
-        stops: const [0.0, 0.62, 1.0],
-        transform: const GradientRotation(startAngle),
-      ).createShader(arcRect);
-
-      final Paint activePaint = Paint()
-        ..shader = arcShader
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12.5
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
-
-      // 5. Crisp Luminous Leading Tip Orb
-      final double tipAngle = startAngle + activeSweep;
-      final Offset tipCenter = Offset(
-        center.dx + radius * math.cos(tipAngle),
-        center.dy + radius * math.sin(tipAngle),
-      );
-      canvas.drawCircle(
-        tipCenter,
-        7.5,
-        Paint()
-          ..color = gaugeColor.withValues(alpha: 0.35)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
-      );
-      canvas.drawCircle(
-        tipCenter,
-        4.2,
-        Paint()..color = Colors.white.withValues(alpha: 0.95),
-      );
-    }
-
-    // 6. 100% Full Duration Benchmark Marker Dot at end of arc
-    if (clampedProgress < 0.97) {
-      const double endAngle = startAngle + totalSweep;
-      final Offset endPos = Offset(
-        center.dx + radius * math.cos(endAngle),
-        center.dy + radius * math.sin(endAngle),
-      );
-      canvas.drawCircle(
-        endPos,
-        3.6,
-        Paint()..color = gaugeColor.withValues(alpha: 0.65),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _TimerRadialBarPainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.gaugeColor != gaugeColor;
 }

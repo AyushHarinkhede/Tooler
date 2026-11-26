@@ -357,46 +357,84 @@ object ToolerWidgetRenderer {
                 canvas.drawCircle(s * 0.50f, s * 0.65f, r, inkFill)
             }
             "weather" -> {
-                // Minimal sun behind cloud with radiating rays, puffy cloud, and rain drops in Tooler line-art
-                val sunX = s * 0.63f
-                val sunY = s * 0.33f
-                val rSun = s * 0.16f
+                // Crisp 64x64 SVG-proportioned minimal line-art:
+                // Sun with 7 radiating rays + clean halo gap behind smooth cubic-Bezier cloud + 3 light raindrops
+                val u = s / 64f
+                val accentCol = accentFill.color
 
-                // Radiating sun rays in line-art stroke - 5 clean balanced rays
-                val anglesDeg = floatArrayOf(150f, 118f, 84f, 50f, 16f)
-                for (deg in anglesDeg) {
-                    val rad = Math.toRadians(deg.toDouble())
-                    val x1 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.05f)
-                    val y1 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.05f)
-                    val x2 = sunX + Math.cos(rad).toFloat() * (rSun + s * 0.125f)
-                    val y2 = sunY - Math.sin(rad).toFloat() * (rSun + s * 0.125f)
-                    canvas.drawLine(x1, y1, x2, y2, stroke)
+                val weatherCloudStroke = Paint(stroke).apply {
+                    strokeWidth = (s * 0.036f).coerceAtLeast(1.6f)
+                }
+                val weatherSunStroke = Paint(accentStroke).apply {
+                    strokeWidth = (s * 0.034f).coerceAtLeast(1.5f)
+                }
+                val weatherRainStroke = Paint(accentStroke).apply {
+                    strokeWidth = (s * 0.033f).coerceAtLeast(1.4f)
+                }
+                val sunTintFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.argb(46, Color.red(accentCol), Color.green(accentCol), Color.blue(accentCol))
+                    style = Paint.Style.FILL
                 }
 
-                // Sun disc arc peeking outside cloud (Pure line-art stroke, NO bold solid fill!)
-                val sunOval = RectF(sunX - rSun, sunY - rSun, sunX + rSun, sunY + rSun)
-                canvas.drawArc(sunOval, -15f, -155f, false, stroke)
-
-                // Soft puffy cloud in line-art stroke (NO opaque background block covering bubble!)
+                // Unified smooth 3-lobe cloud silhouette matching app icon
                 val cloud = Path().apply {
-                    moveTo(s * 0.20f, s * 0.62f)
-                    lineTo(s * 0.70f, s * 0.62f)
-                    arcTo(RectF(s * 0.64f, s * 0.48f, s * 0.76f, s * 0.62f), 90f, -90f, false)
-                    arcTo(RectF(s * 0.52f, s * 0.36f, s * 0.72f, s * 0.54f), 0f, -115f, false)
-                    arcTo(RectF(s * 0.24f, s * 0.24f, s * 0.58f, s * 0.52f), 0f, -145f, false)
-                    arcTo(RectF(s * 0.12f, s * 0.46f, s * 0.28f, s * 0.62f), -180f, -90f, false)
+                    moveTo(16.5f * u, 43.0f * u)
+                    lineTo(42.0f * u, 43.0f * u)
+                    cubicTo(45.75f * u, 43.0f * u, 48.8f * u, 39.95f * u, 48.8f * u, 36.2f * u)
+                    cubicTo(48.8f * u, 32.45f * u, 45.75f * u, 29.4f * u, 42.0f * u, 29.4f * u)
+                    cubicTo(39.4f * u, 29.4f * u, 37.1f * u, 30.6f * u, 36.0f * u, 32.2f * u)
+                    cubicTo(35.4f * u, 25.3f * u, 31.3f * u, 20.6f * u, 26.2f * u, 20.6f * u)
+                    cubicTo(20.9f * u, 20.6f * u, 16.8f * u, 25.1f * u, 16.6f * u, 31.2f * u)
+                    cubicTo(13.3f * u, 31.2f * u, 10.8f * u, 33.7f * u, 10.8f * u, 37.0f * u)
+                    cubicTo(10.8f * u, 40.3f * u, 13.5f * u, 43.0f * u, 16.5f * u, 43.0f * u)
                     close()
                 }
-                canvas.drawPath(cloud, stroke)
 
-                // 3 Delicate rain drops below cloud in UI accent color
-                val dx = -s * 0.035f
-                val dy = s * 0.10f
-                val dropXs = floatArrayOf(s * 0.30f, s * 0.45f, s * 0.60f)
-                val dropY = s * 0.71f
-                for (x in dropXs) {
-                    canvas.drawLine(x, dropY, x + dx, dropY + dy, accentStroke)
+                // 1. Isolated layer for Sun + Rays so halo gap punches cleanly without erasing widget tile background
+                val layer = canvas.saveLayer(0f, 0f, s, s, null)
+
+                val sunX = 42.5f * u
+                val sunY = 22.0f * u
+                val rSun = 8.0f * u
+
+                val rayAngles = floatArrayOf(150f, 120f, 90f, 60f, 30f, 0f, -30f)
+                val rInner = rSun + 2.6f * u
+                val rOuter = rSun + 5.6f * u
+                for (deg in rayAngles) {
+                    val rad = Math.toRadians(deg.toDouble())
+                    val x1 = sunX + Math.cos(rad).toFloat() * rInner
+                    val y1 = sunY - Math.sin(rad).toFloat() * rInner
+                    val x2 = sunX + Math.cos(rad).toFloat() * rOuter
+                    val y2 = sunY - Math.sin(rad).toFloat() * rOuter
+                    canvas.drawLine(x1, y1, x2, y2, weatherSunStroke)
                 }
+
+                canvas.drawCircle(sunX, sunY, rSun, sunTintFill)
+                canvas.drawCircle(sunX, sunY, rSun, weatherSunStroke)
+
+                val clearFill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+                    style = Paint.Style.FILL
+                }
+                val clearHalo = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    xfermode = android.graphics.PorterDuffXfermode(android.graphics.PorterDuff.Mode.CLEAR)
+                    style = Paint.Style.STROKE
+                    strokeWidth = 4.2f * u
+                    strokeCap = Paint.Cap.ROUND
+                    strokeJoin = Paint.Join.ROUND
+                }
+                canvas.drawPath(cloud, clearFill)
+                canvas.drawPath(cloud, clearHalo)
+
+                canvas.restoreToCount(layer)
+
+                // 2. Cloud crisp line-art contour
+                canvas.drawPath(cloud, weatherCloudStroke)
+
+                // 3. Three staggered light slanted raindrops beneath the cloud
+                canvas.drawLine(21.0f * u, 48.0f * u, 19.0f * u, 53.5f * u, weatherRainStroke)
+                canvas.drawLine(29.5f * u, 49.5f * u, 27.5f * u, 55.0f * u, weatherRainStroke)
+                canvas.drawLine(38.0f * u, 48.0f * u, 36.0f * u, 53.5f * u, weatherRainStroke)
             }
             "games" -> {
                 // Modern rounded gamepad

@@ -1244,76 +1244,100 @@ class _IllustrationPainter extends CustomPainter {
   }
 
   void _drawWeather(Canvas canvas, double w, double h, Paint p, Paint fill) {
-    // 1. Sun Peeking Behind Cloud in Upper Right (Matching Reference Image)
-    final sunCenter = Offset(w * 0.63, h * 0.33);
-    final rSun = w * 0.16;
+    // Crisp 64x64 SVG-proportioned minimal line-art:
+    // Sun behind upper-right with radiating rays + clean halo gap,
+    // smooth continuous cubic-Bezier cloud outline, and 3 delicate raindrops.
+    final u = w / 64.0;
+    final accentCol = fill.color;
+    final inkCol = p.color;
 
-    // Radiating Sun Rays in Tooler line-art stroke (p) - 5 crisp clean rays
-    final rayAngles = [
-      150 * math.pi / 180, // Upper-left
-      118 * math.pi / 180, // Upper-left-up
-      84 * math.pi / 180,  // Straight up
-      50 * math.pi / 180,  // Upper-right
-      16 * math.pi / 180,  // Right
-    ];
-
-    for (final angle in rayAngles) {
-      final p1 = Offset(
-        sunCenter.dx + math.cos(angle) * (rSun + w * 0.05),
-        sunCenter.dy - math.sin(angle) * (rSun + w * 0.05),
-      );
-      final p2 = Offset(
-        sunCenter.dx + math.cos(angle) * (rSun + w * 0.125),
-        sunCenter.dy - math.sin(angle) * (rSun + w * 0.125),
-      );
-      canvas.drawLine(p1, p2, p);
-    }
-
-    // Sun Disc Arc Peeking Outside Cloud (Pure Line-Art Stroke, NO Bold Solid Fill!)
-    canvas.drawArc(
-      Rect.fromCircle(center: sunCenter, radius: rSun),
-      -15 * math.pi / 180,
-      -155 * math.pi / 180,
-      false,
-      p,
-    );
-
-    // 2. Soft Puffy Cloud (Matching Reference Image in Tooler Line-Art Style)
-    final cloud = Path();
-    cloud.moveTo(w * 0.20, h * 0.62);
-    cloud.lineTo(w * 0.70, h * 0.62);
-    // Right rounded bottom cap
-    cloud.arcToPoint(Offset(w * 0.76, h * 0.54), radius: Radius.circular(w * 0.08));
-    // Right puff dome
-    cloud.arcToPoint(Offset(w * 0.64, h * 0.44), radius: Radius.circular(w * 0.12));
-    // Center/highest main dome
-    cloud.arcToPoint(Offset(w * 0.34, h * 0.40), radius: Radius.circular(w * 0.18));
-    // Left puff dome
-    cloud.arcToPoint(Offset(w * 0.14, h * 0.52), radius: Radius.circular(w * 0.12));
-    // Left rounded bottom cap
-    cloud.arcToPoint(Offset(w * 0.20, h * 0.62), radius: Radius.circular(w * 0.08));
-    cloud.close();
-
-    // Tooler Line-Art Stroke for the cloud (NO opaque background block covering bubble!)
-    canvas.drawPath(cloud, p);
-
-    // 3. Rain Droplets Below Cloud (Slanted, Delicate Theme Accents)
-    final rainPaint = Paint()
-      ..color = fill.color
+    final cloudStroke = Paint()
+      ..color = inkCol
       ..style = PaintingStyle.stroke
-      ..strokeWidth = p.strokeWidth * 1.05
+      ..strokeWidth = (u * 2.25).clamp(1.25, 1.56)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final sunStroke = Paint()
+      ..color = accentCol
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (u * 2.15).clamp(1.20, 1.50)
       ..strokeCap = StrokeCap.round;
 
-    final dx = -w * 0.035;
-    final dy = h * 0.10;
-    final dropXs = [w * 0.30, w * 0.45, w * 0.60];
-    const dropY = 0.71;
+    final sunTintFill = Paint()
+      ..color = accentCol.withValues(alpha: isDark ? 0.22 : 0.15)
+      ..style = PaintingStyle.fill;
 
-    for (final x in dropXs) {
-      final start = Offset(x, h * dropY);
-      final end = Offset(x + dx, h * dropY + dy);
-      canvas.drawLine(start, end, rainPaint);
+    final rainStroke = Paint()
+      ..color = accentCol
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = (u * 2.10).clamp(1.18, 1.46)
+      ..strokeCap = StrokeCap.round;
+
+    // Unified smooth 3-lobe cloud silhouette path on 64x64 SVG coordinates
+    final cloud = Path()
+      ..moveTo(16.5 * u, 43.0 * u)
+      ..lineTo(42.0 * u, 43.0 * u)
+      ..cubicTo(45.75 * u, 43.0 * u, 48.8 * u, 39.95 * u, 48.8 * u, 36.2 * u)
+      ..cubicTo(48.8 * u, 32.45 * u, 45.75 * u, 29.4 * u, 42.0 * u, 29.4 * u)
+      ..cubicTo(39.4 * u, 29.4 * u, 37.1 * u, 30.6 * u, 36.0 * u, 32.2 * u)
+      ..cubicTo(35.4 * u, 25.3 * u, 31.3 * u, 20.6 * u, 26.2 * u, 20.6 * u)
+      ..cubicTo(20.9 * u, 20.6 * u, 16.8 * u, 25.1 * u, 16.6 * u, 31.2 * u)
+      ..cubicTo(13.3 * u, 31.2 * u, 10.8 * u, 33.7 * u, 10.8 * u, 37.0 * u)
+      ..cubicTo(10.8 * u, 40.3 * u, 13.5 * u, 43.0 * u, 16.5 * u, 43.0 * u)
+      ..close();
+
+    // 1. Isolated layer for Sun + Rays so cloud halo gap punches cleanly without erasing bubbleColor
+    canvas.saveLayer(Rect.fromLTWH(0, 0, w, h), Paint());
+
+    final sunCenter = Offset(42.5 * u, 22.0 * u);
+    final rSun = 8.0 * u;
+
+    // 7 crisp radiating rays framing the exposed upper-right sun arc
+    const rayAnglesDeg = [150.0, 120.0, 90.0, 60.0, 30.0, 0.0, -30.0];
+    final rInner = rSun + 2.6 * u;
+    final rOuter = rSun + 5.6 * u;
+    for (final deg in rayAnglesDeg) {
+      final rad = deg * math.pi / 180.0;
+      canvas.drawLine(
+        Offset(
+          sunCenter.dx + math.cos(rad) * rInner,
+          sunCenter.dy - math.sin(rad) * rInner,
+        ),
+        Offset(
+          sunCenter.dx + math.cos(rad) * rOuter,
+          sunCenter.dy - math.sin(rad) * rOuter,
+        ),
+        sunStroke,
+      );
     }
+
+    // Airy UI-theme tinted sun disc + thin stroke
+    canvas.drawCircle(sunCenter, rSun, sunTintFill);
+    canvas.drawCircle(sunCenter, rSun, sunStroke);
+
+    // Punch crisp cloud silhouette + uniform breathing halo gap out of Sun layer
+    final clearFill = Paint()
+      ..blendMode = BlendMode.clear
+      ..style = PaintingStyle.fill;
+    final clearHalo = Paint()
+      ..blendMode = BlendMode.clear
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.2 * u
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+    canvas.drawPath(cloud, clearFill);
+    canvas.drawPath(cloud, clearHalo);
+
+    canvas.restore();
+
+    // 2. Cloud crisp line-art contour
+    canvas.drawPath(cloud, cloudStroke);
+
+    // 3. Three staggered light slanted raindrops beneath the cloud
+    canvas.drawLine(Offset(21.0 * u, 48.0 * u), Offset(19.0 * u, 53.5 * u), rainStroke);
+    canvas.drawLine(Offset(29.5 * u, 49.5 * u), Offset(27.5 * u, 55.0 * u), rainStroke);
+    canvas.drawLine(Offset(38.0 * u, 48.0 * u), Offset(36.0 * u, 53.5 * u), rainStroke);
   }
 
   void _drawAllTools(Canvas canvas, double w, double h, Paint p, Paint fill) {

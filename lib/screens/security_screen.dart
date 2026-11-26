@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
@@ -8,6 +9,7 @@ import '../theme/stationery_theme.dart';
 import '../services/sound_service.dart';
 import '../widgets_3d/bouncy_tap.dart';
 import '../widgets_3d/holo_3d_security_scanner.dart';
+import '../widgets_3d/smooth_radial_gauge.dart';
 
 /// ---------------------------------------------------------------------------
 /// TOOLER REAL HARDWARE & SOFTWARE DEEP SECURITY AUDIT SCREEN
@@ -44,14 +46,18 @@ class _LiveAuditLog {
 }
 
 class _SecurityScreenState extends State<SecurityScreen>
-    with WidgetsBindingObserver, SingleTickerProviderStateMixin {
+    with WidgetsBindingObserver, TickerProviderStateMixin {
   static const MethodChannel _methodChannel =
       MethodChannel('com.tooler.tooler/security_scan');
   static const EventChannel _eventChannel =
       EventChannel('com.tooler.tooler/security_scan_events');
 
   StreamSubscription<dynamic>? _eventSub;
-  late final AnimationController _waveController;
+  Ticker? _waveTicker;
+  Duration _lastWaveElapsed = Duration.zero;
+  final ValueNotifier<int> _waveFrameNotifier = ValueNotifier<int>(0);
+  double _wavePhase = 0.0;
+  double _waveEnergy = 0.58;
 
   _ScanState _scanState = _ScanState.idle;
   double _scanProgress = 0.0;
@@ -106,10 +112,24 @@ class _SecurityScreenState extends State<SecurityScreen>
   @override
   void initState() {
     super.initState();
-    _waveController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat();
+    _waveTicker = createTicker((elapsed) {
+      if (!mounted) return;
+      double dt = 0.016;
+      if (_lastWaveElapsed != Duration.zero && elapsed > _lastWaveElapsed) {
+        dt = ((elapsed - _lastWaveElapsed).inMicroseconds / 1000000.0)
+            .clamp(0.001, 0.05);
+      }
+      _lastWaveElapsed = elapsed;
+
+      final bool isScanning = _scanState == _ScanState.scanning;
+      final double targetEnergy = isScanning ? 1.0 : 0.58;
+      final double factor = 1.0 - math.exp(-4.5 * dt);
+      _waveEnergy += (targetEnergy - _waveEnergy) * factor;
+
+      final double angularSpeed = 1.35 + (_waveEnergy * 1.95);
+      _wavePhase = (_wavePhase + angularSpeed * dt) % (math.pi * 200.0);
+      _waveFrameNotifier.value++;
+    })..start();
     WidgetsBinding.instance.addObserver(this);
     _subscribeToScanEvents();
     _fetchSystemSecurityData();
@@ -118,7 +138,8 @@ class _SecurityScreenState extends State<SecurityScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _waveController.dispose();
+    _waveTicker?.dispose();
+    _waveFrameNotifier.dispose();
     _eventSub?.cancel();
     if (_scanState == _ScanState.scanning) {
       _methodChannel.invokeMethod('cancelScan');
@@ -659,28 +680,37 @@ class _SecurityScreenState extends State<SecurityScreen>
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+          padding: const EdgeInsets.symmetric(vertical: 14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. Top Real Security Status Banner
-              _buildTopStatusBanner(theme),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: _buildTopStatusBanner(theme),
+              ),
 
               // Optional 1-tap Deep Storage Permission Banner (only if not yet granted)
               if (!_hasAllFilesAccess) ...[
                 const SizedBox(height: 12),
-                _buildStorageAccessBanner(theme),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: _buildStorageAccessBanner(theme),
+                ),
               ],
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
-              // 2. NOISE-METER STYLE RADIAL SECURITY SCAN BAR GAUGE WITH BACKGROUND WAVES
+              // 2. INDEPENDENT FLOATING RADIAL SECURITY BAR & MULTI-COLOR FLOWING WAVES
               _buildSecurityRadialBarCard(theme, isScanning),
 
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
               // 3. Primary Scan Action Button
-              _buildActionButton(theme),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: _buildActionButton(theme),
+              ),
 
               // 4. LIVE SCAN AUDIT — STRICTLY VISIBLE ONLY WHILE SCANNING!
               AnimatedSize(
@@ -688,7 +718,7 @@ class _SecurityScreenState extends State<SecurityScreen>
                 curve: Curves.easeOutCubic,
                 child: isScanning
                     ? Padding(
-                        padding: const EdgeInsets.only(top: 18),
+                        padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
                         child: _buildLiveScanAuditPanel(theme),
                       )
                     : const SizedBox.shrink(),
@@ -697,18 +727,27 @@ class _SecurityScreenState extends State<SecurityScreen>
               const SizedBox(height: 18),
 
               // 5. Real Hardware RAM & Storage Telemetry Strip
-              _buildHardwareTelemetryCard(theme),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: _buildHardwareTelemetryCard(theme),
+              ),
 
               // 6. Categorized Real Scan Findings (After Scan Completes)
               if (_scanState == _ScanState.completed) ...[
                 const SizedBox(height: 18),
-                _buildScanResultsHub(theme),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  child: _buildScanResultsHub(theme),
+                ),
               ],
 
               const SizedBox(height: 18),
 
               // 7. Real Hardware, Kernel & Network Integrity Matrix
-              _buildSystemIntegrityCard(theme),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: _buildSystemIntegrityCard(theme),
+              ),
 
               const SizedBox(height: 28),
             ],
@@ -859,7 +898,7 @@ class _SecurityScreenState extends State<SecurityScreen>
   }
 
   // ===========================================================================
-  // 2. NOISE-METER STYLE RADIAL SECURITY SCAN BAR GAUGE (WITH BACKGROUND WAVES)
+  // 2. INDEPENDENT FLOATING RADIAL SECURITY BAR & MULTI-COLOR AURORA WAVES
   // ===========================================================================
   Widget _buildSecurityRadialBarCard(StationeryTheme theme, bool isScanning) {
     Color statusColor;
@@ -893,195 +932,201 @@ class _SecurityScreenState extends State<SecurityScreen>
 
     return BouncyTap(
       onTap: _startOrStopScan,
-      child: Container(
+      scaleFraction: 0.98,
+      child: SizedBox(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-        decoration: BoxDecoration(
-          color: theme.cardBg,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(
-            color: statusColor.withValues(alpha: 0.55),
-            width: 2.0,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: statusColor.withValues(alpha: 0.18),
-              offset: const Offset(0, 6),
-              blurRadius: 16,
-            ),
-          ],
-        ),
-        child: Column(
+        height: 284,
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            SizedBox(
-              width: 220,
-              height: 220,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // 1. Concentric Animated Security Waves in the Background
-                  AnimatedBuilder(
-                    animation: _waveController,
-                    builder: (context, child) {
-                      return CustomPaint(
-                        size: const Size(220, 220),
-                        painter: _SecurityWaveBackgroundPainter(
-                          animationValue: _waveController.value,
-                          isScanning: isScanning,
-                          waveColor: statusColor,
-                        ),
-                      );
-                    },
-                  ),
+            // 1. Multi-Color Non-Circular Flowing Aurora Waves (Edge-to-Edge)
+            Positioned.fill(
+              child: RepaintBoundary(
+                child: ValueListenableBuilder<int>(
+                  valueListenable: _waveFrameNotifier,
+                  builder: (context, _, __) {
+                    return CustomPaint(
+                      painter: _SecurityMultiColorWavePainter(
+                        wavePhase: _wavePhase,
+                        waveEnergy: _waveEnergy,
+                        isScanning: isScanning,
+                        theme: theme,
+                        statusColor: statusColor,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
 
-                  // 2. Silky Smooth Radial Bar Gauge (Noise-Meter Style)
-                  CustomPaint(
-                    size: const Size(220, 220),
-                    painter: _SecurityRadialBarPainter(
-                      progress: barProgress,
-                      peakHoldProgress: isScanning ? _scanProgress : 1.0,
-                      gaugeColor: statusColor,
-                      primaryColor: const Color(0xFF06B6D4),
-                      trackColor: theme.border.withValues(alpha: 0.35),
-                    ),
+            // 2. Independent Larger Silky Smooth Radial Bar Gauge (Noise-Meter Grade)
+            SmoothRadialGauge(
+              size: 264,
+              progress: barProgress,
+              gaugeColor: statusColor,
+              primaryColor: theme.primary,
+              trackColor: theme.border.withValues(
+                alpha: theme.isDark ? 0.45 : 0.65,
+              ),
+              smoothDamping: true,
+              enableAutoPeakHold: true,
+              center: Container(
+                width: 138,
+                height: 138,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      theme.bg.withValues(alpha: 0.84),
+                      theme.bg.withValues(alpha: 0.48),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.0, 0.68, 1.0],
                   ),
-
-                  // 3. Center Live Score, Percent or Status Info
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (isScanning) ...[
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              "${(barProgress * 100).toInt()}",
-                              style: theme.fontDisplay(
-                                fontSize: 48,
-                                fontWeight: FontWeight.w900,
-                                color: statusColor,
-                              ),
-                            ),
-                            Text(
-                              "%",
-                              style: theme.fontMono(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: theme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1),
-                          ),
-                          child: Text(
-                            statusBadge,
-                            style: theme.fontMono(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
+                ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (isScanning) ...[
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            "${(barProgress * 100).toInt()}",
+                            style: theme.fontDisplay(
+                              fontSize: 52,
+                              fontWeight: FontWeight.w900,
                               color: statusColor,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "$_liveAppsScanned Apps • $_liveFilesScanned Files",
-                          style: theme.fontMono(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
-                            color: theme.textSecondary,
-                          ),
-                        ),
-                      ] else if (_scanState == _ScanState.completed) ...[
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.baseline,
-                          textBaseline: TextBaseline.alphabetic,
-                          children: [
-                            Text(
-                              "${_securityScore ?? 100}",
-                              style: theme.fontDisplay(
-                                fontSize: 48,
-                                fontWeight: FontWeight.w900,
-                                color: statusColor,
-                              ),
-                            ),
-                            Text(
-                              "/100",
-                              style: theme.fontMono(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                                color: theme.textSecondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1),
-                          ),
-                          child: Text(
-                            statusBadge,
+                          Text(
+                            "%",
                             style: theme.fontMono(
-                              fontSize: 10,
+                              fontSize: 19,
                               fontWeight: FontWeight.bold,
-                              color: statusColor,
+                              color: theme.textSecondary,
                             ),
                           ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 11, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: statusColor.withValues(alpha: 0.5),
+                              width: 1),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "$_liveAppsScanned Apps & $_liveFilesScanned Files",
-                          style: theme.fontMono(
-                            fontSize: 9.5,
-                            fontWeight: FontWeight.w600,
-                            color: theme.textSecondary,
-                          ),
-                        ),
-                      ] else ...[
-                        Icon(Icons.shield_outlined, size: 42, color: statusColor),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.5), width: 1),
-                          ),
-                          child: Text(
-                            "READY",
-                            style: theme.fontMono(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          "DEEP AUDIT",
+                        child: Text(
+                          statusBadge,
                           style: theme.fontMono(
                             fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: theme.textSecondary,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
                           ),
                         ),
-                      ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "$_liveAppsScanned Apps • $_liveFilesScanned Files",
+                        style: theme.fontMono(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                    ] else if (_scanState == _ScanState.completed) ...[
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.baseline,
+                        textBaseline: TextBaseline.alphabetic,
+                        children: [
+                          Text(
+                            "${_securityScore ?? 100}",
+                            style: theme.fontDisplay(
+                              fontSize: 52,
+                              fontWeight: FontWeight.w900,
+                              color: statusColor,
+                            ),
+                          ),
+                          Text(
+                            "/100",
+                            style: theme.fontMono(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: theme.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 11, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: statusColor.withValues(alpha: 0.5),
+                              width: 1),
+                        ),
+                        child: Text(
+                          statusBadge,
+                          style: theme.fontMono(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        "$_liveAppsScanned Apps & $_liveFilesScanned Files",
+                        style: theme.fontMono(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          color: theme.textSecondary,
+                        ),
+                      ),
+                    ] else ...[
+                      Icon(Icons.shield_outlined, size: 46, color: statusColor),
+                      const SizedBox(height: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 3.5),
+                        decoration: BoxDecoration(
+                          color: statusColor.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: statusColor.withValues(alpha: 0.55),
+                              width: 1),
+                        ),
+                        child: Text(
+                          "READY",
+                          style: theme.fontMono(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.bold,
+                            color: statusColor,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      Text(
+                        "DEEP AUDIT",
+                        style: theme.fontMono(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          color: theme.textSecondary,
+                        ),
+                      ),
                     ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ],
@@ -2478,171 +2523,217 @@ class _SecurityScreenState extends State<SecurityScreen>
   }
 }
 
-/// Animated Concentric Wave Ripple Background for Security Scanner
-class _SecurityWaveBackgroundPainter extends CustomPainter {
-  final double animationValue;
+/// Multi-Color Flowing Aurora Wave Painter for Security Scanner.
+/// Renders non-circular, intertwined sinusoidal energy ribbons and crest sparks
+/// using the full UI color palette with soft edge fade across the hover page.
+class _SecurityMultiColorWavePainter extends CustomPainter {
+  final double wavePhase;
+  final double waveEnergy;
   final bool isScanning;
-  final Color waveColor;
+  final StationeryTheme theme;
+  final Color statusColor;
 
-  _SecurityWaveBackgroundPainter({
-    required this.animationValue,
+  const _SecurityMultiColorWavePainter({
+    required this.wavePhase,
+    required this.waveEnergy,
     required this.isScanning,
-    required this.waveColor,
+    required this.theme,
+    required this.statusColor,
   });
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final maxRadius = size.width * 0.44;
+  List<Color> _uiSpectrum() => [
+        theme.primary,
+        const Color(0xFF06B6D4), // Cyan
+        const Color(0xFFA855F7), // Lilac Violet
+        const Color(0xFF10B981), // Emerald
+        const Color(0xFFF59E0B), // Warm Amber
+        const Color(0xFF0EA5E9), // Sky Blue
+        const Color(0xFFFB7185), // Blush Rose
+      ];
 
-    const int waveCount = 3;
-    for (int i = 0; i < waveCount; i++) {
-      final double waveProgress = (animationValue + (i / waveCount)) % 1.0;
-      final double r = maxRadius * (0.35 + (0.65 * waveProgress));
-      final double alpha = (1.0 - waveProgress) * (isScanning ? 0.35 : 0.18);
+  double _strandY(
+    int i,
+    double t,
+    double centerY,
+    double width,
+    double env,
+  ) {
+    const double twoPi = math.pi * 2.0;
+    final double spread = (i - 2.5) * 14.0 * (0.45 + 0.55 * env);
+    final double crossTilt =
+        (i.isEven ? 1.0 : -1.0) * (16.0 + (i % 3) * 8.0) * (t - 0.5) * env;
+    final double f1 = 1.35 + (i % 3) * 0.52;
+    final double f2 = 2.65 + (i % 2) * 0.90;
+    final double dir = i.isEven ? 1.0 : -1.0;
+    final double phase1 = wavePhase * dir * (0.85 + i * 0.14) + i * 1.12;
+    final double phase2 = wavePhase * -dir * 0.65 + i * 2.05;
+    final double amp =
+        (19.0 + (i % 3) * 8.0) * (0.64 + 0.54 * waveEnergy) * env;
 
-      final paint = Paint()
-        ..color = waveColor.withValues(alpha: alpha)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = isScanning ? 2.0 : 1.2;
-
-      canvas.drawCircle(center, r, paint);
-    }
+    return centerY +
+        spread +
+        crossTilt +
+        math.sin(t * twoPi * f1 + phase1) * amp +
+        math.cos(t * twoPi * f2 + phase2) * (amp * 0.42);
   }
 
   @override
-  bool shouldRepaint(covariant _SecurityWaveBackgroundPainter oldDelegate) => true;
-}
-
-/// Noise-Meter Style Silky Smooth Radial Security Scan Bar Gauge
-class _SecurityRadialBarPainter extends CustomPainter {
-  final double progress;
-  final double peakHoldProgress;
-  final Color gaugeColor;
-  final Color primaryColor;
-  final Color trackColor;
-
-  _SecurityRadialBarPainter({
-    required this.progress,
-    required this.peakHoldProgress,
-    required this.gaugeColor,
-    required this.primaryColor,
-    required this.trackColor,
-  });
-
-  @override
   void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final double radius = (size.width / 2) - 18;
-    final Rect arcRect = Rect.fromCircle(center: center, radius: radius);
+    final double centerY = size.height / 2;
+    final List<Color> uiColors = _uiSpectrum();
+    final Rect bounds = Offset.zero & size;
+    const int segs = 72;
+    const int strandCount = 6;
+    final bool isDark = theme.isDark;
 
-    // 260° sweep from bottom-left (140°) to bottom-right (400°)
-    const double startAngle = 140.0 * math.pi / 180.0;
-    const double totalSweep = 260.0 * math.pi / 180.0;
+    // Precompute points for all 6 sinusoidal wave strands
+    final List<List<Offset>> strands = List.generate(strandCount, (i) {
+      return List.generate(segs + 1, (s) {
+        final double t = s / segs;
+        final double env = math.pow(math.sin(t * math.pi), 0.72).toDouble();
+        final double x = t * size.width;
+        final double y = _strandY(i, t, centerY, size.width, env);
+        return Offset(x, y);
+      });
+    });
 
-    final double clampedProgress = progress.clamp(0.0, 1.0);
-    final double activeSweep = totalSweep * clampedProgress;
-    final double clampedPeak = peakHoldProgress.clamp(0.0, 1.0);
+    // 1. Translucent Multi-Color Ribbon Veils between counter-phase pairs (i, i+3)
+    for (int i = 0; i < 3; i++) {
+      final List<Offset> topPts = strands[i];
+      final List<Offset> botPts = strands[i + 3];
+      final Path ribbonPath = Path()..moveTo(topPts.first.dx, topPts.first.dy);
+      for (int s = 1; s < topPts.length; s++) {
+        ribbonPath.lineTo(topPts[s].dx, topPts[s].dy);
+      }
+      for (int s = botPts.length - 1; s >= 0; s--) {
+        ribbonPath.lineTo(botPts[s].dx, botPts[s].dy);
+      }
+      ribbonPath.close();
 
-    // 1. Subtle Inner Micro-Tick Scale Dots (24 precision ticks)
-    const int tickCount = 24;
-    for (int i = 0; i <= tickCount; i++) {
-      final double frac = i / tickCount;
-      final double ang = startAngle + (totalSweep * frac);
-      final bool isMajor = i % 6 == 0;
-      final bool isLit = frac <= clampedProgress;
-      final double innerR = radius - (isMajor ? 16.5 : 14.0);
-      final double outerR = radius - 10.5;
-      final Paint tickPaint = Paint()
-        ..color = isLit
-            ? gaugeColor.withValues(alpha: isMajor ? 0.75 : 0.45)
-            : trackColor.withValues(alpha: isMajor ? 0.65 : 0.35)
-        ..strokeWidth = isMajor ? 2.0 : 1.2
-        ..strokeCap = StrokeCap.round;
+      final Color c0 = uiColors[i % uiColors.length];
+      final Color c1 = uiColors[(i + 2) % uiColors.length];
+      final Color c2 = uiColors[(i + 4) % uiColors.length];
+      final double ribbonAlpha =
+          (isDark ? 0.11 : 0.09) * (0.72 + 0.45 * waveEnergy);
 
-      canvas.drawLine(
-        Offset(center.dx + innerR * math.cos(ang), center.dy + innerR * math.sin(ang)),
-        Offset(center.dx + outerR * math.cos(ang), center.dy + outerR * math.sin(ang)),
-        tickPaint,
-      );
+      final Paint ribbonPaint = Paint()
+        ..shader = LinearGradient(
+          colors: [
+            Colors.transparent,
+            c0.withValues(alpha: ribbonAlpha),
+            c1.withValues(alpha: ribbonAlpha * 1.15),
+            c2.withValues(alpha: ribbonAlpha),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.16, 0.50, 0.84, 1.0],
+        ).createShader(bounds)
+        ..style = PaintingStyle.fill;
+
+      canvas.drawPath(ribbonPath, ribbonPaint);
     }
 
-    // 2. Smooth Recessed Background Track Arc
-    final Paint trackPaint = Paint()
-      ..color = trackColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 12.5
-      ..strokeCap = StrokeCap.round;
-    canvas.drawArc(arcRect, startAngle, totalSweep, false, trackPaint);
+    // 2. Glowing Multi-Color Wave Filaments (Bloom + Crisp Core)
+    for (int i = 0; i < strandCount; i++) {
+      final List<Offset> pts = strands[i];
+      final Path path = Path()..moveTo(pts.first.dx, pts.first.dy);
+      for (int s = 1; s < pts.length; s++) {
+        path.lineTo(pts[s].dx, pts[s].dy);
+      }
 
-    // 3. Soft Ambient Glow Under Active Arc
-    if (activeSweep > 0.01) {
-      final Paint glowPaint = Paint()
-        ..color = gaugeColor.withValues(alpha: 0.28)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 18.0
-        ..strokeCap = StrokeCap.round
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7.0);
-      canvas.drawArc(arcRect, startAngle, activeSweep, false, glowPaint);
+      final Color c0 = uiColors[i % uiColors.length];
+      final Color c1 = uiColors[(i + 2) % uiColors.length];
+      final Color c2 = uiColors[(i + 4) % uiColors.length];
+      final Color c3 = uiColors[(i + 6) % uiColors.length];
 
-      // 4. Silky SweepGradient Active Arc
-      final Shader arcShader = SweepGradient(
-        startAngle: 0.0,
-        endAngle: totalSweep,
+      final double bloomAlpha =
+          (isDark ? 0.30 : 0.22) * (0.68 + 0.48 * waveEnergy);
+      final double coreAlpha =
+          (isDark ? 0.64 : 0.56) * (0.70 + 0.42 * waveEnergy);
+
+      final Shader bloomShader = LinearGradient(
         colors: [
-          primaryColor,
-          Color.lerp(primaryColor, gaugeColor, 0.55)!,
-          gaugeColor,
+          Colors.transparent,
+          c0.withValues(alpha: bloomAlpha),
+          c1.withValues(alpha: bloomAlpha),
+          c2.withValues(alpha: bloomAlpha),
+          c3.withValues(alpha: bloomAlpha),
+          Colors.transparent,
         ],
-        stops: const [0.0, 0.62, 1.0],
-        transform: const GradientRotation(startAngle),
-      ).createShader(arcRect);
+        stops: const [0.0, 0.12, 0.38, 0.62, 0.88, 1.0],
+      ).createShader(bounds);
 
-      final Paint activePaint = Paint()
-        ..shader = arcShader
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 12.5
-        ..strokeCap = StrokeCap.round;
-      canvas.drawArc(arcRect, startAngle, activeSweep, false, activePaint);
-
-      // 5. Crisp Luminous Leading Tip Orb
-      final double tipAngle = startAngle + activeSweep;
-      final Offset tipCenter = Offset(
-        center.dx + radius * math.cos(tipAngle),
-        center.dy + radius * math.sin(tipAngle),
-      );
-      canvas.drawCircle(
-        tipCenter,
-        7.5,
+      canvas.drawPath(
+        path,
         Paint()
-          ..color = gaugeColor.withValues(alpha: 0.35)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4.0),
+          ..shader = bloomShader
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = isScanning ? 6.2 : 4.6
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5.0),
       );
-      canvas.drawCircle(
-        tipCenter,
-        4.2,
-        Paint()..color = Colors.white.withValues(alpha: 0.95),
+
+      final Shader coreShader = LinearGradient(
+        colors: [
+          Colors.transparent,
+          c0.withValues(alpha: coreAlpha),
+          c1.withValues(alpha: coreAlpha),
+          c2.withValues(alpha: coreAlpha),
+          c3.withValues(alpha: coreAlpha),
+          Colors.transparent,
+        ],
+        stops: const [0.0, 0.12, 0.38, 0.62, 0.88, 1.0],
+      ).createShader(bounds);
+
+      canvas.drawPath(
+        path,
+        Paint()
+          ..shader = coreShader
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = (i < 3 ? 2.0 : 1.45) + (isScanning ? 0.45 : 0.0)
+          ..strokeCap = StrokeCap.round,
       );
     }
 
-    // 6. Floating Peak-Hold Indicator Marker Dot
-    if (clampedPeak > clampedProgress + 0.02) {
-      final double peakAngle = startAngle + (totalSweep * clampedPeak);
-      final Offset peakPos = Offset(
-        center.dx + radius * math.cos(peakAngle),
-        center.dy + radius * math.sin(peakAngle),
+    // 3. Wave-Crest Energy Motes riding smoothly along the colorful ribbons
+    const int moteCount = 12;
+    for (int k = 0; k < moteCount; k++) {
+      final int strandIdx = k % strandCount;
+      final double speed = 0.042 + (k % 3) * 0.014;
+      final double t = ((wavePhase * speed) + (k / moteCount)) % 1.0;
+      final double fade = math.sin(t * math.pi).clamp(0.0, 1.0);
+      final double env = math.pow(fade, 0.72).toDouble();
+      final double x = t * size.width;
+      final double y = _strandY(strandIdx, t, centerY, size.width, env);
+      final Offset pos = Offset(x, y);
+
+      final Color moteColor =
+          k == 0 && isScanning ? statusColor : uiColors[k % uiColors.length];
+      final double alpha = fade * (0.48 + 0.42 * waveEnergy);
+      final double r = 1.6 + (k % 3) * 0.55;
+
+      canvas.drawCircle(
+        pos,
+        r * 2.5,
+        Paint()
+          ..color = moteColor.withValues(alpha: alpha * 0.45)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3.5),
       );
       canvas.drawCircle(
-        peakPos,
-        3.6,
-        Paint()..color = gaugeColor.withValues(alpha: 0.85),
+        pos,
+        r,
+        Paint()
+          ..color = Color.lerp(moteColor, Colors.white, isDark ? 0.35 : 0.15)!
+              .withValues(alpha: alpha),
       );
     }
   }
 
   @override
-  bool shouldRepaint(covariant _SecurityRadialBarPainter oldDelegate) =>
-      oldDelegate.progress != progress ||
-      oldDelegate.peakHoldProgress != peakHoldProgress ||
-      oldDelegate.gaugeColor != gaugeColor;
+  bool shouldRepaint(covariant _SecurityMultiColorWavePainter oldDelegate) =>
+      oldDelegate.wavePhase != wavePhase ||
+      (oldDelegate.waveEnergy - waveEnergy).abs() > 0.002 ||
+      oldDelegate.isScanning != isScanning ||
+      oldDelegate.statusColor != statusColor ||
+      oldDelegate.theme.isDark != theme.isDark ||
+      oldDelegate.theme.primary != theme.primary;
 }
